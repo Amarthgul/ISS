@@ -188,7 +188,6 @@ def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
     # Semi-major axis length 
     a = np.linalg.norm(posA - posB) / 2
     b = np.sqrt(BB * AC) / 2
-    print("a and b ", a, b)
     
     # Calculate the ellipse 
     if (useDistribution):
@@ -231,6 +230,8 @@ def main():
     posB = FindB(posA, posC, posP, d)
     
     points = EllipsePeripheral(posA, posB, posC, posP, d) 
+
+    pointsCuircle = EllipsePeripheral(posA, posB, posC, posP, d, False) 
     
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
@@ -238,7 +239,7 @@ def main():
     PlotTest.DrawCircle(ax, 6)
     PlotTest.DrawIncidentPlane(ax, posP, posB, d)
 
-    #PlotTest.Draw3D(ax, points[0], points[1], points[2])
+    PlotTest.Draw3D(ax, pointsCuircle[0], pointsCuircle[1], pointsCuircle[2])
     PlotTest.DrawPoint(ax, points)
 
     
