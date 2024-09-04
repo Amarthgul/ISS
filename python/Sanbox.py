@@ -219,9 +219,61 @@ def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
     
     return trans_2
 
+def RaySphereIntersection(ray_origin, ray_direction, sphere_center, sphere_radius):
+    """
+    Calculate the intersection points between a ray and a sphere.
+
+    :param ray_origin: The origin of the ray (numpy array or list of 3 coordinates).
+    :param ray_direction: The direction of the ray (numpy array or list of 3 coordinates).
+    :param sphere_center: The center of the sphere (numpy array or list of 3 coordinates).
+    :param sphere_radius: The radius of the sphere (float).
+    :return: A tuple containing the intersection points or None if there are no intersections.
+    """
+    # Convert input to numpy arrays
+    ray_origin = np.array(ray_origin)
+    ray_direction = np.array(ray_direction)
+    sphere_center = np.array(sphere_center)
+
+    # Normalize the direction vector
+    ray_direction = ray_direction / np.linalg.norm(ray_direction)
+
+    # Coefficients for the quadratic equation
+    oc = ray_origin - sphere_center
+    A = np.dot(ray_direction, ray_direction)
+    B = 2.0 * np.dot(oc, ray_direction)
+    C = np.dot(oc, oc) - sphere_radius**2
+
+    # Discriminant of the quadratic equation
+    discriminant = B**2 - 4*A*C
+
+    if discriminant < 0:
+        return None  # No intersection
+    elif discriminant == 0:
+        # One point of intersection (tangent)
+        # For this application this should never happen 
+        t = -B / (2*A)
+        intersection_point = ray_origin + t * ray_direction
+        return intersection_point
+    else:
+        # Two points of intersection
+        sqrt_discriminant = np.sqrt(discriminant)
+        t1 = (-B - sqrt_discriminant) / (2*A)
+        t2 = (-B + sqrt_discriminant) / (2*A)
+        
+        # Calculate the intersection points
+        intersection_point1 = ray_origin + t1 * ray_direction
+        intersection_point2 = ray_origin + t2 * ray_direction
+        
+        
+        
+        return intersection_point1, intersection_point2
+
+
+
 def main():
     posP = np.array([3, 4, -10])
     d = 6
+    r = 40
     P_xy_projection = np.array([posP[0], posP[1], 0])
     posA = d * ( P_xy_projection / np.linalg.norm(P_xy_projection) )
     posC = d * (-P_xy_projection / np.linalg.norm(P_xy_projection) )
@@ -231,17 +283,28 @@ def main():
     
     points = EllipsePeripheral(posA, posB, posC, posP, d) 
 
-    pointsCuircle = EllipsePeripheral(posA, posB, posC, posP, d, False) 
+    pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, False) 
     
+    # Random vector form the points 
+    randVec = np.transpose(points)[60] - posP
+    randVec = Normalized(randVec)
+    
+    intersections = RaySphereIntersection(posP, randVec, np.array([0, 0, 40]), 40); 
+    print(intersections)
+
+
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
     PlotTest.AddXYZ(ax, 6)
     PlotTest.DrawCircle(ax, 6)
     PlotTest.DrawIncidentPlane(ax, posP, posB, d)
 
-    PlotTest.Draw3D(ax, pointsCuircle[0], pointsCuircle[1], pointsCuircle[2])
+    PlotTest.Draw3D(ax, pointsCircle[0], pointsCircle[1], pointsCircle[2])
+    PlotTest.DrawLine(ax, posP, posP + randVec, "m")
     PlotTest.DrawPoint(ax, points)
-
+    PlotTest.DrawSpherical(ax, r, 7, 0)
+    
+    PlotTest.DrawPoint(ax, intersections[0])
     
     plt.show()
 

@@ -61,3 +61,54 @@ def DrawIncidentPlane(ax, posP, posB, d):
 def DrawEmission(points):
     for p in points:
         print(p)
+        
+
+def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k"):
+    """
+    Draw a spherical surface along the z axis. 
+    
+    :param ax: axis to draw on. 
+    :param radius: radius of the spherical surface. 
+    :param clearSemiDiameter: clear semi diameter. Surface will be trimed around it. 
+    :param thickness: Cumulative thickness from 1st surface. 
+    :param numPoints: number of points, controls the subdivision of the surface. 
+    :surfaceColor: color of the surface. 
+    """
+    unsignedrRadius = radius * np.sign(radius)
+
+    radianLimit = np.arcsin(clearSemiDiameter/unsignedrRadius) 
+    
+    theta = np.linspace(0, 2 * np.pi, int(numPoints / 1))  # Azimuthal angle (0 <= theta <= 2*pi)
+    phi = np.linspace(0, radianLimit, int(numPoints / 1))  # Polar angle (0 <= phi <= phi_max for a bowl)
+    
+    theta, phi = np.meshgrid(theta, phi)
+    
+    x = radius * np.sin(phi) * np.cos(theta)
+    y = radius * np.sin(phi) * np.sin(theta)
+    z = -np.sign(radius) * (unsignedrRadius * np.cos(phi) - unsignedrRadius) + thickness
+        
+    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.25)
+
+
+
+def main():
+    ax = Setup3Dplot()
+    SetUnifScale(ax)
+    AddXYZ(ax, 6)
+    
+    DrawSpherical(ax, -5, 4, 0)
+    
+    DrawSpherical(ax, 10, 4, 0.2)
+    
+    DrawSpherical(ax, 10, 4, 1)
+    DrawSpherical(ax, -20, 4, 4)
+    
+    plt.show()
+    
+
+if __name__ == "__main__":
+    main() 
+
+
+
+
