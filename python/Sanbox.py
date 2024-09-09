@@ -2,6 +2,7 @@
 
 from locale import normalize
 from mailbox import Babyl
+from turtle import clear
 from xml.dom.expatbuilder import theDOMImplementation
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -11,6 +12,11 @@ from numpy.linalg import norm
 import PlotTest
 
 origin = np.array([0, 0, 0])
+
+#  ===========================================================================
+"""
+================================= Utility ====================================
+"""
 
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)
@@ -48,7 +54,6 @@ def Rotation(theta, pivot, axis, inputVertex):
     offsetVertex = ORotation(theta, axis, offsetVertex)
     return np.transpose(np.transpose(inputVertex) + pivot )
     
-
 def Translate(inputVertex, translation):
     return np.transpose(np.transpose(inputVertex) + translation)
 
@@ -84,7 +89,7 @@ def linePlaneIntersection(plane_normal, point_on_plane, line_direction, point_on
     
     return intersection_point
 
-def angleBetweenVectors(v1, v2, useDegrees = False):
+def angleBetweenVectors(v1, v2, use_degrees = False):
     """
     Calculates the angle between two vectors in radians.
     
@@ -113,18 +118,20 @@ def angleBetweenVectors(v1, v2, useDegrees = False):
     angle_radians = np.arccos(cos_theta)
     
     # Convert to degrees
-    if useDegrees:
+    if use_degrees:
         np.degrees(angle_radians)
     else:
         return angle_radians
 
-def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8):
+def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 0.93):
     """
     Accquire a distribution based on polar coordinate. 
+
     :param radius: radius of the circle, it is suggested to keep it at 1. 
     :param layer: number of layers of samples, each layer is in a concentric circle, with different radius.
     :param densityScale: with increase of radius, the delta area is used to calculate the points needed, this parameter is used to divide the delta area and get the number of sample points. The lower it is, the more sample. 
     :param powerCoef: due to the use of delta area depending on radius, linear scale will make outer edges having more samples. This parameter reduces this unevenness. 
+    :param shrink: shrink the distribution a bit to avoid edge clipping when used later in the projection. 
     """
     partitionLayer = (np.arange(layer) + 1.0) / layer
     lastArea = 0
@@ -146,7 +153,7 @@ def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef =
                                     np.zeros(pointsInLayer)])
         points = np.hstack((points, layerPoints))
         
-    return points * radius
+    return points * radius * shrink
 
     
 #  ===========================================================================
@@ -175,6 +182,13 @@ def FindB(posA, posC, posP, d):
 def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
     """
     Find the points on the ellipse and align it to the AB plane. 
+
+    :param posA: position of point A. 
+    :param posB: position of point B. 
+    :param posC: position of point C. 
+    :param posP: position of point P. 
+    :param d: clear semi diameter of the surface. 
+    :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
     """
     
     # Util vectors 
@@ -193,7 +207,6 @@ def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
     if (useDistribution):
         points = CircularDistribution()
         points = np.transpose(np.transpose(points) * np.array([b, a, 0]))
-        #print(points)
     else:
         theta = np.linspace(0, 2 * np.pi, 100)
         x = b * np.cos(theta) 
@@ -229,6 +242,7 @@ def RaySphereIntersection(ray_origin, ray_direction, sphere_center, sphere_radiu
     :param sphere_radius: The radius of the sphere (float).
     :return: A tuple containing the intersection points or None if there are no intersections.
     """
+    
     # Convert input to numpy arrays
     ray_origin = np.array(ray_origin)
     ray_direction = np.array(ray_direction)
@@ -239,7 +253,9 @@ def RaySphereIntersection(ray_origin, ray_direction, sphere_center, sphere_radiu
 
     # Coefficients for the quadratic equation
     oc = ray_origin - sphere_center
+    print("oc: ", oc)
     A = np.dot(ray_direction, ray_direction)
+    #A = np.sum(ray_direction ** 2, axis=1)
     B = 2.0 * np.dot(oc, ray_direction)
     C = np.dot(oc, oc) - sphere_radius**2
 
@@ -264,9 +280,110 @@ def RaySphereIntersection(ray_origin, ray_direction, sphere_center, sphere_radiu
         intersection_point1 = ray_origin + t1 * ray_direction
         intersection_point2 = ray_origin + t2 * ray_direction
         
-        
-        
         return intersection_point1, intersection_point2
+
+def raySphereIntersectionArray(ray_origins, ray_directions, sphere_center, sphere_radius):
+    """
+    Calculate the intersection points between multiple rays and a sphere.
+
+    :param ray_origins: An array of ray origins with shape (N, 3), where N is the number of rays.
+    :param ray_directions: An array of ray directions with shape (N, 3).
+    :param sphere_center: The center of the sphere (numpy array or list of 3 coordinates).
+    :param sphere_radius: The radius of the sphere (float).
+    :return: A list of intersection points for each ray. Each entry is either None (if no intersection),
+             one point (if the ray is tangent), or two points (if the ray intersects the sphere at two points).
+    """
+    # Convert inputs to numpy arrays
+    ray_origins = np.array(ray_origins)
+    ray_directions = np.array(ray_directions)
+    sphere_center = np.array(sphere_center)
+
+    # Normalize the direction vectors
+    ray_directions = ray_directions / np.linalg.norm(ray_directions, axis=1)[:, np.newaxis]
+
+    # Coefficients for the quadratic equation
+    oc = ray_origins - sphere_center
+    A = np.sum(ray_directions**2, axis=1)  # A = dot(ray_direction, ray_direction)
+    B = 2.0 * np.sum(oc * ray_directions, axis=1)
+    C = np.sum(oc**2, axis=1) - sphere_radius**2
+
+    # Discriminant of the quadratic equation
+    discriminant = B**2 - 4*A*C
+
+    # Prepare the list to store results
+    intersections = []
+
+    # Loop over each ray and compute the intersection
+    for i in range(len(ray_origins)):
+        if discriminant[i] < 0:
+            intersections.append(None)  # No intersection
+        elif discriminant[i] == 0:
+            # One point of intersection (tangent)
+            t = -B[i] / (2*A[i])
+            intersection_point = ray_origins[i] + t * ray_directions[i]
+            intersections.append(intersection_point)
+        else:
+            # Two points of intersection
+            sqrt_discriminant = np.sqrt(discriminant[i])
+            t1 = (-B[i] - sqrt_discriminant) / (2*A[i])
+            t2 = (-B[i] + sqrt_discriminant) / (2*A[i])
+            
+            # Calculate the intersection points
+            intersection_point1 = ray_origins[i] + t1 * ray_directions[i]
+            intersection_point2 = ray_origins[i] + t2 * ray_directions[i]
+            
+            intersections.append((intersection_point1, intersection_point2))
+
+    return intersections
+
+def IsolateIntersection(intersections, sphere_radius, clear_semi_diameter, cumulative_thickness):
+    """
+    Find the correct intersection points given 2 intersections between a sphere and a vector. 
+
+    :param intersections: 2 intersection points. 
+    :param sphere_radius: radius of the spherical surface. 
+    :param clear_semi_diameter: ¯\_(ツ)_/¯
+    :param cumulative_thickness: cumulative thickness from the first vertex. 
+    """
+
+    if (len(intersections) == 1): raise ValueError("No intersection is possible at all")
+    if (len(intersections) == 1): return intersections 
+
+    allowed_left = cumulative_thickness
+    
+    difference = (sphere_radius - np.sqrt(sphere_radius**2 - clear_semi_diameter**2))
+    if (sphere_radius > 0):
+        allowed_right = cumulative_thickness + difference
+    else:
+        allowed_right = cumulative_thickness - difference
+        
+    if (intersections[0][2] >= allowed_left and intersections[0][2] <= allowed_right):
+        return intersections[0]
+    elif (intersections[1][2] >= allowed_left and intersections[1][2] <= allowed_right):
+        return intersections[1] 
+    else:
+        # This is either a value error or it's the ray being vignetted. 
+        # For the sake of simulation, it is better to assume it's the ray refracted from last surface has too extreme of an angle and is vignetted. 
+        return None 
+
+def PruneIntersectionArray(intersections, sphere_radius, clear_semi_diameter, cumulative_thickness):
+    """
+    For a set of vectors intersecting with the spherical surface, find the correct intersections. 
+
+    :param intersections: 2 intersection points. 
+    :param sphere_radius: radius of the spherical surface. 
+    :param clear_semi_diameter: ¯\_(ツ)_/¯
+    :param cumulative_thickness: cumulative thickness from the first vertex. 
+    """
+    result = []
+
+    for i in range(len(intersections)):
+        passed = IsolateIntersection(intersections[i], sphere_radius, clear_semi_diameter, cumulative_thickness)
+        if (passed is not None):
+            result.append(IsolateIntersection(intersections[i], sphere_radius, clear_semi_diameter, cumulative_thickness))
+
+    return np.array(result)
+
 
 
 
@@ -281,17 +398,20 @@ def main():
     
     posB = FindB(posA, posC, posP, d)
     
-    points = EllipsePeripheral(posA, posB, posC, posP, d) 
+    points = EllipsePeripheral(posA, posB, posC, posP, d) # Sample points in the ellipse area 
 
-    pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, False) 
+    pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, False) # Points that form the edge of the ellipse 
     
     # Random vector form the points 
-    randVec = np.transpose(points)[60] - posP
-    randVec = Normalized(randVec)
+    #randVec = np.transpose(points)[60] - posP
+    #randVec = Normalized(randVec)
+    vecs = Normalized(np.transpose(points) - posP)
     
-    intersections = RaySphereIntersection(posP, randVec, np.array([0, 0, 40]), 40); 
-    print(intersections)
+    duplicateOrigin = np.tile(posP, (points.shape[1], 1))
 
+    intersections = raySphereIntersectionArray(duplicateOrigin, vecs, np.array([0, 0, r]), r); 
+    intersection = PruneIntersectionArray(intersections, r, d, 0)
+    print(intersection)
 
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
@@ -300,11 +420,12 @@ def main():
     PlotTest.DrawIncidentPlane(ax, posP, posB, d)
 
     PlotTest.Draw3D(ax, pointsCircle[0], pointsCircle[1], pointsCircle[2])
-    PlotTest.DrawLine(ax, posP, posP + randVec, "m")
-    PlotTest.DrawPoint(ax, points)
-    PlotTest.DrawSpherical(ax, r, 7, 0)
+    #PlotTest.DrawLine(ax, posP, posP + randVec, "m")
+    #PlotTest.DrawPoint(ax, points)
+    PlotTest.DrawSpherical(ax, r, d, 0)
     
-    PlotTest.DrawPoint(ax, intersections[0])
+    for v in intersection:
+        PlotTest.DrawLine(ax, posP, v, lineColor = "r", lineWidth = 0.5)
     
     plt.show()
 
