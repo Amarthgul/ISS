@@ -4,6 +4,7 @@
 class Lens:
     def __inti__(self):
         self.elements = []
+        self.envRI = 1 # The environment it is submerged in, air by default 
         
     def UpdateLens(self):
         """

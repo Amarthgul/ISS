@@ -155,7 +155,20 @@ def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef =
         
     return points * radius * shrink
 
-    
+def SphericalNormal(sphere_radius, intersections, front_vertex):
+    """
+    Calculate the normal direction at the intersections. 
+
+    :param sphere_radius: radius of the sperical surface. 
+    :param intersections: points of intersections between incident rays and the surface. 
+    :param front_vertex: vertex of the surface facing object side. 
+    """
+
+    # Offset from the front vertex to find the spherical origin 
+    origin = front_vertex + np.array([0, 0, sphere_radius])
+
+    return Normalized(intersections - origin)
+
 #  ===========================================================================
 """
 ==============================================================================
@@ -384,8 +397,39 @@ def PruneIntersectionArray(intersections, sphere_radius, clear_semi_diameter, cu
 
     return np.array(result)
 
+def VectorsRefraction(incident_vectors, normal_vectors, n1, n2):
+    """
+    Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
+    
+    :param incident_vectors: Array of incident vectors (shape: Nx3).
+    :param normal_vectors: Array of normal vectors (shape: Nx3).
+    :param n1: Refractive index of the first medium.
+    :param n2: Refractive index of the second medium.
+    :return: Array of refracted vectors or None if total internal reflection occurs.
+    """
+    # Normalize incident and normal vectors
+    incident_vectors = incident_vectors / np.linalg.norm(incident_vectors, axis=1, keepdims=True)
+    normal_vectors = normal_vectors / np.linalg.norm(normal_vectors, axis=1, keepdims=True)
 
-
+    # Compute the ratio of refractive indices
+    n_ratio = n1 / n2
+    
+    # Dot product of incident vectors and normal vectors
+    cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)
+    
+    # Calculate the discriminant to check for total internal reflection
+    discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i ** 2)
+    
+    # Handle total internal reflection (discriminant < 0)
+    total_internal_reflection = discriminant < 0
+    if np.any(total_internal_reflection):
+        print("Total internal reflection occurs for some vectors.")
+        return None
+    
+    # Calculate the refracted vectors
+    refracted_vectors = n_ratio * incident_vectors + (n_ratio * cos_theta_i - np.sqrt(discriminant))[:, np.newaxis] * normal_vectors
+    
+    return refracted_vectors
 
 def main():
     posP = np.array([3, 4, -10])
@@ -402,16 +446,16 @@ def main():
 
     pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, False) # Points that form the edge of the ellipse 
     
-    # Random vector form the points 
-    #randVec = np.transpose(points)[60] - posP
-    #randVec = Normalized(randVec)
     vecs = Normalized(np.transpose(points) - posP)
     
     duplicateOrigin = np.tile(posP, (points.shape[1], 1))
 
-    intersections = raySphereIntersectionArray(duplicateOrigin, vecs, np.array([0, 0, r]), r); 
-    intersection = PruneIntersectionArray(intersections, r, d, 0)
-    print(intersection)
+    thoroughIntersection = raySphereIntersectionArray(duplicateOrigin, vecs, np.array([0, 0, r]), r); 
+    isoIntersection = PruneIntersectionArray(thoroughIntersection, r, d, 0)
+    sphericalNormal = SphericalNormal(r, isoIntersection, np.array([0, 0, 0]))
+
+    refracted = VectorsRefraction(isoIntersection-posP, sphericalNormal, 1, 1.5)
+    print(refracted)
 
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
@@ -424,8 +468,10 @@ def main():
     #PlotTest.DrawPoint(ax, points)
     PlotTest.DrawSpherical(ax, r, d, 0)
     
-    for v in intersection:
+    for v in isoIntersection:
         PlotTest.DrawLine(ax, posP, v, lineColor = "r", lineWidth = 0.5)
+    for v, n in zip(isoIntersection, refracted):
+        PlotTest.DrawLine(ax, v, v+2*n, lineColor = "r", lineWidth = 0.5)
     
     plt.show()
 
