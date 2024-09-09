@@ -6,7 +6,14 @@ class Lens:
         self.elements = []
         
     def UpdateLens(self):
-        # Update the attributes 
-        pass 
+        """
+        Iterate throught the elements and update them
+        """
+        
+        currentT = 0
+
+        for e in self.elements:
+            e.SetCumulative(currentT)
+            currentT += e.thickness
 
 
