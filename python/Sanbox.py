@@ -123,7 +123,7 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
     else:
         return angle_radians
 
-def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 0.93):
+def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 0.925):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -145,7 +145,6 @@ def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef =
         
         pointsInLayer = int((deltaArea / densityScale) ** powerCoef)
         layerH = current 
-        print(current, "    ", layerH)
         layerTheta = np.arange(pointsInLayer) * ((np.pi * 2) / pointsInLayer) 
 
         layerPoints = np.array([layerH * np.cos(layerTheta), 
@@ -192,7 +191,7 @@ def FindB(posA, posC, posP, d):
 
     return posB 
 
-def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
+def EllipsePeripheral(posA, posB, posC, posP, d, r, useDistribution = True):
     """
     Find the points on the ellipse and align it to the AB plane. 
 
@@ -206,6 +205,11 @@ def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
     
     # Util vectors 
     P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
+
+    # On axis scenario 
+    if (np.linalg.norm(P_xy_projection) == 0):
+        P_xy_projection = np.array([d, 0, 0])
+
     vecCA = posA - posC
     
     # Lengths to calculate semi-major axis length 
@@ -227,6 +231,12 @@ def EllipsePeripheral(posA, posB, posC, posP, d, useDistribution = True):
         z = np.zeros_like(theta)
         points = np.array([x, y, z])
 
+    print("inside points ", points)
+    # On axis rays does not need to do the rotation 
+    if ([posP[0] == 0 and posP[1] == 0]):
+        offset = r - np.sqrt(r**2 - d**2)
+        z = np.ones(len(points[0])) * offset
+        return np.array([points[0], points[1], z]) 
 
     # Rotate the ellipse to it faces the right direction in the world xy plane,
     # i.e., one of its axis coincides with the tangential plane 
@@ -431,36 +441,49 @@ def VectorsRefraction(incident_vectors, normal_vectors, n1, n2):
     
     return refracted_vectors
 
+
+#  ===========================================================================
+"""
+==============================================================================
+"""
+
 def main():
-    posP = np.array([3, 4, -10])
+    posP = np.array([0, 0, -10])
     d = 6
-    r = 40
+    r = 20
     P_xy_projection = np.array([posP[0], posP[1], 0])
+
+    # For on axis rays, the p projection is 0, which needs to be modified 
+    if (np.linalg.norm(P_xy_projection) == 0):
+        P_xy_projection = np.array([d, 0, 0])
+
+    # Finding the important points 
     posA = d * ( P_xy_projection / np.linalg.norm(P_xy_projection) )
     posC = d * (-P_xy_projection / np.linalg.norm(P_xy_projection) )
     vecCA = posA - posC
-    
     posB = FindB(posA, posC, posP, d)
-    
-    points = EllipsePeripheral(posA, posB, posC, posP, d) # Sample points in the ellipse area 
 
-    pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, False) # Points that form the edge of the ellipse 
+    # Sample for the first surface 
+    points = EllipsePeripheral(posA, posB, posC, posP, d, r) # Sample points in the ellipse area 
+    pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, r, False) # Points that form the edge of the ellipse 
     
+    # Casting rays 
     vecs = Normalized(np.transpose(points) - posP)
-    
-    duplicateOrigin = np.tile(posP, (points.shape[1], 1))
 
+    # Finding intersections between ray and 1st surface 
+    duplicateOrigin = np.tile(posP, (points.shape[1], 1))
     thoroughIntersection = raySphereIntersectionArray(duplicateOrigin, vecs, np.array([0, 0, r]), r); 
     isoIntersection = PruneIntersectionArray(thoroughIntersection, r, d, 0)
     sphericalNormal = SphericalNormal(r, isoIntersection, np.array([0, 0, 0]))
 
-    refracted = VectorsRefraction(isoIntersection-posP, sphericalNormal, 1, 1.5)
-    print(refracted)
+    # Finding refracted ray 
+    refracted = VectorsRefraction(isoIntersection-posP, sphericalNormal, 1, 1.8)
 
+
+    # Plot the findings 
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
     PlotTest.AddXYZ(ax, 6)
-    PlotTest.DrawCircle(ax, 6)
     PlotTest.DrawIncidentPlane(ax, posP, posB, d)
 
     PlotTest.Draw3D(ax, pointsCircle[0], pointsCircle[1], pointsCircle[2])
@@ -477,4 +500,5 @@ def main():
 
 
 #Rotation(0.61, np.array([0, 1, 0]), np.array([1, 1, 0]))
-main()
+if __name__ == "__main__":
+    main() 

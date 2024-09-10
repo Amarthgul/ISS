@@ -1,5 +1,7 @@
 
 
+import PlotTest
+
 
 class Lens:
     def __inti__(self):
@@ -17,4 +19,11 @@ class Lens:
             e.SetCumulative(currentT)
             currentT += e.thickness
 
+    def AddSurfacve(self, surface):
+        self.elements.append(surface)
 
+def main():
+    pass 
+
+if __name__ == "__main__":
+    main()
