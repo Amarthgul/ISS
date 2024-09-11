@@ -154,7 +154,7 @@ def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef =
         
     return points * radius * shrink
 
-def SphericalNormal(sphere_radius, intersections, front_vertex):
+def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = True):
     """
     Calculate the normal direction at the intersections. 
 
@@ -166,7 +166,12 @@ def SphericalNormal(sphere_radius, intersections, front_vertex):
     # Offset from the front vertex to find the spherical origin 
     origin = front_vertex + np.array([0, 0, sphere_radius])
 
-    return Normalized(intersections - origin)
+    # Negative radius will by default having their normals pointing to the positive z direction 
+    # For sequential simulation, use the sign to invert the normal so that negative radius points to negative z 
+    if (sequential): sign = np.sign(sphere_radius)
+    else: sign = 1 
+
+    return sign * Normalized(intersections - origin)
 
 #  ===========================================================================
 """
@@ -479,19 +484,15 @@ def main():
 
     # Finding refracted ray 
     refracted01 = VectorsRefraction(isoIntersection01-posP, sphericalNormal, 1, 1.8)
-
-    
+   
     r2 = -10
     t2 = 4
     d2 = 6.5
     thoroughIntersection02 = raySphereIntersectionArray(isoIntersection01, refracted01, np.array([0, 0, r2 +t2]), r2)
     isoIntersection02 = PruneIntersectionArray(thoroughIntersection02, r2, d2, t2)
-    sphericalNormal02 = -SphericalNormal(r2, isoIntersection02, np.array([0, 0, t2]))
+    sphericalNormal02 = SphericalNormal(r2, isoIntersection02, np.array([0, 0, t2]))
     refracted02 = VectorsRefraction(isoIntersection02-isoIntersection01, sphericalNormal02, 1.8, 1)
-    print("isolate interections ", refracted02)
-    #isoIntersection02 = PruneIntersectionArray(thoroughIntersection02, r2, d, 2)
-    #sphericalNormal02 = SphericalNormal(r, isoIntersection02, np.array([0, 0, 2]))
-    #refracted02 = VectorsRefraction(isoIntersection02-isoIntersection01, sphericalNormal02, 1.5, 1)
+    print("refracted rays 02 ", refracted02)
 
     # Plot the findings 
     ax = PlotTest.Setup3Dplot()
@@ -500,8 +501,6 @@ def main():
     PlotTest.DrawIncidentPlane(ax, posP, posB, d)
 
     PlotTest.Draw3D(ax, pointsCircle[0], pointsCircle[1], pointsCircle[2])
-    #PlotTest.DrawLine(ax, posP, posP + randVec, "m")
-    #PlotTest.DrawPoint(ax, points)
     PlotTest.DrawSpherical(ax, r, d, 0)
     PlotTest.DrawSpherical(ax, r2, d2, t2)
     
@@ -511,7 +510,7 @@ def main():
         PlotTest.DrawLine(ax, v, n, lineColor = "r", lineWidth = 0.5)
     
     for v, n in zip(isoIntersection02, refracted02):
-        PlotTest.DrawLine(ax, v, v+20*n, lineColor = "r", lineWidth = 0.5)
+        PlotTest.DrawLine(ax, v, v+5*n, lineColor = "r", lineWidth = 0.5)
 
     plt.show()
 
