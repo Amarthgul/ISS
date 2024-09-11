@@ -231,7 +231,6 @@ def EllipsePeripheral(posA, posB, posC, posP, d, r, useDistribution = True):
         z = np.zeros_like(theta)
         points = np.array([x, y, z])
 
-    print("inside points ", points)
     # On axis rays does not need to do the rotation 
     if ([posP[0] == 0 and posP[1] == 0]):
         offset = r - np.sqrt(r**2 - d**2)
@@ -365,7 +364,7 @@ def IsolateIntersection(intersections, sphere_radius, clear_semi_diameter, cumul
 
     :param intersections: 2 intersection points. 
     :param sphere_radius: radius of the spherical surface. 
-    :param clear_semi_diameter: ¯\_(ツ)_/¯
+    :param clear_semi_diameter: ¯|_(ツ)_/¯
     :param cumulative_thickness: cumulative thickness from the first vertex. 
     """
 
@@ -374,11 +373,12 @@ def IsolateIntersection(intersections, sphere_radius, clear_semi_diameter, cumul
 
     allowed_left = cumulative_thickness
     
-    difference = (sphere_radius - np.sqrt(sphere_radius**2 - clear_semi_diameter**2))
+    difference = (abs(sphere_radius) - np.sqrt(sphere_radius**2 - clear_semi_diameter**2))
     if (sphere_radius > 0):
         allowed_right = cumulative_thickness + difference
     else:
         allowed_right = cumulative_thickness - difference
+        allowed_right, allowed_left = allowed_left, allowed_right 
         
     if (intersections[0][2] >= allowed_left and intersections[0][2] <= allowed_right):
         return intersections[0]
@@ -395,9 +395,10 @@ def PruneIntersectionArray(intersections, sphere_radius, clear_semi_diameter, cu
 
     :param intersections: 2 intersection points. 
     :param sphere_radius: radius of the spherical surface. 
-    :param clear_semi_diameter: ¯\_(ツ)_/¯
+    :param clear_semi_diameter: ¯|_(ツ)_/¯
     :param cumulative_thickness: cumulative thickness from the first vertex. 
     """
+
     result = []
 
     for i in range(len(intersections)):
@@ -448,7 +449,7 @@ def VectorsRefraction(incident_vectors, normal_vectors, n1, n2):
 """
 
 def main():
-    posP = np.array([0, 0, -10])
+    posP = np.array([1, 2, -10])
     d = 6
     r = 20
     P_xy_projection = np.array([posP[0], posP[1], 0])
@@ -473,12 +474,24 @@ def main():
     # Finding intersections between ray and 1st surface 
     duplicateOrigin = np.tile(posP, (points.shape[1], 1))
     thoroughIntersection = raySphereIntersectionArray(duplicateOrigin, vecs, np.array([0, 0, r]), r); 
-    isoIntersection = PruneIntersectionArray(thoroughIntersection, r, d, 0)
-    sphericalNormal = SphericalNormal(r, isoIntersection, np.array([0, 0, 0]))
+    isoIntersection01 = PruneIntersectionArray(thoroughIntersection, r, d, 0)
+    sphericalNormal = SphericalNormal(r, isoIntersection01, np.array([0, 0, 0]))
 
     # Finding refracted ray 
-    refracted = VectorsRefraction(isoIntersection-posP, sphericalNormal, 1, 1.8)
+    refracted01 = VectorsRefraction(isoIntersection01-posP, sphericalNormal, 1, 1.8)
 
+    
+    r2 = -10
+    t2 = 4
+    d2 = 6.5
+    thoroughIntersection02 = raySphereIntersectionArray(isoIntersection01, refracted01, np.array([0, 0, r2 +t2]), r2)
+    isoIntersection02 = PruneIntersectionArray(thoroughIntersection02, r2, d2, t2)
+    sphericalNormal02 = -SphericalNormal(r2, isoIntersection02, np.array([0, 0, t2]))
+    refracted02 = VectorsRefraction(isoIntersection02-isoIntersection01, sphericalNormal02, 1.8, 1)
+    print("isolate interections ", refracted02)
+    #isoIntersection02 = PruneIntersectionArray(thoroughIntersection02, r2, d, 2)
+    #sphericalNormal02 = SphericalNormal(r, isoIntersection02, np.array([0, 0, 2]))
+    #refracted02 = VectorsRefraction(isoIntersection02-isoIntersection01, sphericalNormal02, 1.5, 1)
 
     # Plot the findings 
     ax = PlotTest.Setup3Dplot()
@@ -490,12 +503,16 @@ def main():
     #PlotTest.DrawLine(ax, posP, posP + randVec, "m")
     #PlotTest.DrawPoint(ax, points)
     PlotTest.DrawSpherical(ax, r, d, 0)
+    PlotTest.DrawSpherical(ax, r2, d2, t2)
     
-    for v in isoIntersection:
+    for v in isoIntersection01:
         PlotTest.DrawLine(ax, posP, v, lineColor = "r", lineWidth = 0.5)
-    for v, n in zip(isoIntersection, refracted):
-        PlotTest.DrawLine(ax, v, v+2*n, lineColor = "r", lineWidth = 0.5)
+    for v, n in zip(isoIntersection01, isoIntersection02):
+        PlotTest.DrawLine(ax, v, n, lineColor = "r", lineWidth = 0.5)
     
+    for v, n in zip(isoIntersection02, refracted02):
+        PlotTest.DrawLine(ax, v, v+20*n, lineColor = "r", lineWidth = 0.5)
+
     plt.show()
 
 

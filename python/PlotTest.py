@@ -33,6 +33,10 @@ def SetUnifScale(ax, lim = 6):
 def DrawPoint(ax, point):
     ax.scatter3D(point[0], point[1], point[2])
 
+def DrawPoints(ax, points):
+    for p in points:
+        ax.scatter3D(p[0], p[1], p[2])
+
 def Draw3D(ax, x, y, z):
     ax.plot(x, y, z)
 
