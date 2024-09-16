@@ -50,17 +50,13 @@ def DrawCircle(ax, radius, offset = 0, num_points=100):
     ax.plot(circle_points[0], circle_points[1], circle_points[2])
     
 
-def DrawIncidentPlane(ax, posP, posB, d):
-    P_xy_projection = np.array([posP[0], posP[1], 0])
-    # Use the projection to derive the plane intersection
-    posA = d * ( P_xy_projection / np.linalg.norm(P_xy_projection) )
-    posC = d * (-P_xy_projection / np.linalg.norm(P_xy_projection) )
-    
-    DrawLine(ax, origin, posA, lineWidth = 1)
-    DrawLine(ax, origin, posC, lineWidth = 1)
-    DrawLine(ax,   posP, posA, lineWidth = 1)
-    DrawLine(ax,   posP, posC, lineWidth = 1)
-    DrawLine(ax,   posA, posB, lineWidth = 1)
+def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
+    originOffset = np.array([origin[0], origin[1], posA[2]])
+    DrawLine(ax, originOffset, posA, lineWidth = 1)
+    DrawLine(ax, originOffset, posC, lineWidth = 1)
+    DrawLine(ax,    posP,   posA, lineWidth = 1)
+    DrawLine(ax,    posP,   posC, lineWidth = 1)
+    DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 def DrawEmission(points):
     for p in points:

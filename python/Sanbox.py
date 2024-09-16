@@ -205,9 +205,11 @@ def EllipsePeripheral(posA, posB, posC, posP, d, r, useDistribution = True):
     :param posC: position of point C. 
     :param posP: position of point P. 
     :param d: clear semi diameter of the surface. 
+    :param r: radius of the surface. 
     :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
     """
-    
+    offset = np.array([0, 0, r - np.sqrt(r**2 - d**2)])
+
     # Util vectors 
     P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
 
@@ -233,14 +235,14 @@ def EllipsePeripheral(posA, posB, posC, posP, d, r, useDistribution = True):
         theta = np.linspace(0, 2 * np.pi, 100)
         x = b * np.cos(theta) 
         y = a * np.sin(theta) 
-        z = np.zeros_like(theta)
+        z = np.ones(len(x)) * posA[2]
         points = np.array([x, y, z])
 
     # On axis rays does not need to do the rotation 
-    if ([posP[0] == 0 and posP[1] == 0]):
-        offset = r - np.sqrt(r**2 - d**2)
-        z = np.ones(len(points[0])) * offset
-        return np.array([points[0], points[1], z]) 
+    # if ([posP[0] == 0 and posP[1] == 0]):
+    #     offset = r - np.sqrt(r**2 - d**2)
+    #     z = np.ones(len(points[0])) * offset
+    #     return np.array([points[0], points[1], z]) 
 
     # Rotate the ellipse to it faces the right direction in the world xy plane,
     # i.e., one of its axis coincides with the tangential plane 
@@ -454,7 +456,7 @@ def VectorsRefraction(incident_vectors, normal_vectors, n1, n2):
 """
 
 def main():
-    posP = np.array([1, 2, -10])
+    posP = np.array([1, 0.5, -10])
     d = 6
     r = 20
     P_xy_projection = np.array([posP[0], posP[1], 0])
@@ -464,14 +466,18 @@ def main():
         P_xy_projection = np.array([d, 0, 0])
 
     # Finding the important points 
-    posA = d * ( P_xy_projection / np.linalg.norm(P_xy_projection) )
-    posC = d * (-P_xy_projection / np.linalg.norm(P_xy_projection) )
+    offset = np.array([0, 0, r - np.sqrt(r**2 - d**2)])
+    posA = d * ( P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+    posC = d * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
     vecCA = posA - posC
     posB = FindB(posA, posC, posP, d)
+    print(posA, posB, posC)
 
     # Sample for the first surface 
     points = EllipsePeripheral(posA, posB, posC, posP, d, r) # Sample points in the ellipse area 
     pointsCircle = EllipsePeripheral(posA, posB, posC, posP, d, r, False) # Points that form the edge of the ellipse 
+
+    print("points  ", points.shape)
     
     # Casting rays 
     vecs = Normalized(np.transpose(points) - posP)
@@ -492,13 +498,12 @@ def main():
     isoIntersection02 = PruneIntersectionArray(thoroughIntersection02, r2, d2, t2)
     sphericalNormal02 = SphericalNormal(r2, isoIntersection02, np.array([0, 0, t2]))
     refracted02 = VectorsRefraction(isoIntersection02-isoIntersection01, sphericalNormal02, 1.8, 1)
-    print("refracted rays 02 ", refracted02)
 
     # Plot the findings 
     ax = PlotTest.Setup3Dplot()
     PlotTest.SetUnifScale(ax)
     PlotTest.AddXYZ(ax, 6)
-    PlotTest.DrawIncidentPlane(ax, posP, posB, d)
+    PlotTest.DrawIncidentPlane(ax, posA, posB, posC, posP, d)
 
     PlotTest.Draw3D(ax, pointsCircle[0], pointsCircle[1], pointsCircle[2])
     PlotTest.DrawSpherical(ax, r, d, 0)
