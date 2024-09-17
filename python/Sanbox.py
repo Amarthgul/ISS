@@ -178,9 +178,12 @@ def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = Tru
 ==============================================================================
 """
 
-def FindB(posA, posC, posP, d):
+def FindB(posA, posC, posP):
     """
     Find the position of point B. 
+    :param 
+    :param 
+    :param 
     """
     vecPA = posA - posP   
     vecPC = posC - posP  
@@ -237,12 +240,6 @@ def EllipsePeripheral(posA, posB, posC, posP, d, r, useDistribution = True):
         y = a * np.sin(theta) 
         z = np.ones(len(x)) * posA[2]
         points = np.array([x, y, z])
-
-    # On axis rays does not need to do the rotation 
-    # if ([posP[0] == 0 and posP[1] == 0]):
-    #     offset = r - np.sqrt(r**2 - d**2)
-    #     z = np.ones(len(points[0])) * offset
-    #     return np.array([points[0], points[1], z]) 
 
     # Rotate the ellipse to it faces the right direction in the world xy plane,
     # i.e., one of its axis coincides with the tangential plane 

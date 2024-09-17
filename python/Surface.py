@@ -1,21 +1,21 @@
 
-
+import numpy as np 
 
 _PLACEHOLDER_RI = 1.5
 
 
 class Surface:
-    def __init__(self, r, t, d, m = None):
+    def __init__(self, r, t, sd, m = None):
         self.radius = r
         self.thickness = t
-        self.clearSemiDiameter = d 
+        self.clearSemiDiameter = sd 
         self.material = m
         
         self.chamfer = None 
 
         self.cumulativeThickness = None 
         self.frontVertex = None 
-        self.origin = None 
+        self.radiusCenter = None 
 
         self._isObject = False
         self._isImagePlane = False 
@@ -46,5 +46,8 @@ class Surface:
 
     def SetCumulative(self, cd):
         self.cumulativeThickness = cd 
+        self.radiusCenter = np.array([0, 0, self.radius + self.cumulativeThickness])
+
+    
 
         
