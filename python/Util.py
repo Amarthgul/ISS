@@ -93,7 +93,7 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
     else:
         return angle_radians
 
-def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 1):
+def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 0.95):
     """
     Accquire a distribution based on polar coordinate. 
 

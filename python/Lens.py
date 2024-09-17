@@ -21,6 +21,8 @@ class Lens:
         self.emitters = []
         self.emitter = None 
 
+        self._temp = None # Variable not to be taken serieously 
+
 
     def UpdateLens(self):
         """
@@ -51,6 +53,7 @@ class Lens:
         ax = PlotTest.Setup3Dplot()
         PlotTest.SetUnifScale(ax)
 
+        PlotTest.Draw3D(ax, self._temp[0], self._temp[1], self._temp[2])
         # Draw every surfaces 
         for l in self.elements:
             PlotTest.DrawSpherical(ax, l.radius, l.clearSemiDiameter, l.cumulativeThickness)
@@ -108,7 +111,7 @@ class Lens:
         :param r: radius of the surface. 
         :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
         """
-        offset = np.array([0, 0, r - np.sqrt(r**2 - d**2)])
+        offset = np.array([0, 0, posA[2]])
 
         # Util vectors 
         P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
@@ -126,18 +129,22 @@ class Lens:
         # Semi-major axis length 
         a = np.linalg.norm(posA - posB) / 2
         b = np.sqrt(BB * AC) / 2
-        
+
         # Calculate the ellipse 
         if (useDistribution):
-            points = CircularDistribution()
-            points = np.transpose(np.transpose(points) * np.array([b, a, 0]))
+            # Move the point along the z axis 
+            points = np.transpose(CircularDistribution()) + offset
+            # Scale it on the two semi-major axis 
+            points = np.transpose(points * np.array([b, a, 1]))
+            
         else:
+            # Generate the contour of the ellipse 
             theta = np.linspace(0, 2 * np.pi, 100)
             x = b * np.cos(theta) 
             y = a * np.sin(theta) 
             z = np.ones(len(x)) * posA[2]
             points = np.array([x, y, z])
-
+        
         # Rotate the ellipse to it faces the right direction in the world xy plane,
         # i.e., one of its axis coincides with the tangential plane 
         theta_1 = angleBetweenVectors(posA, np.array([0, 1, 0]))
@@ -152,7 +159,7 @@ class Lens:
         trans_2 = Translate(trans_1, -posA)
         trans_2 = Rotation(-theta, axis, trans_2)
         trans_2 = Translate(trans_2, posA)
-        
+
         return trans_2
 
     def _sphericalIntersections(self, surfaceIndex):
@@ -161,13 +168,15 @@ class Lens:
         """
         
         # Set up parameters to use later 
-        ray_origins = self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)]
-        ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
         sphere_center = self.elements[surfaceIndex].radiusCenter
         sphere_radius = self.elements[surfaceIndex].radius
         clear_semi_diameter = self.elements[surfaceIndex].clearSemiDiameter
         cumulative_thickness = self.elements[surfaceIndex].cumulativeThickness
-        
+
+        # Accquire only the ones that are not vignetted already 
+        ray_origins = self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)]
+        ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
+
         # Normalize the direction vector
         ray_directions = ray_directions / np.linalg.norm(ray_directions, axis=1)[:, np.newaxis]
         # Coefficients for the quadratic equation
@@ -179,49 +188,45 @@ class Lens:
         # Discriminant of the quadratic equation
         discriminant = B**2 - 4*A*C
 
-        # Set the non-intersect and tangent rays to be vignetted 
-        vignettedIndices = np.where(discriminant <= 0)
-        self.rayBatch.SetVignette(vignettedIndices)
-
-
-        neg_limit = cumulative_thickness
-        difference = (abs(sphere_radius) - np.sqrt(sphere_radius**2 - clear_semi_diameter**2))
-        if (sphere_radius > 0):
-            pos_limit = cumulative_thickness + difference
-        else:
-            pos_limit = cumulative_thickness - difference
-            pos_limit, neg_limit = neg_limit, pos_limit 
-
-        invertVignette = np.where(discriminant > 0)
-        sqrt_discriminant = np.sqrt(discriminant[invertVignette])
+        # Set the intersect rays' mask array for sqrt (to avoid negative sqrt)
+        interset = discriminant > 0
+        intersectsIndices = np.where(interset)
+        sqrt_discriminant = np.sqrt(discriminant[intersectsIndices])
         
         # Calculate the intersection points
-        if(sphere_radius > 0):
-            t1 = (-B[invertVignette] - sqrt_discriminant) / (2*A[invertVignette])
-            intersection_points = ray_origins[invertVignette] + t1[:, np.newaxis] * ray_directions[invertVignette]
-        else: 
-            t2 = (-B[invertVignette] + sqrt_discriminant) / (2*A[invertVignette])
-            intersection_points = ray_origins[invertVignette] + t2[:, np.newaxis] * ray_directions[invertVignette]
-        
-        ray_origins[invertVignette] = intersection_points
+        t = (-B[intersectsIndices] - np.sign(sphere_radius) * sqrt_discriminant) / (2*A[intersectsIndices])
+        intersection_points = ray_origins[intersectsIndices] + t[:, np.newaxis] * ray_directions[intersectsIndices]
+
+        # Find the non-intersect and tangent rays
+        nonIntersect = discriminant <= 0
+        # Find the rays whose intersection is outside of the clear semi diameter 
+        vignetted = np.sqrt(intersection_points[:, 0]**2 + intersection_points[:, 1]**2) > clear_semi_diameter
+        # Set them as vignetted 
+        self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
+
+        # Find the rays that's within clear semi diameter
+        inBound = np.sqrt(intersection_points[:, 0]**2 + intersection_points[:, 1]**2) < clear_semi_diameter
+        sequential = np.where(inBound & interset)
+        # Put the interection points into rays 
+        ray_origins[sequential] = intersection_points[sequential]
+
         self.rayBatch.SetPosition(ray_origins)
         self.rayPath.append(self.rayBatch.Position())
 
 
         
-        
-
     def _initRays(self, posP, wavelength = 550):
         r = self.elements[0].radius
         sd = self.elements[0].clearSemiDiameter
 
         P_xy_projection = np.array([posP[0], posP[1], 0])
-        offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)])
+        offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
         posA = sd * ( P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
         posC = sd * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
         posB = self._findB(posA, posC, posP)
 
         points = self._ellipsePeripheral(posA, posB, posC, posP, sd, r) # Sample points in the ellipse area 
+        self._temp = self._ellipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
 
         vecs = Normalized(np.transpose(points) - posP)
 
@@ -255,11 +260,11 @@ class Lens:
 
 def main():
     singlet = Lens() 
-    singlet.AddSurfacve(Surface(-20, 4, 6, "LAF8"))
-    singlet.AddSurfacve(Surface(-10, 4, 6.6))
+    singlet.AddSurfacve(Surface(20, 4, 6, "LAF8"))
+    #singlet.AddSurfacve(Surface(-10, 4, 6.6))
     singlet.UpdateLens()
 
-    singlet.SinglePointSpot(np.array([1, 0.5, -10]))
+    singlet.SinglePointSpot(np.array([4, 0.5, -10]))
 
     singlet.DrawLens(drawRays=True)
 

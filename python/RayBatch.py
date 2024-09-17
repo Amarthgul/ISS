@@ -40,10 +40,10 @@ class RayBatch:
         """
         return self.value[:, 9].astype(bool)
 
-    def SetPosition(self, positions, Sequential=True):
+    def SetPosition(self, positions):
         if(positions.shape[1] != 3): 
             raise ValueError("Expect positions to have a dimension of (#, 3)")
-        self.value[np.where(self.value[:, 9] == 1), :3] = positions[:, :]
+        self.value[:, :3] = positions[:, :]
 
     def SetDirection(self, directions):
         if(directions.shape[1] != 3): 
