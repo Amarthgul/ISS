@@ -4,6 +4,7 @@ import PlotTest
 from Surface import *
 from Util import * 
 from RayBatch import * 
+import time
 
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -33,6 +34,7 @@ class Lens:
 
         for e in self.elements:
             e.SetCumulative(currentT)
+            e.SetFrontVertex(np.array([0, 0, currentT]))
             currentT += e.thickness
 
 
@@ -64,6 +66,10 @@ class Lens:
                 for v1, v2 in zip(self.rayPath[i], self.rayPath[i+1]):
                     PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
         
+        lastSurfacePos = self.rayBatch.Position()
+        for v1, v2 in zip(lastSurfacePos, lastSurfacePos+self.rayBatch.Direction()*5):
+            PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
+
         plt.show()
 
 
@@ -98,6 +104,7 @@ class Lens:
         t = (np.dot(vecN, (posA - posC))) / np.dot(vecN, vecPCN)
 
         return posC + vecPCN * t 
+
 
     def _ellipsePeripheral(self, posA, posB, posC, posP, d, r, useDistribution = True):
         """
@@ -162,6 +169,7 @@ class Lens:
 
         return trans_2
 
+
     def _sphericalIntersections(self, surfaceIndex):
         """
         This method update the position of rays as they hit the indexed surface. 
@@ -210,11 +218,65 @@ class Lens:
         # Put the interection points into rays 
         ray_origins[sequential] = intersection_points[sequential]
 
+        # Update the current ray batch positions 
         self.rayBatch.SetPosition(ray_origins)
-        self.rayPath.append(self.rayBatch.Position())
+
+        # Copy the positions into path 
+        self.rayPath.append(ray_origins)
 
 
+    def _vectorsRefraction(self, surfaceIndex):
+        """
+        Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
         
+        :param incident_vectors: Array of incident vectors (shape: Nx3).
+        :param normal_vectors: Array of spherical surface normal vectors (shape: Nx3).
+        :param n1: Refractive index of the first medium.
+        :param n2: Refractive index of the second medium.
+        :return: Array of refracted vectors or None if total internal reflection occurs.
+        """
+        # Accquire and ormalize incident and normal vectors
+        incident_vectors = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)] 
+        incident_vectors /= np.linalg.norm(incident_vectors, axis=1, keepdims=True)
+
+        normal_vectors = SphericalNormal(
+            self.elements[surfaceIndex].radius, 
+            self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)], 
+            self.elements[surfaceIndex].frontVertex
+        ) 
+        normal_vectors /= np.linalg.norm(normal_vectors, axis=1, keepdims=True)
+
+        # TODO: add RI calculation 
+        n1 = 1 
+        n2 = 1.5
+
+        # Compute the ratio of refractive indices
+        n_ratio = n1 / n2
+        
+        # Dot product of incident vectors and normal vectors
+        cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)
+        
+        # Calculate the discriminant to check for total internal reflection
+        discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i ** 2)
+        
+        # Handle total internal reflection (discriminant < 0)
+        TIR = discriminant < 0
+        refraction = discriminant >= 0
+        
+        # Calculate the refracted vectors, note that they may contain TIR 
+        refracted_vectors = n_ratio * incident_vectors + (n_ratio * cos_theta_i - np.sqrt(discriminant))[:, np.newaxis] * normal_vectors
+
+        # Copy the incident vectors 
+        result = incident_vectors
+        # Replace only the rays that are properly refracted 
+        result[np.where(refraction)] = refracted_vectors[np.where(refraction)]
+        ray_directions = self.rayBatch.Direction()
+        ray_directions[np.where(self.rayBatch.Sequential() == 1)] = result
+        self.rayBatch.SetDirection(ray_directions)
+        
+        self.rayBatch.SetVignette(TIR)
+
+
     def _initRays(self, posP, wavelength = 550):
         r = self.elements[0].radius
         sd = self.elements[0].clearSemiDiameter
@@ -249,7 +311,13 @@ class Lens:
 
     def _propograte(self):
 
+        start = time.time()
         self._sphericalIntersections(0)
+        self._vectorsRefraction(0)
+        self._sphericalIntersections(1)
+        self._vectorsRefraction(1)
+        end = time.time()
+        print("It took", (end - start), "seconds!")
         # for i in range(len(self.elements)):
         #     self._sphericalIntersections(i)
 
@@ -260,8 +328,8 @@ class Lens:
 
 def main():
     singlet = Lens() 
-    singlet.AddSurfacve(Surface(20, 4, 6, "LAF8"))
-    #singlet.AddSurfacve(Surface(-10, 4, 6.6))
+    singlet.AddSurfacve(Surface(20, 4, 6, "BK1"))
+    singlet.AddSurfacve(Surface(-10, 4, 6.6))
     singlet.UpdateLens()
 
     singlet.SinglePointSpot(np.array([4, 0.5, -10]))

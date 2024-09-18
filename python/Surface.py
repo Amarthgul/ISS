@@ -48,6 +48,7 @@ class Surface:
         self.cumulativeThickness = cd 
         self.radiusCenter = np.array([0, 0, self.radius + self.cumulativeThickness])
 
-    
+    def SetFrontVertex(self, vec3pos):
+        self.frontVertex = vec3pos
 
         
