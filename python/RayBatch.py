@@ -16,11 +16,14 @@ class RayBatch:
     def Direction(self):
         return self.value[:, 3:6]
     
-    def Wavelength(self):
+    def Wavelength(self, singleValue = False):
         """
         Wavelength in nanometer 
         """
-        return self.value[:, 6]
+        if (singleValue):
+            return self.value[:, 6][0]
+        else:
+            return self.value[:, 6]
     
     def Radiant(self):
         """

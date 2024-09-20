@@ -1,15 +1,16 @@
 
 import numpy as np 
+from Material import * 
 
 _PLACEHOLDER_RI = 1.5
 
 
 class Surface:
-    def __init__(self, r, t, sd, m = None):
+    def __init__(self, r, t, sd, m = "AIR"):
         self.radius = r
         self.thickness = t
         self.clearSemiDiameter = sd 
-        self.material = m
+        self.material = Material(m)
         
         self.chamfer = None 
 

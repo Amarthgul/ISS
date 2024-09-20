@@ -4,6 +4,7 @@ import PlotTest
 from Surface import *
 from Util import * 
 from RayBatch import * 
+from Material import * 
 import time
 
 import numpy as np 
@@ -22,6 +23,7 @@ class Lens:
         self.emitters = []
         self.emitter = None 
 
+        self._envMaterial = None 
         self._temp = None # Variable not to be taken serieously 
 
 
@@ -36,6 +38,8 @@ class Lens:
             e.SetCumulative(currentT)
             e.SetFrontVertex(np.array([0, 0, currentT]))
             currentT += e.thickness
+
+        self._envMaterial = Material(self.env)
 
 
     def AddSurfacve(self, surface, insertAfter = None):
@@ -246,9 +250,12 @@ class Lens:
         ) 
         normal_vectors /= np.linalg.norm(normal_vectors, axis=1, keepdims=True)
 
-        # TODO: add RI calculation 
-        n1 = 1 
-        n2 = 1.5
+        
+        if(surfaceIndex == 0):
+            n1 = self._envMaterial.RI(self.rayBatch.Wavelength(True))
+        else:
+            n1 = self.elements[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength(True))
+        n2 = self.elements[surfaceIndex].material.RI(self.rayBatch.Wavelength(True))
 
         # Compute the ratio of refractive indices
         n_ratio = n1 / n2
@@ -328,7 +335,7 @@ class Lens:
 
 def main():
     singlet = Lens() 
-    singlet.AddSurfacve(Surface(20, 4, 6, "BK1"))
+    singlet.AddSurfacve(Surface(20, 4, 6, "BAF1"))
     singlet.AddSurfacve(Surface(-10, 4, 6.6))
     singlet.UpdateLens()
 
