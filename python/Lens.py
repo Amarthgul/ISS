@@ -56,6 +56,7 @@ class Lens:
     def DrawLens(self, drawSrufaces = True, drawRays = False, drawTails = True):
         
         lastSurfaceExt = 5 # Extend the rays from the last surface 
+        rayThickness = 0.25
         ax = PlotTest.Setup3Dplot()
         PlotTest.SetUnifScale(ax)
 
@@ -80,14 +81,14 @@ class Lens:
         if (drawRays):
             for i in range(len(self.rayPath) - 1):
                 for v1, v2 in zip(self.rayPath[i], self.rayPath[i+1]):
-                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
+                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness) 
         
             if(drawTails):
                 # Limit the rays from the last surface to only the sequential ones  
                 sequentialOnly = np.where(self.rayBatch.Sequential())
                 lastSurfacePos = self.rayBatch.Position()
                 for v1, v2 in zip(lastSurfacePos[sequentialOnly], (lastSurfacePos+self.rayBatch.Direction()*lastSurfaceExt)[sequentialOnly]):
-                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
+                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness) 
 
         plt.show()
 
@@ -285,6 +286,7 @@ class Lens:
         
         return intersection_points
 
+
     def _vectorsRefraction(self, surfaceIndex):
         """
         Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
@@ -315,7 +317,6 @@ class Lens:
             n1 = self.surfaces[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength(True))
 
         n2 = self.surfaces[surfaceIndex].material.RI(self.rayBatch.Wavelength(True))
-        print(n1, n2)
 
         # Compute the ratio of refractive indices
         n_ratio = n1 / n2
@@ -384,7 +385,6 @@ class Lens:
             if(self.surfaces[i].IsImagePlane()):
                 pass 
             else:
-                print("currently in ", i, " th surface")
                 self._surfaceIntersection(i)
                 self._vectorsRefraction(i)
         end = time.time()
