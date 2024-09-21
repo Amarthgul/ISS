@@ -9,12 +9,11 @@ import time
 
 import numpy as np 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 class Lens:
     def __init__(self):
-        self.elements = []
+        self.surfaces = []
         self.env = "AIR" # The environment it is submerged in, air by default 
         
         self.rayBatch = RayBatch([])
@@ -34,16 +33,16 @@ class Lens:
         
         currentT = 0
 
-        for e in self.elements:
-            e.SetCumulative(currentT)
-            e.SetFrontVertex(np.array([0, 0, currentT]))
-            currentT += e.thickness
+        for s in self.surfaces:
+            s.SetCumulative(currentT)
+            s.SetFrontVertex(np.array([0, 0, currentT]))
+            currentT += s.thickness
 
         self._envMaterial = Material(self.env)
 
 
     def AddSurfacve(self, surface, insertAfter = None):
-        self.elements.append(surface)
+        self.surfaces.append(surface)
 
 
     def SinglePointSpot(self, posP):
@@ -54,15 +53,28 @@ class Lens:
         self._propograte() 
         
 
-    def DrawLens(self, drawSrufaces = True, drawRays = False):
-
+    def DrawLens(self, drawSrufaces = True, drawRays = False, drawTails = True):
+        
+        lastSurfaceExt = 5 # Extend the rays from the last surface 
         ax = PlotTest.Setup3Dplot()
         PlotTest.SetUnifScale(ax)
 
         PlotTest.Draw3D(ax, self._temp[0], self._temp[1], self._temp[2])
         # Draw every surfaces 
-        for l in self.elements:
-            PlotTest.DrawSpherical(ax, l.radius, l.clearSemiDiameter, l.cumulativeThickness)
+        for l in self.surfaces:
+            if(l.IsImagePlane()):
+                ipSize = l.ImagePlaneSize()/2
+                corners = np.array([
+                    [ipSize[0], ipSize[1], l.cumulativeThickness],
+                    [-ipSize[0], ipSize[1], l.cumulativeThickness],
+                    [-ipSize[0], -ipSize[1], l.cumulativeThickness],
+                    [ipSize[0], -ipSize[1], l.cumulativeThickness]
+                ])
+                vertices = [[corners[0], corners[1], corners[2], corners[3]]]
+                ax.add_collection3d(Poly3DCollection(vertices, facecolors='cyan', linewidths=1, edgecolors='r', alpha=0.5))
+
+            else:
+                PlotTest.DrawSpherical(ax, l.radius, l.clearSemiDiameter, l.cumulativeThickness)
 
         # Draw the path of rays 
         if (drawRays):
@@ -70,9 +82,12 @@ class Lens:
                 for v1, v2 in zip(self.rayPath[i], self.rayPath[i+1]):
                     PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
         
-        lastSurfacePos = self.rayBatch.Position()
-        for v1, v2 in zip(lastSurfacePos, lastSurfacePos+self.rayBatch.Direction()*5):
-            PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
+            if(drawTails):
+                # Limit the rays from the last surface to only the sequential ones  
+                sequentialOnly = np.where(self.rayBatch.Sequential())
+                lastSurfacePos = self.rayBatch.Position()
+                for v1, v2 in zip(lastSurfacePos[sequentialOnly], (lastSurfacePos+self.rayBatch.Direction()*lastSurfaceExt)[sequentialOnly]):
+                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = 0.5) 
 
         plt.show()
 
@@ -174,23 +189,32 @@ class Lens:
         return trans_2
 
 
+    def _surfaceIntersection(self, surfaceIndex):
+        if (self.surfaces[surfaceIndex].radius == np.inf):
+            pass 
+        else:
+            return self._sphericalIntersections(surfaceIndex)
+
+
     def _sphericalIntersections(self, surfaceIndex):
         """
         This method update the position of rays as they hit the indexed surface. 
         """
         
         # Set up parameters to use later 
-        sphere_center = self.elements[surfaceIndex].radiusCenter
-        sphere_radius = self.elements[surfaceIndex].radius
-        clear_semi_diameter = self.elements[surfaceIndex].clearSemiDiameter
-        cumulative_thickness = self.elements[surfaceIndex].cumulativeThickness
+        sphere_center = self.surfaces[surfaceIndex].radiusCenter
+        sphere_radius = self.surfaces[surfaceIndex].radius
+        clear_semi_diameter = self.surfaces[surfaceIndex].clearSemiDiameter
+        cumulative_thickness = self.surfaces[surfaceIndex].cumulativeThickness
 
         # Accquire only the ones that are not vignetted already 
-        ray_origins = self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)]
+        og_origins = self.rayBatch.Position()
+        ray_origins = og_origins[np.where(self.rayBatch.Sequential() == 1)]
         ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
 
         # Normalize the direction vector
         ray_directions = ray_directions / np.linalg.norm(ray_directions, axis=1)[:, np.newaxis]
+
         # Coefficients for the quadratic equation
         oc = ray_origins - sphere_center
         A = np.sum(ray_directions**2, axis=1)  # A = dot(ray_direction, ray_direction)
@@ -213,9 +237,7 @@ class Lens:
         nonIntersect = discriminant <= 0
         # Find the rays whose intersection is outside of the clear semi diameter 
         vignetted = np.sqrt(intersection_points[:, 0]**2 + intersection_points[:, 1]**2) > clear_semi_diameter
-        # Set them as vignetted 
-        self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
-
+        
         # Find the rays that's within clear semi diameter
         inBound = np.sqrt(intersection_points[:, 0]**2 + intersection_points[:, 1]**2) < clear_semi_diameter
         sequential = np.where(inBound & interset)
@@ -223,11 +245,45 @@ class Lens:
         ray_origins[sequential] = intersection_points[sequential]
 
         # Update the current ray batch positions 
-        self.rayBatch.SetPosition(ray_origins)
+        og_origins[np.where(self.rayBatch.Sequential() == 1)] = ray_origins
+        self.rayBatch.SetPosition(og_origins)
 
         # Copy the positions into path 
-        self.rayPath.append(ray_origins)
+        self.rayPath.append(np.copy(og_origins))
 
+        # Set non intersect and out of bound rays as vignetted 
+        self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
+
+
+    def _planeIntersections(self, surfaceIndex):
+        """
+        Calculate the intersections between rays (vectors from points) and a 3D plane.
+        """
+        ray_origins = self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)]
+        ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
+
+        plane_normal = np.array([0, 0, -1])
+        plane_point = self.surfaces[surfaceIndex].frontVertex
+        
+        # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
+        d = -np.dot(plane_normal, plane_point)
+
+        # Calculate dot product of direction vectors with the plane normal
+        denom = np.dot(ray_directions, plane_normal)
+        
+        # Avoid division by zero (for parallel vectors)
+        valid_rays = denom != 0
+
+        # For valid rays, calculate t where the intersection occurs
+        t = -(np.dot(ray_origins, plane_normal) + d) / denom
+        
+        # Calculate the intersection points
+        intersection_points = ray_origins + t[:, np.newaxis] * ray_directions
+        
+        # Return intersection points only for valid rays (skip parallel rays)
+        intersection_points[~valid_rays] = np.nan  # Mark parallel rays with NaN (no intersection)
+        
+        return intersection_points
 
     def _vectorsRefraction(self, surfaceIndex):
         """
@@ -239,14 +295,16 @@ class Lens:
         :param n2: Refractive index of the second medium.
         :return: Array of refracted vectors or None if total internal reflection occurs.
         """
-        # Accquire and ormalize incident and normal vectors
-        incident_vectors = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)] 
+        # Accquire and normalize incident and normal vectors
+        og_incident = np.copy(self.rayBatch.Direction())
+        og_sequential = self.rayBatch.Sequential()
+        incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)] 
         incident_vectors /= np.linalg.norm(incident_vectors, axis=1, keepdims=True)
 
         normal_vectors = SphericalNormal(
-            self.elements[surfaceIndex].radius, 
+            self.surfaces[surfaceIndex].radius, 
             self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)], 
-            self.elements[surfaceIndex].frontVertex
+            self.surfaces[surfaceIndex].frontVertex
         ) 
         normal_vectors /= np.linalg.norm(normal_vectors, axis=1, keepdims=True)
 
@@ -254,8 +312,10 @@ class Lens:
         if(surfaceIndex == 0):
             n1 = self._envMaterial.RI(self.rayBatch.Wavelength(True))
         else:
-            n1 = self.elements[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength(True))
-        n2 = self.elements[surfaceIndex].material.RI(self.rayBatch.Wavelength(True))
+            n1 = self.surfaces[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength(True))
+
+        n2 = self.surfaces[surfaceIndex].material.RI(self.rayBatch.Wavelength(True))
+        print(n1, n2)
 
         # Compute the ratio of refractive indices
         n_ratio = n1 / n2
@@ -269,24 +329,25 @@ class Lens:
         # Handle total internal reflection (discriminant < 0)
         TIR = discriminant < 0
         refraction = discriminant >= 0
+        refractionInd = np.where(refraction)
         
-        # Calculate the refracted vectors, note that they may contain TIR 
-        refracted_vectors = n_ratio * incident_vectors + (n_ratio * cos_theta_i - np.sqrt(discriminant))[:, np.newaxis] * normal_vectors
+        # Calculate the refracted vectors, only the non-TIR are calculated 
+        refracted_vectors = n_ratio * incident_vectors[refractionInd] + (n_ratio * cos_theta_i[refractionInd] - np.sqrt(discriminant[refractionInd]))[:, np.newaxis] * normal_vectors[refractionInd]
 
         # Copy the incident vectors 
         result = incident_vectors
         # Replace only the rays that are properly refracted 
-        result[np.where(refraction)] = refracted_vectors[np.where(refraction)]
-        ray_directions = self.rayBatch.Direction()
-        ray_directions[np.where(self.rayBatch.Sequential() == 1)] = result
-        self.rayBatch.SetDirection(ray_directions)
+        result[refractionInd] = refracted_vectors
+        og_incident[np.where(self.rayBatch.Sequential() == 1)] = result
+        self.rayBatch.SetDirection(og_incident)
         
-        self.rayBatch.SetVignette(TIR)
+        og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR
+        self.rayBatch.SetVignette(og_sequential)
 
 
     def _initRays(self, posP, wavelength = 550):
-        r = self.elements[0].radius
-        sd = self.elements[0].clearSemiDiameter
+        r = self.surfaces[0].radius
+        sd = self.surfaces[0].clearSemiDiameter
 
         P_xy_projection = np.array([posP[0], posP[1], 0])
         offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
@@ -319,27 +380,37 @@ class Lens:
     def _propograte(self):
 
         start = time.time()
-        self._sphericalIntersections(0)
-        self._vectorsRefraction(0)
-        self._sphericalIntersections(1)
-        self._vectorsRefraction(1)
+        for i in range(len(self.surfaces)):
+            if(self.surfaces[i].IsImagePlane()):
+                pass 
+            else:
+                print("currently in ", i, " th surface")
+                self._surfaceIntersection(i)
+                self._vectorsRefraction(i)
         end = time.time()
+
         print("It took", (end - start), "seconds!")
-        # for i in range(len(self.elements)):
-        #     self._sphericalIntersections(i)
+        self._writeToFile()
 
-    def _initSinglePoint(self):
-        pass 
 
+
+    def _writeToFile(self):
+        np.savetxt("raypath.csv", self.rayBatch.value, delimiter=",")
+        
 
 
 def main():
     singlet = Lens() 
-    singlet.AddSurfacve(Surface(20, 4, 6, "BAF1"))
-    singlet.AddSurfacve(Surface(-10, 4, 6.6))
+    singlet.AddSurfacve(Surface(15, 4, 6, "BAF1"))
+    singlet.AddSurfacve(Surface(-10, 2, 6.6))
+    singlet.AddSurfacve(Surface(-40, 1, 6, "BAF1"))
+    singlet.AddSurfacve(Surface(20, 5, 6.6))
+    #singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    #singlet.surfaces[4].SetAsImagePlane(8, 12, 600, 400)
+
     singlet.UpdateLens()
 
-    singlet.SinglePointSpot(np.array([4, 0.5, -10]))
+    singlet.SinglePointSpot(np.array([4, 0.5, -40]))
 
     singlet.DrawLens(drawRays=True)
 
