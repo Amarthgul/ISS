@@ -102,7 +102,6 @@ class Material:
             df[np.where(df=="K3")[0] + 1][0],
             df[np.where(df=="L3")[0] + 1][0]
         ]
-        print(self.coef)
 
     def _Sellmeier1(self, lam):
         k1 = self.coef[0]

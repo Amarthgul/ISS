@@ -26,9 +26,9 @@ def AddXYZ(ax, unitLength = 1, lineWidth = 2):
     
 def SetUnifScale(ax, lim = 6):
     offsetScalar = zAxisCompensationFactor * lim
-    ax.set_xlim(offsetScalar, -offsetScalar)
-    ax.set_ylim(offsetScalar, -offsetScalar)
-    ax.set_zlim(lim, -lim)
+    ax.set_xlim(offsetScalar/2.0, -offsetScalar/2.0)
+    ax.set_ylim(offsetScalar/2.0, -offsetScalar/2.0)
+    ax.set_zlim(lim, 0)
 
 def DrawPoint(ax, point):
     ax.scatter3D(point[0], point[1], point[2])
