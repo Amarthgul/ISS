@@ -93,7 +93,11 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
     else:
         return angle_radians
 
-def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef = 0.8, shrink = 0.95):
+
+# Light:   layer = 5,   densityScale = 0.02,    powerCoef = 0.8
+# Medium:  layer = 10,  densityScale = 0.0095,  powerCoef = 0.9
+# Heavy:   layer = 60,  densityScale = 0.0004,  powerCoef = 0.7
+def CircularDistribution(radius = 1, layer = 5,     densityScale = 0.02,    powerCoef = 0.8, shrink = 0.95):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -114,6 +118,10 @@ def CircularDistribution(radius = 1, layer = 5, densityScale = 0.02, powerCoef =
         lastArea = area 
         
         pointsInLayer = int((deltaArea / densityScale) ** powerCoef)
+
+        # Avoid zero point in layer situation 
+        if(pointsInLayer == 0): pointsInLayer = 1
+
         layerH = current 
         layerTheta = np.arange(pointsInLayer) * ((np.pi * 2) / pointsInLayer) 
 

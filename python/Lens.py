@@ -23,7 +23,7 @@ class Lens:
         self.emitter = None 
 
         self._envMaterial = None 
-        self._temp = None # Variable not to be taken serieously 
+        self._temp = None # Variable for developing and not to be taken serieously 
 
 
     def UpdateLens(self):
@@ -200,6 +200,7 @@ class Lens:
     def _sphericalIntersections(self, surfaceIndex):
         """
         This method update the position of rays as they hit the indexed surface. 
+        :param surfaceIndex: the index of the surface to intersect. 
         """
         
         # Set up parameters to use later 
@@ -210,14 +211,14 @@ class Lens:
 
         # Accquire only the ones that are not vignetted already 
         og_origins = self.rayBatch.Position()
-        ray_origins = og_origins[np.where(self.rayBatch.Sequential() == 1)]
+        ray_positions = og_origins[np.where(self.rayBatch.Sequential() == 1)]
         ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
 
         # Normalize the direction vector
         ray_directions = ray_directions / np.linalg.norm(ray_directions, axis=1)[:, np.newaxis]
 
         # Coefficients for the quadratic equation
-        oc = ray_origins - sphere_center
+        oc = ray_positions - sphere_center
         A = np.sum(ray_directions**2, axis=1)  # A = dot(ray_direction, ray_direction)
         B = 2.0 * np.sum(oc * ray_directions, axis=1)
         C = np.sum(oc**2, axis=1) - sphere_radius**2
@@ -232,7 +233,7 @@ class Lens:
         
         # Calculate the intersection points
         t = (-B[intersectsIndices] - np.sign(sphere_radius) * sqrt_discriminant) / (2*A[intersectsIndices])
-        intersection_points = ray_origins[intersectsIndices] + t[:, np.newaxis] * ray_directions[intersectsIndices]
+        intersection_points = ray_positions[intersectsIndices] + t[:, np.newaxis] * ray_directions[intersectsIndices]
 
         # Find the non-intersect and tangent rays
         nonIntersect = discriminant <= 0
@@ -243,10 +244,10 @@ class Lens:
         inBound = np.sqrt(intersection_points[:, 0]**2 + intersection_points[:, 1]**2) < clear_semi_diameter
         sequential = np.where(inBound & interset)
         # Put the interection points into rays 
-        ray_origins[sequential] = intersection_points[sequential]
+        ray_positions[sequential] = intersection_points[sequential]
 
         # Update the current ray batch positions 
-        og_origins[np.where(self.rayBatch.Sequential() == 1)] = ray_origins
+        og_origins[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
         self.rayBatch.SetPosition(og_origins)
 
         # Copy the positions into path 
@@ -259,12 +260,18 @@ class Lens:
     def _planeIntersections(self, surfaceIndex):
         """
         Calculate the intersections between rays (vectors from points) and a 3D plane.
+        :param surfaceIndex: the index of the surface to intersect. 
         """
-        ray_origins = self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)]
-        ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
+        og_positions = self.rayBatch.Position()
+        og_direction = self.rayBatch.Direction()
 
+        ray_positions = og_positions[np.where(self.rayBatch.Sequential() == 1)]
+        ray_directions = og_direction[np.where(self.rayBatch.Sequential() == 1)]
+
+        # TODO: add tilt shift support here
         plane_normal = np.array([0, 0, -1])
         plane_point = self.surfaces[surfaceIndex].frontVertex
+        ipSize = self.surfaces[surfaceIndex].ImagePlaneSize()
         
         # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
         d = -np.dot(plane_normal, plane_point)
@@ -273,19 +280,33 @@ class Lens:
         denom = np.dot(ray_directions, plane_normal)
         
         # Avoid division by zero (for parallel vectors)
-        valid_rays = denom != 0
+        valid_rays = (denom != 0)
 
         # For valid rays, calculate t where the intersection occurs
-        t = -(np.dot(ray_origins, plane_normal) + d) / denom
+        t = -(np.dot(ray_positions, plane_normal) + d) / denom
         
         # Calculate the intersection points
-        intersection_points = ray_origins + t[:, np.newaxis] * ray_directions
-        
-        # Return intersection points only for valid rays (skip parallel rays)
-        intersection_points[~valid_rays] = np.nan  # Mark parallel rays with NaN (no intersection)
-        
-        return intersection_points
+        intersection_points = ray_positions + t[:, np.newaxis] * ray_directions
 
+        # Find the rays that fall out of the image plane 
+        outOfBoundInd = (intersection_points[:, 0] > (ipSize[0]/2)) | \
+            (intersection_points[:, 0] < (-ipSize[0]/2)) | \
+            (intersection_points[:, 1] > (ipSize[0]/2)) | \
+            (intersection_points[:, 1] < (-ipSize[1]/2)) 
+        combinedValidInd = ~outOfBoundInd & valid_rays
+        
+        # Only replace the in bound ray positions 
+        ray_positions[~outOfBoundInd] = intersection_points[~outOfBoundInd]
+        
+        # Update the current ray batch positions 
+        og_positions[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
+        self.rayBatch.SetPosition(og_positions)
+
+        # Copy the positions into path 
+        self.rayPath.append(np.copy(og_positions))
+
+        self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
+        
 
     def _vectorsRefraction(self, surfaceIndex):
         """
@@ -378,15 +399,49 @@ class Lens:
             )
 
 
+    def _integralRays(self, surfaceIndex):
+
+        if(not self.surfaces[surfaceIndex].IsImagePlane()):
+           # TODO: add spherical imager? 
+           return 
+        
+        cumulativeThickness = self.surfaces[surfaceIndex].cumulativeThickness
+        ipSize = self.surfaces[surfaceIndex].ImagePlaneSize()
+        pxDimension = self.surfaces[surfaceIndex].ImagePlanePx()
+
+        pxPitch = ipSize[0] / pxDimension[0] 
+        pxOffset = np.array([pxDimension[0]/2, pxDimension[1]/2, 0])
+
+        # Find the rays that arrived at the the image plane 
+        rayHitIndex = np.where(np.isclose(self.rayBatch.value[:, 2], cumulativeThickness))
+
+        rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
+        rayColor = self.rayBatch.Radiant()[rayHitIndex]
+
+        x_pixels = np.floor(rayPos[:, 0]).astype(int)
+        y_pixels = np.floor(rayPos[:, 1]).astype(int)
+        radiantGrid = np.zeros( (pxDimension[0], pxDimension[1]) )
+
+        np.add.at(radiantGrid, (y_pixels, x_pixels), rayColor)
+
+        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=1)
+        plt.colorbar()  # Optional: Add a colorbar to show intensity values
+        plt.show()
+
+
     def _propograte(self):
 
         start = time.time()
+        # =============================================
+        i = 0
         for i in range(len(self.surfaces)):
             if(self.surfaces[i].IsImagePlane()):
-                pass 
+                self._planeIntersections(i) 
             else:
                 self._surfaceIntersection(i)
                 self._vectorsRefraction(i)
+        self._integralRays(i)
+        # =============================================
         end = time.time()
 
         print("It took", (end - start), "seconds!")
@@ -405,14 +460,15 @@ def main():
     singlet.AddSurfacve(Surface(-10, 2, 6.6))
     singlet.AddSurfacve(Surface(-40, 1, 6, "BAF1"))
     singlet.AddSurfacve(Surface(20, 5, 6.6))
-    #singlet.AddSurfacve(Surface(np.inf, 0, 0))
-    #singlet.surfaces[4].SetAsImagePlane(8, 12, 600, 400)
+
+    singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    singlet.surfaces[4].SetAsImagePlane(12, 8, 300, 200)
 
     singlet.UpdateLens()
 
     singlet.SinglePointSpot(np.array([4, 0.5, -40]))
 
-    singlet.DrawLens(drawRays=True)
+    singlet.DrawLens(drawRays=True, drawTails=False)
 
     
 

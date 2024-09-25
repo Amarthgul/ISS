@@ -65,3 +65,6 @@ class Surface:
     
     def ImagePlaneSize(self):
         return self._ipSize
+    
+    def ImagePlanePx(self):
+        return self._ipCount
