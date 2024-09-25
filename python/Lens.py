@@ -21,6 +21,8 @@ class Lens:
 
         self.spot = [] 
 
+        self.lastSurfaceIndex = 0
+
         self._envMaterial = None 
         self._temp = None # Variable for developing and not to be taken serieously 
 
@@ -38,6 +40,7 @@ class Lens:
             currentT += s.thickness
 
         self._envMaterial = Material(self.env)
+        self.lastSurfaceIndex = len(self.surfaces) - 1
 
 
     def AddSurfacve(self, surface, insertAfter = None):
@@ -329,7 +332,7 @@ class Lens:
         og_incident = np.copy(self.rayBatch.Direction())
         og_sequential = self.rayBatch.Sequential()
         incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)] 
-        incident_vectors /= np.linalg.norm(incident_vectors, axis=1, keepdims=True)
+        incident_vectors = incident_vectors / np.linalg.norm(incident_vectors, axis=1, keepdims=True)
 
         normal_vectors = SphericalNormal(
             self.surfaces[surfaceIndex].radius, 
@@ -440,9 +443,9 @@ class Lens:
 
         # Register the radiant grid to the spot 
         self.spot = radiantGrid
-        # plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=1)
-        # plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        # plt.show()
+        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+        plt.colorbar()  # Optional: Add a colorbar to show intensity values
+        plt.show()
 
 
     def _propograte(self):
@@ -459,7 +462,7 @@ class Lens:
         # =============================================
         end = time.time()
 
-        #self._integralRays(i)
+        self._integralRays(i)
 
         print("It took", (end - start), "seconds!")
         self._writeToFile()
@@ -486,14 +489,16 @@ def main():
     singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
     singlet.AddSurfacve(Surface(-60,	32.3552, 14))
 
-    # singlet.AddSurfacve(Surface(np.inf, 0, 0))
-    # singlet.surfaces[4].SetAsImagePlane(12, 8, 300, 200)
+    singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    
 
     singlet.UpdateLens()
+    singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
 
-    singlet.SinglePointSpot(np.array([4, 0.5, -700]))
+    # TODO: fix the non update issue 
+    singlet.SinglePointSpot(np.array([10, 0.8, -700]))
 
-    singlet.DrawLens(drawRays=True, drawTails=True)
+    #singlet.DrawLens(drawRays=True, drawTails=False)
 
     
 
