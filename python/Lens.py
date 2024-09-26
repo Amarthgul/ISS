@@ -130,7 +130,7 @@ class Lens:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, d, r, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, useDistribution = True):
         """
         Find the points on the ellipse and align it to the AB plane. 
 
@@ -138,60 +138,80 @@ class Lens:
         :param posB: position of point B. 
         :param posC: position of point C. 
         :param posP: position of point P. 
-        :param d: clear semi diameter of the surface. 
+        :param sd: clear semi diameter of the surface. 
         :param r: radius of the surface. 
         :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
         """
         offset = np.array([0, 0, posA[2]])
-
-        # Util vectors 
-        P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
+        onAxis = False 
 
         # On axis scenario 
-        if (np.linalg.norm(P_xy_projection) == 0):
-            P_xy_projection = np.array([d, 0, 0])
+        if (np.isclose(posP[0], 0) and np.isclose(posP[1], 0)):
+            P_xy_projection = np.array([sd, 0, 0])
+            onAxis = True 
+        else:
+            # Util vectors 
+            P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
 
         vecCA = posA - posC
         
-        # Lengths to calculate semi-major axis length 
-        BB = abs((2 * d) * ((posP[2] - posB[2]) / posP[2]))
-        AC = np.linalg.norm(posA - posC)
+        # On axis rays can be grealty simplified 
+        if(onAxis):
+            if (useDistribution):
+                # Move the point along the z axis 
+                points = np.transpose(CircularDistribution()) + offset
+                # Scale it on the two semi-major axis 
+                points = np.transpose(points * np.array([sd, sd, 1]))
+                
+            else:
+                # Generate the contour of the ellipse 
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = np.cos(theta) 
+                y = np.sin(theta) 
+                z = np.ones(len(x)) * posA[2]
+                points = np.array([x, y, z])
+            return points 
         
-        # Semi-major axis length 
-        a = np.linalg.norm(posA - posB) / 2
-        b = np.sqrt(BB * AC) / 2
-
-        # Calculate the ellipse 
-        if (useDistribution):
-            # Move the point along the z axis 
-            points = np.transpose(CircularDistribution()) + offset
-            # Scale it on the two semi-major axis 
-            points = np.transpose(points * np.array([b, a, 1]))
-            
         else:
-            # Generate the contour of the ellipse 
-            theta = np.linspace(0, 2 * np.pi, 100)
-            x = b * np.cos(theta) 
-            y = a * np.sin(theta) 
-            z = np.ones(len(x)) * posA[2]
-            points = np.array([x, y, z])
-        
-        # Rotate the ellipse to it faces the right direction in the world xy plane,
-        # i.e., one of its axis coincides with the tangential plane 
-        theta_1 = angleBetweenVectors(posA, np.array([0, 1, 0]))
-        trans_1 = Rotation(-theta_1, np.array([0, 0, 1]), points)
-        
-        # Move the points to be in tangent with A 
-        trans_1 = Translate(trans_1, P_xy_projection * (d - a)) 
-        
-        # Rotate the ellipse around A it fits into the AB plane 
-        theta = angleBetweenVectors(posB-posA, posC-posA)
-        axis = Normalized(np.array([-vecCA[1], vecCA[0], 0]))
-        trans_2 = Translate(trans_1, -posA)
-        trans_2 = Rotation(-theta, axis, trans_2)
-        trans_2 = Translate(trans_2, posA)
+            # Lengths to calculate semi-major axis length 
+            BB = abs((2 * sd) * ((posP[2] - posB[2]) / posP[2]))
+            AC = np.linalg.norm(posA - posC)
+            
+            # Semi-major axis length 
+            a = np.linalg.norm(posA - posB) / 2
+            b = np.sqrt(BB * AC) / 2
 
-        return trans_2
+            # Calculate the ellipse 
+            if (useDistribution):
+                # Move the point along the z axis 
+                points = np.transpose(CircularDistribution()) + offset
+                # Scale it on the two semi-major axis 
+                points = np.transpose(points * np.array([b, a, 1]))
+                
+            else:
+                # Generate the contour of the ellipse 
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = b * np.cos(theta) 
+                y = a * np.sin(theta) 
+                z = np.ones(len(x)) * posA[2]
+                points = np.array([x, y, z])
+            
+            # Rotate the ellipse to it faces the right direction in the world xy plane,
+            # i.e., one of its axis coincides with the tangential plane 
+            theta_1 = angleBetweenVectors(posA, np.array([0, 1, 0]))
+            trans_1 = Rotation(-theta_1, np.array([0, 0, 1]), points)
+            
+            # Move the points to be in tangent with A 
+            trans_1 = Translate(trans_1, P_xy_projection * (sd - a)) 
+            
+            # Rotate the ellipse around A it fits into the AB plane 
+            theta = angleBetweenVectors(posB-posA, posC-posA)
+            axis = Normalized(np.array([-vecCA[1], vecCA[0], 0]))
+            trans_2 = Translate(trans_1, -posA)
+            trans_2 = Rotation(-theta, axis, trans_2)
+            trans_2 = Translate(trans_2, posA)
+
+            return trans_2
 
 
     def _surfaceIntersection(self, surfaceIndex):
@@ -382,8 +402,12 @@ class Lens:
 
         P_xy_projection = np.array([posP[0], posP[1], 0])
         offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
-        posA = sd * ( P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
-        posC = sd * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+        if(not np.isclose(np.linalg.norm(P_xy_projection), 0)):
+            posA = sd * ( P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+            posC = sd * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+        else:
+            posA = np.array([sd, 0, 0]) + offset
+            posC = np.array([sd, 0, 0]) + offset
         posB = self._findB(posA, posC, posP)
 
         points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
