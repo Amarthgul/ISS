@@ -54,6 +54,9 @@ class Material:
             elif (formula == "Sellmeier1"):
                 self.Formula = "Sellmeier1"
                 self._decodeSellmeier1(found)
+            elif (formula == "Extended 2"):
+                self.Formula = "Extended 2"
+                self._decodeExtended_2(found)
             elif (formula == "Extended 3"):
                 self.Formula = "Extended 3"
                 self._decodeExtended_3(found)
@@ -67,6 +70,8 @@ class Material:
             return self._Schott(wavelength)
         elif(self.Formula == "Sellmeier1"):
             return self._Sellmeier1(wavelength)
+        elif(self.Formula == "Extended 2"):
+            return self._Extended_2(wavelength)
         elif(self.Formula == "Extended 3"):
             return self._Extended_3(wavelength)
         
@@ -118,6 +123,32 @@ class Material:
         n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + 1
         return np.sqrt(n2) 
 
+    def _decodeExtended_2(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df=="A0")[0] + 1][0],
+            df[np.where(df=="A1")[0] + 1][0],
+            df[np.where(df=="A2")[0] + 1][0],
+            df[np.where(df=="A3")[0] + 1][0],
+            df[np.where(df=="A4")[0] + 1][0],
+            df[np.where(df=="A5")[0] + 1][0],
+            df[np.where(df=="A6")[0] + 1][0],
+            df[np.where(df=="A7")[0] + 1][0],
+        ]
+
+    def _Extended_2(self, lam):
+        a0 = self.coef[0]
+        a1 = self.coef[1]
+        a2 = self.coef[2]
+        a3 = self.coef[3]
+        a4 = self.coef[4]
+        a5 = self.coef[5]
+        a6 = self.coef[6]
+        a7 = self.coef[7]
+        lam /= 1000.0 # Convert to micrometers to use in the formula
+        n2 = a0 + a1 * lam**(2) + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8) + a6 * lam**(4) + a7 * lam**(6)
+        return np.sqrt(n2)
+
     def _decodeExtended_3(self, df):
         df = df.to_numpy()
         self.coef = [
@@ -131,7 +162,6 @@ class Material:
             df[np.where(df=="A7")[0] + 1][0],
             df[np.where(df=="A8")[0] + 1][0]
         ]
-        print(self.coef)
 
     def _Extended_3(self, lam):
         a0 = self.coef[0]
@@ -150,7 +180,7 @@ class Material:
     # TODO: add more decoder and formula here if needed 
 
 def main():
-    newglass = Material("J-SK2")
+    newglass = Material("E-KZFH1")
     newglass.DrawRI()
 
 if __name__ == "__main__":
