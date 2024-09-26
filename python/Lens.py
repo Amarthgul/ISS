@@ -268,6 +268,7 @@ class Lens:
         self.rayPath.append(np.copy(og_origins))
 
         # Set non intersect and out of bound rays as vignetted 
+        print("Inter vig  ", np.where(nonIntersect & vignetted))
         self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
 
 
@@ -331,7 +332,8 @@ class Lens:
         # Accquire and normalize incident and normal vectors
         og_incident = np.copy(self.rayBatch.Direction())
         og_sequential = self.rayBatch.Sequential()
-        incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)] 
+        incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)]
+        print("incident shape  ", incident_vectors.shape) 
         incident_vectors = incident_vectors / np.linalg.norm(incident_vectors, axis=1, keepdims=True)
 
         normal_vectors = SphericalNormal(
@@ -371,6 +373,7 @@ class Lens:
         # Replace only the rays that are properly refracted 
         result[refractionInd] = refracted_vectors
         og_incident[np.where(self.rayBatch.Sequential() == 1)] = result
+        print("OG shape ", og_incident.shape, "  result shape ", result.shape)
         self.rayBatch.SetDirection(og_incident)
         
         og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR
@@ -401,6 +404,7 @@ class Lens:
         )
 
         # Set the initial rays' direction into the newly spawned rays 
+        # TODO: this does not seem to work when y value of the point is set to bigger than 1? 
         self.rayBatch.SetDirection(vecs)
 
         # Append the starting point into ray path 
@@ -443,9 +447,9 @@ class Lens:
 
         # Register the radiant grid to the spot 
         self.spot = radiantGrid
-        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-        plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        plt.show()
+        # plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+        # plt.colorbar()  # Optional: Add a colorbar to show intensity values
+        # plt.show()
 
 
     def _propograte(self):
@@ -480,25 +484,25 @@ def main():
     # Zeiss Biotar 50 1.4 
     singlet.AddSurfacve(Surface(41.8,   5.375, 17, "BAF9"))
     singlet.AddSurfacve(Surface(160.5,  0.825, 17))
-    singlet.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
-    singlet.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
-    singlet.AddSurfacve(Surface(14.15,	9.45, 11))
-    singlet.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
-    singlet.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
-    singlet.AddSurfacve(Surface(-26.6,	0.485, 13))
-    singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
-    singlet.AddSurfacve(Surface(-60,	32.3552, 14))
+    # singlet.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
+    # singlet.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
+    # singlet.AddSurfacve(Surface(14.15,	9.45, 11))
+    # singlet.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
+    # singlet.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
+    # singlet.AddSurfacve(Surface(-26.6,	0.485, 13))
+    # singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
+    # singlet.AddSurfacve(Surface(-60,	32.3552, 14))
 
-    singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    #singlet.AddSurfacve(Surface(np.inf, 0, 0))
     
 
     singlet.UpdateLens()
-    singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
+    #singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
 
     # TODO: fix the non update issue 
-    singlet.SinglePointSpot(np.array([10, 0.8, -700]))
+    singlet.SinglePointSpot(np.array([10, 5, -700]))
 
-    #singlet.DrawLens(drawRays=True, drawTails=False)
+    singlet.DrawLens(drawRays=True, drawTails=True)
 
     
 
