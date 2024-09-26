@@ -216,7 +216,6 @@ class Lens:
         sphere_center = self.surfaces[surfaceIndex].radiusCenter
         sphere_radius = self.surfaces[surfaceIndex].radius
         clear_semi_diameter = self.surfaces[surfaceIndex].clearSemiDiameter
-        cumulative_thickness = self.surfaces[surfaceIndex].cumulativeThickness
 
         # Accquire only the ones that are not vignetted already 
         og_origins = self.rayBatch.Position()
@@ -258,7 +257,7 @@ class Lens:
 
         sequential = np.where(inBoundSizeFit & interset)
         # Put the interection points into rays 
-        ray_positions[sequential] = intersection_points[sequential]
+        ray_positions[inBoundSizeFit] = intersection_points[inBound]
 
         # Update the current ray batch positions 
         og_origins[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
@@ -268,7 +267,6 @@ class Lens:
         self.rayPath.append(np.copy(og_origins))
 
         # Set non intersect and out of bound rays as vignetted 
-        print("Inter vig  ", np.where(nonIntersect & vignetted))
         self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
 
 
@@ -333,7 +331,6 @@ class Lens:
         og_incident = np.copy(self.rayBatch.Direction())
         og_sequential = self.rayBatch.Sequential()
         incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)]
-        print("incident shape  ", incident_vectors.shape) 
         incident_vectors = incident_vectors / np.linalg.norm(incident_vectors, axis=1, keepdims=True)
 
         normal_vectors = SphericalNormal(
@@ -373,7 +370,6 @@ class Lens:
         # Replace only the rays that are properly refracted 
         result[refractionInd] = refracted_vectors
         og_incident[np.where(self.rayBatch.Sequential() == 1)] = result
-        print("OG shape ", og_incident.shape, "  result shape ", result.shape)
         self.rayBatch.SetDirection(og_incident)
         
         og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR
@@ -390,27 +386,24 @@ class Lens:
         posC = sd * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
         posB = self._findB(posA, posC, posP)
 
-        points = self._ellipsePeripheral(posA, posB, posC, posP, sd, r) # Sample points in the ellipse area 
+        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
         self._temp = self._ellipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
 
-        vecs = Normalized(np.transpose(points) - posP)
+        vecs = Vec3Normalized(points - posP)
 
         # Spawn rays with position of P to be the position for each ray 
-        self.rayBatch = RayBatch(
-            np.tile(np.array([posP[0], posP[1], posP[2],
-                               0, 0, 0, 
-                               wavelength, 1, 0, 1]), 
-                    (vecs.shape[0], 1))
-        )
+        mat1 = np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
+        mat2 = np.tile(np.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
+        mat = np.hstack((np.hstack((mat1, vecs)), mat2))
+
+        self.rayBatch = RayBatch( mat )
 
         # Set the initial rays' direction into the newly spawned rays 
         # TODO: this does not seem to work when y value of the point is set to bigger than 1? 
-        self.rayBatch.SetDirection(vecs)
+        #self.rayBatch.value[:, 3:6] = vecs
 
         # Append the starting point into ray path 
-        self.rayPath.append(
-            np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
-            )
+        self.rayPath.append(np.copy(mat1))
 
 
     def _integralRays(self, surfaceIndex):
@@ -443,13 +436,13 @@ class Lens:
         radiantGrid = np.zeros( (pxDimension[0], pxDimension[1]) )
 
         # Sum up the radiant 
-        np.add.at(radiantGrid, (rayPos[:, 1], rayPos[:, 0]), rayColor)
+        np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
 
         # Register the radiant grid to the spot 
         self.spot = radiantGrid
-        # plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-        # plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        # plt.show()
+        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+        plt.colorbar()  # Optional: Add a colorbar to show intensity values
+        plt.show()
 
 
     def _propograte(self):
@@ -472,7 +465,6 @@ class Lens:
         self._writeToFile()
 
 
-
     def _writeToFile(self):
         np.savetxt("raypath.csv", self.rayBatch.value, delimiter=",")
         
@@ -484,25 +476,25 @@ def main():
     # Zeiss Biotar 50 1.4 
     singlet.AddSurfacve(Surface(41.8,   5.375, 17, "BAF9"))
     singlet.AddSurfacve(Surface(160.5,  0.825, 17))
-    # singlet.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
-    # singlet.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
-    # singlet.AddSurfacve(Surface(14.15,	9.45, 11))
-    # singlet.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
-    # singlet.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
-    # singlet.AddSurfacve(Surface(-26.6,	0.485, 13))
-    # singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
-    # singlet.AddSurfacve(Surface(-60,	32.3552, 14))
+    singlet.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
+    singlet.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
+    singlet.AddSurfacve(Surface(14.15,	9.45, 11))
+    singlet.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
+    singlet.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
+    singlet.AddSurfacve(Surface(-26.6,	0.485, 13))
+    singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
+    singlet.AddSurfacve(Surface(-60,	32.3552, 14))
 
-    #singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    singlet.AddSurfacve(Surface(np.inf, 0, 0))
     
 
     singlet.UpdateLens()
-    #singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
+    singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
 
     # TODO: fix the non update issue 
-    singlet.SinglePointSpot(np.array([10, 5, -700]))
+    singlet.SinglePointSpot(np.array([150, 100, -500]))
 
-    singlet.DrawLens(drawRays=True, drawTails=True)
+    #singlet.DrawLens(drawRays=True, drawTails=False)
 
     
 

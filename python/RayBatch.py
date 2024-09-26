@@ -51,7 +51,7 @@ class RayBatch:
     def SetDirection(self, directions):
         if(directions.shape[1] != 3): 
             raise ValueError("Expect directions to have a dimension of (#, 3)")
-        self.value[:, 3:6] = directions[:, :]
+        self.value[:, 3:6] = directions
 
     def SetVignette(self, vignettedIndices):
         self.value[vignettedIndices, 9] = 0

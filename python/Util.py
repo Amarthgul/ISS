@@ -5,6 +5,9 @@ import numpy as np
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)
 
+def Vec3Normalized(inputVec):
+    return inputVec / np.linalg.norm(inputVec, axis=1, keepdims=True)
+
 def Minus90(inputRadian):
     return np.pi / 2 - inputRadian
 
@@ -94,10 +97,11 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
         return angle_radians
 
 
-# Light:   layer = 5,   densityScale = 0.02,    powerCoef = 0.8
-# Medium:  layer = 10,  densityScale = 0.0095,  powerCoef = 0.9
-# Heavy:   layer = 60,  densityScale = 0.0004,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 5,   densityScale = 0.02,    powerCoef = 0.8, shrink = 0.95):
+# Light:   layer = 5,    densityScale = 0.02,    powerCoef = 0.8
+# Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
+# Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
+# Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
+def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  powerCoef = 0.7, shrink = 0.95):
     """
     Accquire a distribution based on polar coordinate. 
 
