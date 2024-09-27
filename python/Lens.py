@@ -413,9 +413,11 @@ class Lens:
         points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
         self._temp = self._ellipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
 
-        vecs = Vec3Normalized(points - posP)
+        vecs = ArrayNormalized(points - posP)
 
-        # Spawn rays with position of P to be the position for each ray 
+        # Create the ray batch 
+        # For some reason vecs is often not registered with indexing assignment, 
+        # the hstack is thus used to force the composition of the raybatch. 
         mat1 = np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
         mat2 = np.tile(np.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
         mat = np.hstack((np.hstack((mat1, vecs)), mat2))
