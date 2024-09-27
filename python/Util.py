@@ -5,7 +5,8 @@ import numpy as np
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)
 
-def Vec3Normalized(inputVec):
+def ArrayNormalized(inputVec):
+    """ Normalize an array of vectors """
     return inputVec / np.linalg.norm(inputVec, axis=1, keepdims=True)
 
 def Minus90(inputRadian):
@@ -135,8 +136,6 @@ def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  power
         points = np.hstack((points, layerPoints))
         
     return points * radius * shrink
-
-
 
 
 def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = True):

@@ -47,6 +47,10 @@ class Lens:
         self.surfaces.append(surface)
 
 
+    def SetRayBatch(self, input):
+        self.rayBatch = input
+        
+
     def SinglePointSpot(self, posP):
         """
         Place a single point source and accquire its spot. 

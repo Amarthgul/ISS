@@ -4,6 +4,20 @@ import os
 
 import matplotlib.pyplot as plt
 
+# For inverse material creation 
+from scipy.optimize import curve_fit
+
+
+def _InvSchott(lam, a0, a1, a2, a3, a4, a5):
+    """
+    Schott function for inverse calculating the material. 
+    :param lam: lambda wavelength in nanometers. 
+    """
+    lam /= 1000.0 # Convert to micrometers to use in the formula 
+    n2 = a0 + a1* lam**2 + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8)
+    return np.sqrt(n2)
+
+
 class Material:
 
     def __init__(self, name = "AIR"):
@@ -17,6 +31,23 @@ class Material:
 
         self.Startup()
 
+        self._fraunhofer = {
+            "i"     :   365.01, 
+            "h"     :   404.66,
+            "g"     :   435.84,
+            "F'"    :   479.99,
+            "F"     :   486.13,
+            "e"     :   546.07,
+            "d"     :   587.56,
+            "D"     :   589.3,
+            "C'"    :   643.85,
+            "C"     :   656.27,
+            "r"     :   706.52,
+            "A'"    :   768.2,
+            "s"     :   852.11,
+            "t"     :   1013.98,
+        }
+
     def RI(self, lam):
         """
         The index of refraction of the material at given wavelength. 
@@ -29,6 +60,20 @@ class Material:
             # Non air material is sent to further inquiries 
             return self._RI(lam)
 
+    def n_e(self):
+        return self.RI(self._fraunhofer["e"])
+    
+    def n_d(self):
+        return self.RI(self._fraunhofer["d"])
+    
+    def V_e(self):
+        return ( self.RI(self._fraunhofer["e"]) - 1 ) / \
+            (self.RI(self._fraunhofer["F'"]) - self.RI(self._fraunhofer["C'"]))
+
+    def V_d(self):
+        return ( self.RI(self._fraunhofer["d"]) - 1 ) / \
+            (self.RI(self._fraunhofer["F"]) - self.RI(self._fraunhofer["C"]))
+
     def DrawRI(self, UV=380, IR=720):
         lam = np.arange(UV, IR, dtype=float) 
         RI = self._RI(lam)
@@ -40,7 +85,6 @@ class Material:
         if(self.name == "AIR"):
             return 
         else:
-
             script_dir = os.path.dirname(os.path.abspath(__file__))
             file_path = os.path.join(script_dir, "AbbeGlassTable.xlsx")
             df = pd.read_excel(file_path)
@@ -61,10 +105,51 @@ class Material:
                 self.Formula = "Extended 3"
                 self._decodeExtended_3(found)
     
+    def InverseMaterial(self, n, V, useNe = True):
 
-    # ============================================================================
-    """ ============================== Private ================================ """
-    # ============================================================================
+        # The RI regression equation of the long wavelength was calculated externally 
+        if(useNe):  # n_e and V_e
+            longer = self._fraunhofer["C"]
+            long = self._fraunhofer["C'"]
+            middle = self._fraunhofer["d"]
+            neighbor = self._fraunhofer["e"]
+            short = self._fraunhofer["F"]
+            shorter = self._fraunhofer["F'"]
+            n_longer = 0.982 * n + 0.0268     # n_C
+            n_long = 0.984 * n + 0.0246       # n_C' 
+            n_mid = 1.02 * n - 0.0238         # n_d 
+            n_neighbor = n                    # n_e
+            n_short = 1.02 * n  -0.0272       # n_F
+            n_shorter = ( (n-1) / V) + n_long # n_F'
+            
+        else: # n_d and V_d
+            longer = self._fraunhofer["C"]
+            long = self._fraunhofer["C'"]
+            middle = self._fraunhofer["d"]
+            neighbor = self._fraunhofer["e"]
+            short = self._fraunhofer["F"]
+            shorter = self._fraunhofer["F'"]
+            n_longer = 0.956 * n+ 0.0611    # n_C
+            n_long = 0.957 * n + 0.0596     # n_C'
+            n_mid = n                       # n_d
+            n_neighbor = 0.969 * n + 0.0426 # n_e
+            n_short = ( (n-1) / V) + n_long # n_F
+            n_shorter = 0.983 * n + 0.0214  # n_F'
+
+        x_data = np.array([longer,      long,   middle,     neighbor,       short,      shorter])
+        y_data = np.array([n_longer,    n_long, n_mid,      n_neighbor,     n_short,    n_shorter])
+
+        print(x_data, "\n", y_data)
+        plt.plot(x_data, y_data)
+        plt.show()
+
+        popt, pcov = curve_fit(_InvSchott, x_data, y_data)
+
+        print(popt, pcov)
+
+    # ========================================================================
+    """ ============================ Private ============================== """
+    # ========================================================================
     def _RI(self, wavelength = 550):
         if(self.Formula == "Schott"):
             return self._Schott(wavelength)
@@ -181,7 +266,11 @@ class Material:
 
 def main():
     newglass = Material("E-KZFH1")
-    newglass.DrawRI()
+    #newglass.DrawRI()
+
+    paras = newglass.InverseMaterial(1.7899, 48)
+
+    print("fit: ", paras)
 
 if __name__ == "__main__":
     main() 
