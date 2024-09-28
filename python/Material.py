@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd 
 import os
+import math
 
 import matplotlib.pyplot as plt
 
@@ -8,14 +9,14 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
-def _InvSchott(lam, a0, a1, a2, a3, a4, a5):
+def _InvSchott(x, a0, a1, a2, a3, a4, a5):
     """
     Schott function for inverse calculating the material. 
     :param lam: lambda wavelength in nanometers. 
     """
-    lam /= 1000.0 # Convert to micrometers to use in the formula 
-    n2 = a0 + a1* lam**2 + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8)
-    return np.sqrt(n2)
+    x /= 1000.0 # Convert to micrometers to use in the formula 
+
+    return np.sqrt(a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8))
 
 
 class Material:
@@ -109,18 +110,20 @@ class Material:
 
         # The RI regression equation of the long wavelength was calculated externally 
         if(useNe):  # n_e and V_e
-            longer = self._fraunhofer["C"]
-            long = self._fraunhofer["C'"]
-            middle = self._fraunhofer["d"]
-            neighbor = self._fraunhofer["e"]
-            short = self._fraunhofer["F"]
             shorter = self._fraunhofer["F'"]
-            n_longer = 0.982 * n + 0.0268     # n_C
-            n_long = 0.984 * n + 0.0246       # n_C' 
-            n_mid = 1.02 * n - 0.0238         # n_d 
-            n_neighbor = n                    # n_e
-            n_short = 1.02 * n  -0.0272       # n_F
+            short = self._fraunhofer["F"]
+            neighbor = self._fraunhofer["e"]
+            middle = self._fraunhofer["d"]
+            long = self._fraunhofer["C'"]
+            longer = self._fraunhofer["C"]
+            n_long = 0.984 * n + 0.0246       # n_C'
+
             n_shorter = ( (n-1) / V) + n_long # n_F'
+            n_short = 1.02 * n  -0.0272       # n_F
+            n_neighbor = n                    # n_e
+            n_mid = 1.013 * n - 0.0264         # n_d 
+            n_long = 0.984 * n + 0.0246       # n_C' 
+            n_longer = 0.982 * n + 0.0268     # n_C
             
         else: # n_d and V_d
             longer = self._fraunhofer["C"]
@@ -143,7 +146,7 @@ class Material:
         plt.plot(x_data, y_data)
         plt.show()
 
-        popt, pcov = curve_fit(_InvSchott, x_data, y_data)
+        popt, pcov = curve_fit(_InvSchott, x_data, y_data, [2.75118, -0.01055, 0.02357, 0.00084, -0.00003, 0.00001])
 
         print(popt, pcov)
 
@@ -266,11 +269,11 @@ class Material:
 
 def main():
     newglass = Material("E-KZFH1")
-    #newglass.DrawRI()
+    newglass.DrawRI()
 
-    paras = newglass.InverseMaterial(1.7899, 48)
+    #paras = newglass.InverseMaterial(1.7899, 48)
 
-    print("fit: ", paras)
+    #print("fit: ", paras)
 
 if __name__ == "__main__":
     main() 
