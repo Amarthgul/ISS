@@ -19,6 +19,14 @@ def _InvSchott(x, a0, a1, a2, a3, a4, a5):
     return np.sqrt(a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8))
 
 
+def inv_schott(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
+    return np.sqrt(inv_schott_squared(lambd, a, powers))
+
+def inv_schott_squared(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
+    terms = np.power.outer(lambd, powers)
+    return terms @ a
+
+
 class Material:
 
     def __init__(self, name = "AIR"):
@@ -108,13 +116,15 @@ class Material:
     
     def InverseMaterial(self, n, V, useNe = True):
 
+        # Not really working... 
+
         # The RI regression equation of the long wavelength was calculated externally 
         if(useNe):  # n_e and V_e
             shorter = self._fraunhofer["F'"]
             short = self._fraunhofer["F"]
             neighbor = self._fraunhofer["e"]
             middle = self._fraunhofer["d"]
-            long = self._fraunhofer["C'"]
+            longc = self._fraunhofer["C'"]
             longer = self._fraunhofer["C"]
             n_long = 0.984 * n + 0.0246       # n_C'
 
@@ -127,7 +137,7 @@ class Material:
             
         else: # n_d and V_d
             longer = self._fraunhofer["C"]
-            long = self._fraunhofer["C'"]
+            longc = self._fraunhofer["C'"]
             middle = self._fraunhofer["d"]
             neighbor = self._fraunhofer["e"]
             short = self._fraunhofer["F"]
@@ -139,12 +149,30 @@ class Material:
             n_short = ( (n-1) / V) + n_long # n_F
             n_shorter = 0.983 * n + 0.0214  # n_F'
 
-        x_data = np.array([longer,      long,   middle,     neighbor,       short,      shorter])
+        x_data = np.array([longer,      longc,   middle,     neighbor,       short,      shorter])
         y_data = np.array([n_longer,    n_long, n_mid,      n_neighbor,     n_short,    n_shorter])
 
-        print(x_data, "\n", y_data)
-        plt.plot(x_data, y_data)
+        lambda_nm = np.array((longer, longc, middle, neighbor, short, shorter))
+        lambda_um = lambda_nm*1e-3 # Converting to micrometer 
+        n_all = np.array((n_longer, n_long, n_mid, n_neighbor, n_short, n_shorter))
+
+        fig, ax = plt.subplots()
+        lambda_hires = np.linspace(start=lambda_um.min(), stop=lambda_um.max(), num=501)
+        ax.scatter(lambda_um, n_all, label='experiment')
+
+
+        for lowest_power in range(0, -9, -2):
+            powers = np.arange(2, lowest_power - 1, -2)
+            a, residuals, rank, singular = np.linalg.lstsq(
+                a=np.power.outer(lambda_um, powers),
+                b=n_all**2, rcond=None,
+            )
+            print("a:", a, " Lowest power: ", lowest_power,  "\npowers   ", powers, "\n")
+            ax.plot(lambda_hires, inv_schott(lambda_hires, a, powers), label=f'powers to {lowest_power}')
+
+        ax.legend()
         plt.show()
+
 
         popt, pcov = curve_fit(_InvSchott, x_data, y_data, [2.75118, -0.01055, 0.02357, 0.00084, -0.00003, 0.00001])
 
@@ -267,11 +295,15 @@ class Material:
 
     # TODO: add more decoder and formula here if needed 
 
+    # ========================================================================
+    """ ============================ Archive ============================== """
+    # ========================================================================
+
 def main():
     newglass = Material("E-KZFH1")
-    newglass.DrawRI()
+    #newglass.DrawRI()
 
-    #paras = newglass.InverseMaterial(1.7899, 48)
+    paras = newglass.InverseMaterial(1.7899, 48)
 
     #print("fit: ", paras)
 
