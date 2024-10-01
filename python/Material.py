@@ -5,18 +5,23 @@ import math
 
 import matplotlib.pyplot as plt
 
-# For inverse material creation 
-from scipy.optimize import curve_fit
 
 
-def _InvSchott(x, a0, a1, a2, a3, a4, a5):
+
+def Schott(x, coef):
     """
     Schott function for inverse calculating the material. 
     :param lam: lambda wavelength in nanometers. 
     """
-    x /= 1000.0 # Convert to micrometers to use in the formula 
-
-    return np.sqrt(a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8))
+    a0 = coef[0]
+    a1 = coef[1]
+    a2 = coef[2]
+    a3 = coef[3]
+    a4 = coef[4]
+    a5 = coef[5]
+    n2 = a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8)
+    print(n2)
+    return np.sqrt(n2)
 
 
 def inv_schott(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
@@ -114,40 +119,32 @@ class Material:
                 self.Formula = "Extended 3"
                 self._decodeExtended_3(found)
     
+    def Test(self, var):
+        return Schott(
+            0.55, 
+            var
+        )
+
     def InverseMaterial(self, n, V, useNe = True):
 
         # Not really working... 
 
         # The RI regression equation of the long wavelength was calculated externally 
-        if(useNe):  # n_e and V_e
-            shorter = self._fraunhofer["F'"]
-            short = self._fraunhofer["F"]
-            neighbor = self._fraunhofer["e"]
-            middle = self._fraunhofer["d"]
-            longc = self._fraunhofer["C'"]
-            longer = self._fraunhofer["C"]
-            n_long = 0.984 * n + 0.0246       # n_C'
+        
+        shorter = self._fraunhofer["F'"]
+        short = self._fraunhofer["F"]
+        neighbor = self._fraunhofer["e"]
+        middle = self._fraunhofer["d"]
+        longc = self._fraunhofer["C'"]
+        longer = self._fraunhofer["C"]
+        n_long = 0.984 * n + 0.0246       # n_C'
 
-            n_shorter = ( (n-1) / V) + n_long # n_F'
-            n_short = 1.02 * n  -0.0272       # n_F
-            n_neighbor = n                    # n_e
-            n_mid = 1.013 * n - 0.0264         # n_d 
-            n_long = 0.984 * n + 0.0246       # n_C' 
-            n_longer = 0.982 * n + 0.0268     # n_C
-            
-        else: # n_d and V_d
-            longer = self._fraunhofer["C"]
-            longc = self._fraunhofer["C'"]
-            middle = self._fraunhofer["d"]
-            neighbor = self._fraunhofer["e"]
-            short = self._fraunhofer["F"]
-            shorter = self._fraunhofer["F'"]
-            n_longer = 0.956 * n+ 0.0611    # n_C
-            n_long = 0.957 * n + 0.0596     # n_C'
-            n_mid = n                       # n_d
-            n_neighbor = 0.969 * n + 0.0426 # n_e
-            n_short = ( (n-1) / V) + n_long # n_F
-            n_shorter = 0.983 * n + 0.0214  # n_F'
+        n_shorter = ( (n-1) / V) + n_long # n_F'
+        n_short = 1.03 * n -0.0418       # n_F
+        n_neighbor = n                    # n_e
+        n_mid = 0.986 * n + 0.0202         # n_d 
+        n_long = 0.971 * n + 0.0406       # n_C' 
+        n_longer = 0.968 * n + 0.0443     # n_C
 
         x_data = np.array([longer,      longc,   middle,     neighbor,       short,      shorter])
         y_data = np.array([n_longer,    n_long, n_mid,      n_neighbor,     n_short,    n_shorter])
@@ -168,15 +165,15 @@ class Material:
                 b=n_all**2, rcond=None,
             )
             print("a:", a, " Lowest power: ", lowest_power,  "\npowers   ", powers, "\n")
-            ax.plot(lambda_hires, inv_schott(lambda_hires, a, powers), label=f'powers to {lowest_power}')
+            ax.plot(lambda_hires, inv_schott(lambda_hires, a, powers), label=f'{lowest_power}th power')
 
         ax.legend()
         plt.show()
 
 
-        popt, pcov = curve_fit(_InvSchott, x_data, y_data, [2.75118, -0.01055, 0.02357, 0.00084, -0.00003, 0.00001])
+        # popt, pcov = curve_fit(_InvSchott, x_data, y_data, [2.75118, -0.01055, 0.02357, 0.00084, -0.00003, 0.00001])
 
-        print(popt, pcov)
+        #print(popt, pcov)
 
     # ========================================================================
     """ ============================ Private ============================== """
@@ -303,8 +300,8 @@ def main():
     newglass = Material("E-KZFH1")
     #newglass.DrawRI()
 
-    paras = newglass.InverseMaterial(1.7899, 48)
-
+    #paras = newglass.InverseMaterial(1.7899, 48)
+    newglass.Test([  5.337381, 14.407971, -2.9712481, -13.900439, -12.490178, 5.0407643])
     #print("fit: ", paras)
 
 if __name__ == "__main__":
