@@ -120,10 +120,11 @@ class Material:
                 self._decodeExtended_3(found)
     
     def Test(self, var):
-        return Schott(
-            0.55, 
-            var
-        )
+        ne = Schott(0.54607, var)
+        nfp = Schott(0.47999, var)
+        ncp = Schott(0.64385, var)
+        print("ne: ", ne)
+        print("Ve: ", (  (ne-1) / (nfp-ncp) ))
 
     def InverseMaterial(self, n, V, useNe = True):
 
@@ -300,9 +301,10 @@ def main():
     newglass = Material("E-KZFH1")
     #newglass.DrawRI()
 
-    #paras = newglass.InverseMaterial(1.7899, 48)
-    newglass.Test([  5.337381, 14.407971, -2.9712481, -13.900439, -12.490178, 5.0407643])
+    paras = newglass.InverseMaterial(1.7899, 48)
+    #newglass.Test([-9.47548462,  6.75216293,  9.03861417, -3.13234753,  0.53095114, -0.03512969])
     #print("fit: ", paras)
+    # [  5.337381, 14.407971, -2.9712481, -13.900439, -12.490178, 5.0407643]
 
 if __name__ == "__main__":
     main() 
