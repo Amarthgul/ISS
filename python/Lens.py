@@ -19,7 +19,10 @@ class Lens:
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
 
+        self.totalLength = 0
+
         self.spot = [] 
+        
 
         self.lastSurfaceIndex = 0
 
@@ -37,10 +40,24 @@ class Lens:
         for s in self.surfaces:
             s.SetCumulative(currentT)
             s.SetFrontVertex(np.array([0, 0, currentT]))
+
+            # Put this here so that the last element's thickness, 
+            # which is just BFD, will not be counted 
+            self.totalLength = currentT 
+
             currentT += s.thickness
 
         self._envMaterial = Material(self.env)
         self.lastSurfaceIndex = len(self.surfaces) - 1
+
+
+    def SetIncomingRayBatch(self, raybatch):
+        """
+        Set the raybatch aiming at the lens that will be used for propagation. 
+
+        :param raybatch: incoming raybatch. 
+        """
+        self.rayBatch = raybatch
 
 
     def AddSurfacve(self, surface, insertAfter = None):
@@ -51,13 +68,26 @@ class Lens:
         self.rayBatch = input
         
 
-    def SinglePointSpot(self, posP):
+    def Propagate(self):
         """
-        Place a single point source and accquire its spot. 
+        Assuming the raybatch is set, propagate them through the lens. 
+
+        :return: propagated raybatch exiting the lens. 
         """
-        self._initRays(posP)
-        self._propograte() 
-        
+        start = time.time()
+        # =============================================
+        i = 0
+        for i in range(len(self.surfaces)):
+            self._surfaceIntersection(i)
+            self._vectorsRefraction(i)
+        # =============================================
+        end = time.time()
+
+        if(DEVELOPER_MODE):
+            print("Propagate time: ", end - start)
+
+        return self.rayBatch 
+
 
     def DrawLens(self, drawSrufaces = True, drawRays = False, drawTails = True):
         
@@ -102,22 +132,22 @@ class Lens:
 
 
     def Test(self):
-
+        self.__SinglePointSpot(np.array([150, 100, -500]))
         
-        self.rayBatch = RayBatch(np.array([
-            [0, 0, 3, 0, 0, 1, 550, 1, 0, 1],
-            [0, 1, 2, 0, 0.3, 0.9, 470, 1, 1, 1],
-            [0, 2, 1, 0, 0.8, 0.3, 640, 1, 2, 0],
-            [0, 3, 0, 0, 0.6, 0.6, 580, 1, 3, 0],
-        ]))
-        #print(self.rayBatch.SurfaceIndex())
 
-        
-    # ============================================================================
-    """ ====================================================================== """
-    # ============================================================================
+    # ==================================================================
+    """ ============================================================ """
+    # ==================================================================
 
-    def _findB(self, posA, posC, posP):
+    def __SinglePointSpot(self, posP):
+        """
+        Place a single point source and accquire its spot. 
+        """
+        self._initRays(posP)
+        self._propograte() 
+
+
+    def __findB(self, posA, posC, posP):
         """
         Find the position of point B. 
         :param posA: position of point A.
@@ -134,7 +164,7 @@ class Lens:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, useDistribution = True):
+    def __ellipsePeripheral(self, posA, posB, posC, posP, sd, r, useDistribution = True):
         """
         Find the points on the ellipse and align it to the AB plane. 
 
@@ -217,6 +247,48 @@ class Lens:
 
             return trans_2
 
+
+    def __integralRays(self, surfaceIndex):
+        """
+        Taking integral over the rays arriving at the image plane. 
+
+        :param surfaceIndex: the index of the surface to intersect. 
+        """
+        if(not self.surfaces[surfaceIndex].IsImagePlane()):
+           # TODO: add spherical imager? 
+           return 
+        
+        cumulativeThickness = self.surfaces[surfaceIndex].cumulativeThickness
+        ipSize = self.surfaces[surfaceIndex].ImagePlaneSize()
+        pxDimension = self.surfaces[surfaceIndex].ImagePlanePx()
+
+        pxPitch = ipSize[0] / pxDimension[0] 
+        pxOffset = np.array([pxDimension[0]/2, pxDimension[1]/2, 0])
+
+        # Find the rays that arrived at the the image plane 
+        rayHitIndex = np.where(np.isclose(self.rayBatch.value[:, 2], cumulativeThickness))
+
+        # Translate the intersections from 3D image space to 2D pixel-based space
+        rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
+        rayColor = self.rayBatch.Radiant()[rayHitIndex]
+
+        # Convert ray position into pixel position 
+        rayPos = np.floor(rayPos).astype(int)
+        # Create pixel grid 
+        radiantGrid = np.zeros( (pxDimension[0], pxDimension[1]) )
+
+        # Sum up the radiant 
+        np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
+
+        # Register the radiant grid to the spot 
+        self.spot = radiantGrid
+        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+        plt.colorbar()  # Optional: Add a colorbar to show intensity values
+        plt.show()
+
+    # ==================================================================
+    """ ============================================================ """
+    # ==================================================================
 
     def _surfaceIntersection(self, surfaceIndex):
         if (self.surfaces[surfaceIndex].radius == np.inf):
@@ -436,45 +508,6 @@ class Lens:
         self.rayPath.append(np.copy(mat1))
 
 
-    def _integralRays(self, surfaceIndex):
-        """
-        Taking integral over the rays arriving at the image plane. 
-
-        :param surfaceIndex: the index of the surface to intersect. 
-        """
-        if(not self.surfaces[surfaceIndex].IsImagePlane()):
-           # TODO: add spherical imager? 
-           return 
-        
-        cumulativeThickness = self.surfaces[surfaceIndex].cumulativeThickness
-        ipSize = self.surfaces[surfaceIndex].ImagePlaneSize()
-        pxDimension = self.surfaces[surfaceIndex].ImagePlanePx()
-
-        pxPitch = ipSize[0] / pxDimension[0] 
-        pxOffset = np.array([pxDimension[0]/2, pxDimension[1]/2, 0])
-
-        # Find the rays that arrived at the the image plane 
-        rayHitIndex = np.where(np.isclose(self.rayBatch.value[:, 2], cumulativeThickness))
-
-        # Translate the intersections from 3D image space to 2D pixel-based space
-        rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
-        rayColor = self.rayBatch.Radiant()[rayHitIndex]
-
-        # Convert ray position into pixel position 
-        rayPos = np.floor(rayPos).astype(int)
-        # Create pixel grid 
-        radiantGrid = np.zeros( (pxDimension[0], pxDimension[1]) )
-
-        # Sum up the radiant 
-        np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
-
-        # Register the radiant grid to the spot 
-        self.spot = radiantGrid
-        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-        plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        plt.show()
-
-
     def _propograte(self):
 
         start = time.time()
@@ -489,7 +522,7 @@ class Lens:
         # =============================================
         end = time.time()
 
-        self._integralRays(i)
+        #self._integralRays(i)
 
         print("It took", (end - start), "seconds!")
         self._writeToFile()
@@ -521,8 +554,7 @@ def main():
     singlet.UpdateLens()
     singlet.surfaces[singlet.lastSurfaceIndex].SetAsImagePlane(36, 24, 300, 200)
 
-    # TODO: fix the non update issue 
-    singlet.SinglePointSpot(np.array([150, 100, -500]))
+    singlet.Test()
 
     #singlet.DrawLens(drawRays=True, drawTails=False)
 

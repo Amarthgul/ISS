@@ -1,6 +1,10 @@
 
 import numpy as np
 
+
+# Global flag for developing and debugging features 
+DEVELOPER_MODE = True 
+
 # Utility 
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)

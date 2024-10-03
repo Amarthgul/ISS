@@ -2,12 +2,16 @@
 from PIL import Image
 
 from Lens import * 
+from Imager import * 
+from Util import * 
 
 class ImagingSystem:
     def __init__(self):
+
         self.lens = None 
         self.imager = None 
         self.rayBatch = None 
+
         self.point = None 
         self.inputImage = None 
 
@@ -15,69 +19,184 @@ class ImagingSystem:
     def AddLens(self, lens):
         self.lens = lens 
 
+    def AddImager(self, imager):
+        self.imager = imager 
+
     def SinglePointSpot(self, pointPosition):
-        pass 
+        self._initRays(pointPosition)
+        self.lens.SetIncomingRayBatch(self.rayBatch)
+        self.rayBatch = self.lens.Propagate() 
+        self.imager.IntegralRays(self.rayBatch)
 
 
-    def _integralRays(self, surfaceIndex):
+    # ==================================================================
+    """ ============================================================ """
+    # ==================================================================
+
+    def _findB(self, posA, posC, posP):
         """
-        Taking integral over the rays arriving at the image plane. 
-
-        :param surfaceIndex: the index of the surface to intersect. 
+        Find the position of point B. 
+        :param posA: position of point A.
+        :param posC: position of point C.
+        :param posP: position of point P.
         """
-        if(not self.surfaces[surfaceIndex].IsImagePlane()):
-           # TODO: add spherical imager? 
-           return 
+        vecPA = posA - posP   
+        vecPC = posC - posP  
+        vecN = Normalized((Normalized(vecPA) + Normalized(vecPC)) / 2)
         
-        cumulativeThickness = self.surfaces[surfaceIndex].cumulativeThickness
-        ipSize = self.surfaces[surfaceIndex].ImagePlaneSize()
-        pxDimension = self.surfaces[surfaceIndex].ImagePlanePx()
+        vecPCN = Normalized(vecPC)
+        t = (np.dot(vecN, (posA - posC))) / np.dot(vecN, vecPCN)
 
-        pxPitch = ipSize[0] / pxDimension[0] 
-        pxOffset = np.array([pxDimension[0]/2, pxDimension[1]/2, 0])
-
-        # Find the rays that arrived at the the image plane 
-        rayHitIndex = np.where(np.isclose(self.rayBatch.value[:, 2], cumulativeThickness))
-
-        # Translate the intersections from 3D image space to 2D pixel-based space
-        rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
-        rayColor = self.rayBatch.Radiant()[rayHitIndex]
-
-        # Convert ray position into pixel position 
-        rayPos = np.floor(rayPos).astype(int)
-        # Create pixel grid 
-        radiantGrid = np.zeros( (pxDimension[0], pxDimension[1]) )
-
-        # Sum up the radiant 
-        np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
-
-        # Register the radiant grid to the spot 
-        self.spot = radiantGrid
-        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-        plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        plt.show()
+        return posC + vecPCN * t 
 
 
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, useDistribution = True):
+        """
+        Find the points on the ellipse and align it to the AB plane. 
 
+        :param posA: position of point A. 
+        :param posB: position of point B. 
+        :param posC: position of point C. 
+        :param posP: position of point P. 
+        :param sd: clear semi diameter of the surface. 
+        :param r: radius of the surface. 
+        :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
+        """
+        offset = np.array([0, 0, posA[2]])
+        onAxis = False 
+
+        # On axis scenario 
+        if (np.isclose(posP[0], 0) and np.isclose(posP[1], 0)):
+            P_xy_projection = np.array([sd, 0, 0])
+            onAxis = True 
+        else:
+            # Util vectors 
+            P_xy_projection = Normalized(np.array([posP[0], posP[1], 0]))
+
+        vecCA = posA - posC
+        
+        # On axis rays can be grealty simplified 
+        if(onAxis):
+            if (useDistribution):
+                # Move the point along the z axis 
+                points = np.transpose(CircularDistribution()) + offset
+                # Scale it on the two semi-major axis 
+                points = np.transpose(points * np.array([sd, sd, 1]))
+                
+            else:
+                # Generate the contour of the ellipse 
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = np.cos(theta) 
+                y = np.sin(theta) 
+                z = np.ones(len(x)) * posA[2]
+                points = np.array([x, y, z])
+            return points 
+        
+        # Off axis rays 
+        else:
+            # Lengths to calculate semi-major axis length 
+            BB = abs((2 * sd) * ((posP[2] - posB[2]) / posP[2]))
+            AC = np.linalg.norm(posA - posC)
+            
+            # Semi-major axis length 
+            a = np.linalg.norm(posA - posB) / 2
+            b = np.sqrt(BB * AC) / 2
+
+            # Calculate the ellipse 
+            if (useDistribution):
+                # Move the point along the z axis 
+                points = np.transpose(CircularDistribution()) + offset
+                # Scale it on the two semi-major axis 
+                points = np.transpose(points * np.array([b, a, 1]))
+                
+            else:
+                # Generate the contour of the ellipse 
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = b * np.cos(theta) 
+                y = a * np.sin(theta) 
+                z = np.ones(len(x)) * posA[2]
+                points = np.array([x, y, z])
+            
+            # Rotate the ellipse to it faces the right direction in the world xy plane,
+            # i.e., one of its axis coincides with the tangential plane 
+            theta_1 = angleBetweenVectors(posA, np.array([0, 1, 0]))
+            trans_1 = Rotation(-theta_1, np.array([0, 0, 1]), points)
+            
+            # Move the points to be in tangent with A 
+            trans_1 = Translate(trans_1, P_xy_projection * (sd - a)) 
+            
+            # Rotate the ellipse around A it fits into the AB plane 
+            theta = angleBetweenVectors(posB-posA, posC-posA)
+            axis = Normalized(np.array([-vecCA[1], vecCA[0], 0]))
+            trans_2 = Translate(trans_1, -posA)
+            trans_2 = Rotation(-theta, axis, trans_2)
+            trans_2 = Translate(trans_2, posA)
+
+            return trans_2
+        
+
+    def _initRays(self, posP, wavelength = 550):
+        firstSurface = self.lens.surfaces[0] 
+        r = firstSurface.radius
+        sd = firstSurface.clearSemiDiameter
+
+        P_xy_projection = np.array([posP[0], posP[1], 0])
+        offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
+        if(not np.isclose(np.linalg.norm(P_xy_projection), 0)):
+            posA = sd * ( P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+            posC = sd * (-P_xy_projection / np.linalg.norm(P_xy_projection) ) + offset
+        else:
+            posA = np.array([sd, 0, 0]) + offset
+            posC = np.array([sd, 0, 0]) + offset
+        posB = self._findB(posA, posC, posP)
+
+        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
+        self._temp = self._ellipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
+
+        vecs = ArrayNormalized(points - posP)
+
+        # Create the ray batch 
+        # For some reason vecs is often not registered with indexing assignment, 
+        # the hstack is thus used to force the composition of the raybatch. 
+        mat1 = np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
+        mat2 = np.tile(np.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
+        mat = np.hstack((np.hstack((mat1, vecs)), mat2))
+
+        self.rayBatch = RayBatch( mat )
+
+
+
+    
 def main():
     biotar = Lens() 
 
+    # Set up the lens 
     # Zeiss Biotar 50 1.4 
-    biotar.AddSurfacve(Surface(41.8,   5.375, 17, "BAF9"))
-    biotar.AddSurfacve(Surface(160.5,  0.825, 17))
-    biotar.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
-    biotar.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
-    biotar.AddSurfacve(Surface(14.15,	9.45, 11))
-    biotar.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
-    biotar.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
-    biotar.AddSurfacve(Surface(-26.6,	0.485, 13))
-    biotar.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
-    biotar.AddSurfacve(Surface(-60,	32.3552, 14))
+    biotar.AddSurfacve(Surface(41.8,    5.375,  17, "BAF9"))
+    biotar.AddSurfacve(Surface(160.5,   0.825,  17))
+    biotar.AddSurfacve(Surface(22.4,	7.775,  16, "SK10"))
+    biotar.AddSurfacve(Surface(-575,	2.525,  16, "LZ_LF5"))
+    biotar.AddSurfacve(Surface(14.15,	9.45,   11))
+    biotar.AddSurfacve(Surface(-19.25,	2.525,  11, "SF5"))
+    biotar.AddSurfacve(Surface(25.25,	10.61,  13, "BAF9"))
+    biotar.AddSurfacve(Surface(-26.6,	0.485,  13))
+    biotar.AddSurfacve(Surface(53, 	    6.95,   14, "BAF9"))
+    biotar.AddSurfacve(Surface(-60,	    32.3552, 14))
+    # Update immediately after all the surfaces are created 
+    biotar.UpdateLens() 
 
+    # Set up the imager 
+    imager = Imager(bfd=32.3552)
 
+    # Assemble the imaging system 
     imgSys = ImagingSystem() 
     imgSys.AddLens(biotar)
+    imgSys.AddImager(imager)
+    imgSys.imager.SetLensLength(imgSys.lens.totalLength)
+
+    # Propagate light 
     imgSys.SinglePointSpot(np.array([150, 100, -500]))
+    
 
 
 
