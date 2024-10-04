@@ -12,6 +12,8 @@ class ImagingSystem:
         self.imager = None 
         self.rayBatch = None 
 
+        self.rayPath = None 
+
         self.point = None 
         self.inputImage = None 
 
@@ -28,6 +30,40 @@ class ImagingSystem:
         self.rayBatch = self.lens.Propagate() 
         self.imager.IntegralRays(self.rayBatch)
 
+        self.rayPath = self.lens.rayPath
+
+    def DrawSystem(self, drawSurfaces=True, drawPath=True):
+        ax = PlotTest.Setup3Dplot()
+        PlotTest.SetUnifScale(ax, self.lens.totalLength)
+
+        if(drawSurfaces):
+            self.lens.DrawLens(ax = ax)
+
+            ipSize = np.array([self.imager.width, self.imager.height]) / 2
+            zPos = self.imager.GetZPos()
+            corners = np.array([
+                [ipSize[0], ipSize[1], zPos],
+                [-ipSize[0], ipSize[1], zPos],
+                [-ipSize[0], -ipSize[1], zPos],
+                [ipSize[0], -ipSize[1], zPos]
+            ])
+            vertices = [[corners[0], corners[1], corners[2], corners[3]]]
+            ax.add_collection3d(Poly3DCollection(vertices, facecolors='cyan', linewidths=1, edgecolors='r', alpha=0.5, zorder=0))
+
+        if(drawPath):
+
+            # Accquire the raypath 
+            rayPath = self.lens.rayPath 
+            rayPath.extend(self.imager.rayPath)
+
+            rayThickness = 0.25 
+            
+            for i in range(len(rayPath) - 1):
+                for v1, v2 in zip(rayPath[i], rayPath[i+1]):
+                    PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness, zorder=10) 
+            
+
+        plt.show()
 
     # ==================================================================
     """ ============================================================ """
@@ -196,6 +232,8 @@ def main():
 
     # Propagate light 
     imgSys.SinglePointSpot(np.array([150, 100, -500]))
+
+    imgSys.DrawSystem()
     
 
 

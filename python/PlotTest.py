@@ -40,9 +40,9 @@ def DrawPoints(ax, points):
 def Draw3D(ax, x, y, z):
     ax.plot(x, y, z)
 
-def DrawLine(ax, point1, point2, lineColor = "k", lineWidth = 2):
+def DrawLine(ax, point1, point2, lineColor = "k", lineWidth = 2, zorder=10):
     ax.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
-            label = '3D Line', color = lineColor, linewidth = lineWidth)
+            label = '3D Line', color = lineColor, linewidth = lineWidth, zorder=zorder)
     
 def DrawCircle(ax, radius, offset = 0, num_points=100):
     theta = np.linspace(0, 2 * np.pi, num_points)

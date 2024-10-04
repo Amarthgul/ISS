@@ -17,6 +17,8 @@ class Imager():
         self._lensLength = 0 # Length of the lens in front of the imager 
         self._zPos = 0 
 
+        self.rayPath = None 
+
         self._Start()
 
     def _Start(self):
@@ -32,8 +34,15 @@ class Imager():
         self._lensLength = length 
         self._zPos = length + self.BFD 
 
+
+    def GetZPos(self):
+        return self._zPos
+    
+
     def IntegralRays(self, raybatch):
         self.rayBatch = raybatch
+        self.rayPath = [np.copy(self.rayBatch.Position())]
+
         self._ImagePlaneIntersections() 
         self._integralRays() 
 
@@ -77,7 +86,6 @@ class Imager():
             (intersection_points[:, 0] < (-self.width/2)) | \
             (intersection_points[:, 1] > (self.height/2)) | \
             (intersection_points[:, 1] < (-self.height/2)) 
-        combinedValidInd = ~outOfBoundInd & valid_rays
         
         # Only replace the in bound ray positions 
         ray_positions[~outOfBoundInd] = intersection_points[~outOfBoundInd]
@@ -86,14 +94,19 @@ class Imager():
         og_positions[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
         self.rayBatch.SetPosition(og_positions)
 
+        # Copy the positions into path 
+        self.rayPath.append(np.copy(og_positions))
+
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
+
+        
         
 
-    def _integralRays(self):
+    def _integralRays(self, plotResult = False):
         """
         Taking integral over the rays arriving at the image plane. 
 
-        :param surfaceIndex: the index of the surface to intersect. 
+        :param plotResult: whether to show the resulting plot or not. 
         """
 
         pxPitch = self.width / self.horizontalPx 
@@ -114,9 +127,8 @@ class Imager():
         # Sum up the radiant 
         np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
 
-        # Register the radiant grid to the spot 
-        self.spot = radiantGrid
-        plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-        plt.colorbar()  # Optional: Add a colorbar to show intensity values
-        plt.show()
+        if (plotResult):
+            plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+            plt.colorbar()  # Optional: Add a colorbar to show intensity values
+            plt.show()
 

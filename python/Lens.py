@@ -89,16 +89,18 @@ class Lens:
         return self.rayBatch 
 
 
-    def DrawLens(self, drawSrufaces = True, drawRays = False, drawTails = True):
+    def DrawLens(self, drawSrufaces = True, drawRays = False, drawTails = False, ax = None):
         
         rayThickness = 0.25
         plotSize = self.surfaces[len(self.surfaces)-1].cumulativeThickness
         lastSurfaceExt = plotSize/1.5 # Extend the rays from the last surface 
 
-        ax = PlotTest.Setup3Dplot()
-        PlotTest.SetUnifScale(ax, plotSize)
+        if(ax == None):
+            ax = PlotTest.Setup3Dplot()
+            PlotTest.SetUnifScale(ax, plotSize)
 
-        PlotTest.Draw3D(ax, self._temp[0], self._temp[1], self._temp[2])
+        #PlotTest.Draw3D(ax, self._temp[0], self._temp[1], self._temp[2])
+
         # Draw every surfaces 
         for l in self.surfaces:
             if(l.IsImagePlane()):
@@ -127,8 +129,11 @@ class Lens:
                 lastSurfacePos = self.rayBatch.Position()
                 for v1, v2 in zip(lastSurfacePos[sequentialOnly], (lastSurfacePos+self.rayBatch.Direction()*lastSurfaceExt)[sequentialOnly]):
                     PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness) 
+        
+        if(ax == None):
+            plt.show()
 
-        plt.show()
+        return ax 
 
 
     def Test(self):
