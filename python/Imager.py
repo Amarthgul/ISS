@@ -100,9 +100,8 @@ class Imager():
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
 
         
-        
-
-    def _integralRays(self, plotResult = False):
+    
+    def _integralRays(self, plotResult = True):
         """
         Taking integral over the rays arriving at the image plane. 
 

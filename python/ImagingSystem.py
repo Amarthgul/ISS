@@ -32,6 +32,7 @@ class ImagingSystem:
 
         self.rayPath = self.lens.rayPath
 
+
     def DrawSystem(self, drawSurfaces=True, drawPath=True):
         ax = PlotTest.Setup3Dplot()
         PlotTest.SetUnifScale(ax, self.lens.totalLength)
@@ -64,6 +65,7 @@ class ImagingSystem:
             
 
         plt.show()
+
 
     # ==================================================================
     """ ============================================================ """
@@ -233,7 +235,7 @@ def main():
     # Propagate light 
     imgSys.SinglePointSpot(np.array([150, 100, -500]))
 
-    imgSys.DrawSystem()
+    #imgSys.DrawSystem()
     
 
 
