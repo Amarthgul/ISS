@@ -1,9 +1,25 @@
 
 import numpy as np
-
+import math
 
 # Global flag for developing and debugging features 
 DEVELOPER_MODE = True 
+
+LambdaLines = {
+    "i" : 365.01, 
+    "h" : 404.66, 
+    "g" : 435.84, 
+    "F'": 479.99, 
+    "F" : 486.13, 
+    "e" : 546.07, 
+    "d" : 587.56, 
+    "D" : 589.3, 
+    "C'": 643.85,
+    "C" : 656.27, 
+    "r" : 706.52, 
+    "A'": 768.2, 
+    "s" : 852.11
+}
 
 # Utility 
 def Normalized(inputVec):
@@ -162,3 +178,9 @@ def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = Tru
     return sign * Normalized(intersections - origin)
 
 
+def main():
+    pass 
+
+
+if __name__ == "__main__":
+    main()
