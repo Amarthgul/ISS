@@ -47,28 +47,7 @@ class Imager():
         self._integralRays() 
 
     def Test(self):
-        import matplotlib.pyplot as plt
-        lam = np.arange(350, 780)
-
-        rgb_colors = self._WaveLengthToRGB(lam, OneValueNorm=True)
-
-        # Create a figure and axis
-        fig, ax = plt.subplots(figsize=(10, 2))
-
-        # Create an array that represents the color bar using the RGB values
-        # We need to reshape this to a (1, N, 3) array to plot as an image
-        color_bar = np.reshape(rgb_colors, (1, rgb_colors.shape[0], 3))
-
-        # Plot the color bar
-        ax.imshow(color_bar, aspect='auto', extent=[350, 780, 0, 1])
-
-        # Set axis labels and title
-        ax.set_xlabel('Wavelength (nm)')
-        ax.set_yticks([])
-        ax.set_title('Color Representation of Wavelengths (350 nm - 780 nm)')
-
-        # Show the plot
-        plt.show()
+        pass 
 
     # ==================================================================
     """ ============================================================ """
@@ -154,7 +133,6 @@ class Imager():
             plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
             plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
-
 
 
 
@@ -248,6 +226,16 @@ class Imager():
 
         return rgb
 
+
+    def _RGBToWavelength(self, RGB, 
+                         primaries = {"R": "C'", "G": "e", "B":"g"}, 
+                         secondary = {}):
+
+        pass 
+
+    def _WavelengthToRGB(self):
+        # Should there be a separate conversion function? 
+        pass 
 
 
 def main():
