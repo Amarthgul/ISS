@@ -47,7 +47,9 @@ class Imager():
         self._integralRays() 
 
     def Test(self):
-        pass 
+        val = self._RGBToWavelength([[255, 0, 0]])
+        print("\n\nValue: ", val)
+        
 
     # ==================================================================
     """ ============================================================ """
@@ -229,9 +231,29 @@ class Imager():
 
     def _RGBToWavelength(self, RGB, 
                          primaries = {"R": "C'", "G": "e", "B":"g"}, 
-                         secondary = {}):
+                         secondary = {}, bitDepth=8):
+        """
+        Convert an RGB values to corresponding wavelengths and intensity/radiant flux.
+        
+        :param RGB: RGB values
+        :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"})
+        :param secondary: A dictionary mapping secondary colors to wavelength lines (optional)
+        :return: A NumPy array of wavelengths corresponding to the input RGB array
+        """
 
-        pass 
+        # Normalize RGB values to the range [0, 1]
+        bits = 2.0 ** bitDepth - 1
+        RGB_normalized = np.array(RGB) / bits
+
+
+        lambda_R = LambdaLines[primaries["R"]]
+        lambda_G = LambdaLines[primaries["G"]]
+        lambda_B = LambdaLines[primaries["B"]]
+        
+        radiant = RGB_normalized
+        
+        return (np.array([lambda_R, lambda_G, lambda_B]), radiant)
+    
 
     def _WavelengthToRGB(self):
         # Should there be a separate conversion function? 
