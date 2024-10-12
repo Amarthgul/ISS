@@ -8,17 +8,18 @@ DEVELOPER_MODE = True
 LambdaLines = {
     "i" : 365.01, 
     "h" : 404.66, 
-    "g" : 435.84, 
+    "g" : 435.84,  # Default B
     "F'": 479.99, 
-    "F" : 486.13, 
-    "e" : 546.07, 
-    "d" : 587.56, 
-    "D" : 589.3, 
-    "C'": 643.85,
+    "F" : 486.13,  # Default secondary 
+    "e" : 546.07,  # Default G
+    "d" : 587.56,  
+    "D" : 589.3,   # Default secondary
+    "C'": 643.85,  # Default R 
     "C" : 656.27, 
     "r" : 706.52, 
     "A'": 768.2, 
-    "s" : 852.11
+    "s" : 852.11,
+    "t" : 1013.98,
 }
 
 # Utility 

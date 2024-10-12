@@ -5,7 +5,8 @@ import math
 
 import matplotlib.pyplot as plt
 
-
+# Primarily using the LambdaLines definition 
+from Util import LambdaLines
 
 
 def Schott(x, coef):
@@ -45,23 +46,6 @@ class Material:
 
         self.Startup()
 
-        self._fraunhofer = {
-            "i"     :   365.01, 
-            "h"     :   404.66,
-            "g"     :   435.84,
-            "F'"    :   479.99,
-            "F"     :   486.13,
-            "e"     :   546.07,
-            "d"     :   587.56,
-            "D"     :   589.3,
-            "C'"    :   643.85,
-            "C"     :   656.27,
-            "r"     :   706.52,
-            "A'"    :   768.2,
-            "s"     :   852.11,
-            "t"     :   1013.98,
-        }
-
     def RI(self, lam):
         """
         The index of refraction of the material at given wavelength. 
@@ -75,18 +59,18 @@ class Material:
             return self._RI(lam)
 
     def n_e(self):
-        return self.RI(self._fraunhofer["e"])
+        return self.RI(LambdaLines["e"])
     
     def n_d(self):
-        return self.RI(self._fraunhofer["d"])
+        return self.RI(LambdaLines["d"])
     
     def V_e(self):
-        return ( self.RI(self._fraunhofer["e"]) - 1 ) / \
-            (self.RI(self._fraunhofer["F'"]) - self.RI(self._fraunhofer["C'"]))
+        return ( self.RI(LambdaLines["e"]) - 1 ) / \
+            (self.RI(LambdaLines["F'"]) - self.RI(LambdaLines["C'"]))
 
     def V_d(self):
-        return ( self.RI(self._fraunhofer["d"]) - 1 ) / \
-            (self.RI(self._fraunhofer["F"]) - self.RI(self._fraunhofer["C"]))
+        return ( self.RI(LambdaLines["d"]) - 1 ) / \
+            (self.RI(LambdaLines["F"]) - self.RI(LambdaLines["C"]))
 
     def DrawRI(self, UV=380, IR=720):
         lam = np.arange(UV, IR, dtype=float) 
@@ -96,6 +80,10 @@ class Material:
         plt.show()
 
     def Startup(self):
+
+        # TODO: the read table and lookup turned out to be the 
+        # slowest part of the entire program, find a way to accelerate this 
+
         if(self.name == "AIR"):
             return 
         else:
@@ -132,12 +120,12 @@ class Material:
 
         # The RI regression equation of the long wavelength was calculated externally 
         
-        shorter = self._fraunhofer["F'"]
-        short = self._fraunhofer["F"]
-        neighbor = self._fraunhofer["e"]
-        middle = self._fraunhofer["d"]
-        longc = self._fraunhofer["C'"]
-        longer = self._fraunhofer["C"]
+        shorter = LambdaLines["F'"]
+        short = LambdaLines["F"]
+        neighbor = LambdaLines["e"]
+        middle = LambdaLines["d"]
+        longc = LambdaLines["C'"]
+        longer = LambdaLines["C"]
         n_long = 0.984 * n + 0.0246       # n_C'
 
         n_shorter = ( (n-1) / V) + n_long # n_F'

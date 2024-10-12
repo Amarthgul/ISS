@@ -47,7 +47,7 @@ class Imager():
         self._integralRays() 
 
     def Test(self):
-        val = self._RGBToWavelength([[255, 0, 0]])
+        val = self._RGBToWavelength([[255, 128, 10]])
         print("\n\nValue: ", val)
         
 
@@ -231,28 +231,44 @@ class Imager():
 
     def _RGBToWavelength(self, RGB, 
                          primaries = {"R": "C'", "G": "e", "B":"g"}, 
-                         secondary = {}, bitDepth=8):
+                         secondaries = ["F", "D"], 
+                         UVIRcut = ["i", "A'"],
+                         bitDepth=8):
         """
         Convert an RGB values to corresponding wavelengths and intensity/radiant flux.
         
         :param RGB: RGB values
         :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"})
-        :param secondary: A dictionary mapping secondary colors to wavelength lines (optional)
+        :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
+        :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
         :return: A NumPy array of wavelengths corresponding to the input RGB array
         """
 
         # Normalize RGB values to the range [0, 1]
         bits = 2.0 ** bitDepth - 1
-        RGB_normalized = np.array(RGB) / bits
 
+        wavelengths = np.array([
+            LambdaLines[primaries["R"]], 
+            LambdaLines[primaries["G"]], 
+            LambdaLines[primaries["B"]]
+        ])
 
-        lambda_R = LambdaLines[primaries["R"]]
-        lambda_G = LambdaLines[primaries["G"]]
-        lambda_B = LambdaLines[primaries["B"]]
-        
-        radiant = RGB_normalized
-        
-        return (np.array([lambda_R, lambda_G, lambda_B]), radiant)
+        radiants = np.array(RGB) / bits
+
+        if (len(secondaries) > 0):
+            for secondary in secondaries:
+                currentWavelength = LambdaLines[secondary]
+                currentRadiant = 0
+                wavelengths = np.append(wavelengths, currentWavelength)
+
+                # Between Red line and IR line 
+                if(currentWavelength < LambdaLines[UVIRcut[1]] and currentWavelength > LambdaLines[primaries["R"]]):
+                    currentRadiant = radiants[0] * ( (currentRadiant - LambdaLines[primaries["R"]]) / (LambdaLines[UVIRcut[1]] - LambdaLines[primaries["R"]]) )
+                    
+
+                radiants = np.append(currentRadiant)
+
+        return (wavelengths, radiants)
     
 
     def _WavelengthToRGB(self):
