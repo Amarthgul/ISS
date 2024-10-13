@@ -47,7 +47,7 @@ class Imager():
         self._integralRays() 
 
     def Test(self):
-        val = self._RGBToWavelength([[255, 128, 10]])
+        val = self._RGBToWavelength([255, 128, 10])
         print("\n\nValue: ", val)
         
 
@@ -254,6 +254,7 @@ class Imager():
         ])
 
         radiants = np.array(RGB) / bits
+        print(radiants)
 
         if (len(secondaries) > 0):
             for secondary in secondaries:
@@ -261,12 +262,30 @@ class Imager():
                 currentRadiant = 0
                 wavelengths = np.append(wavelengths, currentWavelength)
 
-                # Between Red line and IR line 
+                # Between IR limit and Red line 
                 if(currentWavelength < LambdaLines[UVIRcut[1]] and currentWavelength > LambdaLines[primaries["R"]]):
-                    currentRadiant = radiants[0] * ( (currentRadiant - LambdaLines[primaries["R"]]) / (LambdaLines[UVIRcut[1]] - LambdaLines[primaries["R"]]) )
-                    
+                    # Using red radiant and reduce the intensity depending on how far it is away from the red line 
+                    currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[primaries["R"]]) / (LambdaLines[UVIRcut[1]] - LambdaLines[primaries["R"]]) )
 
-                radiants = np.append(currentRadiant)
+                # Between Red line and Green line 
+                elif(currentWavelength < LambdaLines[primaries["R"]] and currentWavelength > LambdaLines[primaries["G"]]):
+                    # Find the ratio between red and green 
+                    ratio = (currentWavelength - LambdaLines[primaries["G"]]) / (LambdaLines[primaries["R"]] - LambdaLines[primaries["G"]])
+
+                    currentRadiant = radiants[0] * ratio + radiants[1] * (1 - ratio)
+
+                # Between Green line and Blue line 
+                elif(currentWavelength < LambdaLines[primaries["G"]] and currentWavelength > LambdaLines[primaries["B"]]):
+                    # Find the ratio between green and blue 
+                    ratio = (currentWavelength - LambdaLines[primaries["B"]]) / (LambdaLines[primaries["G"]] - LambdaLines[primaries["B"]])
+
+                    currentRadiant = radiants[1] * ratio + radiants[2] * (1 - ratio)
+
+                # Between Blue line and UV limit 
+                elif(currentWavelength < LambdaLines[primaries["B"]] and currentWavelength > LambdaLines[UVIRcut[0]]):
+                    currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]]) )
+
+                radiants = np.append(radiants, currentRadiant)
 
         return (wavelengths, radiants)
     

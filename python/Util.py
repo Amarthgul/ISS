@@ -5,8 +5,10 @@ import math
 # Global flag for developing and debugging features 
 DEVELOPER_MODE = True 
 
+# Fraunhofer symbols used in imager wavelength-RGB conversion 
+# and material RI and Abbe calculation 
 LambdaLines = {
-    "i" : 365.01, 
+    "i" : 365.01,  # Default UV cut 
     "h" : 404.66, 
     "g" : 435.84,  # Default B
     "F'": 479.99, 
@@ -17,7 +19,7 @@ LambdaLines = {
     "C'": 643.85,  # Default R 
     "C" : 656.27, 
     "r" : 706.52, 
-    "A'": 768.2, 
+    "A'": 768.2,   # Default IR cut 
     "s" : 852.11,
     "t" : 1013.98,
 }
