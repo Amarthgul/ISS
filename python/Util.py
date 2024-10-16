@@ -135,6 +135,9 @@ def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  power
     :param powerCoef: due to the use of delta area depending on radius, linear scale will make outer edges having more samples. This parameter reduces this unevenness. 
     :param shrink: shrink the distribution a bit to avoid edge clipping when used later in the projection. 
     """
+
+    # This function is not that good due to it based on scale and not the exact number of points. 
+    # It also tend to have meridional or sagittal uneveness when the incoing rays have an extreme angle. 
     partitionLayer = (np.arange(layer) + 1.0) / layer
     lastArea = 0
     
@@ -159,6 +162,38 @@ def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  power
         points = np.hstack((points, layerPoints))
         
     return points * radius * shrink
+
+
+def RandomEllipticalDistribution(major_axis=1, minor_axis=1, num_points=1000, shrink=0.95):
+    """
+    Generate a random, even distribution of points on an ellipse.
+    
+    :param major_axis: The radius of the major axis of the ellipse.
+    :param minor_axis: The radius of the minor axis of the ellipse.
+    :param num_points: Total number of points to generate.
+    :param shrink: Shrink factor to avoid edge clipping when projecting later.
+    :return: NumPy array of shape (2, num_points) representing the points on the ellipse.
+    """
+    
+    # Step 1: Generate random angles between [0, 2*pi]
+    angles = np.random.uniform(0, 2 * np.pi, num_points)
+    
+    # Step 2: Generate random radial distances with a uniform distribution
+    # We use sqrt(r) to ensure even distribution over the area
+    radii = np.sqrt(np.random.uniform(0, 1, num_points))
+    
+    # Step 3: Convert polar coordinates to Cartesian coordinates assuming a unit circle
+    x = radii * np.cos(angles)
+    y = radii * np.sin(angles)
+    
+    # Step 4: Scale the points to match the major and minor axes of the ellipse
+    x *= major_axis * shrink
+    y *= minor_axis * shrink
+    
+    # Step 5: Return the points as a (2, num_points) array
+    points = np.vstack((x, y))
+    
+    return points
 
 
 def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = True):

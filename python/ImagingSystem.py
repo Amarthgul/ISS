@@ -115,14 +115,15 @@ class ImagingSystem:
         
         # On axis rays can be grealty simplified 
         if(onAxis):
+            # Generate the internal samples  
             if (useDistribution):
                 # Move the point along the z axis 
                 points = np.transpose(CircularDistribution()) + offset
                 # Scale it on the two semi-major axis 
                 points = np.transpose(points * np.array([sd, sd, 1]))
-                
+            
+            # Generate the contour of the ellipse 
             else:
-                # Generate the contour of the ellipse 
                 theta = np.linspace(0, 2 * np.pi, 100)
                 x = np.cos(theta) 
                 y = np.sin(theta) 
