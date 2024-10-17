@@ -33,7 +33,15 @@ class ImagingSystem:
         self.rayPath = self.lens.rayPath
 
 
-    def DrawSystem(self, drawSurfaces=True, drawPath=True):
+    def DrawSystem(self, drawSurfaces=True, drawPath=True, rayPathMax=32):
+        """
+        This method draws the optical system in 3D for easier inspection. 
+
+        :param drawSurfaces: when enabled, surfaces will be drawn. 
+        :param drawPath: when enabled, ray paths will be drawn.
+        :param rayPathMax: max number of ray paths to draw, since there might be millions of ray paths recorded. 
+        """
+
         ax = PlotTest.Setup3Dplot()
         PlotTest.SetUnifScale(ax, self.lens.totalLength)
 
@@ -57,10 +65,15 @@ class ImagingSystem:
             rayPath = self.lens.rayPath 
             rayPath.extend(self.imager.rayPath)
 
+            # prune the paths to avoid drawing too many 
+            deletionIndices = np.random.choice(len(rayPath[0]), rayPathMax, replace=False)
+            prunedPath = [arr[deletionIndices] for arr in rayPath]
+
             rayThickness = 0.25 
             
-            for i in range(len(rayPath) - 1):
-                for v1, v2 in zip(rayPath[i], rayPath[i+1]):
+            # Iterate from surface to surface and draw the lines
+            for i in range(len(prunedPath) - 1):
+                for v1, v2 in zip(prunedPath[i], prunedPath[i+1]):
                     PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness, zorder=10) 
             
 
@@ -88,9 +101,9 @@ class ImagingSystem:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 100, useDistribution = True):
         """
-        Find the points on the ellipse and align it to the AB plane. 
+        Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
 
         :param posA: position of point A. 
         :param posB: position of point B. 
@@ -118,7 +131,7 @@ class ImagingSystem:
             # Generate the internal samples  
             if (useDistribution):
                 # Move the point along the z axis 
-                points = np.transpose(CircularDistribution()) + offset
+                points = np.transpose(RandomEllipticalDistribution(samplePoints=samplePoints)) + offset
                 # Scale it on the two semi-major axis 
                 points = np.transpose(points * np.array([sd, sd, 1]))
             
@@ -144,7 +157,7 @@ class ImagingSystem:
             # Calculate the ellipse 
             if (useDistribution):
                 # Move the point along the z axis 
-                points = np.transpose(CircularDistribution()) + offset
+                points = np.transpose(RandomEllipticalDistribution(samplePoints=samplePoints)) + offset
                 # Scale it on the two semi-major axis 
                 points = np.transpose(points * np.array([b, a, 1]))
                 
@@ -174,7 +187,11 @@ class ImagingSystem:
             return trans_2
         
 
-    def _initRays(self, posP, wavelength = 550):
+    def _singlePointRaybatch(self, posP, RGB=[255, 128, 1], bitDepth=8):
+        wavelengths, radiants = RGBToWavelength(RGB)
+
+        wavelength = 550 
+        
         firstSurface = self.lens.surfaces[0] 
         r = firstSurface.radius
         sd = firstSurface.clearSemiDiameter
@@ -195,11 +212,16 @@ class ImagingSystem:
         vecs = ArrayNormalized(points - posP)
 
         # Create the ray batch 
-        # For some reason vecs is often not registered with indexing assignment, 
-        # the hstack is thus used to force the composition of the raybatch. 
+        # For some reason vecs is often not registered with indexing assignment, the hstack is thus used to force compose the raybatch. 
         mat1 = np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
         mat2 = np.tile(np.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
         mat = np.hstack((np.hstack((mat1, vecs)), mat2))
+        
+        return np.hstack((np.hstack((mat1, vecs)), mat2))
+
+
+    def _initRays(self, posP):
+        mat = self._singlePointRaybatch(posP)
 
         self.rayBatch = RayBatch( mat )
 
@@ -236,7 +258,7 @@ def main():
     # Propagate light 
     imgSys.SinglePointSpot(np.array([150, 100, -500]))
 
-    #imgSys.DrawSystem()
+    imgSys.DrawSystem()
     
 
 

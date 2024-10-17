@@ -125,7 +125,7 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
 # Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  powerCoef = 0.7, shrink = 0.95):
+def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 0.95):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -136,7 +136,7 @@ def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  power
     :param shrink: shrink the distribution a bit to avoid edge clipping when used later in the projection. 
     """
 
-    # This function is not that good due to it based on scale and not the exact number of points. 
+    # This function is not that controllable due to it based on scale and not the exact number of points. 
     # It also tend to have meridional or sagittal uneveness when the incoing rays have an extreme angle. 
     partitionLayer = (np.arange(layer) + 1.0) / layer
     lastArea = 0
@@ -164,23 +164,23 @@ def CircularDistribution(radius = 1, layer = 100,  densityScale = 0.0002,  power
     return points * radius * shrink
 
 
-def RandomEllipticalDistribution(major_axis=1, minor_axis=1, num_points=1000, shrink=0.95):
+def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, shrink=0.95):
     """
     Generate a random, even distribution of points on an ellipse.
     
     :param major_axis: The radius of the major axis of the ellipse.
     :param minor_axis: The radius of the minor axis of the ellipse.
-    :param num_points: Total number of points to generate.
+    :param samplePoints: Total number of points to generate.
     :param shrink: Shrink factor to avoid edge clipping when projecting later.
-    :return: NumPy array of shape (2, num_points) representing the points on the ellipse.
+    :return: NumPy array of shape (2, samplePoints) representing the points on the ellipse.
     """
     
     # Step 1: Generate random angles between [0, 2*pi]
-    angles = np.random.uniform(0, 2 * np.pi, num_points)
+    angles = np.random.uniform(0, 2 * np.pi, samplePoints)
     
     # Step 2: Generate random radial distances with a uniform distribution
-    # We use sqrt(r) to ensure even distribution over the area
-    radii = np.sqrt(np.random.uniform(0, 1, num_points))
+    # sqrt to ensure even distribution over the circle
+    radii = np.sqrt(np.random.uniform(0, 1, samplePoints))
     
     # Step 3: Convert polar coordinates to Cartesian coordinates assuming a unit circle
     x = radii * np.cos(angles)
@@ -189,9 +189,11 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, num_points=1000, sh
     # Step 4: Scale the points to match the major and minor axes of the ellipse
     x *= major_axis * shrink
     y *= minor_axis * shrink
+
+    z = np.zeros(len(x)) # z defaults to 0
     
-    # Step 5: Return the points as a (2, num_points) array
-    points = np.vstack((x, y))
+    # Step 5: Return the points as a (2, samplePoints) array
+    points = np.vstack((x, y, z))
     
     return points
 
@@ -215,6 +217,72 @@ def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = Tru
 
     return sign * Normalized(intersections - origin)
 
+
+
+
+    # =========================================================
+    """ =================================================== """
+    # =========================================================
+
+def RGBToWavelength(RGB, 
+                    primaries = {"R": "C'", "G": "e", "B":"g"}, 
+                    secondaries = ["F", "D"], 
+                    UVIRcut = ["i", "A'"],
+                    bitDepth=8):
+    """
+    Convert an RGB values to corresponding wavelengths and intensity/radiant flux.
+    
+    :param RGB: RGB values
+    :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"})
+    :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
+    :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
+    :return: A NumPy array of wavelengths corresponding to the input RGB array
+    """
+
+    # Normalize RGB values to the range [0, 1]
+    bits = 2.0 ** bitDepth - 1
+
+    wavelengths = np.array([
+        LambdaLines[primaries["R"]], 
+        LambdaLines[primaries["G"]], 
+        LambdaLines[primaries["B"]]
+    ])
+
+    radiants = np.array(RGB) / bits
+    print(radiants)
+
+    if (len(secondaries) > 0):
+        for secondary in secondaries:
+            currentWavelength = LambdaLines[secondary]
+            currentRadiant = 0
+            wavelengths = np.append(wavelengths, currentWavelength)
+
+            # Between IR limit and Red line 
+            if(currentWavelength < LambdaLines[UVIRcut[1]] and currentWavelength > LambdaLines[primaries["R"]]):
+                # Using red radiant and reduce the intensity depending on how far it is away from the red line 
+                currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[primaries["R"]]) / (LambdaLines[UVIRcut[1]] - LambdaLines[primaries["R"]]) )
+
+            # Between Red line and Green line 
+            elif(currentWavelength < LambdaLines[primaries["R"]] and currentWavelength > LambdaLines[primaries["G"]]):
+                # Find the ratio between red and green 
+                ratio = (currentWavelength - LambdaLines[primaries["G"]]) / (LambdaLines[primaries["R"]] - LambdaLines[primaries["G"]])
+
+                currentRadiant = radiants[0] * ratio + radiants[1] * (1 - ratio)
+
+            # Between Green line and Blue line 
+            elif(currentWavelength < LambdaLines[primaries["G"]] and currentWavelength > LambdaLines[primaries["B"]]):
+                # Find the ratio between green and blue 
+                ratio = (currentWavelength - LambdaLines[primaries["B"]]) / (LambdaLines[primaries["G"]] - LambdaLines[primaries["B"]])
+
+                currentRadiant = radiants[1] * ratio + radiants[2] * (1 - ratio)
+
+            # Between Blue line and UV limit 
+            elif(currentWavelength < LambdaLines[primaries["B"]] and currentWavelength > LambdaLines[UVIRcut[0]]):
+                currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]]) )
+
+            radiants = np.append(radiants, currentRadiant)
+
+    return (wavelengths, radiants)
 
 def main():
     pass 
