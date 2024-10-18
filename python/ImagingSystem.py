@@ -188,6 +188,8 @@ class ImagingSystem:
         
 
     def _singlePointRaybatch(self, posP, RGB=[255, 128, 1], bitDepth=8):
+
+        # Accquire all wavelengths and corresponding radiants  
         wavelengths, radiants = RGBToWavelength(RGB)
 
         wavelength = 550 
@@ -207,17 +209,21 @@ class ImagingSystem:
         posB = self._findB(posA, posC, posP)
 
         points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
-        self._temp = self._ellipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
-
         vecs = ArrayNormalized(points - posP)
+
+        sampleCount = len(points)
+        wavelengthCount = (Partition(radiants) * sampleCount).astype(int)
+        while(np.sum(wavelengthCount) != sampleCount):
+            wavelengthCount[np.random.randint(len(wavelengthCount)-1)] += 1
+        wavelengthArray = np.repeat(wavelengths, wavelengthCount)
 
         # Create the ray batch 
         # For some reason vecs is often not registered with indexing assignment, the hstack is thus used to force compose the raybatch. 
         mat1 = np.tile(np.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
-        mat2 = np.tile(np.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
+        mat2 = np.tile(np.array([1, 0, 1]), (vecs.shape[0], 1))
         mat = np.hstack((np.hstack((mat1, vecs)), mat2))
         
-        return np.hstack((np.hstack((mat1, vecs)), mat2))
+        return np.hstack((mat1, vecs, np.transpose(wavelengthArray)[:, np.newaxis], mat2))
 
 
     def _initRays(self, posP):

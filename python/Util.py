@@ -32,6 +32,9 @@ def ArrayNormalized(inputVec):
     """ Normalize an array of vectors """
     return inputVec / np.linalg.norm(inputVec, axis=1, keepdims=True)
 
+def Partition(inputVec):
+    return inputVec / np.sum(inputVec)
+
 def Minus90(inputRadian):
     return np.pi / 2 - inputRadian
 
