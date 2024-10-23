@@ -199,7 +199,7 @@ class Material:
         a3 = self.coef[3]
         a4 = self.coef[4]
         a5 = self.coef[5]
-        lam /= 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1* lam**2 + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8)
         return np.sqrt(n2)
 
@@ -221,7 +221,7 @@ class Material:
         l2 = self.coef[3]
         k3 = self.coef[4]
         l3 = self.coef[5]
-        lam /= 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + 1
         return np.sqrt(n2) 
 
@@ -247,7 +247,7 @@ class Material:
         a5 = self.coef[5]
         a6 = self.coef[6]
         a7 = self.coef[7]
-        lam /= 1000.0 # Convert to micrometers to use in the formula
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1 * lam**(2) + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8) + a6 * lam**(4) + a7 * lam**(6)
         return np.sqrt(n2)
 
@@ -275,7 +275,7 @@ class Material:
         a6 = self.coef[6]
         a7 = self.coef[7]
         a8 = self.coef[8]
-        lam /= 1000.0 # Convert to micrometers to use in the formula
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1 * lam**(2) + a2 * lam**(4) + a3 * lam**(-2) + a4 * lam**(-4) + a5 * lam**(-6) + a6 * lam**(-8) + a7 * lam**(-10) + a8 * lam**(-12)
         return np.sqrt(n2)
 

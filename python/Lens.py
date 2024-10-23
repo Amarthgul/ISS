@@ -441,30 +441,33 @@ class Lens:
         ) 
         normal_vectors /= np.linalg.norm(normal_vectors, axis=1, keepdims=True)
 
-        
-        if(surfaceIndex == 0):
-            n1 = self._envMaterial.RI(self.rayBatch.Wavelength(True))
+
+        # `n1` is a (n, 1) array, matching the shape of wavelengths
+        if surfaceIndex == 0:
+            # Environmental material, air by default 
+            n1 = self._envMaterial.RI(self.rayBatch.Wavelength())
         else:
-            n1 = self.surfaces[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength(True))
+            n1 = self.surfaces[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength())
+        n2 = self.surfaces[surfaceIndex].material.RI(self.rayBatch.Wavelength())
 
-        n2 = self.surfaces[surfaceIndex].material.RI(self.rayBatch.Wavelength(True))
+        n_ratio = (n1 / n2)[:, np.newaxis][np.where(self.rayBatch.Sequential() == 1)]  
 
-        # Compute the ratio of refractive indices
-        n_ratio = n1 / n2
-        
-        # Dot product of incident vectors and normal vectors
-        cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)
-        
-        # Calculate the discriminant to check for total internal reflection
-        discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i ** 2)
-        
+        cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)  # Shape (n, )
+
+        # Calculate the discriminant for each wavelength
+        discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i[:, np.newaxis] ** 2)  # Shape (n, 1)
+
         # Handle total internal reflection (discriminant < 0)
         TIR = discriminant < 0
         refraction = discriminant >= 0
-        refractionInd = np.where(refraction)
-        
-        # Calculate the refracted vectors, only the non-TIR are calculated 
-        refracted_vectors = n_ratio * incident_vectors[refractionInd] + (n_ratio * cos_theta_i[refractionInd] - np.sqrt(discriminant[refractionInd]))[:, np.newaxis] * normal_vectors[refractionInd]
+        refractionInd = np.where(refraction)[0]
+
+        # Calculate the refracted vectors, only the non-TIR are calculated
+        refracted_vectors = (
+            n_ratio[refractionInd] * incident_vectors[refractionInd] +
+            (n_ratio[refractionInd] * cos_theta_i[refractionInd][:, np.newaxis] -
+            np.sqrt(discriminant[refractionInd])) * normal_vectors[refractionInd]
+        )
 
         # Copy the incident vectors 
         result = incident_vectors
@@ -473,7 +476,7 @@ class Lens:
         og_incident[np.where(self.rayBatch.Sequential() == 1)] = result
         self.rayBatch.SetDirection(og_incident)
         
-        og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR
+        og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR[:, 0]
         self.rayBatch.SetVignette(og_sequential)
 
 
