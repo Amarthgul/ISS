@@ -320,8 +320,10 @@ class Lens:
 
         # Accquire only the ones that are not vignetted already 
         og_origins = self.rayBatch.Position()
-        ray_positions = og_origins[np.where(self.rayBatch.Sequential() == 1)]
-        ray_directions = self.rayBatch.Direction()[np.where(self.rayBatch.Sequential() == 1)]
+        og_sequential = self.rayBatch.Sequential()
+        og_sequential_index = np.where(og_sequential)
+        ray_positions = og_origins[og_sequential_index]
+        ray_directions = self.rayBatch.Direction()[og_sequential_index]
 
         # Normalize the direction vector
         ray_directions = ray_directions / np.linalg.norm(ray_directions, axis=1)[:, np.newaxis]
@@ -361,7 +363,7 @@ class Lens:
         ray_positions[inBoundSizeFit] = intersection_points[inBound]
 
         # Update the current ray batch positions 
-        og_origins[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
+        og_origins[og_sequential_index] = ray_positions
         self.rayBatch.SetPosition(og_origins)
 
         # Copy the positions into path 
@@ -431,12 +433,13 @@ class Lens:
         # Accquire and normalize incident and normal vectors
         og_incident = np.copy(self.rayBatch.Direction())
         og_sequential = self.rayBatch.Sequential()
-        incident_vectors = og_incident[np.where(self.rayBatch.Sequential() == 1)]
+        og_sequential_index = np.where(og_sequential)
+        incident_vectors = og_incident[og_sequential_index]
         incident_vectors = incident_vectors / np.linalg.norm(incident_vectors, axis=1, keepdims=True)
 
         normal_vectors = SphericalNormal(
             self.surfaces[surfaceIndex].radius, 
-            self.rayBatch.Position()[np.where(self.rayBatch.Sequential() == 1)], 
+            self.rayBatch.Position()[og_sequential_index], 
             self.surfaces[surfaceIndex].frontVertex
         ) 
         normal_vectors /= np.linalg.norm(normal_vectors, axis=1, keepdims=True)
@@ -450,12 +453,12 @@ class Lens:
             n1 = self.surfaces[surfaceIndex - 1].material.RI(self.rayBatch.Wavelength())
         n2 = self.surfaces[surfaceIndex].material.RI(self.rayBatch.Wavelength())
 
-        n_ratio = (n1 / n2)[:, np.newaxis][np.where(self.rayBatch.Sequential() == 1)]  
+        n_ratio = (n1 / n2)[:, np.newaxis][og_sequential_index]  
 
-        cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)  # Shape (n, )
+        cos_theta_i = -np.einsum('ij,ij->i', incident_vectors, normal_vectors)  
 
         # Calculate the discriminant for each wavelength
-        discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i[:, np.newaxis] ** 2)  # Shape (n, 1)
+        discriminant = 1 - (n_ratio ** 2) * (1 - cos_theta_i[:, np.newaxis] ** 2)  
 
         # Handle total internal reflection (discriminant < 0)
         TIR = discriminant < 0
@@ -473,10 +476,10 @@ class Lens:
         result = incident_vectors
         # Replace only the rays that are properly refracted 
         result[refractionInd] = refracted_vectors
-        og_incident[np.where(self.rayBatch.Sequential() == 1)] = result
+        og_incident[og_sequential_index] = result
         self.rayBatch.SetDirection(og_incident)
         
-        og_sequential[np.where(self.rayBatch.Sequential() == 1)] = TIR[:, 0]
+        og_sequential[og_sequential_index] = TIR[:, 0]
         self.rayBatch.SetVignette(og_sequential)
 
 

@@ -21,7 +21,6 @@ def Schott(x, coef):
     a4 = coef[4]
     a5 = coef[5]
     n2 = a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8)
-    print(n2)
     return np.sqrt(n2)
 
 

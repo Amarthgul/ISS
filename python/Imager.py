@@ -48,7 +48,6 @@ class Imager():
 
     def Test(self):
         val = self._RGBToWavelength([255, 128, 10])
-        print("\n\nValue: ", val)
         
 
     # ==================================================================
