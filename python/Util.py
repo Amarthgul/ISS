@@ -256,7 +256,10 @@ def RGBToWavelength(RGB,
 
     if (len(secondaries) > 0):
         for secondary in secondaries:
-            currentWavelength = LambdaLines[secondary]
+            if(type(secondary) is str):
+                currentWavelength = LambdaLines[secondary]
+            else:
+                currentRadiant = secondary # When passed as numbers 
             currentRadiant = 0
             wavelengths = np.append(wavelengths, currentWavelength)
 
