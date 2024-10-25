@@ -2,6 +2,8 @@
 import numpy as np
 import math
 
+np.random.seed(42)
+
 # Global flag for developing and debugging features 
 DEVELOPER_MODE = True 
 

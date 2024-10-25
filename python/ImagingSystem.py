@@ -108,7 +108,7 @@ class ImagingSystem:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 40000, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 80000, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
 

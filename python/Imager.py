@@ -149,7 +149,7 @@ class Imager():
             np.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             np.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
+        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])/2
         scaleRatio = (2.0**bitDepth) / maxValue
 
         red_channel = radiantGridR * scaleRatio 
