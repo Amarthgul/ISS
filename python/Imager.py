@@ -39,15 +39,15 @@ class Imager():
         return self._zPos
     
 
-    def IntegralRays(self, raybatch):
+    def IntegralRays(self, raybatch, primaries, secondaries, UVIRcut):
         self.rayBatch = raybatch
         self.rayPath = [np.copy(self.rayBatch.Position())]
 
         self._ImagePlaneIntersections() 
-        self._integralRays() 
+        self._integralRays(primaries, secondaries, UVIRcut) 
 
     def Test(self):
-        val = self._RGBToWavelength([255, 128, 10])
+        pass 
         
 
     # ==================================================================
@@ -105,7 +105,7 @@ class Imager():
 
         
     
-    def _integralRays(self, plotResult = True):
+    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -120,25 +120,59 @@ class Imager():
 
         # Translate the intersections from 3D image space to 2D pixel-based space
         rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
-        rayColor = self.rayBatch.Radiant()[rayHitIndex]
+        rayWavelength = self.rayBatch.Wavelength()[rayHitIndex] 
+        radiants = self.rayBatch.Radiant()[rayHitIndex]
 
         # Convert ray position into pixel position 
         rayPos = np.floor(rayPos).astype(int)
         # Create pixel grid 
         radiantGrid = np.zeros( (self.horizontalPx, self.verticalPx) )
 
+        radiantGridR = np.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridG = np.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridB = np.zeros( (self.horizontalPx, self.verticalPx) )
+
+        # Find all wavelengths 
+        wavelengths = np.unique(rayWavelength)
+        rayHitIsolate = np.isclose(self.rayBatch.value[:, 2], self._zPos)
+        for wavelength in wavelengths:
+            print(wavelength, " : \t", WavelengthToRGB(wavelength))
+            RGB = WavelengthToRGB(wavelength)
+            wavelengthIsolate = np.isclose(self.rayBatch.value[:, 6], wavelength)
+            rayPosChannel = np.floor(
+                self.rayBatch.Position()[np.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)
+            radiantsChannel = self.rayBatch.Radiant()[np.where(rayHitIsolate & wavelengthIsolate)]
+            rChannel = radiantsChannel * RGB[0]
+            gChannel = radiantsChannel * RGB[1]
+            bChannel = radiantsChannel * RGB[2]
+            np.add.at(radiantGridR, (rayPosChannel[:, 0], rayPosChannel[:, 1]), rChannel)
+            np.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
+            np.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
+        
+        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
+        scaleRatio = (2.0**bitDepth) / maxValue
+
+        red_channel = radiantGridR * scaleRatio 
+        green_channel = radiantGridG * scaleRatio 
+        blue_channel = radiantGridB * scaleRatio  
+
+        # Ensure each channel is in the range [0, 255] and convert to uint8
+        red_channel = red_channel.astype(np.uint8)
+        green_channel = green_channel.astype(np.uint8)
+        blue_channel = blue_channel.astype(np.uint8)
+
+        # Stack the channels along the third axis to form an RGB image
+        rgb_image = np.stack((red_channel, green_channel, blue_channel), axis=-1)
+
         # Sum up the radiant 
-        np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), rayColor)
+        #np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), radiants)
 
         if (plotResult):
-            plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
-            plt.colorbar()  # Optional: Add a colorbar to show intensity values
+            #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+            plt.imshow(rgb_image)
+            #plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
 
-
-    def _WavelengthToRGB(self):
-        # Should there be a separate conversion function? 
-        pass 
 
 
 def main():

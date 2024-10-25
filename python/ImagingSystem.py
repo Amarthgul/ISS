@@ -14,6 +14,11 @@ class ImagingSystem:
 
         self.rayPath = None 
 
+        # Color-wavelength conversion 
+        self.primaries = {"R": "C'", "G": "e", "B":"g"}
+        self.secondaries = []#["F", "D"]
+        self.UVIRcut = ["i", "A'"]
+
         self.point = None 
         self.inputImage = None 
 
@@ -28,7 +33,9 @@ class ImagingSystem:
         self._initRays(pointPosition)
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
-        self.imager.IntegralRays(self.rayBatch)
+
+        self.imager.IntegralRays(self.rayBatch,
+            self.primaries, self.secondaries, self.UVIRcut)
 
         self.rayPath = self.lens.rayPath
 
@@ -101,7 +108,7 @@ class ImagingSystem:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 100, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 40000, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
 
@@ -187,12 +194,12 @@ class ImagingSystem:
             return trans_2
         
 
-    def _singlePointRaybatch(self, posP, RGB=[255, 128, 1], bitDepth=8):
-
+    def _singlePointRaybatch(self, posP, RGB=[255, 255, 255], bitDepth=8):
+        """
+        Generate the initial rayBatch for a single point light source. 
+        """
         # Accquire all wavelengths and corresponding radiants  
-        wavelengths, radiants = RGBToWavelength(RGB)
-
-        wavelength = 550 
+        wavelengths, radiants = RGBToWavelength(RGB, self.primaries, self.secondaries, self.UVIRcut)
         
         firstSurface = self.lens.surfaces[0] 
         r = firstSurface.radius
@@ -255,8 +262,8 @@ def main():
     # Update immediately after all the surfaces are created 
     biotar.UpdateLens() 
 
-    # Set up the imager 
-    imager = Imager(bfd=32.3552)
+    # Set up the imager 32.3552
+    imager = Imager(bfd=30)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
