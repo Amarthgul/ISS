@@ -5,6 +5,12 @@ from Lens import *
 from Imager import * 
 from Util import * 
 
+
+# Random generator from the Util module
+# This uses the same seed so that the result is deterministic  
+RNG = rng 
+
+
 class ImagingSystem:
     def __init__(self):
 
@@ -73,7 +79,7 @@ class ImagingSystem:
             rayPath.extend(self.imager.rayPath)
 
             # prune the paths to avoid drawing too many 
-            deletionIndices = np.random.choice(len(rayPath[0]), rayPathMax, replace=False)
+            deletionIndices = RNG.choice(len(rayPath[0]), rayPathMax, replace=False)
             prunedPath = [arr[deletionIndices] for arr in rayPath]
 
             rayThickness = 0.25 
@@ -224,7 +230,7 @@ class ImagingSystem:
 
         # Due to integer floor/ceiling, there might be less entry than the count. The missing ones are randomly added. 
         while(np.sum(wavelengthCount) != sampleCount):
-            wavelengthCount[np.random.randint(len(wavelengthCount)-1)] += 1
+            wavelengthCount[RNG.integers(len(wavelengthCount)-1)] += 1
         wavelengthArray = np.repeat(wavelengths, wavelengthCount)
 
         # Create the ray batch 

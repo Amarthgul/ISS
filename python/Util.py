@@ -2,10 +2,16 @@
 import numpy as np
 import math
 
-np.random.seed(42)
+
 
 # Global flag for developing and debugging features 
 DEVELOPER_MODE = True 
+
+
+# Creates a RNG for the entire program to use 
+RANDOM_SEED = 42 
+rng = np.random.default_rng(seed=RANDOM_SEED)
+
 
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
@@ -181,11 +187,11 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
     """
     
     # Step 1: Generate random angles between [0, 2*pi]
-    angles = np.random.uniform(0, 2 * np.pi, samplePoints)
+    angles = rng.uniform(0, 2 * np.pi, samplePoints)
     
     # Step 2: Generate random radial distances with a uniform distribution
     # sqrt to ensure even distribution over the circle
-    radii = np.sqrt(np.random.uniform(0, 1, samplePoints))
+    radii = np.sqrt(rng.uniform(0, 1, samplePoints))
     
     # Step 3: Convert polar coordinates to Cartesian coordinates assuming a unit circle
     x = radii * np.cos(angles)
@@ -356,8 +362,8 @@ def main():
     RGB = WavelengthToRGB(643.85) 
     wavelngth = RGBToWavelength(RGB)
 
-    print("RGB result: \t", RGB)
-    print("wavelength: \t", wavelngth)
+    #print("RGB result: \t", RGB)
+    #print("wavelength: \t", wavelngth)
 
 
 
