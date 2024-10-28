@@ -261,7 +261,6 @@ def RGBToWavelength(RGB,
     ])
 
     radiants = np.array(RGB) / bits
-    print(radiants)
 
     if (len(secondaries) > 0):
         for secondary in secondaries:

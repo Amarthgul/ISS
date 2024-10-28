@@ -424,6 +424,8 @@ class Lens:
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
         
 
+    # TODO: this should be a combination of reflection and refraction 
+    # The TIR should be better dealt within this function 
     def _vectorsRefraction(self, surfaceIndex):
         """
         Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
@@ -483,6 +485,10 @@ class Lens:
         self.rayBatch.SetVignette(og_sequential)
 
 
+    def _vectorReflection(self, surfaceIndex):
+        pass 
+
+
     def _initRays(self, posP, wavelength = 550):
         r = self.surfaces[0].radius
         sd = self.surfaces[0].clearSemiDiameter
@@ -517,26 +523,6 @@ class Lens:
 
         # Append the starting point into ray path 
         self.rayPath.append(np.copy(mat1))
-
-
-    def _propograte(self):
-
-        start = time.time()
-        # =============================================
-        i = 0
-        for i in range(len(self.surfaces)):
-            if(self.surfaces[i].IsImagePlane()):
-                self._squarePlaneIntersections(i) 
-            else:
-                self._surfaceIntersection(i)
-                self._vectorsRefraction(i)
-        # =============================================
-        end = time.time()
-
-        #self._integralRays(i)
-
-        print("It took", (end - start), "seconds!")
-        self._writeToFile()
 
 
     def _writeToFile(self):

@@ -136,7 +136,6 @@ class Imager():
         wavelengths = np.unique(rayWavelength)
         rayHitIsolate = np.isclose(self.rayBatch.value[:, 2], self._zPos)
         for wavelength in wavelengths:
-            print(wavelength, " : \t", WavelengthToRGB(wavelength))
             RGB = WavelengthToRGB(wavelength)
             wavelengthIsolate = np.isclose(self.rayBatch.value[:, 6], wavelength)
             rayPosChannel = np.floor(
