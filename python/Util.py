@@ -260,7 +260,8 @@ def RGBToWavelength(RGB,
         LambdaLines[primaries["B"]]
     ])
 
-    radiants = np.array(RGB) / bits
+    radiants = np.array(RGB)
+    print("INSIDE RAD", radiants)
 
     if (len(secondaries) > 0):
         for secondary in secondaries:
@@ -360,9 +361,11 @@ def WavelengthToRGB(wavelength,
 def main():
     RGB = WavelengthToRGB(643.85) 
     wavelngth = RGBToWavelength(RGB)
+    RGB1 = WavelengthToRGB(589.3) 
 
-    #print("RGB result: \t", RGB)
-    #print("wavelength: \t", wavelngth)
+    print("RGB result: \t", RGB)
+    print("wavelength: \t", wavelngth)
+    print("RGB result: \t", RGB1)
 
 
 

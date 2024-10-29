@@ -121,13 +121,10 @@ class Imager():
         # Translate the intersections from 3D image space to 2D pixel-based space
         rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
         rayWavelength = self.rayBatch.Wavelength()[rayHitIndex] 
-        radiants = self.rayBatch.Radiant()[rayHitIndex]
 
         # Convert ray position into pixel position 
         rayPos = np.floor(rayPos).astype(int)
         # Create pixel grid 
-        radiantGrid = np.zeros( (self.horizontalPx, self.verticalPx) )
-
         radiantGridR = np.zeros( (self.horizontalPx, self.verticalPx) )
         radiantGridG = np.zeros( (self.horizontalPx, self.verticalPx) )
         radiantGridB = np.zeros( (self.horizontalPx, self.verticalPx) )
@@ -148,12 +145,13 @@ class Imager():
             np.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             np.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])/2
-        scaleRatio = (2.0**bitDepth) / maxValue
+        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
+        scaleRatio = 6 # TODO: this need to be automated 
+        bits = 2.0**bitDepth-1
 
-        red_channel = radiantGridR * scaleRatio 
-        green_channel = radiantGridG * scaleRatio 
-        blue_channel = radiantGridB * scaleRatio  
+        red_channel = np.clip(radiantGridR*scaleRatio, 0, bits) 
+        green_channel = np.clip(radiantGridG*scaleRatio, 0, bits)  
+        blue_channel = np.clip(radiantGridB*scaleRatio, 0, bits)
 
         # Ensure each channel is in the range [0, 255] and convert to uint8
         red_channel = red_channel.astype(np.uint8)
@@ -162,9 +160,6 @@ class Imager():
 
         # Stack the channels along the third axis to form an RGB image
         rgb_image = np.stack((red_channel, green_channel, blue_channel), axis=-1)
-
-        # Sum up the radiant 
-        #np.add.at(radiantGrid, (rayPos[:, 0], rayPos[:, 1]), radiants)
 
         if (plotResult):
             #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
