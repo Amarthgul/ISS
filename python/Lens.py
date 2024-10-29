@@ -79,7 +79,7 @@ class Lens:
         i = 0
         for i in range(len(self.surfaces)):
             self._surfaceIntersection(i)
-            self._vectorsRefraction(i)
+            self._rayDirection(i)
         # =============================================
         end = time.time()
 
@@ -426,9 +426,9 @@ class Lens:
 
     # TODO: this should be a combination of reflection and refraction 
     # The TIR should be better dealt within this function 
-    def _vectorsRefraction(self, surfaceIndex):
+    def _rayDirection(self, surfaceIndex):
         """
-        Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
+        Calculates the change of ray directions, including the refracted vectors given incident vectors, normal vectors, and the refractive indices. TIR is also calculated here. 
         
         :param surfaceIndex: the index of the surface to intersect. 
         """
