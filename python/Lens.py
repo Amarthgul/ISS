@@ -60,7 +60,7 @@ class Lens:
         self.rayBatch = raybatch
 
 
-    def AddSurfacve(self, surface, insertAfter = None):
+    def AddSurface(self, surface, insertAfter = None):
         self.surfaces.append(surface)
 
 
@@ -534,18 +534,18 @@ def main():
     singlet = Lens() 
 
     # Zeiss Biotar 50 1.4 
-    singlet.AddSurfacve(Surface(41.8,   5.375, 17, "BAF9"))
-    singlet.AddSurfacve(Surface(160.5,  0.825, 17))
-    singlet.AddSurfacve(Surface(22.4,	7.775, 16, "SK10"))
-    singlet.AddSurfacve(Surface(-575,	2.525, 16, "LZ_LF5"))
-    singlet.AddSurfacve(Surface(14.15,	9.45, 11))
-    singlet.AddSurfacve(Surface(-19.25,	2.525, 11, "SF5"))
-    singlet.AddSurfacve(Surface(25.25,	10.61, 13, "BAF9"))
-    singlet.AddSurfacve(Surface(-26.6,	0.485, 13))
-    singlet.AddSurfacve(Surface(53, 	6.95, 14, "BAF9"))
-    singlet.AddSurfacve(Surface(-60,	32.3552, 14))
+    singlet.AddSurface(Surface(41.8,   5.375, 17, "BAF9"))
+    singlet.AddSurface(Surface(160.5,  0.825, 17))
+    singlet.AddSurface(Surface(22.4,	7.775, 16, "SK10"))
+    singlet.AddSurface(Surface(-575,	2.525, 16, "LZ_LF5"))
+    singlet.AddSurface(Surface(14.15,	9.45, 11))
+    singlet.AddSurface(Surface(-19.25,	2.525, 11, "SF5"))
+    singlet.AddSurface(Surface(25.25,	10.61, 13, "BAF9"))
+    singlet.AddSurface(Surface(-26.6,	0.485, 13))
+    singlet.AddSurface(Surface(53, 	6.95, 14, "BAF9"))
+    singlet.AddSurface(Surface(-60,	32.3552, 14))
 
-    singlet.AddSurfacve(Surface(np.inf, 0, 0))
+    singlet.AddSurface(Surface(np.inf, 0, 0))
     
 
     singlet.UpdateLens()
