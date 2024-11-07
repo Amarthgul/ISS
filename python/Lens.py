@@ -426,6 +426,7 @@ class Lens:
 
     # TODO: this should be a combination of reflection and refraction 
     # The TIR should be better dealt within this function 
+    # The effect of refletance should also be included 
     def _rayDirection(self, surfaceIndex):
         """
         Calculates the change of ray directions, including the refracted vectors given incident vectors, normal vectors, and the refractive indices. TIR is also calculated here. 

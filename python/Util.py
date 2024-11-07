@@ -3,6 +3,10 @@ import numpy as np
 import math
 
 
+# ==================================================================
+""" ============= Consts, flags, and definitions =============== """
+# ==================================================================
+
 
 # Global flag for developing and debugging features 
 DEVELOPER_MODE = True 
@@ -11,6 +15,11 @@ DEVELOPER_MODE = True
 # Creates a RNG for the entire program to use 
 RANDOM_SEED = 42 
 rng = np.random.default_rng(seed=RANDOM_SEED)
+
+
+# The threashold by which a raybatch will no longer propagate 
+RADIANT_KILL = 0.001
+# Changing this could increase accuracy, at the cost of increase time 
 
 
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
@@ -32,19 +41,29 @@ LambdaLines = {
     "t" : 1013.98,
 }
 
+
+# ==================================================================
+""" ===================== 3D transformations =================== """
+# ==================================================================
+
+
 # Utility 
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)
+
 
 def ArrayNormalized(inputVec):
     """ Normalize an array of vectors """
     return inputVec / np.linalg.norm(inputVec, axis=1, keepdims=True)
 
+
 def Partition(inputVec):
     return inputVec / np.sum(inputVec)
 
+
 def Minus90(inputRadian):
     return np.pi / 2 - inputRadian
+
 
 def Rotation(theta, axis, inputVertex):
     """
@@ -67,9 +86,18 @@ def Rotation(theta, axis, inputVertex):
     ])
  
     return np.matmul(R, inputVertex) 
-    
+
+
 def Translate(inputVertex, translation):
     return np.transpose(np.transpose(inputVertex) + translation)
+
+
+
+# ==================================================================
+""" ========================= Geometries ======================= """
+# ==================================================================
+
+
 
 def linePlaneIntersection(plane_normal, point_on_plane, line_direction, point_on_line):
     """
@@ -96,6 +124,27 @@ def linePlaneIntersection(plane_normal, point_on_plane, line_direction, point_on
     intersection_point = point_on_line + t * line_direction
     
     return intersection_point
+
+
+def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = True):
+    """
+    Calculate the normal direction at the intersections. 
+
+    :param sphere_radius: radius of the sperical surface. 
+    :param intersections: points of intersections between incident rays and the surface. 
+    :param front_vertex: vertex of the surface facing object side. 
+    """
+
+    # Offset from the front vertex to find the spherical origin 
+    origin = front_vertex + np.array([0, 0, sphere_radius])
+
+    # Negative radius will by default having their normals pointing to the positive z direction 
+    # For sequential simulation, use the sign to invert the normal so that negative radius points to negative z 
+    if (sequential): sign = np.sign(sphere_radius)
+    else: sign = 1 
+
+    return sign * Normalized(intersections - origin)
+
 
 def angleBetweenVectors(v1, v2, use_degrees = False):
     """
@@ -132,6 +181,12 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
         return angle_radians
 
 
+# ==================================================================
+""" ================== Generate Sample Points ================== """
+# ==================================================================
+
+
+# =========================== Presets ==========================
 # Light:   layer = 5,    densityScale = 0.02,    powerCoef = 0.8
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
@@ -209,32 +264,9 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
     return points
 
 
-def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = True):
-    """
-    Calculate the normal direction at the intersections. 
-
-    :param sphere_radius: radius of the sperical surface. 
-    :param intersections: points of intersections between incident rays and the surface. 
-    :param front_vertex: vertex of the surface facing object side. 
-    """
-
-    # Offset from the front vertex to find the spherical origin 
-    origin = front_vertex + np.array([0, 0, sphere_radius])
-
-    # Negative radius will by default having their normals pointing to the positive z direction 
-    # For sequential simulation, use the sign to invert the normal so that negative radius points to negative z 
-    if (sequential): sign = np.sign(sphere_radius)
-    else: sign = 1 
-
-    return sign * Normalized(intersections - origin)
-
-
-
-
-    # =========================================================
-    """ =================================================== """
-    # =========================================================
-
+# ==================================================================
+""" ================== Color and conversions =================== """
+# ==================================================================
 
 def RGBToWavelength(RGB, 
                     primaries = {"R": "C'", "G": "e", "B":"g"}, 

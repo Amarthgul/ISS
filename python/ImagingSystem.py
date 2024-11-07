@@ -4,6 +4,7 @@ from PIL import Image
 from Lens import * 
 from Imager import * 
 from Util import * 
+from ObjectSpace import * 
 
 
 # Random generator from the Util module
@@ -35,8 +36,10 @@ class ImagingSystem:
     def AddImager(self, imager):
         self.imager = imager 
 
-    def SinglePointSpot(self, pointPosition):
-        self._initRays(pointPosition)
+    def SinglePointSpot(self, point):
+        pointPosition = point.GetPosition()
+        mat = self._singlePointRaybatch(pointPosition)
+        self.rayBatch = RayBatch( mat )
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
 
@@ -242,11 +245,6 @@ class ImagingSystem:
         return np.hstack((mat1, vecs, np.transpose(wavelengthArray)[:, np.newaxis], mat2))
 
 
-    def _initRays(self, posP):
-        mat = self._singlePointRaybatch(posP)
-
-        self.rayBatch = RayBatch( mat )
-
 
 
     
@@ -277,8 +275,14 @@ def main():
     imgSys.AddImager(imager)
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
 
+    # Create objects 
+    testPoint = Point()
+    testPoint.fieldX = 15
+    testPoint.fieldY = 10
+    testPoint.distance = 700
+
     # Propagate light 
-    imgSys.SinglePointSpot(np.array([150, 100, -500]))
+    imgSys.SinglePointSpot(testPoint)
 
     imgSys.DrawSystem()
     
