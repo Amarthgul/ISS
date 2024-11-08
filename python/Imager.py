@@ -19,6 +19,8 @@ class Imager():
 
         self.rayPath = None 
 
+        # TODO: add X and Y flip for mirror and prism 
+
         self._Start()
 
     def _Start(self):

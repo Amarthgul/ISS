@@ -37,8 +37,9 @@ class ImagingSystem:
         self.imager = imager 
 
     def SinglePointSpot(self, point):
-        pointPosition = point.GetPosition()
-        mat = self._singlePointRaybatch(pointPosition)
+        mat = self._singlePointRaybatch(point.GetPosition(), 
+                                        point.GetColorRGB(), 
+                                        point.GetBitDepth())
         self.rayBatch = RayBatch( mat )
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
@@ -253,17 +254,17 @@ def main():
 
     # Set up the lens 
     # Zeiss Biotar 50 1.4 
-    biotar.AddSurface(Surface(41.8,    5.375,  17, "BAF9"))
-    biotar.AddSurface(Surface(160.5,   0.825,  17))
-    biotar.AddSurface(Surface(22.4,	7.775,  16, "SK10"))
-    biotar.AddSurface(Surface(-575,	2.525,  16, "LZ_LF5"))
+    biotar.AddSurface(Surface(41.8,     5.375,  17, "BAF9"))
+    biotar.AddSurface(Surface(160.5,    0.825,  17))
+    biotar.AddSurface(Surface(22.4,	    7.775,  16, "SK10"))
+    biotar.AddSurface(Surface(-575,	    2.525,  16, "LZ_LF5"))
     biotar.AddSurface(Surface(14.15,	9.45,   11))
     biotar.AddSurface(Surface(-19.25,	2.525,  11, "SF5"))
     biotar.AddSurface(Surface(25.25,	10.61,  13, "BAF9"))
     biotar.AddSurface(Surface(-26.6,	0.485,  13))
     biotar.AddSurface(Surface(53, 	    6.95,   14, "BAF9"))
     biotar.AddSurface(Surface(-60,	    32.3552, 14))
-    # Update immediately after all the surfaces are created 
+    # Update immediately after all the surfaces are defined  
     biotar.UpdateLens() 
 
     # Set up the imager 32.3552
