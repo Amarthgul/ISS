@@ -29,7 +29,7 @@ class ImagingSystem:
         self.point = None 
         self.inputImage = None 
 
-        self._perSpotSample = 5000
+        self._perSpotMaxSample = 100
 
     
     def AddLens(self, lens):
@@ -57,12 +57,17 @@ class ImagingSystem:
         mat = []
 
         start = time.time()
-        for i in range(image.sampleX - 1):
-            for j in range(image.sampleY - 1):
+        sX = image.sampleX
+        sY = image.sampleY
+
+        for i in range(sX- 1):
+            print("At {:.2f} percent".format(100 * i/sX))
+            for j in range(sY - 1):
                 pointdata = image.pointData[j, i]
                 temp = self._singlePointRaybatch(pointdata[:3], 
                                                 pointdata[3:6], 
                                                 image.bitDepth)
+                if(len(temp) == 0): continue # pure black 
                 if(len(mat) == 0):
                     mat = temp
                 else:
@@ -235,10 +240,13 @@ class ImagingSystem:
             return trans_2
         
 
-    def _singlePointRaybatch(self, posP, RGB=[255, 255, 255], bitDepth=8):
+    def _singlePointRaybatch(self, posP, RGB=[1, 1, 1], bitDepth=8):
         """
         Generate the initial rayBatch for a single point light source. 
         """
+        lumi = LumiPeak(RGB)
+        if(lumi == 0): return [] 
+
         # Accquire all wavelengths and corresponding radiants  
         wavelengths, radiants = RGBToWavelength(RGB, self.primaries, self.secondaries, self.UVIRcut)
         
@@ -256,7 +264,8 @@ class ImagingSystem:
             posC = np.array([sd, 0, 0]) + offset
         posB = self._findB(posA, posC, posP)
 
-        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r, samplePoints=self._perSpotSample)) # Sample points in the ellipse area 
+        sampleAmount = int(lumi * self._perSpotMaxSample)
+        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r, sampleAmount)) # Sample points in the ellipse area 
         vecs = ArrayNormalized(points - posP)
 
         # Radiant is used to calculate the amount of rays 
@@ -298,7 +307,7 @@ def main():
     # Update immediately after all the surfaces are defined  
     biotar.UpdateLens() 
 
-    # Set up the imager 32.3552
+    # Set up the imager 32.3552 (35 for 1500 distance)
     imager = Imager(bfd=35)
 
     # Assemble the imaging system 
@@ -312,6 +321,7 @@ def main():
     testPoint.fieldX = 15
     testPoint.fieldY = 10
     testPoint.distance = 700
+    testPoint.RGB = np.array([0.4, 0.7, 0.1])
     # Propagate light 
     #imgSys.SinglePointSpot(testPoint)
 

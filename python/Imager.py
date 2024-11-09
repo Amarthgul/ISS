@@ -149,7 +149,7 @@ class Imager():
         
         maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
         bits = 2.0**bitDepth-1
-        scaleRatio = bits / maxValue # TODO: this need to be automated 
+        scaleRatio = (bits / maxValue)
 
         red_channel = np.clip(radiantGridR*scaleRatio, 0, bits) 
         green_channel = np.clip(radiantGridG*scaleRatio, 0, bits)  

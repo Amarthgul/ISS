@@ -55,3 +55,8 @@ class RayBatch:
 
     def SetVignette(self, vignettedIndices):
         self.value[vignettedIndices, 9] = 0
+
+
+def RandomDrop(raybatch, keeprate = 1):
+    pass 
+

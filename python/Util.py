@@ -279,6 +279,11 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
 """ ================== Color and conversions =================== """
 # ==================================================================
 
+def LumiPeak(RGB):
+    lumi = 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
+    return lumi
+
+
 def RGBToWavelength(RGB, 
                     primaries = {"R": "C'", "G": "e", "B":"g"}, 
                     secondaries = ["F", "D"], 
