@@ -1,5 +1,6 @@
 
 from PIL import Image
+import gc
 
 from Lens import * 
 from Imager import * 
@@ -68,8 +69,8 @@ class ImagingSystem:
                 temp = self._singlePointRaybatch(pointdata[:3], 
                                                 pointdata[3:6], 
                                                 image.bitDepth)
-                if(len(temp) == 0): continue # pure black 
-                mat.append(temp)
+                if(len(temp) > 0): # Only append for non zero array 
+                    mat.append(temp)
         end = time.time()
         if(DEVELOPER_MODE):
             print("Mat creation time: ", end - start)
@@ -317,13 +318,12 @@ def main():
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
 
     # Create objects 
-    testPoint = Point()
-    testPoint.fieldX = 15
-    testPoint.fieldY = 10
-    testPoint.distance = 700
-    testPoint.RGB = np.array([0.4, 0.7, 0.1])
-    # Propagate light 
-    #imgSys.SinglePointSpot(testPoint)
+    # testPoint = Point()
+    # testPoint.fieldX = 15
+    # testPoint.fieldY = 10
+    # testPoint.distance = 700
+    # testPoint.RGB = np.array([0.4, 0.7, 0.1])
+    # imgSys.SinglePointSpot(testPoint)
 
     # Create 2D image in object space 
     testImgPath = r"resources/ISO12233.jpg"

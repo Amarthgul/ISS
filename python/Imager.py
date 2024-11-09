@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Lens import * 
 
 class Imager():
-    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 300):
+    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 270):
         self.rayBatch = None 
         self.BFD = bfd  # Back focal distance. Sensor distance from last element's vertex 
         self.width = w
