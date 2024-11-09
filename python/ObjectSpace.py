@@ -41,7 +41,7 @@ class Image2D:
 
         # Additional modifier for the amount of sample points.
         # Used to reduce sample proportionally  
-        self._sampleModifier = 0.125
+        self._sampleModifier = 0.5
 
         self.pointData = []
 

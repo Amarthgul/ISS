@@ -54,7 +54,8 @@ class ImagingSystem:
 
     def Image2DPropagation(self, image):
         print(image.sampleX, "     ",  image.sampleY)
-        mat = []
+        # Using the python list and append is faster than numpy vstack
+        mat = []  # possibily due to memory allocation 
 
         start = time.time()
         sX = image.sampleX
@@ -68,15 +69,14 @@ class ImagingSystem:
                                                 pointdata[3:6], 
                                                 image.bitDepth)
                 if(len(temp) == 0): continue # pure black 
-                if(len(mat) == 0):
-                    mat = temp
-                else:
-                    mat = np.vstack((mat, temp))
+                mat.append(temp)
         end = time.time()
         if(DEVELOPER_MODE):
             print("Mat creation time: ", end - start)
 
-        print(mat.shape)
+        mat = np.vstack(mat)
+        print("stacked with shape  ", mat.shape)
+
         self.rayBatch = RayBatch( mat )
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
@@ -326,7 +326,7 @@ def main():
     #imgSys.SinglePointSpot(testPoint)
 
     # Create 2D image in object space 
-    testImgPath = r"resources/Henri-Cartier-Bresson.png"
+    testImgPath = r"resources/ISO12233.jpg"
     testImg = Image2D(testImgPath)
     imgSys.Image2DPropagation(testImg)
 
