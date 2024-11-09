@@ -527,7 +527,7 @@ class Lens:
 
 
     def _writeToFile(self):
-        np.savetxt("raypath.csv", self.rayBatch.value, delimiter=",")
+        np.savetxt("resources/raypath.csv", self.rayBatch.value, delimiter=",")
         
 
 

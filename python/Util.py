@@ -1,6 +1,7 @@
 
 import numpy as np
 import math
+from enum import Enum
 
 
 # ==================================================================
@@ -42,6 +43,16 @@ LambdaLines = {
 }
 
 
+# Ways to fit a gate when input and gate has different aspect ratio 
+class Fit(Enum):
+    FILL = 1  # Stretch both horizontal and vertical direction to fill the entire gate 
+    FIT = 2   # Proportionally scale the image to fit one axis and ensure the image is not cropped 
+
+
+# Placeholder varible for arguments 
+SOME_BIG_CONST = 1024
+SOME_SML_CONST = 1e-10
+
 # ==================================================================
 """ ===================== 3D transformations =================== """
 # ==================================================================
@@ -58,7 +69,7 @@ def ArrayNormalized(inputVec):
 
 
 def Partition(inputVec):
-    return inputVec / np.sum(inputVec)
+    return inputVec / (np.sum(inputVec) + SOME_SML_CONST)
 
 
 def Minus90(inputRadian):
@@ -293,7 +304,7 @@ def RGBToWavelength(RGB,
     ])
 
     radiants = np.array(RGB)
-    print("INSIDE RAD", radiants)
+    #print("INSIDE RAD", radiants)
 
     if (len(secondaries) > 0):
         for secondary in secondaries:

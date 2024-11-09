@@ -148,8 +148,8 @@ class Imager():
             np.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
         maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
-        scaleRatio = 6 # TODO: this need to be automated 
         bits = 2.0**bitDepth-1
+        scaleRatio = bits / maxValue # TODO: this need to be automated 
 
         red_channel = np.clip(radiantGridR*scaleRatio, 0, bits) 
         green_channel = np.clip(radiantGridG*scaleRatio, 0, bits)  

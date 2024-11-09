@@ -29,6 +29,8 @@ class ImagingSystem:
         self.point = None 
         self.inputImage = None 
 
+        self._perSpotSample = 5000
+
     
     def AddLens(self, lens):
         self.lens = lens 
@@ -49,6 +51,35 @@ class ImagingSystem:
 
         self.rayPath = self.lens.rayPath
 
+
+    def Image2DPropagation(self, image):
+        print(image.sampleX, "     ",  image.sampleY)
+        mat = []
+
+        start = time.time()
+        for i in range(image.sampleX - 1):
+            for j in range(image.sampleY - 1):
+                pointdata = image.pointData[j, i]
+                temp = self._singlePointRaybatch(pointdata[:3], 
+                                                pointdata[3:6], 
+                                                image.bitDepth)
+                if(len(mat) == 0):
+                    mat = temp
+                else:
+                    mat = np.vstack((mat, temp))
+        end = time.time()
+        if(DEVELOPER_MODE):
+            print("Mat creation time: ", end - start)
+
+        print(mat.shape)
+        self.rayBatch = RayBatch( mat )
+        self.lens.SetIncomingRayBatch(self.rayBatch)
+        self.rayBatch = self.lens.Propagate() 
+
+        self.imager.IntegralRays(self.rayBatch,
+            self.primaries, self.secondaries, self.UVIRcut)
+
+        self.rayPath = self.lens.rayPath
 
     def DrawSystem(self, drawSurfaces=True, drawPath=True, rayPathMax=32):
         """
@@ -118,7 +149,7 @@ class ImagingSystem:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = 80000, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = SOME_BIG_CONST, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
 
@@ -225,7 +256,7 @@ class ImagingSystem:
             posC = np.array([sd, 0, 0]) + offset
         posB = self._findB(posA, posC, posP)
 
-        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
+        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r, samplePoints=self._perSpotSample)) # Sample points in the ellipse area 
         vecs = ArrayNormalized(points - posP)
 
         # Radiant is used to calculate the amount of rays 
@@ -268,7 +299,7 @@ def main():
     biotar.UpdateLens() 
 
     # Set up the imager 32.3552
-    imager = Imager(bfd=30)
+    imager = Imager(bfd=35)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
@@ -281,11 +312,15 @@ def main():
     testPoint.fieldX = 15
     testPoint.fieldY = 10
     testPoint.distance = 700
-
     # Propagate light 
-    imgSys.SinglePointSpot(testPoint)
+    #imgSys.SinglePointSpot(testPoint)
 
-    imgSys.DrawSystem()
+    # Create 2D image in object space 
+    testImgPath = r"resources/Henri-Cartier-Bresson.png"
+    testImg = Image2D(testImgPath)
+    imgSys.Image2DPropagation(testImg)
+
+    #imgSys.DrawSystem()
     
 
 
