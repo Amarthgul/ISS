@@ -23,6 +23,11 @@ RADIANT_KILL = 0.001
 # Changing this could increase accuracy, at the cost of increase time 
 
 
+# Global variable for per spot sampling in image formation. 
+PER_POINT_MAX_SAMPLE = 100
+# This can be used to estimate and normalize the colors. 
+
+
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
 LambdaLines = {

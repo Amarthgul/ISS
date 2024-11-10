@@ -30,8 +30,6 @@ class ImagingSystem:
         self.point = None 
         self.inputImage = None 
 
-        self._perSpotMaxSample = 100
-
     
     def AddLens(self, lens):
         self.lens = lens 
@@ -39,10 +37,11 @@ class ImagingSystem:
     def AddImager(self, imager):
         self.imager = imager 
 
-    def SinglePointSpot(self, point):
+    def SinglePointSpot(self, point, perPointSample = PER_SPOT_MAX_SAMPLE):
         mat = self._singlePointRaybatch(point.GetPosition(), 
                                         point.GetColorRGB(), 
-                                        point.GetBitDepth())
+                                        point.GetBitDepth(), 
+                                        perPointSample)
         self.rayBatch = RayBatch( mat )
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
@@ -53,7 +52,7 @@ class ImagingSystem:
         self.rayPath = self.lens.rayPath
 
 
-    def Image2DPropagation(self, image):
+    def Image2DPropagation(self, image, perPointSample = PER_SPOT_MAX_SAMPLE):
         print(image.sampleX, "     ",  image.sampleY)
         # Using the python list and append is faster than numpy vstack
         mat = []  # possibily due to memory allocation 
@@ -68,7 +67,8 @@ class ImagingSystem:
                 pointdata = image.pointData[j, i]
                 temp = self._singlePointRaybatch(pointdata[:3], 
                                                 pointdata[3:6], 
-                                                image.bitDepth)
+                                                image.bitDepth, 
+                                                perPointSample)
                 if(len(temp) > 0): # Only append for non zero array 
                     mat.append(temp)
         end = time.time()
@@ -155,7 +155,7 @@ class ImagingSystem:
         return posC + vecPCN * t 
 
 
-    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = SOME_BIG_CONST, useDistribution = True):
+    def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = PER_SPOT_MAX_SAMPLE, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
 
@@ -241,7 +241,7 @@ class ImagingSystem:
             return trans_2
         
 
-    def _singlePointRaybatch(self, posP, RGB=[1, 1, 1], bitDepth=8):
+    def _singlePointRaybatch(self, posP, RGB=[1, 1, 1], bitDepth=8, samplePoints = PER_SPOT_MAX_SAMPLE):
         """
         Generate the initial rayBatch for a single point light source. 
         """
@@ -265,8 +265,8 @@ class ImagingSystem:
             posC = np.array([sd, 0, 0]) + offset
         posB = self._findB(posA, posC, posP)
 
-        sampleAmount = int(lumi * self._perSpotMaxSample)
-        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r, sampleAmount)) # Sample points in the ellipse area 
+        sampleAmountLumi = int(lumi * samplePoints)
+        points = np.transpose(self._ellipsePeripheral(posA, posB, posC, posP, sd, r, sampleAmountLumi)) # Sample points in the ellipse area 
         vecs = ArrayNormalized(points - posP)
 
         # Radiant is used to calculate the amount of rays 
@@ -309,7 +309,7 @@ def main():
     biotar.UpdateLens() 
 
     # Set up the imager 32.3552 (35 for 1500 distance)
-    imager = Imager(bfd=35)
+    imager = Imager(bfd=36)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
@@ -317,18 +317,27 @@ def main():
     imgSys.AddImager(imager)
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
 
-    # Create objects 
-    # testPoint = Point()
-    # testPoint.fieldX = 15
-    # testPoint.fieldY = 10
-    # testPoint.distance = 700
-    # testPoint.RGB = np.array([0.4, 0.7, 0.1])
-    # imgSys.SinglePointSpot(testPoint)
 
-    # Create 2D image in object space 
-    testImgPath = r"resources/ISO12233.jpg"
-    testImg = Image2D(testImgPath)
-    imgSys.Image2DPropagation(testImg)
+    # Testing section 
+    isSpotTest = True
+    if(isSpotTest):
+        perSpotmaxSample = 10000
+        # Create points  
+        fieldXl = np.array([0, 1, 2, 3, 4]) * 4.525
+        fieldYl = np.array([0, 1, 2, 3, 4]) * 3.07
+        for i in range(len(fieldXl)):
+            testPoint = Point()
+            testPoint.fieldX = fieldXl[i]
+            testPoint.fieldY = fieldYl[i]
+            testPoint.distance = 10000
+            testPoint.RGB = np.array([1, 1, 1])
+            imgSys.SinglePointSpot(testPoint, perSpotmaxSample)
+    else:
+        perSpotmaxSample = 100
+        # Create 2D image in object space 
+        testImgPath = r"resources/ISO12233.jpg"
+        testImg = Image2D(testImgPath)
+        imgSys.Image2DPropagation(testImg, perSpotmaxSample)
 
     #imgSys.DrawSystem()
     
