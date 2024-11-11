@@ -43,6 +43,7 @@ class ImagingSystem:
         """
         self.rayPath = None 
 
+
     def SinglePointSpot(self, point, perPointSample = PER_POINT_MAX_SAMPLE):
         mat = self._singlePointRaybatch(point.GetPosition(), 
                                         point.GetColorRGB(), 
@@ -92,6 +93,7 @@ class ImagingSystem:
             self.primaries, self.secondaries, self.UVIRcut)
 
         self.rayPath = self.lens.rayPath
+
 
     def DrawSystem(self, drawSurfaces=True, drawPath=True, rayPathMax=32):
         """

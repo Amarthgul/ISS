@@ -8,6 +8,16 @@ import matplotlib.pyplot as plt
 # Primarily using the LambdaLines definition 
 from Util import LambdaLines
 
+GlassTablePath = r"resources/AbbeGlassTable.xlsx"
+
+PreRead = True 
+GlassTable = None 
+if(PreRead):
+    GlassTable = pd.read_excel(GlassTablePath)
+
+def MaterialClear():
+    del GlassTable
+
 
 def Schott(x, coef):
     """
@@ -86,9 +96,13 @@ class Material:
         if(self.name == "AIR"):
             return 
         else:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(script_dir, "AbbeGlassTable.xlsx")
-            df = pd.read_excel(file_path)
+            if(PreRead):
+                # Pre read to save open-close time 
+                df = GlassTable
+            else:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                file_path = os.path.join(script_dir, "AbbeGlassTable.xlsx")
+                df = pd.read_excel(file_path)
             found = df[df["Name"] == self.name].iloc[0]
             # Same name material should have the same parameter so it should not matter 
             formula = found["Formula"] 
