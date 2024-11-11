@@ -1,8 +1,10 @@
-# Visual Studio cache directory
-.vs/
 
 
 __pycache__/
+*.py[cod]
+*$py.class
 
+# Visual Studio cache directory
+.vs/
 
-python/__pycache__/
+/python/__pycache__/

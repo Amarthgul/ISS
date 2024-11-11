@@ -46,7 +46,7 @@ class Imager():
         self.rayPath = [np.copy(self.rayBatch.Position())]
 
         self._ImagePlaneIntersections() 
-        self._integralRays(primaries, secondaries, UVIRcut) 
+        return self._integralRays(primaries, secondaries, UVIRcut) 
 
     def Test(self):
         pass 
@@ -107,11 +107,16 @@ class Imager():
 
         
     
-    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True):
+    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg = None ):
         """
         Taking integral over the rays arriving at the image plane. 
 
+        :param primaries:
+        :param secondaries:
+        :param UVIRcut:
+        :param bitDepth: image bitdepth.
         :param plotResult: whether to show the resulting plot or not. 
+        :param baseImg: if not null, the generated image will be added onto this base image. 
         """
 
         pxPitch = self.width / self.horizontalPx 
@@ -156,18 +161,25 @@ class Imager():
         blue_channel = np.clip(radiantGridB*scaleRatio, 0, bits)
 
         # Ensure each channel is in the range [0, 255] and convert to uint8
+        # TODO: edit this to reflect bitdepth 
         red_channel = red_channel.astype(np.uint8)
         green_channel = green_channel.astype(np.uint8)
         blue_channel = blue_channel.astype(np.uint8)
 
-        # Stack the channels along the third axis to form an RGB image
-        rgb_image = np.stack((red_channel, green_channel, blue_channel), axis=-1)
+        if(baseImg == None):
+            # Stack the channels along the third axis to form an RGB image
+            rgb_image = np.stack((red_channel, green_channel, blue_channel), axis=-1)
+        else:
+            # In case this is an iterative call with an already formed image 
+            rgb_image += np.stack((red_channel, green_channel, blue_channel), axis=-1)
 
         if (plotResult):
             #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
             plt.imshow(rgb_image)
             #plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
+
+        return rgb_image
 
 
 
