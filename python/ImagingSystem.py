@@ -77,6 +77,7 @@ class ImagingSystem:
 
         totalSample = perPointSample * sX * sY 
         if(totalSample > MemoryManagement.AllowedRaybatchSize()):
+            # Bigger than usable memory space 
             pass 
 
         for i in range(sX- 1):
@@ -331,7 +332,7 @@ def main():
     biotar.UpdateLens() 
 
     # Set up the imager 32.3552 (35 for 1500 distance)
-    imager = Imager(bfd=35)
+    imager = Imager(bfd=34.25)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
@@ -352,10 +353,10 @@ def main():
             testPoint = Point()
             testPoint.fieldX = fieldXl[i]
             testPoint.fieldY = fieldYl[i]
-            testPoint.distance = 10000
+            testPoint.distance = 1500
             testPoint.RGB = np.array([1, 1, 1])
             imgSys.SinglePointSpot(testPoint, perSpotmaxSample)
-        imgSys.DrawSystem()
+        #imgSys.DrawSystem()
     else:
         perSpotmaxSample = 10
         # Create 2D image in object space 

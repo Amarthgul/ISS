@@ -78,6 +78,8 @@ class Lens:
         # =============================================
         i = 0
         for i in range(len(self.surfaces)):
+            if(DEVELOPER_MODE):
+                print("Sequential, starting surface no. ", i)
             self._surfaceIntersection(i)
             self._rayDirection(i)
         # =============================================

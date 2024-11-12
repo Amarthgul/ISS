@@ -11,10 +11,13 @@ class Image2D:
         self.bitDepth = 8 # TODO: add bitdepth detection 
 
         # Angle of view on x, y, and diagonal direction.
-        # Dafult values are for a 50mm lens on a 135 imager. 
-        self.xAoV = 39.6
-        self.yAoV = 27.0
+        # Sign is based on negative z direction, where clockwise is positive. 
+        self.xAoV = np.array([-19.8, 19.8])
+        self.yAoV = np.array([-13.5, 13.5])
+
         self.diagonalAoV = 46.8
+        # Dafult values are for a 50mm lens on a 135 imager. 
+
 
         # Distance of the input image in millimeter 
         # Default to 1.5m as the normal focus distance of human subjects
