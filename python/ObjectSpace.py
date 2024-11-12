@@ -5,7 +5,7 @@ from Util import *
 
 
 class Image2D:
-    def __init__(self, path):
+    def __init__(self, path = None):
         self.imgpath = path 
         self.img = None 
         self.bitDepth = 8 # TODO: add bitdepth detection 
@@ -41,7 +41,7 @@ class Image2D:
 
         # Additional modifier for the amount of sample points.
         # Used to reduce sample proportionally  
-        self._sampleModifier = 0.25
+        self._sampleModifier = 0.5
 
         self.pointData = []
 
@@ -82,6 +82,10 @@ class Image2D:
 
         # An array, each entry is of format (x, y, z, R, G, B)
         self.pointData = np.concatenate((positions, colorArray), axis=-1)
+
+
+    def SetImage(self, input):
+        self.img = input 
 
 
     def _ImageToRGB(self, image):

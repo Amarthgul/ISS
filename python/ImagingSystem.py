@@ -8,6 +8,7 @@ from Util import *
 from ObjectSpace import * 
 
 
+
 # Random generator from the Util module
 # This uses the same seed so that the result is deterministic  
 RNG = rng 
@@ -34,14 +35,17 @@ class ImagingSystem:
     def AddLens(self, lens):
         self.lens = lens 
 
+
     def AddImager(self, imager):
         self.imager = imager 
+
 
     def Clear(self):
         """
         Clear record keeping attributes. 
         """
-        self.rayPath = None 
+        self.rayPath = [] 
+        self.lens.rayPath = [] 
 
 
     def SinglePointSpot(self, point, perPointSample = PER_POINT_MAX_SAMPLE):
@@ -60,13 +64,20 @@ class ImagingSystem:
 
 
     def Image2DPropagation(self, image, perPointSample = PER_POINT_MAX_SAMPLE):
+        """
+        Propagate a 2D image through the lens and accquire its image. 
+        """
         print(image.sampleX, "     ",  image.sampleY)
-        # Using the python list and append is faster than numpy vstack
-        mat = []  # possibily due to memory allocation 
+        
+        mat = []  
 
         start = time.time()
-        sX = image.sampleX
-        sY = image.sampleY
+        sX = image.sampleX   # Horizontal sample count
+        sY = image.sampleY   # Vertical sample count 
+
+        totalSample = perPointSample * sX * sY 
+        if(totalSample > MemoryManagement.AllowedRaybatchSize()):
+            pass 
 
         for i in range(sX- 1):
             print("At {:.2f} percent".format(100 * i/sX))
@@ -77,7 +88,8 @@ class ImagingSystem:
                                                 image.bitDepth, 
                                                 perPointSample)
                 if(len(temp) > 0): # Only append for non zero array 
-                    mat.append(temp)
+                    mat.append(temp) 
+                    # Using the python list and append is faster than numpy vstack
         end = time.time()
         if(DEVELOPER_MODE):
             print("Mat creation time: ", end - start)
@@ -89,10 +101,12 @@ class ImagingSystem:
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
 
-        self.imager.IntegralRays(self.rayBatch,
+        RGB_array = self.imager.IntegralRays(self.rayBatch,
             self.primaries, self.secondaries, self.UVIRcut)
 
         self.rayPath = self.lens.rayPath
+
+        return RGB_array
 
 
     def DrawSystem(self, drawSurfaces=True, drawPath=True, rayPathMax=32):

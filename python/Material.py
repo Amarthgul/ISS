@@ -33,7 +33,6 @@ def Schott(x, coef):
     n2 = a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8)
     return np.sqrt(n2)
 
-
 def inv_schott(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
     return np.sqrt(inv_schott_squared(lambd, a, powers))
 

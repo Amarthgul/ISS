@@ -58,12 +58,33 @@ class Fit(Enum):
 SOME_BIG_CONST = 1024
 SOME_SML_CONST = 1e-10
 
+
+# ==================================================================
+""" ====================== Memory Management =================== """
+# ==================================================================
+
+
+class MemoryManagement():
+
+    MaxMemory = 40 # In gig
+
+    MaxRayBatchRatio = 0.5 # Leave space for other variables 
+
+    RayBatchFloat32Szie = 4   # 4 bytes for float 32
+    RayBatchComponents = 10   # 10 float32 in one raybatch entry 
+    RayBatchUnitSize = 4 * RayBatchComponents # Memory size for 1 raybatch entry 
+
+    @classmethod
+    def AllowedRaybatchSize(self):
+        allowedMemorySize = self.MaxMemory * self.MaxRayBatchRatio
+        allowedMemorySizeByte = allowedMemorySize * (1024**3)
+        return allowedMemorySizeByte / self.RayBatchUnitSize
+
 # ==================================================================
 """ ===================== 3D transformations =================== """
 # ==================================================================
 
 
-# Utility 
 def Normalized(inputVec):
     return inputVec / np.linalg.norm(inputVec)
 
@@ -419,6 +440,8 @@ def main():
     print("RGB result: \t", RGB)
     print("wavelength: \t", wavelngth)
     print("RGB result: \t", RGB1)
+
+    print(MemoryManagement.AllowedRaybatchSize())
 
 
 

@@ -9,6 +9,8 @@ class RayBatch:
     """
     def __init__(self, value):
         self.value = value
+        self.count = len(self.value)
+    
 
     def Position(self):
         return self.value[:, :3]
