@@ -22,6 +22,11 @@ ENABLE_RAYPATH = True
 RANDOM_SEED = 42 
 rng = np.random.default_rng(seed=RANDOM_SEED)
 
+def RefreshRNG():
+    """Refresh the RNG with a new seed generated using itself"""
+    newSeed = np.random.random_integers(1)
+    rng = np.random.default_rng(seed=newSeed)
+
 
 # The threashold by which a raybatch will no longer propagate 
 RADIANT_KILL = 0.001
@@ -282,28 +287,27 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
     :param shrink: Shrink factor to avoid edge clipping when projecting later.
     :return: NumPy array of shape (2, samplePoints) representing the points on the ellipse.
     """
-    
-    # Step 1: Generate random angles between [0, 2*pi]
+    # RNG is refreshed for every call while remaining deterministic 
+    RefreshRNG()
+
+    # Generate random angles between [0, 2*pi]
     angles = rng.uniform(0, 2 * np.pi, samplePoints)
     
-    # Step 2: Generate random radial distances with a uniform distribution
+    # Generate random radial distances with a uniform distribution
     # sqrt to ensure even distribution over the circle
     radii = np.sqrt(rng.uniform(0, 1, samplePoints))
-    
-    # Step 3: Convert polar coordinates to Cartesian coordinates assuming a unit circle
+
+    # Convert polar coordinates to Cartesian coordinates assuming a unit circle
     x = radii * np.cos(angles)
     y = radii * np.sin(angles)
     
-    # Step 4: Scale the points to match the major and minor axes of the ellipse
+    # Scale the points to match the major and minor axes of the ellipse
     x *= major_axis * shrink
     y *= minor_axis * shrink
 
     z = np.zeros(len(x)) # z defaults to 0
     
-    # Step 5: Return the points as a (2, samplePoints) array
-    points = np.vstack((x, y, z))
-    
-    return points
+    return np.vstack((x, y, z))
 
 
 # ==================================================================

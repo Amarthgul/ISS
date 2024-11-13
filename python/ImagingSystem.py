@@ -370,7 +370,7 @@ def main():
 
 
     # Testing section 
-    isSpotTest = True
+    isSpotTest = False
     if(isSpotTest):
         perSpotmaxSample = 40000
         spotCount = 6 
