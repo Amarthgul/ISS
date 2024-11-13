@@ -120,7 +120,7 @@ class Lens:
                 PlotTest.DrawSpherical(ax, l.radius, l.clearSemiDiameter, l.cumulativeThickness)
 
         # Draw the path of rays 
-        if (drawRays):
+        if (drawRays and ENABLE_RAYPATH):
             for i in range(len(self.rayPath) - 1):
                 for v1, v2 in zip(self.rayPath[i], self.rayPath[i+1]):
                     PlotTest.DrawLine(ax, v1, v2, lineColor = "r", lineWidth = rayThickness) 
@@ -368,8 +368,9 @@ class Lens:
         og_origins[og_sequential_index] = ray_positions
         self.rayBatch.SetPosition(og_origins)
 
-        # Copy the positions into path 
-        self.rayPath.append(np.copy(og_origins))
+        if(ENABLE_RAYPATH):
+            # Copy the positions into path 
+            self.rayPath.append(np.copy(og_origins))
 
         # Set non intersect and out of bound rays as vignetted 
         self.rayBatch.SetVignette(np.where(nonIntersect & vignetted))
@@ -420,8 +421,9 @@ class Lens:
         og_positions[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
         self.rayBatch.SetPosition(og_positions)
 
-        # Copy the positions into path 
-        self.rayPath.append(np.copy(og_positions))
+        if(ENABLE_RAYPATH):
+            # Copy the positions into path 
+            self.rayPath.append(np.copy(og_positions))
 
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
         
@@ -524,12 +526,14 @@ class Lens:
         # TODO: this does not seem to work when y value of the point is set to bigger than 1? 
         #self.rayBatch.value[:, 3:6] = vecs
 
-        # Append the starting point into ray path 
-        self.rayPath.append(np.copy(mat1))
+        if(ENABLE_RAYPATH):
+            # Append the starting point into ray path 
+            self.rayPath.append(np.copy(mat1))
 
 
     def _writeToFile(self):
-        np.savetxt("resources/raypath.csv", self.rayBatch.value, delimiter=",")
+        if(ENABLE_RAYPATH):
+            np.savetxt("resources/raypath.csv", self.rayBatch.value, delimiter=",")
         
 
 

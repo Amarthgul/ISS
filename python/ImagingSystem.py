@@ -60,7 +60,8 @@ class ImagingSystem:
         self.imager.IntegralRays(self.rayBatch,
             self.primaries, self.secondaries, self.UVIRcut)
 
-        self.rayPath = self.lens.rayPath
+        if(ENABLE_RAYPATH):
+            self.rayPath = self.lens.rayPath
 
 
     def Image2DPropagation(self, image, perPointSample = PER_POINT_MAX_SAMPLE):
@@ -77,7 +78,7 @@ class ImagingSystem:
 
         totalSample = perPointSample * sX * sY 
         if(totalSample > MemoryManagement.AllowedRaybatchSize()):
-            # Bigger than usable memory space 
+            # TODO: add memory saving methods 
             pass 
 
         for i in range(sX- 1):
@@ -104,8 +105,9 @@ class ImagingSystem:
 
         RGB_array = self.imager.IntegralRays(self.rayBatch,
             self.primaries, self.secondaries, self.UVIRcut)
-
-        self.rayPath = self.lens.rayPath
+        
+        if(ENABLE_RAYPATH):
+            self.rayPath = self.lens.rayPath
 
         return RGB_array
 
@@ -136,7 +138,7 @@ class ImagingSystem:
             vertices = [[corners[0], corners[1], corners[2], corners[3]]]
             ax.add_collection3d(Poly3DCollection(vertices, facecolors='cyan', linewidths=1, edgecolors='r', alpha=0.5, zorder=0))
 
-        if(drawPath):
+        if(drawPath and ENABLE_RAYPATH):
 
             # Accquire the raypath 
             rayPath = self.lens.rayPath 
@@ -358,10 +360,13 @@ def main():
             imgSys.SinglePointSpot(testPoint, perSpotmaxSample)
         #imgSys.DrawSystem()
     else:
-        perSpotmaxSample = 10
-        # Create 2D image in object space 
-        testImgPath = r"resources/ISO12233.jpg"
+        # Image test 
+        perSpotmaxSample = 3
+        # Henri-Cartier-Bresson.png
+        # ISO12233.jpg
+        testImgPath = r"resources/Henri-Cartier-Bresson.png"
         testImg = Image2D(testImgPath)
+        testImg.Update() 
         imgSys.Image2DPropagation(testImg, perSpotmaxSample)
 
     

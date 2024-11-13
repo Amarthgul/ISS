@@ -31,36 +31,53 @@ class Image2D:
         # How to fit the image when aspect ratio is different from AoV  
         self.fitMethod = Fit.FIT
         
-        # If not fit to angle of view, explicit dimension is needed 
-        # Size of the image in millimeter. 
+
+        # Physical size of the image in millimeter. 
         self.sizeX = 360 
         self.sizeY = 240 
+        # If not fit to angle of view, explicit dimension is needed. 
+
 
         # Per mm point sample, when set to <=0, sample will be based on pixel 
         self.samplePerMillimeter = 0
 
-        self.sampleX = 360 
+        self.sampleX = 360 # Amount of samples, unitless
         self.sampleY = 240
 
         # Additional modifier for the amount of sample points.
         # Used to reduce sample proportionally  
-        self._sampleModifier = 0.5
+        self._sampleModifier = 1
 
         self.pointData = []
 
-        self.Update() 
-
 
     def Update(self):
-        self.img =  PIL.Image.open(self.imgpath)
+        """
+        Update the parameters of the image2D object. This method must be manually called before running the system to ensure the parameters are refreshed. 
+        """
+        if(self.imgpath is not None):
+            self.img =  PIL.Image.open(self.imgpath)
+
+        _xAoVRad = np.radians(self.xAoV)
+        _yAoVRad = np.radians(self.yAoV)
+        xTotalAoV = abs(self.xAoV[1] - self.xAoV[0]) # In degrees 
+        yTotalAoV = abs(self.yAoV[1] - self.yAoV[0])
+        # Update the diagonal 
+        self.diagonalAoV = 2 * np.arctan(
+            np.sqrt(
+                np.tan(xTotalAoV/2)**2 + np.tan(yTotalAoV/2)**2  
+                ))
+        # Anchor points on x and y direction 
+        xAnchors = self.distance * np.tan(_xAoVRad)
+        yAnchors = self.distance * np.tan(_yAoVRad)
+
+        #print("Anchor positions ", xAnchors, "  ", yAnchors)
 
         if(self.fitToAoV):
-            angleX = np.radians(self.xAoV/2.0)  # With half angle division 
-            angleY = np.radians(self.yAoV/2.0)
-            self.sizeX = self.distance * math.tan(angleX) * 2.0 # Full size 
-            self.sizeY = self.distance * math.tan(angleY) * 2.0
+            self.sizeX = abs(xAnchors[1] - xAnchors[0]) # Full size in mm 
+            self.sizeY = abs(yAnchors[1] - yAnchors[0]) 
 
-
+        
         if(self.samplePerMillimeter == 0):
             # Divides then times 2 to ensure they are even numbers 
             self.sampleX = int(self._sampleModifier * self.sizeX / 2.0) * 2 
@@ -69,15 +86,15 @@ class Image2D:
             self.sampleX = int(self.sizeX * self.samplePerMillimeter * self._sampleModifier)
             self.sampleY = int(self.sizeY * self.samplePerMillimeter * self._sampleModifier)
 
-        #print(self.sizeX, "       ", self.sizeY)
-        #print(self.sampleX, "       ", self.sampleY)
-
+        #print("Spatial size  ", self.sizeX, "       ", self.sizeY)
+        #print("Sample amount ", self.sampleX, "       ", self.sampleY)
         # Create the sample point grid 
-        xLoc = np.linspace(-self.sizeX/2, self.sizeX/2, self.sampleX)
-        yLoc = np.linspace(-self.sizeY/2, self.sizeY/2, self.sampleY)
+        xLoc = np.linspace(xAnchors[0], xAnchors[1], self.sampleX)
+        yLoc = np.linspace(yAnchors[0], yAnchors[1], self.sampleY)
         x, y = np.meshgrid(xLoc, yLoc)
         z = (x * 0) - self.distance
         positions = np.stack((x, y, z), axis=-1)
+        #print("x and y: \n", xLoc, "\ny Loc\n", yLoc)
 
         # Resize the image to the exact sample points 
         imgResize = self.img.resize((self.sampleX, self.sampleY))
@@ -88,8 +105,54 @@ class Image2D:
 
 
     def SetImage(self, input):
+        """
+        Override the image content with an external image. 
+        """
         self.img = input 
 
+
+    def Spilt(self):
+        """
+        Spilt this image into 2 parts and return them as 2 Image2D instances with corresponding paramters. 
+        """
+        width, height = self.img.size
+        xTotalAoV = self.xAoV[0] + self.xAoV[1]
+        yTotalAoV = self.yAoV[0] + self.yAoV[1]
+
+        if(width > height):
+            #print("\nWidth spilt")
+            p1Box = (0, 0, width // 2, height)    # Left half
+            p2Box = (width // 2, 0, width, height)  # Right half
+            xAoV1 = np.array([self.xAoV[0], xTotalAoV/2])
+            xAoV2 = np.array([xTotalAoV/2, self.xAoV[1]])
+            yAoV1 = self.yAoV
+            yAoV2 = self.yAoV
+        else:
+            p1Box = (0, 0, width, height // 2)    # Top half
+            p2Box = (0, height // 2, width, height)  # Bottom half
+            xAoV1 = self.xAoV
+            xAoV2 = self.xAoV
+            yAoV1 = np.array([self.yAoV[0], yTotalAoV/2])
+            yAoV2 = np.array([yTotalAoV/2, self.yAoV[1]])
+
+        p1 = self.img.crop(p1Box)
+        p2 = self.img.crop(p2Box)
+
+        imgP1 = Image2D()
+        imgP1.SetImage(p1)
+        imgP1.xAoV = xAoV1
+        imgP1.yAoV = yAoV1
+        imgP1.distance = self.distance
+        imgP1.Update()
+
+        imgP2 = Image2D()
+        imgP2.SetImage(p2)
+        imgP2.xAoV = xAoV2
+        imgP2.yAoV = yAoV2
+        imgP2.distance = self.distance
+        imgP2.Update()
+
+        return imgP1, imgP2 
 
     def _ImageToRGB(self, image):
         """
@@ -163,15 +226,26 @@ class Point:
 
 def main():
 
-    testImgPath = r"resources/Henri-Cartier-Bresson.png"
+    isSpotTest = False
 
-    testImg = Image2D(testImgPath)
+    if(isSpotTest):
+        p = Point()
+        p.fieldX = 10
+        p.fieldY = 20
+        p.distance = 700
+        #print(p.GetPosition())
+    else:
+        # Henri-Cartier-Bresson.png
+        # ISO12233.jpg
+        testImgPath = r"resources/Henri-Cartier-Bresson.png"
 
-    p = Point()
-    p.fieldX = 10
-    p.fieldY = 20
-    p.distance = 700
-    #print(p.GetPosition())
+        testImg = Image2D(testImgPath)
+        #testImg.xAoV = np.array([-19.8, 0])
+        #testImg.yAoV = np.array([-13.5, 0])
+        testImg.Update()
+        testImg.Spilt() 
+
+    
 
 
 

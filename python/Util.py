@@ -13,6 +13,11 @@ from enum import Enum
 DEVELOPER_MODE = True 
 
 
+# Gloabl flag if the ray path feature is enabled
+ENABLE_RAYPATH = False
+# Recommend to turn this off for image propagation to save space. 
+
+
 # Creates a RNG for the entire program to use 
 RANDOM_SEED = 42 
 rng = np.random.default_rng(seed=RANDOM_SEED)
@@ -68,7 +73,7 @@ class MemoryManagement():
 
     MaxMemory = 40 # In gig
 
-    MaxRayBatchRatio = 0.5 # Leave space for other variables 
+    MaxRayBatchRatio = 0.3 # Leave space for other variables 
 
     RayBatchFloat32Szie = 4   # 4 bytes for float 32
     RayBatchComponents = 10   # 10 float32 in one raybatch entry 
