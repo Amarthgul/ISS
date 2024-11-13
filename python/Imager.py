@@ -41,12 +41,12 @@ class Imager():
         return self._zPos
     
 
-    def IntegralRays(self, raybatch, primaries, secondaries, UVIRcut):
+    def IntegralRays(self, raybatch, primaries, secondaries, UVIRcut, baseImg=None, valueClamp=None):
         self.rayBatch = raybatch
         self.rayPath = [np.copy(self.rayBatch.Position())]
 
         self._ImagePlaneIntersections() 
-        return self._integralRays(primaries, secondaries, UVIRcut) 
+        return self._integralRays(primaries, secondaries, UVIRcut, baseImg=baseImg, valueClamp=valueClamp) 
 
     def Test(self):
         pass 
@@ -107,7 +107,7 @@ class Imager():
 
         
     
-    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg = None ):
+    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -117,6 +117,7 @@ class Imager():
         :param bitDepth: image bitdepth.
         :param plotResult: whether to show the resulting plot or not. 
         :param baseImg: if not null, the generated image will be added onto this base image. 
+        :param valueClamp: for spot simulation, normalization based on max can be inaccurate. This value is for manually override the max value for clamping. The higher it is, the darker the spot. 
         """
 
         pxPitch = self.width / self.horizontalPx 
@@ -154,7 +155,13 @@ class Imager():
         
         maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
         bits = 2.0**bitDepth-1
-        scaleRatio = (bits / maxValue)
+
+        if(valueClamp is None):
+            # Suitable for image sim 
+            scaleRatio = (bits / maxValue) 
+        else:
+            # Spot sim 
+            scaleRatio = (bits / valueClamp)
 
         red_channel = np.clip(radiantGridR*scaleRatio, 0, bits) 
         green_channel = np.clip(radiantGridG*scaleRatio, 0, bits)  

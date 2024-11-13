@@ -64,6 +64,32 @@ class ImagingSystem:
             self.rayPath = self.lens.rayPath
 
 
+    def FieldSpot(self, points, perPointSample = PER_POINT_MAX_SAMPLE):
+        """
+        Generate spot for several points. 
+        """
+        mat = [] 
+        for p in points:
+            temp = self._singlePointRaybatch(p.GetPosition(), 
+                                        p.GetColorRGB(), 
+                                        p.GetBitDepth(), 
+                                        perPointSample)
+            if(len(temp) > 0): # Only append for non zero array 
+                    mat.append(temp) 
+
+        mat = np.vstack(mat)
+
+        self.rayBatch = RayBatch( mat )
+        self.lens.SetIncomingRayBatch(self.rayBatch)
+        self.rayBatch = self.lens.Propagate() 
+
+        self.imager.IntegralRays(self.rayBatch,
+            self.primaries, self.secondaries, self.UVIRcut, valueClamp=32)
+
+        if(ENABLE_RAYPATH):
+            self.rayPath = self.lens.rayPath
+
+
     def Image2DPropagation(self, image, perPointSample = PER_POINT_MAX_SAMPLE):
         """
         Propagate a 2D image through the lens and accquire its image. 
@@ -333,8 +359,8 @@ def main():
     # Update immediately after all the surfaces are defined  
     biotar.UpdateLens() 
 
-    # Set up the imager 32.3552 (35 for 1500 distance)
-    imager = Imager(bfd=34.25)
+    # Set up the imager 32.3552 (34.25 for 1500 distance)
+    imager = Imager(bfd=35)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
@@ -344,27 +370,29 @@ def main():
 
 
     # Testing section 
-    isSpotTest = False
+    isSpotTest = True
     if(isSpotTest):
-        perSpotmaxSample = 10000
+        perSpotmaxSample = 40000
+        spotCount = 6 
         # Create points  
-        fieldXl = np.array([0, 1, 2, 3, 4]) * 4.525
-        fieldYl = np.array([0, 1, 2, 3, 4]) * 3.07
+        fieldXl = np.linspace(0, 39.6/2, num=spotCount)
+        fieldYl = np.linspace(0, 27.0/2, num=spotCount)
+        PointList = []
         for i in range(len(fieldXl)):
-            imgSys.Clear() 
             testPoint = Point()
             testPoint.fieldX = fieldXl[i]
             testPoint.fieldY = fieldYl[i]
-            testPoint.distance = 1500
+            testPoint.distance = 10000
             testPoint.RGB = np.array([1, 1, 1])
-            imgSys.SinglePointSpot(testPoint, perSpotmaxSample)
+            PointList.append(testPoint)
+        imgSys.FieldSpot(PointList, perSpotmaxSample)
         #imgSys.DrawSystem()
     else:
         # Image test 
         perSpotmaxSample = 3
         # Henri-Cartier-Bresson.png
         # ISO12233.jpg
-        testImgPath = r"resources/Henri-Cartier-Bresson.png"
+        testImgPath = r"resources/ISO12233.jpg"
         testImg = Image2D(testImgPath)
         testImg.Update() 
         imgSys.Image2DPropagation(testImg, perSpotmaxSample)

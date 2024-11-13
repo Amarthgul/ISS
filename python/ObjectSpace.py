@@ -111,10 +111,18 @@ class Image2D:
         self.img = input 
 
 
-    def Spilt(self):
+    def AreaSpilt(self):
         """
         Spilt this image into 2 parts and return them as 2 Image2D instances with corresponding paramters. 
+
+        :return: 2 Image2D instances of the 2 parts of the original image. 
         """
+        # This method is not ideal. While spilting the image could help recursively 
+        # propagate the image, it is hard to guarantee that the totoal image dimension
+        # remains the same, especially after the second recursive spilt.
+        # As a result, it might happen that the final image has a tiny seam due to the
+        # 2 image resample not covering the seam in the middle.  
+
         width, height = self.img.size
         xTotalAoV = self.xAoV[0] + self.xAoV[1]
         yTotalAoV = self.yAoV[0] + self.yAoV[1]
@@ -153,6 +161,7 @@ class Image2D:
         imgP2.Update()
 
         return imgP1, imgP2 
+
 
     def _ImageToRGB(self, image):
         """

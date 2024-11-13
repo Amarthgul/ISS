@@ -14,7 +14,7 @@ DEVELOPER_MODE = True
 
 
 # Gloabl flag if the ray path feature is enabled
-ENABLE_RAYPATH = False
+ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
 
 
@@ -310,7 +310,11 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
 """ ================== Color and conversions =================== """
 # ==================================================================
 
+
 def LumiPeak(RGB):
+    """
+    Naive solution for calculating the luminance based on RGB channel values.  
+    """
     lumi = 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
     return lumi
 
