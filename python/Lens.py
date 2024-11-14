@@ -6,7 +6,6 @@ from Util import *
 from RayBatch import * 
 from Material import * 
 import time
-from numba import jit
 
 import numpy as np 
 import matplotlib.pyplot as plt

@@ -1,5 +1,6 @@
 
 from PIL import Image
+from joblib import Parallel, delayed
 
 from Lens import * 
 from Imager import * 
@@ -194,6 +195,16 @@ class ImagingSystem:
         plt.show()
 
 
+    def Test(self, image, perPointSample):
+        mat = []  
+
+        start = time.time()
+        sX = image.sampleX   # Horizontal sample count
+        sY = image.sampleY   # Vertical sample count 
+
+        totalSample = perPointSample * sX * sY 
+        mat = self._imageRaybatch(image, perPointSample)
+
     # ==================================================================
     """ ============================================================ """
     # ==================================================================
@@ -214,7 +225,25 @@ class ImagingSystem:
 
         return posC + vecPCN * t 
 
+
+    def _findBArray(self, posA, posC, posP):
+        """
+        Find the positions of point B. 
+
+        :param posA: grid of positions of point A.
+        :param posC: grid of positions of point C.
+        :param posP: grid of positions of point P.
+        """
+        vecPA = posA - posP   
+        vecPC = posC - posP  
+        vecN = ArrayNormalized((ArrayNormalized(vecPA) + ArrayNormalized(vecPC)) / 2)
+        
+        vecPCN = ArrayNormalized(vecPC)
+        t = np.sum(vecN * (posA - posC), axis=2) / np.sum(vecN * vecPCN, axis=2)
+
+        return posC + vecPCN * t[:, :, np.newaxis] 
     
+
     def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = PER_POINT_MAX_SAMPLE, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
@@ -311,8 +340,8 @@ class ImagingSystem:
         wavelengths, radiants = RGBToWavelength(RGB, self.primaries, self.secondaries, self.UVIRcut)
         
         firstSurface = self.lens.surfaces[0] 
-        r = firstSurface.radius
-        sd = firstSurface.clearSemiDiameter
+        r = firstSurface.radius 
+        sd = firstSurface.clearSemiDiameter 
 
         P_xy_projection = np.array([posP[0], posP[1], 0])
         offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
@@ -346,6 +375,28 @@ class ImagingSystem:
         return np.hstack((mat1, vecs, np.transpose(wavelengthArray)[:, np.newaxis], mat2))
 
 
+    def _imageRaybatch(self, image, bitDepth=8, samplePoints = PER_POINT_MAX_SAMPLE):
+        """
+        Generate the initial rayBatch for an image source, which is treated as a collection of point sources. 
+        """
+        lumi = LumiPeakArray(image.ImageToRGBArray())
+        print(lumi.shape)
+
+        wavelengths, radiants = RGBToWavelength(image.ImageToRGBArray(), self.primaries, self.secondaries, self.UVIRcut)
+
+        firstSurface = self.lens.surfaces[0] 
+        r = firstSurface.radius 
+        sd = firstSurface.clearSemiDiameter 
+
+        posP = image.pointData[:, :, :3] # First 3 entries are the positions 
+        
+        offset = np.array([0, 0, abs(r) - np.sqrt(r**2 - sd**2)]) * np.sign(r)
+
+        samplePool = RandomEllipticalDistribution(samplePoints * 4, z=offset) * r
+        
+
+        print("somrhitng ")
+
 
 
     
@@ -375,8 +426,13 @@ def main():
     imgSys.AddLens(biotar)
     imgSys.AddImager(imager)
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
+    
+    testImgPath = r"resources/ISO12233.jpg"
+    testImg = Image2D(testImgPath)
+    testImg.Update() 
+    imgSys.Test(testImg, 100)
 
-
+    return ; 
     # Testing section 
     isSpotTest = False
     if(isSpotTest):
@@ -397,7 +453,7 @@ def main():
         imgSys.DrawSystem()
     else:
         # Image test 
-        perSpotmaxSample = 60
+        perSpotmaxSample = 500
         # Henri-Cartier-Bresson.png
         # ISO12233.jpg
         testImgPath = r"resources/ISO12233.jpg"

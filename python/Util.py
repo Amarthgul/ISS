@@ -78,7 +78,7 @@ class MemoryManagement():
 
     MaxMemory = 40 # In gig
 
-    MaxRayBatchRatio = 0.1 # Leave space for other variables 
+    MaxRayBatchRatio = 0.5 # Leave space for other variables 
 
     RayBatchFloat32Szie = 4   # 4 bytes for float 32
     RayBatchComponents = 10   # 10 float32 in one raybatch entry 
@@ -320,13 +320,29 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
 
 def LumiPeak(RGB, bitDepth = 8):
     """
-    Naive solution for calculating the luminance based on RGB channel values.  
+    Naive solution for calculating the luminance based on the RGB channel of a pixel/point. 
+
+    :param RGB: RGB value of a pixel as [R, G, B]. 
+    :param bitDepth: bitDepth if the RGB array is not in the [0, 1] range. 
     """
     if(np.sum(RGB) > 3):
         RGB = RGB / (2**bitDepth)
 
     lumi = 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
     return lumi
+
+
+def LumiPeakArray(RGB, bitDepth = 8):
+    """
+    Naive solution for calculating the luminance based on the RGB channel of an image/array.  
+
+    :param RGB: RGB array in the shape of (m, n, 3). 
+    :param bitDepth: bitDepth if the RGB array is not in the [0, 1] range.
+    """
+    if(RGB.max() > 1):
+        RGB = RGB / (2**bitDepth)
+
+    return 0.2126*RGB[:, :, 0] + 0.7152*RGB[:, :, 1] + 0.0722 *RGB[:, :, 2] 
 
 
 def RGBToWavelength(RGB, 
@@ -389,6 +405,41 @@ def RGBToWavelength(RGB,
                 currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]]) )
 
             radiants = np.append(radiants, currentRadiant)
+
+    return (wavelengths, radiants)
+
+
+def RGBToWavelengthArray(RGB, 
+                primaries = {"R": "C'", "G": "e", "B":"g"}, 
+                secondaries = ["F", "D"], 
+                UVIRcut = ["i", "A'"],
+                bitDepth=8):
+    """
+    Convert an RGB values to corresponding wavelengths and intensity/radiant flux.
+    
+    :param RGB: a 3D array in shape (m, n, 3) representing the RGB of an image. 
+    :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"}).
+    :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
+    :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
+    :return: A NumPy array of wavelengths corresponding to the input RGB array. 
+    """
+
+    if(RGB.max() > 1):
+        RGB = RGB / (2**bitDepth)
+
+    width = RGB.shape[0]
+    height = RGB.shape[1]
+
+    wavelengths = np.array([
+        LambdaLines[primaries["R"]], 
+        LambdaLines[primaries["G"]], 
+        LambdaLines[primaries["B"]]
+    ])
+    wavelengths = np.tile(wavelengths, (width, height, 1))
+
+    radiants = np.array(RGB)
+
+    # TODO: Add secondary support? 
 
     return (wavelengths, radiants)
 

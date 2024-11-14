@@ -2,7 +2,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from numba import jit
 
 
 from Lens import * 
@@ -108,7 +107,6 @@ class Imager():
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
 
         
-    @jit(nopython=True)
     def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 

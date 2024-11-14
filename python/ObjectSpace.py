@@ -9,6 +9,7 @@ class Image2D:
     def __init__(self, path = None):
         self.imgpath = path 
         self.img = None 
+        self._sourceImg = None # A backup of the source image 
         self.bitDepth = 8 # TODO: add bitdepth detection 
 
         # Angle of view on x, y, and diagonal direction.
@@ -58,6 +59,7 @@ class Image2D:
         """
         if(self.imgpath is not None):
             self.img =  PIL.Image.open(self.imgpath)
+            self._sourceImg = copy.deepcopy(self.img)
 
         _xAoVRad = np.radians(self.xAoV)
         _yAoVRad = np.radians(self.yAoV)
@@ -98,8 +100,8 @@ class Image2D:
         #print("x and y: \n", xLoc, "\ny Loc\n", yLoc)
 
         # Resize the image to the exact sample points 
-        imgResize = self.img.resize((self.sampleX, self.sampleY))
-        colorArray = self._ImageToRGB(imgResize)
+        self.img = self._sourceImg.resize((self.sampleX, self.sampleY))
+        colorArray = self.ImageToRGBArray()
 
         # An array, each entry is of format (x, y, z, R, G, B)
         self.pointData = np.concatenate((positions, colorArray), axis=-1)
@@ -110,6 +112,7 @@ class Image2D:
         Override the image content with an external image. 
         """
         self.img = input 
+        self._sourceImg = copy.deepcopy(self.img)
 
 
     def AreaSpilt(self):
@@ -189,13 +192,13 @@ class Image2D:
         return imgR, imgG, imgB
         
 
-    def _ImageToRGB(self, image):
+    def ImageToRGBArray(self):
         """
         This method converts an image to an array of RGB values. 
         """
         # TODO: add more implementations for images not directly read as RGB
         # For color space conversion and gamma correction, also put them here 
-        return np.array(image)
+        return np.array(self.img)
 
 
 
