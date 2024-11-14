@@ -78,17 +78,20 @@ class MemoryManagement():
 
     MaxMemory = 40 # In gig
 
-    MaxRayBatchRatio = 0.3 # Leave space for other variables 
+    MaxRayBatchRatio = 0.1 # Leave space for other variables 
 
     RayBatchFloat32Szie = 4   # 4 bytes for float 32
     RayBatchComponents = 10   # 10 float32 in one raybatch entry 
     RayBatchUnitSize = 4 * RayBatchComponents # Memory size for 1 raybatch entry 
 
+    _GigToByteConversion = 1024**3
+
     @classmethod
     def AllowedRaybatchSize(self):
         allowedMemorySize = self.MaxMemory * self.MaxRayBatchRatio
-        allowedMemorySizeByte = allowedMemorySize * (1024**3)
+        allowedMemorySizeByte = allowedMemorySize * self._GigToByteConversion
         return allowedMemorySizeByte / self.RayBatchUnitSize
+
 
 # ==================================================================
 """ ===================== 3D transformations =================== """
@@ -315,10 +318,13 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, s
 # ==================================================================
 
 
-def LumiPeak(RGB):
+def LumiPeak(RGB, bitDepth = 8):
     """
     Naive solution for calculating the luminance based on RGB channel values.  
     """
+    if(np.sum(RGB) > 3):
+        RGB = RGB / (2**bitDepth)
+
     lumi = 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
     return lumi
 

@@ -2,11 +2,13 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from numba import jit
+
 
 from Lens import * 
 
 class Imager():
-    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 1080):
+    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 1920):
         self.rayBatch = None 
         self.BFD = bfd  # Back focal distance. Sensor distance from last element's vertex 
         self.width = w
@@ -106,7 +108,7 @@ class Imager():
         self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
 
         
-    
+    @jit(nopython=True)
     def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 

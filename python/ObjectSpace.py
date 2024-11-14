@@ -2,6 +2,7 @@
 import PIL.Image
 import numpy as np 
 from Util import * 
+import copy
 
 
 class Image2D:
@@ -46,7 +47,7 @@ class Image2D:
 
         # Additional modifier for the amount of sample points.
         # Used to reduce sample proportionally  
-        self._sampleModifier = 1
+        self._sampleModifier = 2
 
         self.pointData = []
 
@@ -163,6 +164,31 @@ class Image2D:
         return imgP1, imgP2 
 
 
+    def ChannelSpilt(self): 
+        """
+        Spilt the image into 3 different images representing the RGB channel. 
+
+        :return: 3 Image2D instances made from the original's RGB channel. 
+        """
+        # Requires the self image to be an RGB image 
+
+        r, g, b = self.img.split()
+        
+        r = PIL.Image.merge("RGB", (r, PIL.Image.new("L", r.size), PIL.Image.new("L", r.size)))
+        g = PIL.Image.merge("RGB", (PIL.Image.new("L", g.size), g, PIL.Image.new("L", g.size)))
+        b = PIL.Image.merge("RGB", (PIL.Image.new("L", b.size), PIL.Image.new("L", b.size), b))
+        
+        imgR = copy.deepcopy(self)
+        imgG = copy.deepcopy(self)
+        imgB = copy.deepcopy(self)
+
+        for channel, img in zip([r, g, b], [imgR, imgG, imgB]):
+            img.SetImage(channel)
+            img.Update() 
+
+        return imgR, imgG, imgB
+        
+
     def _ImageToRGB(self, image):
         """
         This method converts an image to an array of RGB values. 
@@ -249,11 +275,10 @@ def main():
         testImgPath = r"resources/Henri-Cartier-Bresson.png"
 
         testImg = Image2D(testImgPath)
-        #testImg.xAoV = np.array([-19.8, 0])
-        #testImg.yAoV = np.array([-13.5, 0])
+        testImg.xAoV = np.array([-19.8, 0])
+        testImg.yAoV = np.array([-13.5, 0])
         testImg.Update()
-        testImg.Spilt() 
-
+        testImg.ChannelSpilt()
     
 
 

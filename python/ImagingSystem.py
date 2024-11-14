@@ -1,6 +1,5 @@
 
 from PIL import Image
-import gc
 
 from Lens import * 
 from Imager import * 
@@ -89,7 +88,7 @@ class ImagingSystem:
         if(ENABLE_RAYPATH):
             self.rayPath = self.lens.rayPath
 
-
+    
     def Image2DPropagation(self, image, perPointSample = PER_POINT_MAX_SAMPLE):
         """
         Propagate a 2D image through the lens and accquire its image. 
@@ -103,9 +102,15 @@ class ImagingSystem:
         sY = image.sampleY   # Vertical sample count 
 
         totalSample = perPointSample * sX * sY 
-        if(totalSample > MemoryManagement.AllowedRaybatchSize()):
-            # TODO: add memory saving methods 
-            pass 
+
+        print("Total sample: ", totalSample, "    ", MemoryManagement.AllowedRaybatchSize())
+        spiltImagingResult = None 
+        if(totalSample > MemoryManagement.AllowedRaybatchSize()
+           and perPointSample >= 3):
+            if(DEVELOPER_MODE): print("Apply channel spilt")
+            spiltImages = image.ChannelSpilt()
+            for spilt in spiltImages:
+                spiltImagingResult = self.Image2DPropagation(spilt, perPointSample/3)
 
         for i in range(sX- 1):
             print("At {:.2f} percent".format(100 * i/sX))
@@ -129,8 +134,12 @@ class ImagingSystem:
         self.lens.SetIncomingRayBatch(self.rayBatch)
         self.rayBatch = self.lens.Propagate() 
 
-        RGB_array = self.imager.IntegralRays(self.rayBatch,
-            self.primaries, self.secondaries, self.UVIRcut)
+        if(spiltImagingResult is None):
+            RGB_array = self.imager.IntegralRays(self.rayBatch,
+                self.primaries, self.secondaries, self.UVIRcut)
+        else:
+            RGB_array = self.imager.IntegralRays(self.rayBatch,
+                self.primaries, self.secondaries, self.UVIRcut, baseImg=spiltImagingResult)
         
         if(ENABLE_RAYPATH):
             self.rayPath = self.lens.rayPath
@@ -205,7 +214,7 @@ class ImagingSystem:
 
         return posC + vecPCN * t 
 
-
+    
     def _ellipsePeripheral(self, posA, posB, posC, posP, sd, r, samplePoints = PER_POINT_MAX_SAMPLE, useDistribution = True):
         """
         Find the points on the ellipse perpendicular to the incident direction that will be used as initial ray cast points. 
@@ -220,7 +229,6 @@ class ImagingSystem:
         """
         offset = np.array([0, 0, posA[2]])
         onAxis = False 
-
         # On axis scenario 
         if (np.isclose(posP[0], 0) and np.isclose(posP[1], 0)):
             P_xy_projection = np.array([sd, 0, 0])
@@ -291,14 +299,14 @@ class ImagingSystem:
 
             return trans_2
         
-
+    
     def _singlePointRaybatch(self, posP, RGB=[1, 1, 1], bitDepth=8, samplePoints = PER_POINT_MAX_SAMPLE):
         """
         Generate the initial rayBatch for a single point light source. 
         """
         lumi = LumiPeak(RGB)
         if(lumi == 0): return [] 
-
+        
         # Accquire all wavelengths and corresponding radiants  
         wavelengths, radiants = RGBToWavelength(RGB, self.primaries, self.secondaries, self.UVIRcut)
         
@@ -372,7 +380,7 @@ def main():
     # Testing section 
     isSpotTest = False
     if(isSpotTest):
-        perSpotmaxSample = 40000
+        perSpotmaxSample = 60000
         spotCount = 6 
         # Create points  
         fieldXl = np.linspace(0, 39.6/2, num=spotCount)
@@ -382,14 +390,14 @@ def main():
             testPoint = Point()
             testPoint.fieldX = fieldXl[i]
             testPoint.fieldY = fieldYl[i]
-            testPoint.distance = 10000
+            testPoint.distance = 15000
             testPoint.RGB = np.array([1, 1, 1])
             PointList.append(testPoint)
         imgSys.FieldSpot(PointList, perSpotmaxSample)
-        #imgSys.DrawSystem()
+        imgSys.DrawSystem()
     else:
         # Image test 
-        perSpotmaxSample = 3
+        perSpotmaxSample = 60
         # Henri-Cartier-Bresson.png
         # ISO12233.jpg
         testImgPath = r"resources/ISO12233.jpg"

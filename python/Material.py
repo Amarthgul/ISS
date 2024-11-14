@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 # Primarily using the LambdaLines definition 
 from Util import LambdaLines
 
+# Load the material sheet globally to avoid repeatly open-close 
 GlassTablePath = r"resources/AbbeGlassTable.xlsx"
 
 PreRead = True 
