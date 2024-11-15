@@ -14,7 +14,18 @@ Imaging System Simulation.
     - [1.4.2 - "Should Try to Accomplish"](142---should-try-to-accomplish)
     - [1.4.3 - Good to have](143---good-to-have)
   - [1.5 - Examinations](15---examinations)
-
+- [2 - Geometric Optics](#2---geometric-optics)
+  - [2.1 - Wavelength and RGB Conversion]
+  - [2.2 - Object Space]
+  - [2.3 - Surface]
+    - [2.3.1 - Standard Spherical Surface]
+    - [2.3.2 - Even Aspherical]
+    - [2.3.3 - Cylindrical]
+  - [2.4 - Object to Entrance Pupil]
+  - [2.5 - Sequential Propagation]
+    - [2.5.1 - Index of Refraction]
+  - [2.6 - Non-Sequential Propagation]
+  - [2.7 - Imager]
 
 
 # 1 - General 
@@ -105,7 +116,7 @@ Items in this category are mandatory for the project. The project **must** accom
 
   - Able to propagate an object through the virtual imaging system and acquire its image with physical accuracy. 
 
-  - The propagation process contains both [sequential](25---sequential-propagation) and [non-sequential](26---non-sequential-propagation) methods. 
+  - The propagation process contains both [sequential](#25---sequential-propagation) and [non-sequential](#26---non-sequential-propagation) methods. 
 
 
 - An algorithm that describes the mathematical/physical process of the virtual imaging system that: 
@@ -227,7 +238,7 @@ A typical spherical surface in this application has 4 attributes:
 
 Sequential propagation (in a refractive system) is when rays never interact with the same surface twice and keep moving forward. 
 
-### 2.5.1 Index of Refraction 
+### 2.5.1 - Index of Refraction 
 
 One of the most important aspect of determining the wavelength is to use it in calculating the refraction index of this wavelength in a certain material, different wavelenth will have different IOR in the same material, i.e., dispersion. 
 
