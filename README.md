@@ -12,20 +12,20 @@ Imaging System Simulation.
   - [1.4 - End Goal](#14---end-goal)
     - [1.4.1 - "Must Accomplish"](141---must-accomplish)
     - [1.4.2 - "Should Try to Accomplish"](142---should-try-to-accomplish)
-    - [1.4.3 - Good to have](143---good-to-have)
+    - [1.4.3 - "Good to have"](143---good-to-have)
   - [1.5 - Examinations](15---examinations)
 - [2 - Geometric Optics](#2---geometric-optics)
-  - [2.1 - Wavelength and RGB Conversion]
-  - [2.2 - Object Space]
-  - [2.3 - Surface]
-    - [2.3.1 - Standard Spherical Surface]
-    - [2.3.2 - Even Aspherical]
-    - [2.3.3 - Cylindrical]
-  - [2.4 - Object to Entrance Pupil]
-  - [2.5 - Sequential Propagation]
-    - [2.5.1 - Index of Refraction]
-  - [2.6 - Non-Sequential Propagation]
-  - [2.7 - Imager]
+  - [2.1 - Wavelength and RGB Conversion](#21---wavelength-and-rgb-conversion)
+  - [2.2 - Object Space](#22---object-space)
+  - [2.3 - Surface](#23---surface)
+    - [2.3.1 - Standard Spherical Surface](#231---standard-spherical-surface)
+    - [2.3.2 - Even Aspherical](#232---even-aspherical)
+    - [2.3.3 - Cylindrical](#233---cylindrical)
+  - [2.4 - Object to Entrance Pupil](#25---sequential-propagation)
+  - [2.5 - Sequential Propagation](#25---sequential-propagation)
+    - [2.5.1 - Index of Refraction](#251---index-of-refraction)
+  - [2.6 - Non-Sequential Propagation](#26---non-sequential-propagation)
+  - [2.7 - Imager](#27---imager)
 
 
 # 1 - General 
@@ -56,7 +56,113 @@ This project aims to address these problems and conflicts. This project aims to 
 ## 1.2 - Optical Artifacts 
 
 
+Although optical artifacts are coupled and do not exist independently, for the ease of discussion, they can be divided into several different categories. 
 
+### 1.2.1 First Order Aberration 
+
+While barely discussed in optical design, the 1st order aberration typically refers to misalignment of elements in the lens. 
+
+### 1.2.2 Thrid Order Aberration 
+
+The third order aberration is also referred to as the Seidel aberration or monochromatic aberration due to them existing on rays of any wavelength. There are 5 major forms of monochromatic aberration: 
+
+**Spherical Aberration**
+
+Spherical aberration (SA) is caused by light entering different parts of a lens unable to focus at the same spot. Due to its prevalence in virtually all imaging lenses, it is hard to find an example with only SA. In general, SA causes the image to become blurry, lowering the system’s ability in high frequency detail reproduction. 
+
+<div align="center">
+	<img src="resources/ReadmeImg/Spherical_aberration.png" width="320">
+  <p align="center">Ideal lens vs. actual lens with SA. Image from Wiki.</p>
+</div>
+
+</br>
+
+**Comatic Aberration**
+
+Normally abbreviated as coma. This is one of the easiest to spot aberrations, specifically around the image edges, as bright point sources no longer remain as a point, but taking on the shape of a bird, comet, chisel, etc..
+
+<div align="center">
+	<img src="resources/ReadmeImg/ZY_50_0.95_M_coma_0.95.jpg" width="540">
+  <p align="center">In focus lights are imaged as inregular shapes due to coma</p>
+</div>
+
+Above is an image from the SpeedMaster 50mm f/0.95 wide open at the edges (tested by Phillip Reeve [^15]). The plane-looking shapes are in fact distant lights, note that coma also degrades the image clarity at the edges, as the spot size vastly exceeds a single image element. Stopping down the lens reduces the coma and shows what the scene should have looked like: 
+
+<div align="center">
+	<img src="resources/ReadmeImg/ZY_50_0.95_M_coma_8.0.jpg" width="540">
+  <p align="center">Stopping down to f/8 reduces coma</p>
+</div>
+
+</br>
+
+**Astigmatism**
+
+Astigmatism is caused by lights in 2 directions (sagittal and tangential) unable to focus together, thus stretching the spot in one direction. 
+
+As an example, in the spot simulation below, the 25.6 degree field transits from horizontally stretched gradually in near distance imaging to vertically stretched in far distance imaging:
+
+<div align="center">
+	<img src="resources/ReadmeImg/ThroughFocusSpotDiagram_Inf.png" width="640">
+  <p align="center">Through focus spot diagram of Zeiss Planar 80mm f/2.8 Berger</p>
+</div>
+
+It is also worth pointing out that anamorphic lens is built almost entirely on the premise of astigmatism, as the active and inactive axis have 2 different focal lengths and thus cannot produce an axial symmetrical spot at out of focus areas. This is the reason for their elliptical bokeh and streak flares.   
+
+</br>
+
+**Field Curvature** 
+
+Field curvature describes how the focal plane is a curved surface instead of a “plane”; it is also referred to as the Petzval sum. Field curvature can cause the image unable to focus evenly, i.e., only the center or the edge are in focus, with the rest defocused. Below is an extreme example of field curvature using a lens specifically designed to introduce more field curvature [^16]:
+
+<div align="center">
+	<img src="resources/ReadmeImg/Time-Waits-For-Nobody.jpg" width="640">
+  <p align="center">Image taken with a Lensbaby lens</p>
+</div>
+
+</br>
+
+**Distortion** 
+
+Distortion is the uneven magnification through the image. From a visual aspect, this typically causes straight lines in the image to become curved. In the image below, the ground and the pillars are imaged as curved lines despite being straight: 
+
+<div align="center">
+	<img src="resources/ReadmeImg/the-cinematography-of-shogun.png" width="640">
+  <p align="center">From FX TV series <i>Shogun</i></p>
+</div>
+
+Note that both field curvature and distortion cannot be faithfully replicated by 2D image space operation. Field curvature is in truth a form of defocus, which is intrinsically different from 2D blur algorithms such as Guassian blur. Similarly, distortion cannot be done by a linear transformation of the image, since the level of distortion can be different depending on depth. This is particularly true for lenses that contain floating lens elements during focus pulling. 
+
+</br>
+
+### 1.2.3 Chromatic Aberration 
+
+Chromatic aberration (CA), as the name indicates, is the aberration caused by different colors, i.e., wavelengths. Depending on the direction, CA can also be classified into 2 categories: longitudinal/axial chromatic aberration (LCA) and transverse/lateral chromatic aberration (TCA) [^18]. 
+
+<div align="center">
+	<img src="resources/ReadmeImg/Chromatic_diag.png" width="360">
+  <p align="center">LCA and TCA</p>
+</div>
+
+In most cases, however, TCA and LCA appear together instead of independently (so are all the optical artifacts discussed previously). 
+
+<div align="center">
+	<img src="resources/ReadmeImg/CA_comp.jpg" width="360">
+  <p align="center">Effect of CA</p>
+</div>
+
+In the figure above [^19], the top image contains less CA, whereas the bottom one shows significant CA, reducing the clarity of the image. 
+
+</br>
+
+### 1.2.4 Optomechanical Effects 
+
+There are many other artifacts caused by the design and construction of the lens. 
+
+Due to the combined reason of optical coverage and mechanical occlusion, the illumination of the image tends to fall off towards the edges, causing the vignette. The magnification ratio may also change at different focus distances, referred to by the cinematographers as the focus breathing. 
+The aging of the balsam and radiation around lens containing aluminum oxide tend to create Farbzentrum and introduce a yellow color cast to the lens. The ink used to blacken the rim of each lens, when weakened or washed during maintenance, can also cause more flare and glares. 
+All those phenomena contribute to the “characteristic” of the lens. 
+
+</br>
 
 ## 1.3 - Current Field and Similar Applications 
 
@@ -228,9 +334,17 @@ A typical spherical surface in this application has 4 attributes:
 
 ### 2.3.1 - Standard Spherical Surface 
 
+Spherical surfaces have been used since the beginning of optical imaging and is still the most common type in lens design. 
+
 ### 2.3.2 - Even Aspherical 
 
+Most aspherical elements in modern lens design belong to the type of even aspherical, using only the even powers of the radial coordinate to describe the surface.
+
+$$ z=\frac{ cr ^2 }{ 1 + \sqrt{ 1 + k c ^2 r ^2}  }+ \alpha _1 r^2 + \alpha _2 r^4 + \alpha _3 r^6 + \alpha _4 r^8 +\cdots $$
+
 ### 2.3.3 - Cylindrical
+
+Cylindrical surfaces are used for anamorphic lenses, they are also largely the origin of the 2.39:1 aspect ratio. 
 
 ## 2.4 - Object to Entrance Pupil 
 
@@ -288,6 +402,20 @@ Assume the positions of the intersection is represented as a 2D array $\mathbf{p
 Now, the position of the ray intersections directly represents the index of the pixel it falls into, an iterative look-up operation is thus converted to a simple hashing. Taking the integral of the radiants can be achieved by simply calculating the sum of each hash basket. And the conversion of wavelength radiant can refer to [section 2.1](21---wavelength-and-rgb-conversion). 
 
 
+### 2.7.1 - Digital Sensor
+
+### 2.7.2 - UV/IR Cut 
+
+### 2.7.3 - Color Negative Film 
+
+Halation goes here. 
+
+### 2.7.4 - Tilt Shift 
+
+
+## 2.8 - Optomechanical Design 
+
+
 
 <br />
 
@@ -338,9 +466,17 @@ Now, the position of the ray intersections directly represents the index of the 
 
 [^14]: Achieving True Photorealism With Lens Simulation. Accessed November 15, 2024. https://www.youtube.com/watch?v=jT9LWq279OI.
 
+[^15]: BastianK. “Review: Zhong Yi 50mm 0.95 M.” Phillipreeve.Net (blog), January 23, 2021. https://phillipreeve.net/blog/review-zhong-yi-50mm-0-95-m/.
 
+[^16]: “Lens Problems – Field Curvature.” Accessed November 15, 2024. https://www.discoverdigitalphotography.com/2015/lens-problems-field-curvature/.
 
+[^17]: jonsimo. “The Cinematography of Shogun Is Phenomenal IMO.” Reddit Post. R/Cinematography, February 28, 2024. www.reddit.com/r/cinematography/comments/1b2iepk/the_cinematography_of_shogun_is_phenomenal_imo/.
 
+[^18]: “Chromatic Aberration AKA Color Fringing | Imatest.” Accessed November 15, 2024. https://www.imatest.com/support/docs/23-1/sfr_chromatic/.
+
+[^19]: Xor. “GM Shaders Mini: Chromatic Aberration,” April 13, 2024. https://mini.gmshaders.com/p/gm-shaders-mini-chromatic-aberration.
+
+[^20]: 
 
 
 
