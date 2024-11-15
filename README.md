@@ -223,7 +223,7 @@ A typical spherical surface in this application has 4 attributes:
 
 ## 2.4 - Object to Entrance Pupil 
 
-## 2.5 - Sequential Propagation 
+## 2.5 - Sequential Propagation
 
 Sequential propagation (in a refractive system) is when rays never interact with the same surface twice and keep moving forward. 
 
