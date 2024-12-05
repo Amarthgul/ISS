@@ -1,6 +1,6 @@
 
 
-from .Surface import * 
+from .Surfaces.Surface import * 
 from .Material import *
 from .Lens import *
 from .Imager import * 

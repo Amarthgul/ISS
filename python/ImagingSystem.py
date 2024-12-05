@@ -8,6 +8,8 @@ from Util import *
 from ObjectSpace import * 
 
 
+from Surfaces import Surface
+
 
 # Random generator from the Util module
 # This uses the same seed so that the result is deterministic  

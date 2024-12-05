@@ -21,6 +21,12 @@ ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
 
 
+# Placeholder focus/object distance 
+KNOB_DISTANCE = 1500 
+# Name and value from leica lenses which has a focus knob,
+# the lens will focus at 1.2 to 1.5 meter when the knob point down 
+
+
 # Creates a RNG for the entire program to use 
 RANDOM_SEED = 42 
 rng = np.random.default_rng(seed=RANDOM_SEED)
