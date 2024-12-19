@@ -1,6 +1,6 @@
 
 
-import numpy as np 
+from Backend import backend as bd 
 
 class RayBatch:
     """
@@ -74,13 +74,16 @@ class RayBatch:
         self.value[vignettedIndices, 9] = 0
 
     def GetNonSequentialRays(self):
-        return self.value[~np.where(self.Sequential())]
+        return self.value[~bd.where(self.Sequential())]
 
     def RemoveNonSequentialRays(self):
-        nsIndeices = ~np.where(self.Sequential())
-        return np.delete(self.value, nsIndeices)
+        nsIndeices = ~bd.where(self.Sequential())
+        return bd.delete(self.value, nsIndeices)
 
 
     def RandomDrop(self, keeprate = 1):
         pass 
+
+
+
 

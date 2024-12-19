@@ -7,4 +7,4 @@ from .Imagers.Imager import *
 from .ImagingSystem import * 
 from .ObjectSpace import *  
 
-from .PlotTest import * 
+from .Util.PlotTest import * 
