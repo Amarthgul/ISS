@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm
 
-import PlotTest
+import python.Util.PlotTest as PlotTest
 
 origin = np.array([0, 0, 0])
 

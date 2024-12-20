@@ -6,7 +6,7 @@ import math
 import matplotlib.pyplot as plt
 
 # Primarily using the LambdaLines definition 
-from Util import LambdaLines
+from python.Util.Misc import LambdaLines
 
 # Load the material sheet globally to avoid repeatly open-close 
 GlassTablePath = r"resources/AbbeGlassTable.xlsx"
@@ -18,29 +18,6 @@ if(PreRead):
 
 def MaterialClear():
     del GlassTable
-
-
-def Schott(x, coef):
-    """
-    Schott function for inverse calculating the material. 
-    :param lam: lambda wavelength in nanometers. 
-    """
-    a0 = coef[0]
-    a1 = coef[1]
-    a2 = coef[2]
-    a3 = coef[3]
-    a4 = coef[4]
-    a5 = coef[5]
-    n2 = a0 + a1* x**2 + a2 * x**(-2) + a3 * x**(-4) + a4 * x**(-6) + a5 * x**(-8)
-    return np.sqrt(n2)
-
-def inv_schott(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
-    return np.sqrt(inv_schott_squared(lambd, a, powers))
-
-def inv_schott_squared(lambd: np.ndarray, a: np.ndarray, powers: np.ndarray) -> np.ndarray:
-    terms = np.power.outer(lambd, powers)
-    return terms @ a
-
 
 class Material:
 
@@ -121,62 +98,8 @@ class Material:
                 self._decodeExtended_3(found)
     
     def Test(self, var):
-        ne = Schott(0.54607, var)
-        nfp = Schott(0.47999, var)
-        ncp = Schott(0.64385, var)
-        print("ne: ", ne)
-        print("Ve: ", (  (ne-1) / (nfp-ncp) ))
-
-    def InverseMaterial(self, n, V, useNe = True):
-
-        # Not really working... 
-
-        # The RI regression equation of the long wavelength was calculated externally 
-        
-        shorter = LambdaLines["F'"]
-        short = LambdaLines["F"]
-        neighbor = LambdaLines["e"]
-        middle = LambdaLines["d"]
-        longc = LambdaLines["C'"]
-        longer = LambdaLines["C"]
-        n_long = 0.984 * n + 0.0246       # n_C'
-
-        n_shorter = ( (n-1) / V) + n_long # n_F'
-        n_short = 1.03 * n -0.0418       # n_F
-        n_neighbor = n                    # n_e
-        n_mid = 0.986 * n + 0.0202         # n_d 
-        n_long = 0.971 * n + 0.0406       # n_C' 
-        n_longer = 0.968 * n + 0.0443     # n_C
-
-        x_data = np.array([longer,      longc,   middle,     neighbor,       short,      shorter])
-        y_data = np.array([n_longer,    n_long, n_mid,      n_neighbor,     n_short,    n_shorter])
-
-        lambda_nm = np.array((longer, longc, middle, neighbor, short, shorter))
-        lambda_um = lambda_nm*1e-3 # Converting to micrometer 
-        n_all = np.array((n_longer, n_long, n_mid, n_neighbor, n_short, n_shorter))
-
-        fig, ax = plt.subplots()
-        lambda_hires = np.linspace(start=lambda_um.min(), stop=lambda_um.max(), num=501)
-        ax.scatter(lambda_um, n_all, label='experiment')
-
-
-        for lowest_power in range(0, -9, -2):
-            powers = np.arange(2, lowest_power - 1, -2)
-            a, residuals, rank, singular = np.linalg.lstsq(
-                a=np.power.outer(lambda_um, powers),
-                b=n_all**2, rcond=None,
-            )
-            print("a:", a, " Lowest power: ", lowest_power,  "\npowers   ", powers, "\n")
-            ax.plot(lambda_hires, inv_schott(lambda_hires, a, powers), label=f'{lowest_power}th power')
-
-        ax.legend()
-        plt.show()
-
-
-        # popt, pcov = curve_fit(_InvSchott, x_data, y_data, [2.75118, -0.01055, 0.02357, 0.00084, -0.00003, 0.00001])
-
-        #print(popt, pcov)
-
+        pass 
+   
     # ========================================================================
     """ ============================ Private ============================== """
     # ========================================================================
