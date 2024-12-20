@@ -1,3 +1,4 @@
+
 import numpy as np
 import pandas as pd 
 import os
@@ -6,7 +7,7 @@ import math
 import matplotlib.pyplot as plt
 
 # Primarily using the LambdaLines definition 
-from python.Util.Misc import LambdaLines
+from src.Util.Misc import LambdaLines
 
 # Load the material sheet globally to avoid repeatly open-close 
 GlassTablePath = r"resources/AbbeGlassTable.xlsx"

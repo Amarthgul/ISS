@@ -1,11 +1,9 @@
 
-import numpy as np
+from Backend import backend as bd 
 import math
 
 
-import cupy as cp 
-
-from .Globals import * 
+from Globals import * 
 
 
 # ==================================================================
@@ -36,48 +34,48 @@ class MemoryManagement():
 # ==================================================================
 
 
-def Normalized(inputVec):
-    return inputVec / np.linalg.norm(inputVec)
+def Normalized(ibdutVec):
+    return ibdutVec / bd.linalg.norm(ibdutVec)
 
 
-def ArrayNormalized(inputVec):
+def ArrayNormalized(ibdutVec):
     """ Normalize an array of vectors """
-    return inputVec / np.linalg.norm(inputVec, axis=1, keepdims=True)
+    return ibdutVec / bd.linalg.norm(ibdutVec, axis=1, keepdims=True)
 
 
-def Partition(inputVec):
-    return inputVec / (np.sum(inputVec) + SOME_SML_CONST)
+def Partition(ibdutVec):
+    return ibdutVec / (bd.sum(ibdutVec) + SOME_SML_CONST)
 
 
-def Minus90(inputRadian):
-    return np.pi / 2 - inputRadian
+def Minus90(ibdutRadian):
+    return bd.pi / 2 - ibdutRadian
 
 
-def Rotation(theta, axis, inputVertex):
+def Rotation(theta, axis, ibdutVertex):
     """
-    Rotate the input vertex by theta radians along y-axis.
+    Rotate the ibdut vertex by theta radians along y-axis.
     :param theta: Angle in radians.
     :param axis: Axis of rotation.
-    :param inputVertex: Input vertex.
+    :param ibdutVertex: Ibdut vertex.
     :return: Rotated vertex
     """
-    R = np.array([
-        [np.cos(theta) + axis[0]**2 * (1 - np.cos(theta)), 
-         axis[0] * axis[1] * (1 - np.cos(theta)) - axis[2] * np.sin(theta), 
-         axis[0] * axis[2] * (1 - np.cos(theta)) + axis[1]],
-        [axis[0] * axis[1] * (1 - np.cos(theta)) + axis[2] * np.sin(theta), 
-         np.cos(theta) + axis[1]**2 * (1 - np.cos(theta)),
-         axis[1] * axis[2] * (1 - np.cos(theta)) -axis[1]],
-        [axis[2] * axis[0] * (1 - np.cos(theta)) - axis[1] * np.sin(theta), 
-         axis[2] * axis[1] * (1 - np.cos(theta)) + axis[0] * np.sin(theta), 
-         np.cos(theta) + axis[2]**2 * (1 - np.cos(theta))]
+    R = bd.array([
+        [bd.cos(theta) + axis[0]**2 * (1 - bd.cos(theta)), 
+         axis[0] * axis[1] * (1 - bd.cos(theta)) - axis[2] * bd.sin(theta), 
+         axis[0] * axis[2] * (1 - bd.cos(theta)) + axis[1]],
+        [axis[0] * axis[1] * (1 - bd.cos(theta)) + axis[2] * bd.sin(theta), 
+         bd.cos(theta) + axis[1]**2 * (1 - bd.cos(theta)),
+         axis[1] * axis[2] * (1 - bd.cos(theta)) -axis[1]],
+        [axis[2] * axis[0] * (1 - bd.cos(theta)) - axis[1] * bd.sin(theta), 
+         axis[2] * axis[1] * (1 - bd.cos(theta)) + axis[0] * bd.sin(theta), 
+         bd.cos(theta) + axis[2]**2 * (1 - bd.cos(theta))]
     ])
  
-    return np.matmul(R, inputVertex) 
+    return bd.matmul(R, ibdutVertex) 
 
 
-def Translate(inputVertex, translation):
-    return np.transpose(np.transpose(inputVertex) + translation)
+def Translate(ibdutVertex, translation):
+    return bd.transpose(bd.transpose(ibdutVertex) + translation)
 
 
 
@@ -98,15 +96,15 @@ def linePlaneIntersection(plane_normal, point_on_plane, line_direction, point_on
     :return: The intersection point (numpy array), or None if the line is parallel to the plane.
     """
     # Calculate the dot product of the plane normal and the line direction
-    dot_product = np.dot(plane_normal, line_direction)
+    dot_product = bd.dot(plane_normal, line_direction)
     
     # If the dot product is 0, the line is parallel to the plane (no intersection or line lies on the plane)
-    if np.isclose(dot_product, 0):
+    if bd.isclose(dot_product, 0):
         print("The line is parallel to the plane and does not intersect.")
         return None
     
     # Calculate the parameter t for the line equation
-    t = np.dot(plane_normal, (point_on_plane - point_on_line)) / dot_product
+    t = bd.dot(plane_normal, (point_on_plane - point_on_line)) / dot_product
     
     # Calculate the intersection point using the parametric line equation
     intersection_point = point_on_line + t * line_direction
@@ -124,11 +122,11 @@ def SphericalNormal(sphere_radius, intersections, front_vertex, sequential = Tru
     """
 
     # Offset from the front vertex to find the spherical origin 
-    origin = front_vertex + np.array([0, 0, sphere_radius])
+    origin = front_vertex + bd.array([0, 0, sphere_radius])
 
     # Negative radius will by default having their normals pointing to the positive z direction 
     # For sequential simulation, use the sign to invert the normal so that negative radius points to negative z 
-    if (sequential): sign = np.sign(sphere_radius)
+    if (sequential): sign = bd.sign(sphere_radius)
     else: sign = 1 
 
     return sign * Normalized(intersections - origin)
@@ -143,28 +141,28 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
     :return: The angle between the vectors in degrees.
     """
     # Normalize vectors to avoid floating-point issues
-    v1_normalized = np.linalg.norm(v1)
-    v2_normalized = np.linalg.norm(v2)
+    v1_normalized = bd.linalg.norm(v1)
+    v2_normalized = bd.linalg.norm(v2)
     
     # Calculate the dot product of the two vectors
-    dot_product = np.dot(v1, v2)
+    dot_product = bd.dot(v1, v2)
     
     # Calculate the magnitudes (norms) of the vectors
-    norm_v1 = np.linalg.norm(v1)
-    norm_v2 = np.linalg.norm(v2)
+    norm_v1 = bd.linalg.norm(v1)
+    norm_v2 = bd.linalg.norm(v2)
     
     # Calculate the cosine of the angle
     cos_theta = dot_product / (norm_v1 * norm_v2)
     
     # Ensure cos_theta is in the valid range [-1, 1] to avoid errors due to floating-point precision
-    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    cos_theta = bd.clip(cos_theta, -1.0, 1.0)
     
     # Calculate the angle in radians
-    angle_radians = np.arccos(cos_theta)
+    angle_radians = bd.arccos(cos_theta)
     
     # Convert to degrees
     if use_degrees:
-        np.degrees(angle_radians)
+        bd.degrees(angle_radians)
     else:
         return angle_radians
 
@@ -192,13 +190,13 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
 
     # This function is not that controllable due to it based on scale and not the exact number of points. 
     # It also tend to have meridional or sagittal uneveness when the incoing rays have an extreme angle. 
-    partitionLayer = (np.arange(layer) + 1.0) / layer
+    partitionLayer = (bd.arange(layer) + 1.0) / layer
     lastArea = 0
     
-    points = np.array([[0], [0], [0]])
+    points = bd.array([[0], [0], [0]])
     
     for current in partitionLayer:
-        area = np.pi * current ** 2
+        area = bd.pi * current ** 2
         deltaArea = area - lastArea
         lastArea = area 
         
@@ -208,12 +206,12 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
         if(pointsInLayer == 0): pointsInLayer = 1
 
         layerH = current 
-        layerTheta = np.arange(pointsInLayer) * ((np.pi * 2) / pointsInLayer) 
+        layerTheta = bd.arange(pointsInLayer) * ((bd.pi * 2) / pointsInLayer) 
 
-        layerPoints = np.array([layerH * np.cos(layerTheta), 
-                                    layerH * np.sin(layerTheta), 
-                                    np.zeros(pointsInLayer)])
-        points = np.hstack((points, layerPoints))
+        layerPoints = bd.array([layerH * bd.cos(layerTheta), 
+                                    layerH * bd.sin(layerTheta), 
+                                    bd.zeros(pointsInLayer)])
+        points = bd.hstack((points, layerPoints))
         
     return points * radius * shrink
 
@@ -232,23 +230,23 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z
     RefreshRNG()
 
     # Generate random angles between [0, 2*pi]
-    angles = rng.uniform(0, 2 * np.pi, samplePoints)
+    angles = rng.uniform(0, 2 * bd.pi, samplePoints)
     
     # Generate random radial distances with a uniform distribution
     # sqrt to ensure even distribution over the circle
-    radii = np.sqrt(rng.uniform(0, 1, samplePoints))
+    radii = bd.sqrt(rng.uniform(0, 1, samplePoints))
 
     # Convert polar coordinates to Cartesian coordinates assuming a unit circle
-    x = radii * np.cos(angles)
-    y = radii * np.sin(angles)
+    x = radii * bd.cos(angles)
+    y = radii * bd.sin(angles)
     
     # Scale the points to match the major and minor axes of the ellipse
     x *= major_axis * shrink
     y *= minor_axis * shrink
 
-    z = np.ones(len(x)) * z
+    z = bd.ones(len(x)) * z
     
-    return np.vstack((x, y, z))
+    return bd.vstack((x, y, z))
 
 
 # ==================================================================
@@ -263,7 +261,7 @@ def LumiPeak(RGB, bitDepth = 8):
     :param RGB: RGB value of a pixel as [R, G, B]. 
     :param bitDepth: bitDepth if the RGB array is not in the [0, 1] range. 
     """
-    if(np.sum(RGB) > 3):
+    if(bd.sum(RGB) > 3):
         RGB = RGB / (2**bitDepth)
 
     lumi = 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
@@ -295,19 +293,19 @@ def RGBToWavelength(RGB,
     :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"})
     :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
     :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
-    :return: A NumPy array of wavelengths corresponding to the input RGB array
+    :return: A NumPy array of wavelengths corresponding to the ibdut RGB array
     """
 
     # Normalize RGB values to the range [0, 1]
     bits = 2.0 ** bitDepth - 1
 
-    wavelengths = np.array([
+    wavelengths = bd.array([
         LambdaLines[primaries["R"]], 
         LambdaLines[primaries["G"]], 
         LambdaLines[primaries["B"]]
     ])
 
-    radiants = np.array(RGB)
+    radiants = bd.array(RGB)
     #print("INSIDE RAD", radiants)
 
     if (len(secondaries) > 0):
@@ -317,7 +315,7 @@ def RGBToWavelength(RGB,
             else:
                 currentRadiant = secondary # When passed as numbers 
             currentRadiant = 0
-            wavelengths = np.append(wavelengths, currentWavelength)
+            wavelengths = bd.append(wavelengths, currentWavelength)
 
             # Between IR limit and Red line 
             if(currentWavelength < LambdaLines[UVIRcut[1]] and currentWavelength > LambdaLines[primaries["R"]]):
@@ -342,7 +340,7 @@ def RGBToWavelength(RGB,
             elif(currentWavelength < LambdaLines[primaries["B"]] and currentWavelength > LambdaLines[UVIRcut[0]]):
                 currentRadiant = radiants[0] * ( (currentWavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]]) )
 
-            radiants = np.append(radiants, currentRadiant)
+            radiants = bd.append(radiants, currentRadiant)
 
     return (wavelengths, radiants)
 
@@ -359,7 +357,7 @@ def RGBToWavelengthArray(RGB,
     :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"}).
     :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
     :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
-    :return: A NumPy array of wavelengths corresponding to the input RGB array. 
+    :return: A NumPy array of wavelengths corresponding to the ibdut RGB array. 
     """
 
     if(RGB.max() > 1):
@@ -368,90 +366,26 @@ def RGBToWavelengthArray(RGB,
     width = RGB.shape[0]
     height = RGB.shape[1]
 
-    wavelengths = np.array([
+    wavelengths = bd.array([
         LambdaLines[primaries["R"]], 
         LambdaLines[primaries["G"]], 
         LambdaLines[primaries["B"]]
     ])
-    wavelengths = np.tile(wavelengths, (width, height, 1))
+    wavelengths = bd.tile(wavelengths, (width, height, 1))
 
-    radiants = np.array(RGB)
+    radiants = bd.array(RGB)
 
     # TODO: Add secondary support? 
 
     return (wavelengths, radiants)
 
 
-def WavelengthToRGB(wavelength, 
-                    primaries={"R": "C'", "G": "e", "B": "g"},
-                    UVIRcut=["i", "A'"],
-                    useBits=False, bitDepth=8):
-    """
-    Convert a wavelength to RGB values.
-    
-    :param wavelength: Wavelength to convert (in nm).
-    :param primaries: A dictionary mapping RGB to primary wavelength lines.
-    :param UVIRcut: List with UV and IR limits for cutoff.
-    :param bitDepth: Bit depth for RGB values.
-    :return: RGB values as integers in the range [0, 255].
-    """
-
-    # TODO: Note that this function works in conjunction with RGBToWavelength, \
-    # thus should be edited together with RGBToWavelength to ensure the results. 
-    # For this reason, there is no secondaries here since they are just linear interpolations and can be just ignored  
-
-    # Default RGB values (intensity normalized to 0-1)
-    R, G, B = 0.0, 0.0, 0.0
-
-    # Calculate bit depth scaling factor
-    bits = 2 ** bitDepth - 1
-
-    # Check where the wavelength falls and interpolate
-    if (LambdaLines[primaries["R"]] <= wavelength <= LambdaLines[UVIRcut[1]]):
-        # Between Red primary and IR cutoff
-        R  = (LambdaLines[UVIRcut[1]] - wavelength) / (LambdaLines[UVIRcut[1]] - LambdaLines[primaries["R"]])
-
-    elif (LambdaLines[primaries["G"]] <= wavelength < LambdaLines[primaries["R"]]):
-        # Between Green and Red
-        ratio = (wavelength - LambdaLines[primaries["G"]]) / (LambdaLines[primaries["R"]] - LambdaLines[primaries["G"]])
-        R = ratio
-        G = 1 - ratio
-
-    elif (LambdaLines[primaries["B"]] <= wavelength < LambdaLines[primaries["G"]]):
-        # Between Blue and Green
-        ratio = (wavelength - LambdaLines[primaries["B"]]) / (LambdaLines[primaries["G"]]- LambdaLines[primaries["B"]])
-        G = ratio
-        B = 1 - ratio
-
-    elif (LambdaLines[UVIRcut[0]] <= wavelength < LambdaLines[primaries["B"]]):
-        # Between Blue primary and UV cutoff
-        B = 1.0
-        G = (wavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]])
-
-    # Scale to bit depth and return
-    
-    if (useBits):
-        R = int(np.clip(R * bits, 0, bits))
-        G = int(np.clip(G * bits, 0, bits))
-        B = int(np.clip(B * bits, 0, bits))
-
-    return np.array([R, G, B])
-
     
 
 
 def main():
-    # RGB = WavelengthToRGB(643.85) 
-    # wavelngth = RGBToWavelength(RGB)
-    # RGB1 = WavelengthToRGB(589.3) 
+    pass 
 
-    # print("RGB result: \t", RGB)
-    # print("wavelength: \t", wavelngth)
-    # print("RGB result: \t", RGB1)
-
-    # print(MemoryManagement.AllowedRaybatchSize())
-    gpuA = cp.array([0, 1, 2])
-    print(gpuA)
 
 
 

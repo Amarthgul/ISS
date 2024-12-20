@@ -1,9 +1,9 @@
 
 
-import python.Util.PlotTest as PlotTest
+import src.Util.PlotTest as PlotTest
 from Surfaces import Surface
-from python.Util.Misc import * 
-from python.Util.RayBatch import * 
+from src.Util.Misc import * 
+from src.Util.RayBatch import * 
 from Material import * 
 
 

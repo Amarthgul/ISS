@@ -3,8 +3,8 @@ from PIL import Image
 from joblib import Parallel, delayed
 
 from Lens import * 
-from python.Imagers.Imager import * 
-from python.Util.Misc import * 
+from src.Imagers.Imager import * 
+from src.Util.Misc import * 
 from ObjectSpace import * 
 
 

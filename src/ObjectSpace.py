@@ -1,7 +1,7 @@
 
 import PIL.Image
 import numpy as np 
-from python.Util.Misc import * 
+from src.Util.Misc import * 
 import copy
 
 
