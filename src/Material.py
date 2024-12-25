@@ -7,7 +7,7 @@ import math
 import matplotlib.pyplot as plt
 
 # Primarily using the LambdaLines definition 
-from src.Util.Misc import LambdaLines
+from Util.Misc import LambdaLines
 
 # Load the material sheet globally to avoid repeatly open-close 
 GlassTablePath = r"resources/AbbeGlassTable.xlsx"
@@ -224,12 +224,8 @@ class Material:
 
 def main():
     newglass = Material("E-KZFH1")
-    #newglass.DrawRI()
+    newglass.DrawRI()
 
-    paras = newglass.InverseMaterial(1.7899, 48)
-    #newglass.Test([-9.47548462,  6.75216293,  9.03861417, -3.13234753,  0.53095114, -0.03512969])
-    #print("fit: ", paras)
-    # [  5.337381, 14.407971, -2.9712481, -13.900439, -12.490178, 5.0407643]
-
+ 
 if __name__ == "__main__":
     main() 

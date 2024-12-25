@@ -1,9 +1,9 @@
 
-from Backend import backend as bd 
+from .Backend import backend as bd 
 import math
 
 
-from Globals import * 
+from .Globals import * 
 
 
 # ==================================================================
