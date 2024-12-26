@@ -1,9 +1,9 @@
 
 
-import src.Util.PlotTest as PlotTest
+import Util.PlotTest as PlotTest
 from Surfaces import Surface
-from src.Util.Misc import * 
-from src.Util.RayBatch import * 
+from Util.Misc import * 
+from Util.RayBatch import * 
 from Material import * 
 
 
@@ -35,6 +35,11 @@ class Lens:
 
         self._envMaterial = None 
         self._temp = None # Variable for developing and not to be taken serieously 
+
+
+
+    def AddSurface(self, inputSurface):
+        self.surfaces.append(inputSurface)
 
 
     def UpdateLens(self):

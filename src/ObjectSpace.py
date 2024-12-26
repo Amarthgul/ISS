@@ -121,6 +121,7 @@ class Image2D:
 
         :return: 2 Image2D instances of the 2 parts of the original image. 
         """
+        
         # This method is not ideal. While spilting the image could help recursively 
         # propagate the image, it is hard to guarantee that the totoal image dimension
         # remains the same, especially after the second recursive spilt.
@@ -199,8 +200,6 @@ class Image2D:
         # TODO: add more implementations for images not directly read as RGB
         # For color space conversion and gamma correction, also put them here 
         return np.array(self.img)
-
-
 
 
 class Point:
