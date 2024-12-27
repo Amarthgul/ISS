@@ -3,7 +3,7 @@
 import Util.PlotTest as PlotTest
 from Surfaces import Surface
 from Util.Misc import * 
-from Util.RayBatch import * 
+from src.Raytracing.RayBatch import * 
 from Material import * 
 
 
@@ -54,10 +54,10 @@ class Lens:
 
             currentT += s.thickness
 
-        self.InitStopRayTracing() 
+        self.InitRayTracing() 
 
 
-    def InitStopRayTracing(self):
+    def InitRayTracing(self):
         """
         At the position of the stop, start a ray tracing and try to find the pupils.
         """

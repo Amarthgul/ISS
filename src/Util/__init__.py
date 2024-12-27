@@ -1,7 +1,3 @@
 
 
-from .Backend import * 
-from .Globals import * 
-from .Misc import *
-from .PlotTest import * 
-from .RayBatch import * 
+"This file only exists to specify that this folder is a package"

@@ -33,22 +33,25 @@ class MemoryManagement():
 """ ===================== 3D transformations =================== """
 # ==================================================================
 
+def Magnitude(inputVec):
+    return bd.linalg.norm(inputVec)
 
-def Normalized(ibdutVec):
-    return ibdutVec / bd.linalg.norm(ibdutVec)
+
+def Normalized(inputVec):
+    return inputVec / bd.linalg.norm(inputVec)
 
 
-def ArrayNormalized(ibdutVec):
+def ArrayNormalized(inputVec):
     """ Normalize an array of vectors """
-    return ibdutVec / bd.linalg.norm(ibdutVec, axis=1, keepdims=True)
+    return inputVec / bd.linalg.norm(inputVec, axis=1, keepdims=True)
 
 
-def Partition(ibdutVec):
-    return ibdutVec / (bd.sum(ibdutVec) + SOME_SML_CONST)
+def Partition(inputVec):
+    return inputVec / (bd.sum(inputVec) + SOME_SML_CONST)
 
 
-def Minus90(ibdutRadian):
-    return bd.pi / 2 - ibdutRadian
+def Minus90(inputRadian):
+    return bd.pi / 2 - inputRadian
 
 
 def Rotation(theta, axis, ibdutVertex):

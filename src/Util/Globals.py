@@ -47,6 +47,8 @@ PER_POINT_MAX_SAMPLE = 100
 # This can be used to estimate and normalize the colors. 
 
 
+ORIGIN = bd.array([0, 0, 0])
+
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
 LambdaLines = {
