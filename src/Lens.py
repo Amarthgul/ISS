@@ -26,9 +26,8 @@ class Lens:
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
 
+        # Total length from first vertex to the last
         self.totalLength = 0
-
-        self.spot = [] 
         
 
         self.lastSurfaceIndex = 0

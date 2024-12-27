@@ -49,6 +49,9 @@ PER_POINT_MAX_SAMPLE = 100
 
 ORIGIN = bd.array([0, 0, 0])
 
+OBJ_FACING = bd.array([0, 0, -1])
+
+
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
 LambdaLines = {

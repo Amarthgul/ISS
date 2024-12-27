@@ -1,7 +1,7 @@
 
 
 
-from .Surface import * 
+from .Surface import Surface 
 
 class Stop(Surface):
     def __init__(self, t):
