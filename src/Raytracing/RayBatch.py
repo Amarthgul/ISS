@@ -1,6 +1,6 @@
 
 
-from ..Util.Backend import backend as bd 
+from Util.Backend import backend as bd 
 
 class RayBatch:
     """

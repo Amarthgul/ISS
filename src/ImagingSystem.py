@@ -1,13 +1,12 @@
 
 from PIL import Image
-from joblib import Parallel, delayed
+import time
 
-from Lens import * 
-from src.Imagers.Imager import * 
-from src.Util.Misc import * 
+
+from Lens import Lens 
+from Imagers import Imager 
+from Util.Misc import * 
 from ObjectSpace import * 
-
-
 from Surfaces import Surface
 
 
