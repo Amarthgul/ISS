@@ -112,9 +112,9 @@ class Fit(Enum):
 
 # Creates a RNG for the entire program to use 
 RANDOM_SEED = 42 
-rng = bd.random.default_rng(seed=RANDOM_SEED)
+RNG = bd.random.default_rng(seed=RANDOM_SEED)
 
 def RefreshRNG():
     """Refresh the RNG with a new seed generated using itself"""
     newSeed = bd.random.random_integers(1)
-    rng = bd.random.default_rng(seed=newSeed)
+    RNG = bd.random.default_rng(seed=newSeed)

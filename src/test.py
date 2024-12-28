@@ -14,12 +14,7 @@ import cupy as cp
 def main():
     GetBackend()
 
-    s = cp.sin(2)
-    c = cp.sin(1)
-    print(s, c)
-    one = 1.0
-    A = cp.array([1, 2, 3])
-    B = cp.array([s, c, one]) 
+
 
     r = 20
     sd = 4 

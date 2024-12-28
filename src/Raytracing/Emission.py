@@ -14,6 +14,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 """
 
+
 from Util.Backend import backend as bd
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotation, Translate
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF
@@ -22,7 +23,7 @@ from .RayBatch import RayBatch
 
 
 # ==================================================================
-""" ==================== First surface method ================== """
+""" ==================== First Surface Method ================== """
 # ==================================================================
 
 
@@ -99,14 +100,20 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
         # Semi-major axis length 
         a = bd.linalg.norm(posA - posB) / 2
         b = bd.sqrt(BB * AC) / 2
-        print("a and b  ", a, "  ", b)
+        
+        # Temporary array to store the semi-major and semi-minor axis lengths
+        temp = bd.ones(3) 
+        # Just for cupy compatibility 
 
         # Calculate the ellipse 
         if (useDistribution):
+            temp[0] = a
+            temp[1] = b 
+            print("temp: ", temp)
             # Move the point along the z axis 
             points = bd.transpose(CircularDistribution()) + offset
             # Scale it on the two semi-major axis 
-            points = bd.transpose(points * bd.array([b, a, one]))
+            points = bd.transpose(points * temp)
             
         else:
             # Generate the contour of the ellipse 
@@ -126,7 +133,12 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
         
         # Rotate the ellipse around A it fits into the AB plane 
         theta = angleBetweenVectors(posB-posA, posC-posA)
-        axis = Normalized(bd.array([-vecCA[1], vecCA[0], 0]))
+
+        temp = bd.zeros(3) # Another temporary array for cupy compatibility
+        temp[0] = -vecCA[1]
+        temp[1] = vecCA[0]
+        axis = Normalized(temp)
+
         trans_2 = Translate(trans_1, -posA)
         trans_2 = Rotation(-theta, axis, trans_2)
         trans_2 = Translate(trans_2, posA)
@@ -160,12 +172,12 @@ def InitRays(r, sd, posP, wavelength = 550):
     # For some reason vecs is often not registered with indexing assignment, hstack is thus used to force the composition of the raybatch. 
     mat1 = bd.tile(bd.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
 
-    mat2 = bd.tile(bd.array([wavelength, 
-                             NORMAL_RADIANT,    # Sagittal radiant
-                             NORMAL_RADIANT,    # Tangential radiant
-                             INIT_PHASE_DIFF,   # Phase difference 
-                             0                  # Surface index
-                             ]), (vecs.shape[0], 1))
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    mat2 = bd.tile(temp, (vecs.shape[0], 1))
     mat = bd.hstack((bd.hstack((mat1, vecs)), mat2))
 
     rayBatch = RayBatch( mat )
@@ -182,6 +194,12 @@ def InitRays(r, sd, posP, wavelength = 550):
 
 
 # TODO: implement a new set of first surface method that takes an array of sources 
+
+
+
+# ==================================================================
+""" =================== Entrance Pupil Method ================== """
+# ==================================================================
 
 
 def main():

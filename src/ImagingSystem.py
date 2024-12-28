@@ -3,16 +3,11 @@ from PIL import Image
 import time
 
 
+from Util.Backend import backend as bd
 from Lens import Lens 
 from Imagers import Imager 
-from Util.Misc import * 
-from ObjectSpace import * 
+from Util.Globals import RNG
 from Surfaces import Surface
-
-
-# Random generator from the Util module
-# This uses the same seed so that the result is deterministic  
-RNG = rng 
 
 
 class ImagingSystem:

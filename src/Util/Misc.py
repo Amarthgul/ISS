@@ -3,7 +3,7 @@
 import math
 
 from .Backend import backend as bd 
-from .Globals import * 
+from .Globals import RNG, SOME_SML_CONST, LambdaLines, RefreshRNG
 
 
 # ==================================================================
@@ -238,11 +238,11 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z
     RefreshRNG()
 
     # Generate random angles between [0, 2*pi]
-    angles = rng.uniform(0, 2 * bd.pi, samplePoints)
+    angles = RNG.uniform(0, 2 * bd.pi, samplePoints)
     
     # Generate random radial distances with a uniform distribution
     # sqrt to ensure even distribution over the circle
-    radii = bd.sqrt(rng.uniform(0, 1, samplePoints))
+    radii = bd.sqrt(RNG.uniform(0, 1, samplePoints))
 
     # Convert polar coordinates to Cartesian coordinates assuming a unit circle
     x = radii * bd.cos(angles)
@@ -437,11 +437,11 @@ def WavelengthToRGB(wavelength,
     # Scale to bit depth and return
     
     if (useBits):
-        R = int(np.clip(R * bits, 0, bits))
-        G = int(np.clip(G * bits, 0, bits))
-        B = int(np.clip(B * bits, 0, bits))
+        R = int(bd.clip(R * bits, 0, bits))
+        G = int(bd.clip(G * bits, 0, bits))
+        B = int(bd.clip(B * bits, 0, bits))
 
-    return np.array([R, G, B])
+    return bd.array([R, G, B])
 
         
 

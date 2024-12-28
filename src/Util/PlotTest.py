@@ -4,6 +4,7 @@ This module is used to provide visual validation for the process.
 """
 
 from Util.Backend import backend as bd
+from Util.Backend import backend_name
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm
@@ -65,8 +66,21 @@ def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
     
 
 def DrawRaybatch(ax, rayBatch):
-    for r in rayBatch.value:
-        DrawLine(ax, r[:3], r[:3]+r[3:6]*10,  lineWidth = 0.5)
+    if(backend_name == "cupy"):
+        data = bd.asnumpy(rayBatch.value)
+    else:
+        data = rayBatch.value 
+
+    x, y, z = data[:, 0], data[:, 1], data[:, 2]
+    u, v, w = data[:, 3], data[:, 4], data[:, 5]
+
+    q = ax.quiver(x, y, z, u, v, w,
+              length=10,                # Increase arrow length
+              normalize=False,           # Maintain relative vector sizes
+              arrow_length_ratio=0,    # Smaller arrowhead
+              pivot='tail',              # Arrows start at [x,y,z]
+              linewidths=0.5,            # Thicker arrows
+              color='blue') 
 
 
 def DrawEmission(points):

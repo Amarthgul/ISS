@@ -1,11 +1,11 @@
 
-import numpy as np 
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-from Lens import * 
 from Util.Misc import WavelengthToRGB
+from Util.Backend import backend as bd
 
 
 class Imager():
@@ -49,7 +49,7 @@ class Imager():
 
     def IntegralRays(self, raybatch, primaries, secondaries, UVIRcut, baseImg=None, valueClamp=None):
         self.rayBatch = raybatch
-        self.rayPath = [np.copy(self.rayBatch.Position())]
+        self.rayPath = [bd.copy(self.rayBatch.Position())]
 
         self._ImagePlaneIntersections() 
         return self._integralRays(primaries, secondaries, UVIRcut, baseImg=baseImg, valueClamp=valueClamp) 
@@ -71,27 +71,27 @@ class Imager():
         og_positions = self.rayBatch.Position()
         og_direction = self.rayBatch.Direction()
 
-        ray_positions = og_positions[np.where(self.rayBatch.Sequential() == 1)]
-        ray_directions = og_direction[np.where(self.rayBatch.Sequential() == 1)]
+        ray_positions = og_positions[bd.where(self.rayBatch.Sequential() == 1)]
+        ray_directions = og_direction[bd.where(self.rayBatch.Sequential() == 1)]
 
         # TODO: add tilt shift support here
-        imager_normal = np.array([0, 0, -1])
-        plane_point = np.array([0, 0, self._zPos])
+        imager_normal = bd.array([0, 0, -1])
+        plane_point = bd.array([0, 0, self._zPos])
         
         # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
-        d = -np.dot(imager_normal, plane_point)
+        d = -bd.dot(imager_normal, plane_point)
 
         # Calculate dot product of direction vectors with the plane normal
-        denom = np.dot(ray_directions, imager_normal)
+        denom = bd.dot(ray_directions, imager_normal)
         
         # Avoid division by zero (for parallel vectors)
         valid_rays = (denom != 0)
 
         # For valid rays, calculate t where the intersection occurs
-        t = -(np.dot(ray_positions, imager_normal) + d) / denom
+        t = -(bd.dot(ray_positions, imager_normal) + d) / denom
         
         # Calculate the intersection points
-        intersection_points = ray_positions + t[:, np.newaxis] * ray_directions
+        intersection_points = ray_positions + t[:, bd.newaxis] * ray_directions
 
         # Find the rays that fall out of the image plane 
         outOfBoundInd = (intersection_points[:, 0] > (self.width/2)) | \
@@ -103,13 +103,13 @@ class Imager():
         ray_positions[~outOfBoundInd] = intersection_points[~outOfBoundInd]
         
         # Update the current ray batch positions 
-        og_positions[np.where(self.rayBatch.Sequential() == 1)] = ray_positions
+        og_positions[bd.where(self.rayBatch.Sequential() == 1)] = ray_positions
         self.rayBatch.SetPosition(og_positions)
 
         # Copy the positions into path 
-        self.rayPath.append(np.copy(og_positions))
+        self.rayPath.append(bd.copy(og_positions))
 
-        self.rayBatch.SetVignette(np.where(~valid_rays & outOfBoundInd))
+        self.rayBatch.SetVignette(bd.where(~valid_rays & outOfBoundInd))
 
         
     def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
@@ -126,39 +126,39 @@ class Imager():
         """
 
         pxPitch = self.width / self.horizontalPx 
-        pxOffset = np.array([self.horizontalPx/2, self.verticalPx/2, 0])
+        pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])
 
         # Find the rays that arrived at the the image plane 
-        rayHitIndex = np.where(np.isclose(self.rayBatch.value[:, 2], self._zPos))
+        rayHitIndex = bd.where(bd.isclose(self.rayBatch.value[:, 2], self._zPos))
 
         # Translate the intersections from 3D image space to 2D pixel-based space
         rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
         rayWavelength = self.rayBatch.Wavelength()[rayHitIndex] 
 
         # Convert ray position into pixel position 
-        rayPos = np.floor(rayPos).astype(int)
+        rayPos = bd.floor(rayPos).astype(int)
         # Create pixel grid 
-        radiantGridR = np.zeros( (self.horizontalPx, self.verticalPx) )
-        radiantGridG = np.zeros( (self.horizontalPx, self.verticalPx) )
-        radiantGridB = np.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridR = bd.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridG = bd.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridB = bd.zeros( (self.horizontalPx, self.verticalPx) )
 
         # Find all wavelengths 
-        wavelengths = np.unique(rayWavelength)
-        rayHitIsolate = np.isclose(self.rayBatch.value[:, 2], self._zPos)
+        wavelengths = bd.unique(rayWavelength)
+        rayHitIsolate = bd.isclose(self.rayBatch.value[:, 2], self._zPos)
         for wavelength in wavelengths:
             RGB = WavelengthToRGB(wavelength)
-            wavelengthIsolate = np.isclose(self.rayBatch.value[:, 6], wavelength)
-            rayPosChannel = np.floor(
-                self.rayBatch.Position()[np.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)
-            radiantsChannel = self.rayBatch.Radiant()[np.where(rayHitIsolate & wavelengthIsolate)]
+            wavelengthIsolate = bd.isclose(self.rayBatch.value[:, 6], wavelength)
+            rayPosChannel = bd.floor(
+                self.rayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)
+            radiantsChannel = self.rayBatch.Radiant()[bd.where(rayHitIsolate & wavelengthIsolate)]
             rChannel = radiantsChannel * RGB[0]
             gChannel = radiantsChannel * RGB[1]
             bChannel = radiantsChannel * RGB[2]
-            np.add.at(radiantGridR, (rayPosChannel[:, 0], rayPosChannel[:, 1]), rChannel)
-            np.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
-            np.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
+            bd.add.at(radiantGridR, (rayPosChannel[:, 0], rayPosChannel[:, 1]), rChannel)
+            bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
+            bd.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-        maxValue = np.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
+        maxValue = bd.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
         bits = 2.0**bitDepth-1
 
         if(valueClamp is None):
@@ -168,25 +168,25 @@ class Imager():
             # Spot sim 
             scaleRatio = (bits / valueClamp)
 
-        red_channel = np.clip(radiantGridR*scaleRatio, 0, bits) 
-        green_channel = np.clip(radiantGridG*scaleRatio, 0, bits)  
-        blue_channel = np.clip(radiantGridB*scaleRatio, 0, bits)
+        red_channel = bd.clip(radiantGridR*scaleRatio, 0, bits) 
+        green_channel = bd.clip(radiantGridG*scaleRatio, 0, bits)  
+        blue_channel = bd.clip(radiantGridB*scaleRatio, 0, bits)
 
         # Ensure each channel is in the range [0, 255] and convert to uint8
         # TODO: edit this to reflect bitdepth 
-        red_channel = red_channel.astype(np.uint8)
-        green_channel = green_channel.astype(np.uint8)
-        blue_channel = blue_channel.astype(np.uint8)
+        red_channel = red_channel.astype(bd.uint8)
+        green_channel = green_channel.astype(bd.uint8)
+        blue_channel = blue_channel.astype(bd.uint8)
 
         if(baseImg == None):
             # Stack the channels along the third axis to form an RGB image
-            rgb_image = np.stack((red_channel, green_channel, blue_channel), axis=-1)
+            rgb_image = bd.stack((red_channel, green_channel, blue_channel), axis=-1)
         else:
             # In case this is an iterative call with an already formed image 
-            rgb_image += np.stack((red_channel, green_channel, blue_channel), axis=-1)
+            rgb_image += bd.stack((red_channel, green_channel, blue_channel), axis=-1)
 
         if (plotResult):
-            #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=np.max(radiantGrid))
+            #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=bd.max(radiantGrid))
             plt.imshow(rgb_image)
             #plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
