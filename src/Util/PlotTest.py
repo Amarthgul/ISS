@@ -3,13 +3,13 @@
 This module is used to provide visual validation for the process. 
 """
 
-import numpy as np 
+from Util.Backend import backend as bd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm
 
 
-origin = np.array([0, 0, 0])
+origin = bd.array([0, 0, 0])
 
 # Matplotlib z axis is always shortened 
 zAxisCompensationFactor = 1.25
@@ -30,34 +30,45 @@ def SetUnifScale(ax, lim = 6):
     ax.set_ylim(offsetScalar/2.0, -offsetScalar/2.0)
     ax.set_zlim(lim, 0)
 
+
 def DrawPoint(ax, point):
     ax.scatter3D(point[0], point[1], point[2])
+
 
 def DrawPoints(ax, points):
     for p in points:
         ax.scatter3D(p[0], p[1], p[2])
 
+
 def Draw3D(ax, x, y, z):
     ax.plot(x, y, z)
+
 
 def DrawLine(ax, point1, point2, lineColor = "k", lineWidth = 2, zorder=10):
     ax.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
             label = '3D Line', color = lineColor, linewidth = lineWidth, zorder=zorder)
     
+
 def DrawCircle(ax, radius, offset = 0, num_points=100):
-    theta = np.linspace(0, 2 * np.pi, num_points)
-    circle_points = np.array([radius * np.cos(theta), radius * np.sin(theta), np.zeros_like(theta) + offset])
+    theta = bd.linspace(0, 2 * bd.pi, num_points)
+    circle_points = bd.array([radius * bd.cos(theta), radius * bd.sin(theta), bd.zeros_like(theta) + offset])
     ax.plot(circle_points[0], circle_points[1], circle_points[2])
     
 
 def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
-    originOffset = np.array([origin[0], origin[1], posA[2]])
+    originOffset = bd.array([origin[0], origin[1], posA[2]])
     DrawLine(ax, originOffset, posA, lineWidth = 1)
     DrawLine(ax, originOffset, posC, lineWidth = 1)
     DrawLine(ax,    posP,   posA, lineWidth = 1)
     DrawLine(ax,    posP,   posC, lineWidth = 1)
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
+
+def DrawRaybatch(ax, rayBatch):
+    for r in rayBatch.value:
+        DrawLine(ax, r[:3], r[:3]+r[3:6]*10,  lineWidth = 0.5)
+
+
 def DrawEmission(points):
     for p in points:
         print(p)
@@ -74,18 +85,18 @@ def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surf
     :param numPoints: number of points, controls the subdivision of the surface. 
     :surfaceColor: color of the surface. 
     """
-    unsignedrRadius = radius * np.sign(radius)
+    unsignedrRadius = radius * bd.sign(radius)
 
-    radianLimit = np.arcsin(clearSemiDiameter/unsignedrRadius) 
+    radianLimit = bd.arcsin(clearSemiDiameter/unsignedrRadius) 
     
-    theta = np.linspace(0, 2 * np.pi, int(numPoints / 1))  # Azimuthal angle (0 <= theta <= 2*pi)
-    phi = np.linspace(0, radianLimit, int(numPoints / 1))  # Polar angle (0 <= phi <= phi_max for a bowl)
+    theta = bd.linspace(0, 2 * bd.pi, int(numPoints / 1))  # Azimuthal angle (0 <= theta <= 2*pi)
+    phi = bd.linspace(0, radianLimit, int(numPoints / 1))  # Polar angle (0 <= phi <= phi_max for a bowl)
     
-    theta, phi = np.meshgrid(theta, phi)
+    theta, phi = bd.meshgrid(theta, phi)
     
-    x = radius * np.sin(phi) * np.cos(theta)
-    y = radius * np.sin(phi) * np.sin(theta)
-    z = -np.sign(radius) * (unsignedrRadius * np.cos(phi) - unsignedrRadius) + thickness
+    x = radius * bd.sin(phi) * bd.cos(theta)
+    y = radius * bd.sin(phi) * bd.sin(theta)
+    z = - bd.sign(radius) * (unsignedrRadius * bd.cos(phi) - unsignedrRadius) + thickness
         
     ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.25)
 

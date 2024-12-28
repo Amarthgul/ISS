@@ -2,8 +2,8 @@
 
 import math
 
-from Backend import backend as bd 
-from Globals import * 
+from .Backend import backend as bd 
+from .Globals import * 
 
 
 # ==================================================================

@@ -1,0 +1,40 @@
+
+
+import matplotlib.pyplot as plt
+
+from Lens import Lens 
+from Surfaces import Surface 
+from Raytracing import Emission 
+from Util.Backend import backend as bd
+from Util.Backend import GetBackend
+from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch
+
+import cupy as cp 
+
+def main():
+    GetBackend()
+
+    s = cp.sin(2)
+    c = cp.sin(1)
+    print(s, c)
+    one = 1.0
+    A = cp.array([1, 2, 3])
+    B = cp.array([s, c, one]) 
+
+    r = 20
+    sd = 4 
+    testP = bd.array([1, 2, -10])
+
+    rb = Emission.InitRays(r, sd, testP)
+    #print(rb.value)
+
+    ax = Setup3Dplot()
+    SetUnifScale(ax)
+    DrawRaybatch(ax, rb)
+    plt.show()
+
+    
+
+
+if __name__ == "__main__":
+    main()

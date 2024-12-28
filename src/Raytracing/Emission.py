@@ -16,7 +16,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 from Util.Backend import backend as bd
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotation, Translate
-
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF
 
 from .RayBatch import RayBatch 
 
@@ -43,7 +43,7 @@ def FindB(posA, posC, posP):
     return posC + vecPCN * t 
 
 
-def EllipsePeripheral(posA, posB, posC, posP, sd, r, useDistribution = True):
+def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
     """
     Find the points on the ellipse and align it to the AB plane. 
 
@@ -53,10 +53,15 @@ def EllipsePeripheral(posA, posB, posC, posP, sd, r, useDistribution = True):
     :param posP: position of point P. 
     :param sd: clear semi diameter of the surface. 
     :param r: radius of the surface. 
-    :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the points representing the outline of the ellipse. 
+    :param useDistribution: when enabled, the method returns a distribution of points in the ellipse area instead of the outline of the ellipse. 
     """
-    offset = bd.array([0, 0, posA[2]])
+
+    offset = bd.zeros(3)
+    offset[2] = posA[2]
     onAxis = False 
+
+    one = 1.0
+    zero = 0
 
     # On axis scenario 
     if (bd.isclose(posP[0], 0) and bd.isclose(posP[1], 0)):
@@ -64,7 +69,8 @@ def EllipsePeripheral(posA, posB, posC, posP, sd, r, useDistribution = True):
         onAxis = True 
     else:
         # Util vectors 
-        P_xy_projection = Normalized(bd.array([posP[0], posP[1], 0]))
+        P_xy_projection = posP.copy()
+        P_xy_projection[2] = 0
 
     vecCA = posA - posC
     
@@ -74,45 +80,46 @@ def EllipsePeripheral(posA, posB, posC, posP, sd, r, useDistribution = True):
             # Move the point along the z axis 
             points = bd.transpose(CircularDistribution()) + offset
             # Scale it on the two semi-major axis 
-            points = bd.transpose(points *bd.array([sd, sd, 1]))
+            points = bd.transpose(points * bd.array([sd, sd, one]))
             
         else:
             # Generate the contour of the ellipse 
-            theta =bd.linspace(0, 2 *bd.pi, 100)
-            x =bd.cos(theta) 
-            y =bd.sin(theta) 
-            z =bd.ones(len(x)) * posA[2]
-            points =bd.array([x, y, z])
+            theta = bd.linspace(0, 2 * bd.pi, 100)
+            x = bd.cos(theta) 
+            y = bd.sin(theta) 
+            z = bd.ones(len(x)) * posA[2]
+            points = bd.array([x, y, z])
         return points 
     
     else:
         # Lengths to calculate semi-major axis length 
         BB = abs((2 * sd) * ((posP[2] - posB[2]) / posP[2]))
-        AC =bd.linalg.norm(posA - posC)
+        AC = bd.linalg.norm(posA - posC)
         
         # Semi-major axis length 
-        a =bd.linalg.norm(posA - posB) / 2
-        b =bd.sqrt(BB * AC) / 2
+        a = bd.linalg.norm(posA - posB) / 2
+        b = bd.sqrt(BB * AC) / 2
+        print("a and b  ", a, "  ", b)
 
         # Calculate the ellipse 
         if (useDistribution):
             # Move the point along the z axis 
-            points =bd.transpose(CircularDistribution()) + offset
+            points = bd.transpose(CircularDistribution()) + offset
             # Scale it on the two semi-major axis 
-            points =bd.transpose(points *bd.array([b, a, 1]))
+            points = bd.transpose(points * bd.array([b, a, one]))
             
         else:
             # Generate the contour of the ellipse 
-            theta =bd.linspace(0, 2 *bd.pi, 100)
-            x = b *bd.cos(theta) 
-            y = a *bd.sin(theta) 
-            z =bd.ones(len(x)) * posA[2]
-            points =bd.array([x, y, z])
+            theta = bd.linspace(0, 2 *bd.pi, 100)
+            x = b * bd.cos(theta) 
+            y = a * bd.sin(theta) 
+            z = bd.ones(len(x)) * posA[2]
+            points = bd.array([x, y, z])
         
         # Rotate the ellipse to it faces the right direction in the world xy plane,
         # i.e., one of its axis coincides with the tangential plane 
-        theta_1 = angleBetweenVectors(posA,bd.array([0, 1, 0]))
-        trans_1 = Rotation(-theta_1,bd.array([0, 0, 1]), points)
+        theta_1 = angleBetweenVectors(posA, bd.array([0, 1, 0]))
+        trans_1 = Rotation(-theta_1, bd.array([0, 0, 1]), points)
         
         # Move the points to be in tangent with A 
         trans_1 = Translate(trans_1, P_xy_projection * (sd - a)) 
@@ -129,8 +136,13 @@ def EllipsePeripheral(posA, posB, posC, posP, sd, r, useDistribution = True):
 
 def InitRays(r, sd, posP, wavelength = 550):
 
-    P_xy_projection = bd.array([posP[0], posP[1], 0])
-    offset = bd.array([0, 0, abs(r) - bd.sqrt(r**2 - sd**2)]) * bd.sign(r)
+    P_xy_projection = posP.copy()
+    P_xy_projection[2] = 0
+
+    offset = bd.zeros(3)
+    offset[2] = abs(r) - bd.sqrt(r**2 - sd**2)
+    offset *= bd.sign(r)
+
     if(not bd.isclose(bd.linalg.norm(P_xy_projection), 0)):
         posA = sd * ( P_xy_projection / bd.linalg.norm(P_xy_projection) ) + offset
         posC = sd * (-P_xy_projection / bd.linalg.norm(P_xy_projection) ) + offset
@@ -139,16 +151,21 @@ def InitRays(r, sd, posP, wavelength = 550):
         posC = bd.array([sd, 0, 0]) + offset
     posB = FindB(posA, posC, posP)
 
-    points = bd.transpose(EllipsePeripheral(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
-    _temp = EllipsePeripheral(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
+    points = bd.transpose(GenerateEllipse(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
+    _temp = GenerateEllipse(posA, posB, posC, posP, sd, r, False) # Points that form the edge of the ellipse 
 
     vecs = ArrayNormalized(points - posP)
 
-    # Create the ray batch 
-    # For some reason vecs is often not registered with indexing assignment, 
-    # the hstack is thus used to force the composition of the raybatch. 
+    # Creating the ray batch.  
+    # For some reason vecs is often not registered with indexing assignment, hstack is thus used to force the composition of the raybatch. 
     mat1 = bd.tile(bd.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
-    mat2 = bd.tile(bd.array([wavelength, 1, 0, 1]), (vecs.shape[0], 1))
+
+    mat2 = bd.tile(bd.array([wavelength, 
+                             NORMAL_RADIANT,    # Sagittal radiant
+                             NORMAL_RADIANT,    # Tangential radiant
+                             INIT_PHASE_DIFF,   # Phase difference 
+                             0                  # Surface index
+                             ]), (vecs.shape[0], 1))
     mat = bd.hstack((bd.hstack((mat1, vecs)), mat2))
 
     rayBatch = RayBatch( mat )
@@ -161,7 +178,10 @@ def InitRays(r, sd, posP, wavelength = 550):
     #     # Append the starting point into ray path 
     #     self.rayPath.append(np.copy(mat1))
 
+    return rayBatch 
 
+
+# TODO: implement a new set of first surface method that takes an array of sources 
 
 
 def main():

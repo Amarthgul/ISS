@@ -2,7 +2,7 @@
 from enum import Enum
 
 
-from Backend import backend as bd 
+from .Backend import backend as bd 
 
 
 """
@@ -10,7 +10,7 @@ from Backend import backend as bd
 Μ μ, Ν ν, Ξ ξ, Ο ο, Π π, Ρ ρ, Σ σ/ς, Τ τ, Υ υ, Φ φ, Χ χ, Ψ ψ, Ω ω
 """
 # ==================================================================
-""" ============= Consts, flags, and definitions =============== """
+""" ======================= Consts and flags =================== """
 # ==================================================================
 
 
@@ -29,14 +29,13 @@ KNOB_DISTANCE = 1500
 # the lens will focus at 1.2 to 1.5 meter when the knob point down 
 
 
-# Creates a RNG for the entire program to use 
-RANDOM_SEED = 42 
-rng = bd.random.default_rng(seed=RANDOM_SEED)
+# The default radiant value for the raybatch
+NORMAL_RADIANT = bd.sqrt(.5)
+# This is set so that the 2 directions of the radiant have a normalized value of 1.
 
-def RefreshRNG():
-    """Refresh the RNG with a new seed generated using itself"""
-    newSeed = bd.random.random_integers(1)
-    rng = bd.random.default_rng(seed=newSeed)
+
+# initial phase difference for the two directions of radiant 
+INIT_PHASE_DIFF = 0
 
 
 # The threashold by which a raybatch will no longer propagate 
@@ -44,15 +43,32 @@ RADIANT_KILL = 0.001
 # Changing this could increase accuracy, at the cost of increase time 
 
 
+# Placeholder varible for arguments 
+SOME_BIG_CONST = 1024
+SOME_SML_CONST = 1e-10
+
+
 # Global variable for per spot sampling in image formation. 
 PER_POINT_MAX_SAMPLE = 100
 # This can be used to estimate and normalize the colors. 
 
 
+
+
+# ==================================================================
+""" ========================== Vectors ========================= """
+# ==================================================================
+
+# Origin point for the lens system 
 ORIGIN = bd.array([0, 0, 0])
 
+# Default object facing direction
 OBJ_FACING = bd.array([0, 0, -1])
 
+
+# ==================================================================
+""" ======================== Definitions ======================= """
+# ==================================================================
 
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
@@ -74,12 +90,31 @@ LambdaLines = {
 }
 
 
+
+
+
+
+# ==================================================================
+""" =========================== Enums ========================== """
+# ==================================================================
+
+
 # Ways to fit a gate when input and gate has different aspect ratio 
 class Fit(Enum):
     FILL = 1  # Stretch both horizontal and vertical direction to fill the entire gate 
-    FIT = 2   # Proportionally scale the image to fit one axis and ensure the image is not cropped 
+    FIT = 2   # Proportionally scale the image to fit the longer axis while ensuring the image is not cropped 
 
 
-# Placeholder varible for arguments 
-SOME_BIG_CONST = 1024
-SOME_SML_CONST = 1e-10
+
+# ==================================================================
+""" ============================ RNG =========================== """
+# ==================================================================
+
+# Creates a RNG for the entire program to use 
+RANDOM_SEED = 42 
+rng = bd.random.default_rng(seed=RANDOM_SEED)
+
+def RefreshRNG():
+    """Refresh the RNG with a new seed generated using itself"""
+    newSeed = bd.random.random_integers(1)
+    rng = bd.random.default_rng(seed=newSeed)

@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import Util.PlotTest as PlotTest
 from Surfaces import Surface
 from Util.Misc import * 
-from src.Raytracing.RayBatch import * 
+from Raytracing.RayBatch import * 
 from Material import * 
 
 

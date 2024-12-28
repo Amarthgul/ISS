@@ -16,17 +16,21 @@ All rights reserved.
 global JAX_AVAILABLE
 global CUPY_CUDA_AVAILABLE
 
-try:
-    import cupy
-    CUPY_CUDA_AVAILABLE = True
-except ImportError:
-    CUPY_CUDA_AVAILABLE = False
-
-
 global backend
 backend = numpy
 global backend_name
 backend_name = 'numpy'
+
+try:
+    import cupy
+    CUPY_CUDA_AVAILABLE = True
+    backend_name = 'cupy'
+    backend = cupy 
+except ImportError:
+    CUPY_CUDA_AVAILABLE = False
+
+
+
 
 def set_backend(name: str):
     """ Set the backend for the simulations

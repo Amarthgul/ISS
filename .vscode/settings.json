@@ -1,5 +1,5 @@
 {
-    "python.analysis.extraPaths": ["${workspaceFolder}/Util/"]
+    "python.analysis.extraPaths": ["${workspaceFolder}/src/"]
 
     "files.exclude": {
         "**/__pycache__": true
