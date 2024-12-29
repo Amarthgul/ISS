@@ -59,7 +59,7 @@ def Minus90(inputRadian):
     return bd.pi / 2 - inputRadian
 
 
-def Rotation(theta, axis, ibdutVertex):
+def Rotate(theta, axis, ibdutVertex):
     """
     Rotate the ibdut vertex by theta radians along y-axis.
     :param theta: Angle in radians.
@@ -185,7 +185,7 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
 # Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 0.95):
+def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 1):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -224,7 +224,7 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
     return points * radius * shrink
 
 
-def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z = 0, shrink=0.95):
+def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z = 0, shrink=1):
     """
     Generate a random, even distribution of points on an ellipse.
     

@@ -65,7 +65,7 @@ def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 
-def DrawRaybatch(ax, rayBatch):
+def DrawRaybatch(ax, rayBatch, color='blue'):
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
     else:
@@ -75,12 +75,12 @@ def DrawRaybatch(ax, rayBatch):
     u, v, w = data[:, 3], data[:, 4], data[:, 5]
 
     q = ax.quiver(x, y, z, u, v, w,
-              length=10,                # Increase arrow length
+              length=12,                # Increase arrow length
               normalize=False,           # Maintain relative vector sizes
               arrow_length_ratio=0,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
               linewidths=0.5,            # Thicker arrows
-              color='blue') 
+              color=color) 
 
 
 def DrawEmission(points):
@@ -112,6 +112,10 @@ def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surf
     y = radius * bd.sin(phi) * bd.sin(theta)
     z = - bd.sign(radius) * (unsignedrRadius * bd.cos(phi) - unsignedrRadius) + thickness
         
+    if(backend_name == "cupy"):
+        x = bd.asnumpy(x)
+        y = bd.asnumpy(y)
+        z = bd.asnumpy(z)
     ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.25)
 
 

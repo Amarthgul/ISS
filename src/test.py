@@ -7,7 +7,7 @@ from Surfaces import Surface
 from Raytracing import Emission 
 from Util.Backend import backend as bd
 from Util.Backend import GetBackend
-from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch
+from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical
 
 import cupy as cp 
 
@@ -26,6 +26,7 @@ def main():
     ax = Setup3Dplot()
     SetUnifScale(ax)
     DrawRaybatch(ax, rb)
+    DrawSpherical(ax, r, sd, 0)
     plt.show()
 
     

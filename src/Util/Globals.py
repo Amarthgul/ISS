@@ -116,5 +116,5 @@ RNG = bd.random.default_rng(seed=RANDOM_SEED)
 
 def RefreshRNG():
     """Refresh the RNG with a new seed generated using itself"""
-    newSeed = bd.random.random_integers(1)
-    RNG = bd.random.default_rng(seed=newSeed)
+    newSeed = int(bd.random.random_integers(1))
+    RNG = bd.random.default_rng(seed = newSeed)

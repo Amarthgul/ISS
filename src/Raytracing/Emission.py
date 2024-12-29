@@ -16,7 +16,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 
 from Util.Backend import backend as bd
-from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotation, Translate
+from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF
 
 from .RayBatch import RayBatch 
@@ -44,7 +44,7 @@ def FindB(posA, posC, posP):
     return posC + vecPCN * t 
 
 
-def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
+def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = False):
     """
     Find the points on the ellipse and align it to the AB plane. 
 
@@ -79,7 +79,7 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
     if(onAxis):
         if (useDistribution):
             # Move the point along the z axis 
-            points = bd.transpose(CircularDistribution()) + offset
+            points = bd.transpose(RandomEllipticalDistribution()) + offset
             # Scale it on the two semi-major axis 
             points = bd.transpose(points * bd.array([sd, sd, one]))
             
@@ -109,7 +109,6 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
         if (useDistribution):
             temp[0] = a
             temp[1] = b 
-            print("temp: ", temp)
             # Move the point along the z axis 
             points = bd.transpose(CircularDistribution()) + offset
             # Scale it on the two semi-major axis 
@@ -126,7 +125,7 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
         # Rotate the ellipse to it faces the right direction in the world xy plane,
         # i.e., one of its axis coincides with the tangential plane 
         theta_1 = angleBetweenVectors(posA, bd.array([0, 1, 0]))
-        trans_1 = Rotation(-theta_1, bd.array([0, 0, 1]), points)
+        trans_1 = Rotate(-theta_1, bd.array([0, 0, 1]), points)
         
         # Move the points to be in tangent with A 
         trans_1 = Translate(trans_1, P_xy_projection * (sd - a)) 
@@ -140,13 +139,15 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
         axis = Normalized(temp)
 
         trans_2 = Translate(trans_1, -posA)
-        trans_2 = Rotation(-theta, axis, trans_2)
+        trans_2 = Rotate(-theta, axis, trans_2)
         trans_2 = Translate(trans_2, posA)
 
         return trans_2
 
 
 def InitRays(r, sd, posP, wavelength = 550):
+
+    zero = 0 # For cupy compatibility
 
     P_xy_projection = posP.copy()
     P_xy_projection[2] = 0
@@ -155,12 +156,14 @@ def InitRays(r, sd, posP, wavelength = 550):
     offset[2] = abs(r) - bd.sqrt(r**2 - sd**2)
     offset *= bd.sign(r)
 
-    if(not bd.isclose(bd.linalg.norm(P_xy_projection), 0)):
+    if(bd.isclose(bd.linalg.norm(P_xy_projection), 0)):
+        # On aixs 
+        posA = bd.array([sd, zero, zero]) + offset
+        posC = bd.array([sd, zero, zero]) + offset
+    else:
+        # Off axis
         posA = sd * ( P_xy_projection / bd.linalg.norm(P_xy_projection) ) + offset
         posC = sd * (-P_xy_projection / bd.linalg.norm(P_xy_projection) ) + offset
-    else:
-        posA = bd.array([sd, 0, 0]) + offset
-        posC = bd.array([sd, 0, 0]) + offset
     posB = FindB(posA, posC, posP)
 
     points = bd.transpose(GenerateEllipse(posA, posB, posC, posP, sd, r)) # Sample points in the ellipse area 
