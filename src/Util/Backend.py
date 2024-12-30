@@ -30,6 +30,11 @@ except ImportError:
     CUPY_CUDA_AVAILABLE = False
 
 
+def constant(value):
+    return backend.array(value)
+
+
+
 
 
 def set_backend(name: str):

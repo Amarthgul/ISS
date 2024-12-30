@@ -16,6 +16,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 
 from Util.Backend import backend as bd
+from Util.Backend import constant
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF
 
@@ -44,7 +45,7 @@ def FindB(posA, posC, posP):
     return posC + vecPCN * t 
 
 
-def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = False):
+def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
     """
     Find the points on the ellipse and align it to the AB plane. 
 
@@ -61,17 +62,17 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = False):
     offset[2] = posA[2]
     onAxis = False 
 
-    one = 1.0
-    zero = 0
+    one = constant(1.0)
+    zero = constant(0)
 
     # On axis scenario 
-    if (bd.isclose(posP[0], 0) and bd.isclose(posP[1], 0)):
-        P_xy_projection = bd.array([sd, 0, 0])
+    if (bd.isclose(posP[0], zero) and bd.isclose(posP[1], zero)):
+        P_xy_projection = bd.array([sd, zero, zero])
         onAxis = True 
     else:
         # Util vectors 
         P_xy_projection = posP.copy()
-        P_xy_projection[2] = 0
+        P_xy_projection[2] = zero
 
     vecCA = posA - posC
     

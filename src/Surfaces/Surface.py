@@ -7,9 +7,12 @@ from enum import Enum
 # print("\n ,".join(pythonpath))
 
 from Util.Backend import backend as bd 
+from Util.Backend import constant
 from Util.Misc import Magnitude, Normalized
-from Util.Globals import ORIGIN, OBJ_FACING
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
 from Material import Material 
+
+
 
 class CurvatureType(Enum):
     Standard = 0      # Sperical element 
@@ -30,9 +33,9 @@ class Surface:
     Standard spherical surface 
     """
     def __init__(self, r, t, sd, m = "AIR"):
-        self.radius = r
-        self.thickness = t
-        self.clearSemiDiameter = sd 
+        self.radius = constant(r)
+        self.thickness = constant(t)
+        self.clearSemiDiameter = constant(sd)
         self.material = Material(m)
 
         """Whether this surface share the same optical axis as the lens"""
@@ -71,8 +74,8 @@ class Surface:
 
         # The local optical axis remains the same as OBJ FACING 
         self.cumulativeThickness = cumulativeT
-        self.frontVertex = bd.array([0, 0, cumulativeT])
-        self.radiusCenter = bd.array([0, 0, cumulativeT + self.radius])  
+        self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
+        self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
 
 
     def SetVertices(self, frontVtx, radiusVtx):
@@ -101,14 +104,42 @@ class Surface:
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
 
+        :param incomingRaybatch: RayBatch that will be tested for intersection. 
+
         :return: An array of intersections and an array of vingetted. 
         """
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
 
         if(not self.IsOnAxis):
-            # TODO: Add inverse transfrom here 
+            # TODO: Add inverse transfrom here to compensate the off axis element position, if any.
             pass 
+
+        # Translate to sphere's local space
+        oc = position - self.radiusCenter
+        
+        # Coefficients for quadratic equation
+        a = bd.sum(direction**TWO, axis=1) 
+        b = 2.0 * bd.sum(oc * direction, axis=1)
+        c = bd.sum(oc**TWO, axis=1) - self.radius**TWO
+
+        # Discriminant
+        discriminant = b ** TWO - constant(4) * a * c
+        
+        # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
+        intersetIndices = bd.where(discriminant > 0)
+
+        # Calculate t values
+        t = (-b[intersetIndices] - bd.sign(self.radius) * bd.sqrt(discriminant[intersetIndices])) / (TWO * a[intersetIndices])
+
+        # Intersection points
+        p = position[intersetIndices] + t[:, bd.newaxis] * direction[intersetIndices]
+
+        # Out of the intersections, some will be outside of this surface, select only the ones that do land on the surface
+        clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
+        
+        return p[clear]
+    
 
 
     def Normal(self, intersections):
@@ -145,6 +176,12 @@ class Surface:
         return refreacted, reflected, vignetted
 
 
+    def NaiveTrace(self, incidentRaybatch):
+        """
+        Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned and not calculated. 
+        """
+
+        pass
 
 
 def main():

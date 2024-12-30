@@ -48,6 +48,12 @@ SOME_BIG_CONST = 1024
 SOME_SML_CONST = 1e-10
 
 
+# Scalar contants for Cupy compatibility
+ZERO = bd.array(0)
+ONE = bd.array(1)
+TWO = bd.array(2)
+
+
 # Global variable for per spot sampling in image formation. 
 PER_POINT_MAX_SAMPLE = 100
 # This can be used to estimate and normalize the colors. 

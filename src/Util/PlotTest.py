@@ -5,59 +5,93 @@ This module is used to provide visual validation for the process.
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
+from Util.Globals import ORIGIN
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm
 
-
-origin = bd.array([0, 0, 0])
+# ==================================================================
+""" ============================================================ """
+# ==================================================================
 
 # Matplotlib z axis is always shortened 
 zAxisCompensationFactor = 1.25
+
+AX = None
 
 def Setup3Dplot():
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     return ax 
     
-def AddXYZ(ax, unitLength = 1, lineWidth = 2):
+def CheckAX():
+    """
+    This function checks if the axis is initialized.
+    Such that the user does not have to call Setup3Dplot() manually and could add plot through the entire program. 
+    """
+    global AX
+    if (AX == None):
+        AX = Setup3Dplot()
+
+AX = Setup3Dplot()
+
+
+# ==================================================================
+""" ============================================================ """
+# ==================================================================
+
+
+
+def AddXYZ(unitLength = 1, lineWidth = 2, ax=AX):
+    CheckAX()
     ax.plot([0, unitLength], [0, 0], [0, 0], label = '3D Line', color = 'r', linewidth = lineWidth)
     ax.plot([0, 0], [0, unitLength], [0, 0], label = '3D Line', color = 'g', linewidth = lineWidth)
     ax.plot([0, 0], [0, 0], [0, unitLength], label = '3D Line', color = 'b', linewidth = lineWidth)
     
-def SetUnifScale(ax, lim = 6):
+
+def SetUnifScale(lim = 6, ax=AX):
+    CheckAX()
     offsetScalar = zAxisCompensationFactor * lim
     ax.set_xlim(offsetScalar/2.0, -offsetScalar/2.0)
     ax.set_ylim(offsetScalar/2.0, -offsetScalar/2.0)
     ax.set_zlim(lim, 0)
 
 
-def DrawPoint(ax, point):
+def DrawPoint(point, ax=AX):
+    CheckAX()
     ax.scatter3D(point[0], point[1], point[2])
 
 
-def DrawPoints(ax, points):
-    for p in points:
-        ax.scatter3D(p[0], p[1], p[2])
+def DrawPoints(points, ax=AX):
+    CheckAX()
+
+    if(backend_name == "cupy"):
+        data = bd.asnumpy(points)
+    x, y, z = data[:, 0], data[:, 1], data[:, 2]
+    ax.scatter3D(x, y, z)
 
 
-def Draw3D(ax, x, y, z):
+def Draw3D(x, y, z, ax=AX):
+    CheckAX()
     ax.plot(x, y, z)
 
 
-def DrawLine(ax, point1, point2, lineColor = "k", lineWidth = 2, zorder=10):
+def DrawLine(point1, point2, lineColor = "k", lineWidth = 2, zorder=10, ax=AX):
+    CheckAX()
     ax.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
             label = '3D Line', color = lineColor, linewidth = lineWidth, zorder=zorder)
     
 
-def DrawCircle(ax, radius, offset = 0, num_points=100):
+def DrawCircle(radius, offset = 0, num_points=100, ax=AX):
+    CheckAX()
     theta = bd.linspace(0, 2 * bd.pi, num_points)
     circle_points = bd.array([radius * bd.cos(theta), radius * bd.sin(theta), bd.zeros_like(theta) + offset])
     ax.plot(circle_points[0], circle_points[1], circle_points[2])
     
 
-def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
-    originOffset = bd.array([origin[0], origin[1], posA[2]])
+def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
+    CheckAX()
+    originOffset = bd.array([ORIGIN[0], ORIGIN[1], posA[2]])
     DrawLine(ax, originOffset, posA, lineWidth = 1)
     DrawLine(ax, originOffset, posC, lineWidth = 1)
     DrawLine(ax,    posP,   posA, lineWidth = 1)
@@ -65,7 +99,8 @@ def DrawIncidentPlane(ax, posA, posB, posC, posP, d):
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 
-def DrawRaybatch(ax, rayBatch, color='blue'):
+def DrawRaybatch(rayBatch, color='blue', ax=AX):
+    CheckAX()
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
     else:
@@ -83,12 +118,9 @@ def DrawRaybatch(ax, rayBatch, color='blue'):
               color=color) 
 
 
-def DrawEmission(points):
-    for p in points:
-        print(p)
         
 
-def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k"):
+def DrawSpherical(radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k", ax=AX):
     """
     Draw a spherical surface along the z axis. 
     
@@ -99,6 +131,7 @@ def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surf
     :param numPoints: number of points, controls the subdivision of the surface. 
     :surfaceColor: color of the surface. 
     """
+    CheckAX()
     unsignedrRadius = radius * bd.sign(radius)
 
     radianLimit = bd.arcsin(clearSemiDiameter/unsignedrRadius) 
@@ -121,16 +154,15 @@ def DrawSpherical(ax, radius, clearSemiDiameter, thickness, numPoints = 20, surf
 
 
 def main():
-    ax = Setup3Dplot()
-    SetUnifScale(ax)
-    AddXYZ(ax, 6)
+    SetUnifScale()
+    AddXYZ(6)
     
-    DrawSpherical(ax, -5, 4, 0)
+    DrawSpherical(-5, 4, 0)
     
-    DrawSpherical(ax, 10, 4, 0.2)
+    DrawSpherical(10, 4, 0.2)
     
-    DrawSpherical(ax, 10, 4, 1)
-    DrawSpherical(ax, -20, 4, 4)
+    DrawSpherical(10, 4, 1)
+    DrawSpherical(-20, 4, 4)
     
     plt.show()
     

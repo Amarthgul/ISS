@@ -3,12 +3,13 @@
 import pandas as pd 
 import os
 import math
+import numpy as np 
 
 import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
-
-# Primarily using the LambdaLines definition 
+from Util.Backend import backend_name
 from Util.Misc import LambdaLines
+from Util.Globals import ZERO, ONE, TWO
 
 # Load the material sheet globally to avoid repeatly open-close 
 GlassTablePath = r"resources/AbbeGlassTable.xlsx"
@@ -20,6 +21,8 @@ if(PreRead):
 
 def MaterialClear():
     del GlassTable
+
+
 
 class Material:
 
@@ -41,7 +44,7 @@ class Material:
         """
         if(self.name == "AIR"):
             # Air got the constant RI of 1 
-            return 1 
+            return ONE
         else:
             # Non air material is sent to further inquiries 
             return self._RI(lam)
@@ -53,19 +56,21 @@ class Material:
         return self.RI(LambdaLines["d"])
     
     def V_e(self):
-        return ( self.RI(LambdaLines["e"]) - 1 ) / \
+        return ( self.RI(LambdaLines["e"]) - ONE ) / \
             (self.RI(LambdaLines["F'"]) - self.RI(LambdaLines["C'"]))
 
     def V_d(self):
-        return ( self.RI(LambdaLines["d"]) - 1 ) / \
+        return ( self.RI(LambdaLines["d"]) - ONE ) / \
             (self.RI(LambdaLines["F"]) - self.RI(LambdaLines["C"]))
 
+
     def DrawRI(self, UV=380, IR=720):
-        lam = bd.arange(UV, IR, dtype=float) 
+        lam = np.arange(UV, IR, dtype=float) 
         RI = self._RI(lam)
 
         plt.plot(lam, RI)
         plt.show()
+
 
     def Startup(self):
 
@@ -98,7 +103,10 @@ class Material:
             elif (formula == "Extended 3"):
                 self.Formula = "Extended 3"
                 self._decodeExtended_3(found)
+
+        self.coef = bd.asarray(self.coef)
     
+
     def Test(self, var):
         pass 
    
@@ -115,16 +123,18 @@ class Material:
         elif(self.Formula == "Extended 3"):
             return self._Extended_3(wavelength)
         
+
     def _decodeSchott(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[bd.where(df=="A0")[0] + 1][0],
-            df[bd.where(df=="A1")[0] + 1][0],
-            df[bd.where(df=="A2")[0] + 1][0],
-            df[bd.where(df=="A3")[0] + 1][0],
-            df[bd.where(df=="A4")[0] + 1][0],
-            df[bd.where(df=="A5")[0] + 1][0]
+            df[np.where(df=="A0")[0] + 1][0],
+            df[np.where(df=="A1")[0] + 1][0],
+            df[np.where(df=="A2")[0] + 1][0],
+            df[np.where(df=="A3")[0] + 1][0],
+            df[np.where(df=="A4")[0] + 1][0],
+            df[np.where(df=="A5")[0] + 1][0]
         ]
+
 
     def _Schott(self, lam):
         """
@@ -137,19 +147,19 @@ class Material:
         a3 = self.coef[3]
         a4 = self.coef[4]
         a5 = self.coef[5]
-        lam = bd.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1* lam**2 + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8)
-        return bd.sqrt(n2)
+        return np.sqrt(n2)
 
     def _decodeSellmeier1(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[bd.where(df=="K1")[0] + 1][0],
-            df[bd.where(df=="L1")[0] + 1][0],
-            df[bd.where(df=="K2")[0] + 1][0],
-            df[bd.where(df=="L2")[0] + 1][0],
-            df[bd.where(df=="K3")[0] + 1][0],
-            df[bd.where(df=="L3")[0] + 1][0]
+            df[np.where(df=="K1")[0] + ONE][0],
+            df[np.where(df=="L1")[0] + ONE][0],
+            df[np.where(df=="K2")[0] + ONE][0],
+            df[np.where(df=="L2")[0] + ONE][0],
+            df[np.where(df=="K3")[0] + ONE][0],
+            df[np.where(df=="L3")[0] + ONE][0]
         ]
 
     def _Sellmeier1(self, lam):
@@ -159,21 +169,21 @@ class Material:
         l2 = self.coef[3]
         k3 = self.coef[4]
         l3 = self.coef[5]
-        lam = bd.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + 1
-        return bd.sqrt(n2) 
+        return np.sqrt(n2) 
 
     def _decodeExtended_2(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[bd.where(df=="A0")[0] + 1][0],
-            df[bd.where(df=="A1")[0] + 1][0],
-            df[bd.where(df=="A2")[0] + 1][0],
-            df[bd.where(df=="A3")[0] + 1][0],
-            df[bd.where(df=="A4")[0] + 1][0],
-            df[bd.where(df=="A5")[0] + 1][0],
-            df[bd.where(df=="A6")[0] + 1][0],
-            df[bd.where(df=="A7")[0] + 1][0],
+            df[np.where(df=="A0")[0] + ONE][0],
+            df[np.where(df=="A1")[0] + ONE][0],
+            df[np.where(df=="A2")[0] + ONE][0],
+            df[np.where(df=="A3")[0] + ONE][0],
+            df[np.where(df=="A4")[0] + ONE][0],
+            df[np.where(df=="A5")[0] + ONE][0],
+            df[np.where(df=="A6")[0] + ONE][0],
+            df[np.where(df=="A7")[0] + ONE][0],
         ]
 
     def _Extended_2(self, lam):
@@ -185,22 +195,22 @@ class Material:
         a5 = self.coef[5]
         a6 = self.coef[6]
         a7 = self.coef[7]
-        lam = bd.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1 * lam**(2) + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8) + a6 * lam**(4) + a7 * lam**(6)
-        return bd.sqrt(n2)
+        return np.sqrt(n2)
 
     def _decodeExtended_3(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[bd.where(df=="A0")[0] + 1][0],
-            df[bd.where(df=="A1")[0] + 1][0],
-            df[bd.where(df=="A2")[0] + 1][0],
-            df[bd.where(df=="A3")[0] + 1][0],
-            df[bd.where(df=="A4")[0] + 1][0],
-            df[bd.where(df=="A5")[0] + 1][0],
-            df[bd.where(df=="A6")[0] + 1][0],
-            df[bd.where(df=="A7")[0] + 1][0],
-            df[bd.where(df=="A8")[0] + 1][0]
+            df[np.where(df=="A0")[0] + 1][0],
+            df[np.where(df=="A1")[0] + 1][0],
+            df[np.where(df=="A2")[0] + 1][0],
+            df[np.where(df=="A3")[0] + 1][0],
+            df[np.where(df=="A4")[0] + 1][0],
+            df[np.where(df=="A5")[0] + 1][0],
+            df[np.where(df=="A6")[0] + 1][0],
+            df[np.where(df=="A7")[0] + 1][0],
+            df[np.where(df=="A8")[0] + 1][0]
         ]
 
     def _Extended_3(self, lam):
@@ -213,9 +223,9 @@ class Material:
         a6 = self.coef[6]
         a7 = self.coef[7]
         a8 = self.coef[8]
-        lam = bd.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
+        lam = np.copy(lam) / 1000.0 # Convert to micrometers to use in the formula 
         n2 = a0 + a1 * lam**(2) + a2 * lam**(4) + a3 * lam**(-2) + a4 * lam**(-4) + a5 * lam**(-6) + a6 * lam**(-8) + a7 * lam**(-10) + a8 * lam**(-12)
-        return bd.sqrt(n2)
+        return np.sqrt(n2)
 
     # TODO: add more decoder and formula here if needed 
 
