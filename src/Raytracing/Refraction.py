@@ -15,7 +15,7 @@ def Refract(incident, normal, n1, n2):
     :param n1: Refractive index of the first medium.
     :param n2: Refractive index of the second medium.
 
-    :return: Array of refracted vectors and index of TIR, if any.
+    :return: Array of refracted vectors, index of TIR rays, a Null vignette array.
     """
 
     # Normalize incident and normal vectors
@@ -37,9 +37,9 @@ def Refract(incident, normal, n1, n2):
     legitIndex = bd.where(discriminant >= 0)
 
     # Calculate the refracted vectors
-    refracted = n_ratio * incident[legitIndex] + (n_ratio * cos_theta_i[legitIndex] - bd.sqrt(discriminant[legitIndex]))[:, bd.newaxis] * normal[legitIndex]
+    refracted = n_ratio[:, bd.newaxis] * incident[legitIndex] + (n_ratio * cos_theta_i[legitIndex] - bd.sqrt(discriminant[legitIndex]))[:, bd.newaxis] * normal[legitIndex]
     
-    return refracted, TIR
+    return refracted, TIR, None 
 
 
 

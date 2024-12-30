@@ -2,14 +2,14 @@
 
 from enum import Enum
 
-# from sys import path as pythonpath
-
-# print("\n ,".join(pythonpath))
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
-from Util.Misc import Magnitude, Normalized
+from Util.Misc import Magnitude, Normalized, ArrayNormalized
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
+
+from Raytracing.Refraction import Refract
+from Raytracing.RayBatch import RayBatch 
 from Material import Material 
 
 
@@ -28,9 +28,18 @@ class CurvatureType(Enum):
 # ==================================================================
 
 
+"""
+All the methods that calculate ray related results must return 3 parts:
+-  Refraction or direct result 
+-  Reflection or secondary result 
+-  Vignetted 
+"""
+
+
+
 class Surface:
     """
-    Standard spherical surface 
+    Standard spherical surface. 
     """
     def __init__(self, r, t, sd, m = "AIR"):
         self.radius = constant(r)
@@ -106,7 +115,7 @@ class Surface:
 
         :param incomingRaybatch: RayBatch that will be tested for intersection. 
 
-        :return: An array of intersections and an array of vingetted. 
+        :return: An array of intersections, a bull secondary array, the bool array of vingetted. 
         """
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
@@ -127,7 +136,7 @@ class Surface:
         discriminant = b ** TWO - constant(4) * a * c
         
         # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
-        intersetIndices = bd.where(discriminant > 0)
+        intersetIndices = discriminant > 0
 
         # Calculate t values
         t = (-b[intersetIndices] - bd.sign(self.radius) * bd.sqrt(discriminant[intersetIndices])) / (TWO * a[intersetIndices])
@@ -138,17 +147,20 @@ class Surface:
         # Out of the intersections, some will be outside of this surface, select only the ones that do land on the surface
         clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
         
-        return p[clear]
+        return p[clear], None, ~clear
     
-
 
     def Normal(self, intersections):
         """
         Given the intersections, calculate the normal direction on these intersection points. 
-        The intersections must be on the surface, otherwise the result may be undefined.  
+        The intersections must be on the surface, otherwise the result may be undefined. 
+
+        :param intersections: points on the surface. 
+
+        :return: Normalized normals of the intersection points on this surface. 
         """
-        
-        pass 
+
+        return ArrayNormalized(intersections - self.radiusCenter)
 
 
     def CrossSection(self, planeOrientation):
@@ -176,12 +188,28 @@ class Surface:
         return refreacted, reflected, vignetted
 
 
-    def NaiveTrace(self, incidentRaybatch):
+    def NaiveTrace(self, incidentRaybatch, previousRI):
         """
         Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned and not calculated. 
         """
 
-        pass
+        # First find the intersections 
+        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+        normals = self.Normal(intersections)
+
+        # Truncate the rays that are vignetted 
+        directions = incidentRaybatch.Direction()[~boolVig]
+        currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
+        
+        # Only the non vignetted rays goes into refraction 
+        refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
+
+        _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        _temp.SetPosition(intersections[~TIR])
+        _temp.SetDirection(refracted)
+
+        return _temp, TIR, boolVig
+
 
 
 def main():

@@ -99,7 +99,7 @@ def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 
-def DrawRaybatch(rayBatch, color='blue', ax=AX):
+def DrawRaybatch(rayBatch, color='blue', length = 10, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
@@ -110,7 +110,7 @@ def DrawRaybatch(rayBatch, color='blue', ax=AX):
     u, v, w = data[:, 3], data[:, 4], data[:, 5]
 
     q = ax.quiver(x, y, z, u, v, w,
-              length=12,                # Increase arrow length
+              length=length,                # Increase arrow length
               normalize=False,           # Maintain relative vector sizes
               arrow_length_ratio=0,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
@@ -118,8 +118,24 @@ def DrawRaybatch(rayBatch, color='blue', ax=AX):
               color=color) 
 
 
-        
+def DrawNormal(intersections, normals, color='green', ax=AX):
+    CheckAX()
+    if(backend_name == "cupy"):
+        intersections = bd.asnumpy(intersections)
+        normals = bd.asnumpy(normals)
 
+    x, y, z = intersections[:, 0], intersections[:, 1], intersections[:, 2]
+    u, v, w = normals[:, 0], normals[:, 1], normals[:, 2]
+
+    q = ax.quiver(x, y, z, u, v, w,
+              length=1,                # Increase arrow length
+              normalize=False,           # Maintain relative vector sizes
+              arrow_length_ratio=0.1,    # Smaller arrowhead
+              pivot='tail',              # Arrows start at [x,y,z]
+              linewidths=0.5,            # Thicker arrows
+              color=color) 
+
+        
 def DrawSpherical(radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k", ax=AX):
     """
     Draw a spherical surface along the z axis. 

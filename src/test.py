@@ -8,9 +8,10 @@ from Raytracing import Emission
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, ONE, TWO
 from Util.Backend import GetBackend, constant
-from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints
+from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal
 
 import cupy as cp 
+
 
 def main():
     GetBackend()
@@ -26,12 +27,17 @@ def main():
 
     testSurface = Surface(r, ZERO, sd, "BAF9")
     testSurface.SetCumulative(ZERO)
-    intersections = testSurface.Intersection(rb)
+    refracted = testSurface.NaiveTrace(rb, ONE)[0]
+    #intersections = testSurface.Intersection(rb)[0]
+    #normals = testSurface.Normal(intersections)
+
 
     SetUnifScale()
-    DrawRaybatch(rb)
+    DrawRaybatch(rb, length=11.5)
+    DrawRaybatch(refracted, length=2)
     DrawSpherical(r, sd, constant(0))
-    DrawPoints(intersections)
+    #DrawPoints(intersections)
+    #DrawNormal(intersections, normals)
 
     plt.show()
 
