@@ -80,7 +80,27 @@ def DrawLine(point1, point2, lineColor = "k", lineWidth = 2, zorder=10, ax=AX):
     CheckAX()
     ax.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
             label = '3D Line', color = lineColor, linewidth = lineWidth, zorder=zorder)
-    
+
+
+def DrawLines(pointSetOne, pointSetTwo, lineColor = "k", lineWidth = 0.5, zorder=10, ax=AX):
+    import numpy as np
+    from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+    CheckAX() 
+    x, y, z = pointSetOne[:, 0], pointSetOne[:, 1], pointSetOne[:, 2]
+    u, v, w = pointSetTwo[:, 0], pointSetTwo[:, 1], pointSetTwo[:, 2]
+    start = pointSetOne  # [x_start, y_start, z_start]
+    end = pointSetTwo    # [x_end, y_end, z_end]
+
+    if(backend_name == "cupy"):
+        start = bd.asnumpy(start)
+        end = bd.asnumpy(end)
+
+    # Create segments for Line3DCollection
+    segments = np.array([[s, e] for s, e in zip(start, end)])
+    line_collection = Line3DCollection(segments, linewidths=lineWidth, color=lineColor)
+    ax.add_collection3d(line_collection)
+
 
 def DrawCircle(radius, offset = 0, num_points=100, ax=AX):
     CheckAX()

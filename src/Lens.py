@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 import Util.PlotTest as PlotTest
-from Surfaces import Surface
+from Surfaces import Surface, Stop
 from Util.Misc import * 
 from Raytracing.RayBatch import * 
 from Material import * 

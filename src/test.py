@@ -5,18 +5,17 @@ import matplotlib.pyplot as plt
 from Lens import Lens 
 from Surfaces import Surface 
 from Raytracing import Emission 
+from Raytracing.RayPath import RayPath
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO
 from Util.Backend import GetBackend, constant
 from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal
-
-import cupy as cp 
+from Util.Globals import ZERO, ONE, TWO
 
 
 def main():
     GetBackend()
 
-
+    rp = RayPath()
 
     r = constant(20)
     sd = constant(4)
@@ -25,19 +24,26 @@ def main():
     rb = Emission.InitRays(r, sd, testP)
     #print(rb.value)
 
+    rp.Append(rb, None, None)
+
     testSurface = Surface(r, ZERO, sd, "BAF9")
     testSurface.SetCumulative(ZERO)
-    refracted = testSurface.NaiveTrace(rb, ONE)[0]
-    #intersections = testSurface.Intersection(rb)[0]
-    #normals = testSurface.Normal(intersections)
+    refracted, reflected, vig = testSurface.NaiveTrace(rb, ONE)
+    rp.Append(refracted, reflected, vig)
+
+    testSurface = Surface(r, ZERO, sd, "BAF9")
+    testSurface.SetCumulative(constant(3))
+    refracted, reflected, vig = testSurface.NaiveTrace(refracted, ONE)
+    rp.Append(refracted, reflected, vig)
 
 
     SetUnifScale()
-    DrawRaybatch(rb, length=11.5)
-    DrawRaybatch(refracted, length=2)
+    #DrawRaybatch(rb, length=11.5)
+    #DrawRaybatch(refracted, length=2)
     DrawSpherical(r, sd, constant(0))
-    #DrawPoints(intersections)
-    #DrawNormal(intersections, normals)
+    DrawSpherical(r, sd, constant(3))
+    rp.PlotPath()
+    
 
     plt.show()
 
