@@ -18,9 +18,13 @@ class RayPath():
     def Append(self, raybatch, reflected, vignetted):
         """
         Append a raybatch to the path. 
+
+        :param raybatch: The raybatch to be recorded.
+        :param reflected: bool array of reflected rays.
+        :param vignetted: bool array of vignetted rays.
         """
 
-        if self.value is None:
+        if (self.value is None):
             self.value = raybatch.Position()
         else:
             self.value.append(raybatch.Position())
@@ -37,14 +41,19 @@ class RayPath():
 
 
     def PlotPath(self):
-
+        """
+        Draw the path of the recorded rays. 
+        """
+        
         if(len(self.value) <= 1):
             raise ValueError("The path is too short to plot.")
 
         for i in range(len(self.value) - 1):
+            # Bool filter out the rays that are vignetted or reflected 
+            # so that both set of points have the same size 
             DrawLines(
-                self.value[i][~self.vignetted[i+1]],     # Previous surface 
-                self.value[i+1], # Current surface
+                self.value[i][~self.vignetted[i+1]][~self.reflected[i+1]],    
+                self.value[i+1], 
                 lineColor = 'red', 
                 lineWidth = 0.5
             )

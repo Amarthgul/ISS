@@ -119,7 +119,7 @@ def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 
-def DrawRaybatch(rayBatch, color='blue', length = 10, ax=AX):
+def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
@@ -135,10 +135,10 @@ def DrawRaybatch(rayBatch, color='blue', length = 10, ax=AX):
               arrow_length_ratio=0,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
               linewidths=0.5,            # Thicker arrows
-              color=color) 
+              color=lineColor) 
 
 
-def DrawNormal(intersections, normals, color='green', ax=AX):
+def DrawNormal(intersections, normals, lineColor='green', ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         intersections = bd.asnumpy(intersections)
@@ -153,7 +153,7 @@ def DrawNormal(intersections, normals, color='green', ax=AX):
               arrow_length_ratio=0.1,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
               linewidths=0.5,            # Thicker arrows
-              color=color) 
+              color=lineColor) 
 
         
 def DrawSpherical(radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k", ax=AX):
