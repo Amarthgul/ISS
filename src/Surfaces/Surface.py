@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Misc import Magnitude, Normalized, ArrayNormalized
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
-
+from Util.PlotTest import DrawSpherical, DrawPoints
 from Raytracing.Refraction import Refract
 from Raytracing.RayBatch import RayBatch 
 from Material import Material 
@@ -118,6 +118,17 @@ class Surface:
     """ ===================== Calculations ===================== """
     # ==============================================================
 
+    def RI(self, wavelength):
+        return self.material.RI(wavelength)
+
+
+    def DrawSurface(self):
+        DrawSpherical(
+            self.radius,
+            self.clearSemiDiameter,
+            self.cumulativeThickness
+            )
+
     def Intersection(self, incomingRaybatch):
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
@@ -147,16 +158,20 @@ class Surface:
         # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
         intersetIndices = discriminant > 0
 
+        # For non sequential, the sign of the radius and the direction of the ray matters. Thus the sign check. 
+        signBias = constant(-1.0) if (bd.sign(self.radius) != bd.sign(direction[0, 2])) else constant(1.0)
+
         # Calculate t values
-        t = (-b[intersetIndices] - bd.sign(self.radius) * bd.sqrt(discriminant[intersetIndices])) / (TWO * a[intersetIndices])
+        t = (-b[intersetIndices] - signBias * bd.sqrt(discriminant[intersetIndices])) / (TWO * a[intersetIndices])
 
         # Intersection points
         p = position[intersetIndices] + t[:, bd.newaxis] * direction[intersetIndices]
 
         # Out of the intersections, some will be outside of this surface, select only the ones that do land on the surface
         clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
-        
-        return p[clear], None, ~clear
+        intersetIndices[intersetIndices] = clear
+
+        return p[clear], None, ~intersetIndices
     
 
     def Normal(self, intersections):
@@ -204,12 +219,16 @@ class Surface:
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
-        normals = self.Normal(intersections)
+        DrawPoints(intersections)
 
+        signBias = constant(-1.0) if (bd.sign(self.radius) != bd.sign(incidentRaybatch.Direction()[0][2])) else constant(1.0)
+        normals = signBias * self.Normal(intersections)
+        
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]
         currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
-        
+        previousRI = previousRI[~boolVig]
+
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
 

@@ -51,13 +51,15 @@ def SurfaceTest():
 
 def main():
 
+    SetUnifScale(50)
+    AddXYZ()
+
     testLens = Biotar50mm14()
     testLens.UpdateLens()
 
-    testLens.DrawSurfaces()
+    #testLens.DrawLens()
 
-    SetUnifScale(50)
-    AddXYZ()
+    
     plt.show()
     
     

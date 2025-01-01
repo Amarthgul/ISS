@@ -4,13 +4,14 @@ from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
 from Util.Backend import backend as bd
 
 from .Surface import Surface 
-
+from Material import Material
 
 class Stop(Surface):
     def __init__(self, t):
         self.thickness = t
         self.bladeShape = None
         self.bladeCount = 5
+        self.material = Material("AIR")
 
 
     def SetFNumber(self, fNum):

@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-from Util.PlotTest import DrawSpherical
+from Util.PlotTest import DrawSpherical, DrawRaybatch
 from Util.Backend import constant
 from Util.Backend import backend as bd 
+from Util.Globals import ONE
 from Surfaces import Surface, Stop
+from Material import Material
 from Raytracing.RayBatch import RayBatch
 from Raytracing.Emission import EmitFromStop 
 
@@ -21,7 +23,7 @@ class Lens:
         self.entrancePupilDia = 25 
 
         self.surfaces = []
-        self.env = "AIR" # The environment it is submerged in, air by default 
+        self.env = Material("AIR") # The environment it is submerged in, air by default 
         
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
@@ -30,7 +32,6 @@ class Lens:
 
         self.lastSurfaceIndex = 0
 
-        self._envMaterial = None 
         self._temp = None # Variable for developing and not to be taken serieously 
 
 
@@ -58,10 +59,10 @@ class Lens:
         self.totalAxialLength = currentT
 
         # make sure the surfaces are already set before calling init ray tracing 
-        self.InitRayTracing() 
+        self.LensStatRayTracing() 
 
 
-    def InitRayTracing(self):
+    def LensStatRayTracing(self):
         """
         At the position of the stop, start a ray tracing and try to find the pupils.
         """
@@ -85,18 +86,49 @@ class Lens:
                 stopIndex = i
                 break
 
+        
+
+        for i in range(len(self.surfaces)):
+
+            forwardIndex = stopIndex - i - 1
+            backwardIndex = stopIndex + i + 1
+
+            if(forwardIndex >= 0):
+                self.surfaces[forwardIndex].DrawSurface()
+                objectSideRB = self.surfaces[forwardIndex].NaiveTrace(
+                    objectSideRB, 
+                    self._FindPreviousRI(forwardIndex, objectSideRB)
+                    )[0]
+                DrawRaybatch(objectSideRB, length=2, lineColor='green')
+                
+                
+            if(backwardIndex <= self.lastSurfaceIndex):
+                self.surfaces[backwardIndex].DrawSurface()
+                imageSideRB = self.surfaces[backwardIndex].NaiveTrace(
+                    imageSideRB, 
+                    self._FindPreviousRI(backwardIndex, imageSideRB, True)
+                    )[0]
+                DrawRaybatch(imageSideRB, length=2, lineColor='red')
+                
 
 
-    def DrawSurfaces(self):
+    def DrawLens(self):
 
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
-                DrawSpherical(
-                    self.surfaces[i].radius,
-                    self.surfaces[i].clearSemiDiameter,
-                    self.surfaces[i].cumulativeThickness
-                    )
+                self.surfaces[i].drawSurface()
 
+
+    def _FindPreviousRI(self, index, raybatch, inverted = False):
+        """
+        Find the refractive index of the previous lens element. 
+        """
+        if (index == 0):
+            return self.env.RI(raybatch.Wavelength())
+        else:
+            offset = 0 if inverted else -1
+            return self.surfaces[index -1].RI(raybatch.Wavelength())
+        
 
 
 def main():

@@ -33,12 +33,14 @@ def Refract(incident, normal, n1, n2):
     
     # Handle total internal reflection (discriminant < 0)
     TIR = discriminant < 0
-    
-    legitIndex = bd.where(discriminant >= 0)
+
 
     # Calculate the refracted vectors
-    refracted = n_ratio[:, bd.newaxis] * incident[legitIndex] + (n_ratio * cos_theta_i[legitIndex] - bd.sqrt(discriminant[legitIndex]))[:, bd.newaxis] * normal[legitIndex]
+    refracted = n_ratio[:, bd.newaxis][~TIR] * incident[~TIR] + (n_ratio[~TIR] * cos_theta_i[~TIR] - bd.sqrt(discriminant[~TIR]))[:, bd.newaxis] * normal[~TIR]
     
+
+    # refracted = n_ratio[:, bd.newaxis] * incident[~TIR] + (n_ratio * cos_theta_i[~TIR] - bd.sqrt(discriminant[~TIR]))[:, bd.newaxis] * normal[~TIR]
+
     return refracted, TIR, None 
 
 

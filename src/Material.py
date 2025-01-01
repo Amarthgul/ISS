@@ -44,7 +44,7 @@ class Material:
         """
         if(self.name == "AIR"):
             # Air got the constant RI of 1 
-            return ONE
+            return np.ones_like(lam)
         else:
             # Non air material is sent to further inquiries 
             return self._RI(lam)
@@ -232,6 +232,7 @@ class Material:
     # ========================================================================
     """ ============================ Archive ============================== """
     # ========================================================================
+
 
 def main():
     newglass = Material("E-KZFH1")

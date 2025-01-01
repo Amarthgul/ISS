@@ -234,27 +234,32 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
     vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
 
     vertices = bd.tile(stopVertex, (vectors.shape[0], 1))
-    temp = bd.zeros(5)
+    temp = bd.zeros(3)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
-    temp[4] = stopIndex
     temp = bd.tile(temp, (vectors.shape[0], 1))
+    
 
     # concatenate creates a new array so the two new arry should be independent of each other
     objectSideRB = RayBatch(bd.concatenate([
         vertices, 
         -vectors, 
-        temp],
+        temp, 
+        angularSteps[:, bd.newaxis], 
+        bd.tile(constant(stopIndex), (vectors.shape[0], 1))],
     axis=1))
     imageSideRB = RayBatch(bd.concatenate([
         vertices, 
         vectors, 
-        temp],
+        temp, 
+        angularSteps[:, bd.newaxis], 
+        bd.tile(constant(stopIndex), (vectors.shape[0], 1))],
     axis=1))
+    # Note that phase difference is replaced with angles. 
+    # This record the angle of the rays so that after propagation, the angle can be used to find the entrance pupil. 
 
-    DrawRaybatch(objectSideRB)
+    DrawRaybatch(objectSideRB, lineColor='yellow')
     DrawRaybatch(imageSideRB)
 
     return objectSideRB, imageSideRB
