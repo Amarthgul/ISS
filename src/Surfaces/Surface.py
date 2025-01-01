@@ -219,9 +219,10 @@ class Surface:
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
-        DrawPoints(intersections)
 
+        # For non sequential, the sign of the radius and the direction of the ray matters. Thus the sign check.
         signBias = constant(-1.0) if (bd.sign(self.radius) != bd.sign(incidentRaybatch.Direction()[0][2])) else constant(1.0)
+        
         normals = signBias * self.Normal(intersections)
         
         # Truncate the rays that are vignetted 

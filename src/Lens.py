@@ -15,6 +15,7 @@ from Util.Globals import ONE
 from Surfaces import Surface, Stop
 from Material import Material
 from Raytracing.RayBatch import RayBatch
+from Raytracing.RayPath import RayPath
 from Raytracing.Emission import EmitFromStop 
 
 
@@ -64,7 +65,7 @@ class Lens:
 
     def LensStatRayTracing(self):
         """
-        At the position of the stop, start a ray tracing and try to find the pupils.
+        At the position of the stop, start a ray tracing and try to find the pupils, the principal planes and the nodal points.
         """
 
         # Sicne this method is only called once during setup, it is not written very efficiently.
@@ -73,6 +74,11 @@ class Lens:
         imageSideRB = None
         stopIndex = None # Array index of the stop among the surfaces 
 
+        
+        objectSideRP = RayPath()
+        imagesideRP = RayPath()
+
+        # Generate a raybatch from the center of the stop
         for i in range(len(self.surfaces)):
             if isinstance(self.surfaces[i], Stop):
                 objectSideRB, imageSideRB = EmitFromStop(
@@ -81,13 +87,15 @@ class Lens:
                     self.surfaces[i-1].clearSemiDiameter,
                     self.surfaces[i+1].clearSemiDiameter,
                     self.surfaces[i-1].sdThickness,
-                    self.surfaces[i+1].sdThickness
+                    self.surfaces[i+1].sdThickness, 
+                    numRays=30
                 )
                 stopIndex = i
+                objectSideRP.Append(objectSideRB)
+                imagesideRP.Append(imageSideRB)
                 break
 
-        
-
+        # Propagate the rays through the lens in both directions
         for i in range(len(self.surfaces)):
 
             forwardIndex = stopIndex - i - 1
@@ -95,21 +103,22 @@ class Lens:
 
             if(forwardIndex >= 0):
                 self.surfaces[forwardIndex].DrawSurface()
-                objectSideRB = self.surfaces[forwardIndex].NaiveTrace(
+                objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
                     objectSideRB, 
                     self._FindPreviousRI(forwardIndex, objectSideRB)
-                    )[0]
-                DrawRaybatch(objectSideRB, length=2, lineColor='green')
-                
+                    )
+                objectSideRP.Append(objectSideRB, _tir, _vig)
                 
             if(backwardIndex <= self.lastSurfaceIndex):
                 self.surfaces[backwardIndex].DrawSurface()
-                imageSideRB = self.surfaces[backwardIndex].NaiveTrace(
+                imageSideRB, _tir, _vig = self.surfaces[backwardIndex].NaiveTrace(
                     imageSideRB, 
                     self._FindPreviousRI(backwardIndex, imageSideRB, True)
-                    )[0]
-                DrawRaybatch(imageSideRB, length=2, lineColor='red')
-                
+                    )
+                imagesideRP.Append(imageSideRB, _tir, _vig)
+
+        objectSideRP.PlotPath(expendEnd = 10)
+        imagesideRP.PlotPath(expendEnd = 10)
 
 
     def DrawLens(self):
@@ -119,14 +128,18 @@ class Lens:
                 self.surfaces[i].drawSurface()
 
 
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
     def _FindPreviousRI(self, index, raybatch, inverted = False):
         """
-        Find the refractive index of the previous lens element. 
+        Find the refractive index of the previous lens element. This is different from surfaces, this method tries to find the lens element, which has front and back surfaces.
         """
         if (index == 0):
             return self.env.RI(raybatch.Wavelength())
         else:
-            offset = 0 if inverted else -1
             return self.surfaces[index -1].RI(raybatch.Wavelength())
         
 

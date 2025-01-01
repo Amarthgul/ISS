@@ -138,7 +138,7 @@ def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
               color=lineColor) 
 
 
-def DrawNormal(intersections, normals, lineColor='green', ax=AX):
+def DrawNormal(intersections, normals, lineColor='green', lineLength=1, arrowRatio=0.1, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         intersections = bd.asnumpy(intersections)
@@ -148,11 +148,11 @@ def DrawNormal(intersections, normals, lineColor='green', ax=AX):
     u, v, w = normals[:, 0], normals[:, 1], normals[:, 2]
 
     q = ax.quiver(x, y, z, u, v, w,
-              length=1,                # Increase arrow length
-              normalize=False,           # Maintain relative vector sizes
-              arrow_length_ratio=0.1,    # Smaller arrowhead
-              pivot='tail',              # Arrows start at [x,y,z]
-              linewidths=0.5,            # Thicker arrows
+              length=lineLength,                # Increase arrow length
+              normalize=False,                  # Maintain relative vector sizes
+              arrow_length_ratio=arrowRatio,    # Smaller arrowhead
+              pivot='tail',                     # Arrows start at [x,y,z]
+              linewidths=0.5,                   # Thicker arrows
               color=lineColor) 
 
         

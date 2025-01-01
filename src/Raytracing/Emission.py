@@ -259,9 +259,6 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
     # Note that phase difference is replaced with angles. 
     # This record the angle of the rays so that after propagation, the angle can be used to find the entrance pupil. 
 
-    DrawRaybatch(objectSideRB, lineColor='yellow')
-    DrawRaybatch(imageSideRB)
-
     return objectSideRB, imageSideRB
 
 
