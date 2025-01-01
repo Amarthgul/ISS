@@ -11,10 +11,10 @@ from Util.Backend import GetBackend, constant
 from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal
 from Util.Globals import ZERO, ONE, TWO
 
+from ExampleLenses import Biotar50mm14
 
-def main():
-    GetBackend()
 
+def SurfaceTest():
     rp = RayPath()
 
     r = constant(20)
@@ -47,6 +47,19 @@ def main():
 
     plt.show()
 
+
+
+def main():
+
+    testLens = Biotar50mm14()
+    testLens.UpdateLens()
+
+    testLens.DrawSurfaces()
+
+    SetUnifScale(50)
+    AddXYZ()
+    plt.show()
+    
     
 
 

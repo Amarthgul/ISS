@@ -60,6 +60,9 @@ class Surface:
         """Position of the center of radius, vector (x, y, z)"""
         self.radiusCenter = None 
         
+        """Thickness or z location of the clear semi diameter edge, scaler t_sd"""
+        self.sdThickness = None
+
         """Local optical axis of the surface, vector (x, y, z)"""
         self._axis = OBJ_FACING
         # By default it is parallel to Z and facing object side
@@ -86,6 +89,8 @@ class Surface:
         self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
 
+        self.sdThickness = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+
 
     def SetVertices(self, frontVtx, radiusVtx):
         """
@@ -101,6 +106,10 @@ class Surface:
 
         self.cumulativeThickness = Magnitude(self.frontVertex - ORIGIN)
         self._axis = Normalized(self.frontVertex - self.radiusCenter)
+
+        # This semi diameter thickness might be inaccurate, due to potnetial transformation of the surface.
+        self.sdThickness = self.cumulativeThickness + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+        
 
         # TODO: add inverse transformation matrix calculation here 
 

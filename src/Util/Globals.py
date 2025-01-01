@@ -49,9 +49,9 @@ SOME_SML_CONST = 1e-10
 
 
 # Scalar contants for Cupy compatibility
-ZERO = bd.array(0)
-ONE = bd.array(1)
-TWO = bd.array(2)
+ZERO = bd.array(0.0)
+ONE = bd.array(1.0)
+TWO = bd.array(2.0)
 
 
 # Global variable for per spot sampling in image formation. 

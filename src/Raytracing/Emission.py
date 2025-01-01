@@ -18,7 +18,9 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO
+
+from Util.PlotTest import DrawRaybatch
 
 from .RayBatch import RayBatch 
 
@@ -212,6 +214,50 @@ def InitRays(r, sd, posP, wavelength = 550):
 """ ======================= Emit From Stop ===================== """
 # ==================================================================
 
+
+def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=20, wavelength = 550.0):
+    """
+    Emit rays from the center of the stop towards the object and image side.
+    The angle of the rays are determined by the edge of previous and next surface.
+    """
+    
+    stopCT = stopVertex[2]
+
+    objectSideTheta = bd.arctan(previousSD / bd.abs(previousSDT-stopCT))
+    imageSideTheta = bd.arctan(nextSD / bd.abs(nextSDT-stopCT))
+
+    # Determine the max angle of the rays
+    theta = objectSideTheta if (objectSideTheta < imageSideTheta) else imageSideTheta
+
+    angularSteps = bd.linspace(0, theta, numRays)
+    
+    vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
+
+    vertices = bd.tile(stopVertex, (vectors.shape[0], 1))
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[4] = stopIndex
+    temp = bd.tile(temp, (vectors.shape[0], 1))
+
+    # concatenate creates a new array so the two new arry should be independent of each other
+    objectSideRB = RayBatch(bd.concatenate([
+        vertices, 
+        -vectors, 
+        temp],
+    axis=1))
+    imageSideRB = RayBatch(bd.concatenate([
+        vertices, 
+        vectors, 
+        temp],
+    axis=1))
+
+    DrawRaybatch(objectSideRB)
+    DrawRaybatch(imageSideRB)
+
+    return objectSideRB, imageSideRB
 
 
 

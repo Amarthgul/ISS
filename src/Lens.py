@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-import Util.PlotTest as PlotTest
+from Util.PlotTest import DrawSpherical
+from Util.Backend import constant
+from Util.Backend import backend as bd 
 from Surfaces import Surface, Stop
-from Util.Misc import * 
-from Raytracing.RayBatch import * 
-from Material import * 
+from Raytracing.RayBatch import RayBatch
+from Raytracing.Emission import EmitFromStop 
 
 
 class Lens:
@@ -24,10 +25,8 @@ class Lens:
         
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
-
-        # Total length from first vertex to the last
-        self.totalLength = 0
         
+        self.totalAxialLength = None 
 
         self.lastSurfaceIndex = 0
 
@@ -46,12 +45,19 @@ class Lens:
         Including starting a ray trace and finds the entrance and exit pupil. 
         """
         
-        currentT = 0
+        currentT = constant(0.0)
 
-        for s in self.surfaces:
+        for i in range(len(self.surfaces)):
+            self.surfaces[i].SetCumulative(bd.copy(currentT))
+            if(i != len(self.surfaces)-1):
+                # The last surface's thickness of a lens is not useful for the lens 
+                currentT += self.surfaces[i].thickness
+            self.lastSurfaceIndex = i
 
-            currentT += s.thickness
+        # Total axial length, counting from the first surface vertex to the last  
+        self.totalAxialLength = currentT
 
+        # make sure the surfaces are already set before calling init ray tracing 
         self.InitRayTracing() 
 
 
@@ -59,7 +65,37 @@ class Lens:
         """
         At the position of the stop, start a ray tracing and try to find the pupils.
         """
-        pass 
+
+        # Sicne this method is only called once during setup, it is not written very efficiently.
+
+        objectSideRB = None 
+        imageSideRB = None
+        stopIndex = None # Array index of the stop among the surfaces 
+
+        for i in range(len(self.surfaces)):
+            if isinstance(self.surfaces[i], Stop):
+                objectSideRB, imageSideRB = EmitFromStop(
+                    i,
+                    self.surfaces[i].frontVertex,
+                    self.surfaces[i-1].clearSemiDiameter,
+                    self.surfaces[i+1].clearSemiDiameter,
+                    self.surfaces[i-1].sdThickness,
+                    self.surfaces[i+1].sdThickness
+                )
+                stopIndex = i
+                break
+
+
+
+    def DrawSurfaces(self):
+
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                DrawSpherical(
+                    self.surfaces[i].radius,
+                    self.surfaces[i].clearSemiDiameter,
+                    self.surfaces[i].cumulativeThickness
+                    )
 
 
 

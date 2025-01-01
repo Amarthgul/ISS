@@ -42,14 +42,14 @@ AX = Setup3Dplot()
 
 
 
-def AddXYZ(unitLength = 1, lineWidth = 2, ax=AX):
+def AddXYZ(unitLength = 10, lineWidth = 1, ax=AX):
     CheckAX()
     ax.plot([0, unitLength], [0, 0], [0, 0], label = '3D Line', color = 'r', linewidth = lineWidth)
     ax.plot([0, 0], [0, unitLength], [0, 0], label = '3D Line', color = 'g', linewidth = lineWidth)
     ax.plot([0, 0], [0, 0], [0, unitLength], label = '3D Line', color = 'b', linewidth = lineWidth)
     
 
-def SetUnifScale(lim = 6, ax=AX):
+def SetUnifScale(lim = 10, ax=AX):
     CheckAX()
     offsetScalar = zAxisCompensationFactor * lim
     ax.set_xlim(offsetScalar/2.0, -offsetScalar/2.0)
@@ -156,14 +156,14 @@ def DrawNormal(intersections, normals, lineColor='green', ax=AX):
               color=lineColor) 
 
         
-def DrawSpherical(radius, clearSemiDiameter, thickness, numPoints = 20, surfaceColor = "k", ax=AX):
+def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20, surfaceColor = "k", ax=AX):
     """
     Draw a spherical surface along the z axis. 
     
     :param ax: axis to draw on. 
     :param radius: radius of the spherical surface. 
     :param clearSemiDiameter: clear semi diameter. Surface will be trimed around it. 
-    :param thickness: Cumulative thickness from 1st surface. 
+    :param cumulativeThickness: Cumulative thickness from 1st surface. 
     :param numPoints: number of points, controls the subdivision of the surface. 
     :surfaceColor: color of the surface. 
     """
@@ -179,13 +179,14 @@ def DrawSpherical(radius, clearSemiDiameter, thickness, numPoints = 20, surfaceC
     
     x = radius * bd.sin(phi) * bd.cos(theta)
     y = radius * bd.sin(phi) * bd.sin(theta)
-    z = - bd.sign(radius) * (unsignedrRadius * bd.cos(phi) - unsignedrRadius) + thickness
+    z = - bd.sign(radius) * (unsignedrRadius * bd.cos(phi) - unsignedrRadius) + cumulativeThickness
         
     if(backend_name == "cupy"):
         x = bd.asnumpy(x)
         y = bd.asnumpy(y)
         z = bd.asnumpy(z)
-    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.25)
+
+    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.2)
 
 
 
