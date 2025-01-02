@@ -8,20 +8,20 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-from Util.PlotTest import DrawSpherical, DrawRaybatch
+from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ONE
+from Util.Globals import ONE, TWO
 from Surfaces import Surface, Stop
 from Material import Material
 from Raytracing.RayBatch import RayBatch
-from Raytracing.RayPath import RayPath
-from Raytracing.Emission import EmitFromStop 
+from Raytracing.Raypath import RayPath
+from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace
 
 
 class Lens:
     def __init__(self):
-        self.entrancePupilDia = 25 
+        self.entrancePupilDia = constant(25.0)
 
         self.surfaces = []
         self.env = Material("AIR") # The environment it is submerged in, air by default 
@@ -31,7 +31,7 @@ class Lens:
         
         self.totalAxialLength = None 
 
-        self.lastSurfaceIndex = 0
+        self._lastSurfaceIndex = 0
 
         self._temp = None # Variable for developing and not to be taken serieously 
 
@@ -54,7 +54,7 @@ class Lens:
             if(i != len(self.surfaces)-1):
                 # The last surface's thickness of a lens is not useful for the lens 
                 currentT += self.surfaces[i].thickness
-            self.lastSurfaceIndex = i
+            self._lastSurfaceIndex = i
 
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
@@ -68,17 +68,20 @@ class Lens:
         At the position of the stop, start a ray tracing and try to find the pupils, the principal planes and the nodal points.
         """
 
+        # Enable ray path for debugging
+        _EnableRayPath = True
+
         # Sicne this method is only called once during setup, it is not written very efficiently.
 
         objectSideRB = None 
         imageSideRB = None
         stopIndex = None # Array index of the stop among the surfaces 
 
-        
-        objectSideRP = RayPath()
-        imagesideRP = RayPath()
+        if(_EnableRayPath):
+            objectSideRP = RayPath()
+            imagesideRP = RayPath()
 
-        # Generate a raybatch from the center of the stop
+        # Find the stop and generate a raybatch from the center of it
         for i in range(len(self.surfaces)):
             if isinstance(self.surfaces[i], Stop):
                 objectSideRB, imageSideRB = EmitFromStop(
@@ -91,42 +94,73 @@ class Lens:
                     numRays=30
                 )
                 stopIndex = i
-                objectSideRP.Append(objectSideRB)
-                imagesideRP.Append(imageSideRB)
+                if(_EnableRayPath):
+                    objectSideRP.Append(objectSideRB)
+                    imagesideRP.Append(imageSideRB)
                 break
 
         # Propagate the rays through the lens in both directions
         for i in range(len(self.surfaces)):
-
             forwardIndex = stopIndex - i - 1
             backwardIndex = stopIndex + i + 1
 
             if(forwardIndex >= 0):
-                self.surfaces[forwardIndex].DrawSurface()
                 objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
                     objectSideRB, 
                     self._FindPreviousRI(forwardIndex, objectSideRB)
                     )
-                objectSideRP.Append(objectSideRB, _tir, _vig)
+                if (_EnableRayPath):
+                    objectSideRP.Append(objectSideRB, _tir, _vig)
                 
-            if(backwardIndex <= self.lastSurfaceIndex):
-                self.surfaces[backwardIndex].DrawSurface()
+            if(backwardIndex <= self._lastSurfaceIndex):
                 imageSideRB, _tir, _vig = self.surfaces[backwardIndex].NaiveTrace(
                     imageSideRB, 
                     self._FindPreviousRI(backwardIndex, imageSideRB, True)
                     )
-                imagesideRP.Append(imageSideRB, _tir, _vig)
+                if (_EnableRayPath):
+                    imagesideRP.Append(imageSideRB, _tir, _vig)
 
-        objectSideRP.PlotPath(expendEnd = 10)
-        imagesideRP.PlotPath(expendEnd = 10)
+        pos, dir = objectSideRP.ExitingPairs(True)
+        print("Exiting point: ", pos, "\n", dir)
+        DrawDirection(pos, dir, lineLength=30)
+        entPoint = objectSideRP.FindConvergingPoint(pos, dir)
+        print("Point of convergence: ", entPoint)
+        DrawPoint(entPoint)
+
+        if (_EnableRayPath):
+            frontRP = RayPath()
+
+        # Front projecting 
+        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO)
+        for i in range(len(self.surfaces)):
+            if(not isinstance(self.surfaces[i], Stop)):
+                self.surfaces[i].DrawSurface()
+                frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
+                    frontRB, 
+                    self._FindPreviousRI(i, frontRB)
+                )
+                if (_EnableRayPath):
+                    frontRP.Append(frontRB, _tir, _vig)
+
+        if (_EnableRayPath):
+            frontRP.PlotPath(expendEnd = 10)
 
 
     def DrawLens(self):
-
+        """
+        Iterate through the surfaces and draw them.
+        """
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
                 self.surfaces[i].drawSurface()
 
+
+    def SaveLens(self, path):
+        """
+        Save the lens and its parameters to an offline file. 
+        """
+
+        pass
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

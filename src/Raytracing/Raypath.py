@@ -13,11 +13,10 @@ from Util.PlotTest import DrawLines, DrawNormal
 
 class RayPath():
     def __init__(self):
-        self.value = []
+        self.position = []
+        self.direction = []
         self.reflected = []
         self.vignetted = []
-
-        self._direction = []
 
     def Append(self, raybatch, reflected = None, vignetted = None):
         """
@@ -28,20 +27,21 @@ class RayPath():
         :param vignetted: bool array of vignetted rays.
         """
 
-        if (self.value is None):
-            self.value = raybatch.Position()
-            self._direction = raybatch.Direction()
+        if (self.position is None):
+            # Position and direction should come in pairs and thus are recorded together.
+            self.position = raybatch.Position()
+            self.direction = raybatch.Direction()
         else:
-            self.value.append(raybatch.Position())
-            self._direction.append(raybatch.Direction())
+            self.position.append(raybatch.Position())
+            self.direction.append(raybatch.Direction())
 
         if (self.reflected is None):
-            self.reflected = bd.ones_like(self.value).astype(bd.bool_)
+            self.reflected = bd.ones_like(self.position).astype(bd.bool_)
         else:
             self.reflected.append(reflected)
 
         if(self.vignetted is None):
-            self.vignetted = bd.ones_like(self.value).astype(bd.bool_)
+            self.vignetted = bd.ones_like(self.position).astype(bd.bool_)
         else:
             self.vignetted.append(vignetted)
 
@@ -49,33 +49,93 @@ class RayPath():
     def PlotPath(self, expendEnd = 0.0):
         """
         Draw the path of the recorded rays. 
+
+        :param expendEnd: The length of the path after the last surface.
         """
         
-        if(len(self.value) <= 1):
+        if(len(self.position) <= 1):
             raise ValueError("The path is too short to plot.")
 
-        for i in range(len(self.value) - 1):
+        for i in range(len(self.position) - 1):
             # Bool filter out the rays that are vignetted or reflected 
             # so that both set of points have the same size 
             DrawLines(
-                self.value[i][~self.vignetted[i+1]][~self.reflected[i+1]],    
-                self.value[i+1], 
+                self.position[i][~self.vignetted[i+1]][~self.reflected[i+1]],    
+                self.position[i+1], 
                 lineColor = 'red', 
                 lineWidth = 0.5
             )
 
         # Draw the last point
         if(expendEnd > 0):
-            i = len(self.value)-1
+            i = len(self.position)-1
             DrawNormal(
-                self.value[i][~self.reflected[i]], 
-                self._direction[i][~self.reflected[i]], 
+                self.position[i][~self.reflected[i]], 
+                self.direction[i][~self.reflected[i]], 
                 lineColor = 'red',
                 lineLength = expendEnd
                 )
 
 
+    def ExitingPairs(self, invertDirection = False):
+        """
+        Get the exiting ray pairs.
+        """
+        if(invertDirection):
+            return self.position[-1], -self.direction[-1]
+        return self.position[-1], self.direction[-1]
 
+
+    def FindOutermost(self, position, direction):
+        """
+        Find the outermost rays that are not vignetted. 
+        """
+        
+
+        pass 
+
+
+    def FindConvergingPoint(self, position, direction):
+        """
+        Find the converging point of the exiting rays. 
+
+        :param position: array of ray positions on surfaces.
+        :param direction: array of ray directions corresponding to the positions.
+
+        :return: a single point towards which the rays are converging.
+        """
+        threshold = 1e-10
+        position = bd.where(bd.abs(position) < threshold, 0, position)
+
+        # A = bd.eye(3) * len(direction) - bd.dot(direction.T, direction)
+        # b = bd.sum(position - bd.dot(direction, bd.dot(direction.T, position)), axis=0)
+        
+        # closestPoint = bd.linalg.pinv(A).dot(b)
+
+        direction = direction / bd.linalg.norm(direction, axis=1, keepdims=True)
+
+        # Compute matrices
+        N = len(direction)
+        A = bd.eye(3) * N - bd.dot(direction.T, direction)
+        b = bd.sum(position - bd.dot(direction, bd.dot(direction.T, position)), axis=0)
+        
+        # Solve using pseudo-inverse for numerical stability
+        closestPoint = bd.linalg.pinv(A).dot(b)
+
+        return closestPoint
+
+
+    def FindAxialIntersection(self, position, direction):
+        """
+        Find the intersection between a ray and the optical axis (where x=y=0). 
+
+        :param position: array of ray positions on surfaces.
+        :param direction: array of ray directions corresponding to the positions.
+
+        :return: array point(s) of intersection, the array size is the same as input.
+        """
+
+        pass
 
 
 

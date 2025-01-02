@@ -8,14 +8,14 @@ from Material import Material
 
 class Stop(Surface):
     def __init__(self, t):
-        self.thickness = t
+        super().__init__(0, t, 0, "AIR")
         self.bladeShape = None
         self.bladeCount = 5
-        self.material = Material("AIR")
 
 
     def SetFNumber(self, fNum):
         pass 
+
 
     def SetCumulative(self, cumulativeT):
         """
@@ -28,4 +28,12 @@ class Stop(Surface):
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT]) 
 
         # The front vertex and the radius center are the same for a stop. 
+
+
+    def DrawSurface(self):
+        """
+        Stop does not have a surface to draw.
+        """
+        return
+
 

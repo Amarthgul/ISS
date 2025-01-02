@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from Lens import Lens 
 from Surfaces import Surface 
 from Raytracing import Emission 
-from Raytracing.RayPath import RayPath
+from Raytracing.Raypath import RayPath
 from Util.Backend import backend as bd
 from Util.Backend import GetBackend, constant
 from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal

@@ -39,13 +39,18 @@ INIT_PHASE_DIFF = 0
 
 
 # The threashold by which a raybatch will no longer propagate 
-RADIANT_KILL = 0.001
+RADIANT_KILL = bd.array(0.001)
 # Changing this could increase accuracy, at the cost of increase time 
 
 
 # Placeholder varible for arguments 
 SOME_BIG_CONST = 1024
 SOME_SML_CONST = 1e-10
+
+
+# Far distance is treated as 50m away from the lens
+FAR_DISTANCE = bd.array(50000.0)
+# This is treated as a pesudo infinity for the lens system.
 
 
 # Scalar contants for Cupy compatibility

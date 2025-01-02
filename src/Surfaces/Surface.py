@@ -123,6 +123,7 @@ class Surface:
 
 
     def DrawSurface(self):
+
         DrawSpherical(
             self.radius,
             self.clearSemiDiameter,

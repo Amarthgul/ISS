@@ -59,6 +59,8 @@ def SetUnifScale(lim = 10, ax=AX):
 
 def DrawPoint(point, ax=AX):
     CheckAX()
+    if(backend_name == "cupy"):
+        point = bd.asnumpy(point)
     ax.scatter3D(point[0], point[1], point[2])
 
 
@@ -146,6 +148,24 @@ def DrawNormal(intersections, normals, lineColor='green', lineLength=1, arrowRat
 
     x, y, z = intersections[:, 0], intersections[:, 1], intersections[:, 2]
     u, v, w = normals[:, 0], normals[:, 1], normals[:, 2]
+
+    q = ax.quiver(x, y, z, u, v, w,
+              length=lineLength,                # Increase arrow length
+              normalize=False,                  # Maintain relative vector sizes
+              arrow_length_ratio=arrowRatio,    # Smaller arrowhead
+              pivot='tail',                     # Arrows start at [x,y,z]
+              linewidths=0.5,                   # Thicker arrows
+              color=lineColor) 
+
+
+def DrawDirection(position, direction, lineColor='green', lineLength=5, arrowRatio=0.1, ax=AX):
+    CheckAX()
+    if(backend_name == "cupy"):
+        position = bd.asnumpy(position)
+        direction = bd.asnumpy(direction)
+
+    x, y, z = position[:, 0], position[:, 1], position[:, 2]
+    u, v, w = direction[:, 0], direction[:, 1], direction[:, 2]
 
     q = ax.quiver(x, y, z, u, v, w,
               length=lineLength,                # Increase arrow length
