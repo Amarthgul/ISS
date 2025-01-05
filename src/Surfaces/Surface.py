@@ -1,13 +1,13 @@
 
 
 from enum import Enum
-
+import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
 from Util.Misc import Magnitude, Normalized, ArrayNormalized
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
-from Util.PlotTest import DrawSpherical, DrawPoints
+from Util.PlotTest import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
 from Raytracing.RayBatch import RayBatch 
 from Material import Material 
@@ -63,9 +63,12 @@ class Surface:
         """Thickness or z location of the clear semi diameter edge, scaler t_sd"""
         self.sdThickness = None
 
-        """Local optical axis of the surface, vector (x, y, z)"""
+        """Local optical axis of the surface, normalized vector (x, y, z)"""
         self._axis = OBJ_FACING
         # By default it is parallel to Z and facing object side
+
+        """Vector poinring from radius center to the front vertex"""
+        self._radiusDirection = None
 
         """Inverse transform matrix to offset the incident when the surface is off axis"""
         self._inverseTransform = bd.identity(4)
@@ -88,6 +91,7 @@ class Surface:
         self.cumulativeThickness = cumulativeT
         self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
+        self._radiusDirection = self.frontVertex - self.radiusCenter
 
         self.sdThickness = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
 
@@ -103,6 +107,7 @@ class Surface:
 
         self.frontVertex = frontVtx
         self.radiusCenter = radiusVtx
+        self._radiusDirection = self.frontVertex - self.radiusCenter
 
         self.cumulativeThickness = Magnitude(self.frontVertex - ORIGIN)
         self._axis = Normalized(self.frontVertex - self.radiusCenter)
@@ -110,8 +115,7 @@ class Surface:
         # This semi diameter thickness might be inaccurate, due to potnetial transformation of the surface.
         self.sdThickness = self.cumulativeThickness + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
         
-
-        # TODO: add inverse transformation matrix calculation here 
+        # TODO: add inverse transformation matrix calculation 
 
 
     # ==============================================================
@@ -130,6 +134,7 @@ class Surface:
             self.cumulativeThickness
             )
 
+
     def Intersection(self, incomingRaybatch):
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
@@ -138,6 +143,9 @@ class Surface:
 
         :return: An array of intersections, a bull secondary array, the bool array of vingetted. 
         """
+
+        # TODO: add case for when radius is infinity 
+
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
 
@@ -159,17 +167,24 @@ class Surface:
         # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
         intersetIndices = discriminant > 0
 
-        # For non sequential, the sign of the radius and the direction of the ray matters. Thus the sign check. 
-        signBias = constant(-1.0) if (bd.sign(self.radius) != bd.sign(direction[0, 2])) else constant(1.0)
-
         # Calculate t values
-        t = (-b[intersetIndices] - signBias * bd.sqrt(discriminant[intersetIndices])) / (TWO * a[intersetIndices])
+        t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
+        t2 = (-b + bd.sqrt(discriminant)) / (TWO * a)
+
+        # This t value is to determine which side of the spherical surface is the right intersection 
+        t = t1 
+        mask = bd.sign(self.radius) != bd.sign(direction[:, 2])
+        t[mask] = t2[mask]
 
         # Intersection points
-        p = position[intersetIndices] + t[:, bd.newaxis] * direction[intersetIndices]
+        p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
 
-        # Out of the intersections, some will be outside of this surface, select only the ones that do land on the surface
+        # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
         clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
+
+        # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
+        clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
+
         intersetIndices[intersetIndices] = clear
 
         return p[clear], None, ~intersetIndices
@@ -199,7 +214,12 @@ class Surface:
 
     def RayReaction(self, incidentRaybatch):
         """
-        Deal with all the reactions the rays have upon reaching the surface. 
+        Deal with all the reactions the rays have upon reaching the surface. This includes: 
+        - Refraction. 
+        - Reflection. 
+        - Vignette.
+        - Scattering. 
+        - Color shift. 
         """
 
         
@@ -221,10 +241,22 @@ class Surface:
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
 
-        # For non sequential, the sign of the radius and the direction of the ray matters. Thus the sign check.
-        signBias = constant(-1.0) if (bd.sign(self.radius) != bd.sign(incidentRaybatch.Direction()[0][2])) else constant(1.0)
+        DrawPoints(intersections)
+        #self.DrawSurface() # Draw call=========
+        #DrawDirection(position, direction) # Draw call=========
         
-        normals = signBias * self.Normal(intersections)
+
+        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
+        
+        normals = self.Normal(intersections)
+
+        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+
+        #DrawRaybatch(incidentRaybatch) # Draw call=========
+        #DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
+        #plt.draw() # Draw call=========
+        #plt.pause(10) # Draw call=========
         
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]

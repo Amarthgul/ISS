@@ -240,7 +240,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
     # Determine the max angle of the rays
     theta = objectSideTheta if (objectSideTheta < imageSideTheta) else imageSideTheta
 
-    angularSteps = bd.linspace(0, theta, numRays)
+    angularSteps = bd.linspace(-theta, theta, numRays)
     
     vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
 
@@ -293,7 +293,7 @@ def EmitFromObjectSpace(firstSurfaceSD, planar=True, numRays=21, wavelength = 55
     if(planar):
         # Emit rays along the y plane
         y_values = bd.linspace(firstSurfaceSD, -firstSurfaceSD, numRays)
-        position = bd.array([[ZERO, y, FAR_DISTANCE] for y in y_values])
+        position = bd.array([[ZERO, y, bd.array(-0.2)] for y in y_values])
     else: 
         position = RandomEllipticalDistribution(samplePoints=20) * firstSurfaceSD
 

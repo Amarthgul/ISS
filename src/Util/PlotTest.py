@@ -89,8 +89,6 @@ def DrawLines(pointSetOne, pointSetTwo, lineColor = "k", lineWidth = 0.5, zorder
     from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
     CheckAX() 
-    x, y, z = pointSetOne[:, 0], pointSetOne[:, 1], pointSetOne[:, 2]
-    u, v, w = pointSetTwo[:, 0], pointSetTwo[:, 1], pointSetTwo[:, 2]
     start = pointSetOne  # [x_start, y_start, z_start]
     end = pointSetTwo    # [x_end, y_end, z_end]
 
@@ -140,7 +138,7 @@ def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
               color=lineColor) 
 
 
-def DrawNormal(intersections, normals, lineColor='green', lineLength=1, arrowRatio=0.1, ax=AX):
+def DrawNormal(intersections, normals, lineColor='green', lineLength=1, lineWidths = 0.5, arrowRatio=0.1, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         intersections = bd.asnumpy(intersections)
@@ -154,7 +152,7 @@ def DrawNormal(intersections, normals, lineColor='green', lineLength=1, arrowRat
               normalize=False,                  # Maintain relative vector sizes
               arrow_length_ratio=arrowRatio,    # Smaller arrowhead
               pivot='tail',                     # Arrows start at [x,y,z]
-              linewidths=0.5,                   # Thicker arrows
+              linewidths=lineWidths,            
               color=lineColor) 
 
 

@@ -73,6 +73,7 @@ class Lens:
 
         # Sicne this method is only called once during setup, it is not written very efficiently.
 
+
         objectSideRB = None 
         imageSideRB = None
         stopIndex = None # Array index of the stop among the surfaces 
@@ -103,29 +104,36 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = stopIndex - i - 1
             backwardIndex = stopIndex + i + 1
-
+            print("Currently in ", i, " th iteration")
             if(forwardIndex >= 0):
+                #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
                     objectSideRB, 
                     self._FindPreviousRI(forwardIndex, objectSideRB)
                     )
                 if (_EnableRayPath):
                     objectSideRP.Append(objectSideRB, _tir, _vig)
+                #DrawRaybatch(objectSideRB) # Draw call=========
                 
             if(backwardIndex <= self._lastSurfaceIndex):
+                #self.surfaces[backwardIndex].DrawSurface() # Draw call=========
                 imageSideRB, _tir, _vig = self.surfaces[backwardIndex].NaiveTrace(
                     imageSideRB, 
                     self._FindPreviousRI(backwardIndex, imageSideRB, True)
                     )
                 if (_EnableRayPath):
                     imagesideRP.Append(imageSideRB, _tir, _vig)
+                #DrawRaybatch(imageSideRB) # Draw call=========
+
+            #plt.draw()
+            #plt.pause(5)
 
         pos, dir = objectSideRP.ExitingPairs(True)
         print("Exiting point: ", pos, "\n", dir)
-        DrawDirection(pos, dir, lineLength=30)
+        #DrawDirection(pos, dir, lineLength=30) # Draw call=========
         entPoint = objectSideRP.FindConvergingPoint(pos, dir)
         print("Point of convergence: ", entPoint)
-        DrawPoint(entPoint)
+        #DrawPoint(entPoint) # Draw call=========
 
         if (_EnableRayPath):
             frontRP = RayPath()
@@ -134,7 +142,7 @@ class Lens:
         frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO)
         for i in range(len(self.surfaces)):
             if(not isinstance(self.surfaces[i], Stop)):
-                self.surfaces[i].DrawSurface()
+                self.surfaces[i].DrawSurface() # Draw call=========
                 frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
                     frontRB, 
                     self._FindPreviousRI(i, frontRB)
@@ -142,8 +150,13 @@ class Lens:
                 if (_EnableRayPath):
                     frontRP.Append(frontRB, _tir, _vig)
 
+
+
         if (_EnableRayPath):
-            frontRP.PlotPath(expendEnd = 10)
+            #frontRP.PlotPath(expendEnd = 10)
+            imagesideRP.PlotPath(expendEnd = 10)
+            objectSideRP.PlotPath(expendEnd = 10)
+            pass 
 
 
     def DrawLens(self):
