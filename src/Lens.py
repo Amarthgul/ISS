@@ -92,7 +92,7 @@ class Lens:
                     self.surfaces[i+1].clearSemiDiameter,
                     self.surfaces[i-1].sdThickness,
                     self.surfaces[i+1].sdThickness, 
-                    numRays=30
+                    numRays=40
                 )
                 stopIndex = i
                 if(_EnableRayPath):
@@ -130,10 +130,10 @@ class Lens:
 
         pos, dir = objectSideRP.ExitingPairs(True)
         print("Exiting point: ", pos, "\n", dir)
-        #DrawDirection(pos, dir, lineLength=30) # Draw call=========
+        DrawDirection(pos, dir, lineLength=30) # Draw call=========
         entPoint = objectSideRP.FindConvergingPoint(pos, dir)
         print("Point of convergence: ", entPoint)
-        #DrawPoint(entPoint) # Draw call=========
+        DrawPoint(entPoint) # Draw call=========
 
         if (_EnableRayPath):
             frontRP = RayPath()
@@ -154,8 +154,8 @@ class Lens:
 
         if (_EnableRayPath):
             #frontRP.PlotPath(expendEnd = 10)
-            imagesideRP.PlotPath(expendEnd = 10)
-            objectSideRP.PlotPath(expendEnd = 10)
+            #imagesideRP.PlotPath(expendEnd = 10)
+            #objectSideRP.PlotPath(expendEnd = 10)
             pass 
 
 

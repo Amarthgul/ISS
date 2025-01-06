@@ -241,7 +241,7 @@ class Surface:
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
 
-        DrawPoints(intersections)
+        #DrawPoints(intersections)
         #self.DrawSurface() # Draw call=========
         #DrawDirection(position, direction) # Draw call=========
         

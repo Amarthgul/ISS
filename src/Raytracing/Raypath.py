@@ -104,25 +104,17 @@ class RayPath():
 
         :return: a single point towards which the rays are converging.
         """
-        threshold = 1e-10
-        position = bd.where(bd.abs(position) < threshold, 0, position)
 
-        # A = bd.eye(3) * len(direction) - bd.dot(direction.T, direction)
-        # b = bd.sum(position - bd.dot(direction, bd.dot(direction.T, position)), axis=0)
+        # The following genius code are provided by 
+        # https://stackoverflow.com/users/654602/tyler-fox 
+
+        da = (direction * position).sum(axis=-1, keepdims=True)
+        b = (direction * da - position).sum(axis=0)
+        c, d = position.shape
+        m = bd.inner(direction.T, direction.T) - bd.diag(bd.full(d, c))
+
+        return bd.linalg.solve(m, b)
         
-        # closestPoint = bd.linalg.pinv(A).dot(b)
-
-        direction = direction / bd.linalg.norm(direction, axis=1, keepdims=True)
-
-        # Compute matrices
-        N = len(direction)
-        A = bd.eye(3) * N - bd.dot(direction.T, direction)
-        b = bd.sum(position - bd.dot(direction, bd.dot(direction.T, position)), axis=0)
-        
-        # Solve using pseudo-inverse for numerical stability
-        closestPoint = bd.linalg.pinv(A).dot(b)
-
-        return closestPoint
 
 
     def FindAxialIntersection(self, position, direction):
