@@ -1,12 +1,13 @@
 
 """
-This module records the path of the rays so that some debugging and inpection features are eaiser to perform. 
+This module records the path of the rays so that some debugging and inpection features are eaiser to perform. It also helps in establishing the parameters of the lens. 
 
 It is not recommended to use this module in the ray tracing process of production imagings as it may signicantly increase the computational cost and memory usage.
 
 """
 
 from Util.Backend import backend as bd
+from Util.Globals import ZERO, NEAR_ZERO
 from Util.PlotTest import DrawLines, DrawNormal
 
 
@@ -100,7 +101,7 @@ class RayPath():
         Find the converging point of the exiting rays. 
 
         :param position: array of ray positions on surfaces.
-        :param direction: array of ray directions corresponding to the positions.
+        :param direction: array of ray directions corresponding to the positions, must be normalized.
 
         :return: a single point towards which the rays are converging.
         """
@@ -113,9 +114,13 @@ class RayPath():
         c, d = position.shape
         m = bd.inner(direction.T, direction.T) - bd.diag(bd.full(d, c))
 
-        return bd.linalg.solve(m, b)
-        
+        # This calculation will return non zero for on axis results, 
+        # thus needing to replace small numbers with 0 
+        threshold = NEAR_ZERO
+        solved = bd.linalg.solve(m, b) 
 
+        return bd.where(bd.abs(solved) < threshold, ZERO, solved)
+        
 
     def FindAxialIntersection(self, position, direction):
         """
@@ -130,7 +135,15 @@ class RayPath():
         pass
 
 
+    def DepthIntersect(self, zDepth):
+        """
+        Try to find the ray intersections of rays at given z depth. 
 
+        """
+
+        
+
+        pass 
 
 
 

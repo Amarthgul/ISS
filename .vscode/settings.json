@@ -1,6 +1,6 @@
 {
-    "python.analysis.extraPaths": ["${workspaceFolder}/src/"]
-
+    "python.analysis.extraPaths": ["${workspaceFolder}/src/"],
+    "editor.inlineSuggest.enabled": true,
     "files.exclude": {
         "**/__pycache__": true
     }

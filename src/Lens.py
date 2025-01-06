@@ -135,6 +135,8 @@ class Lens:
         print("Point of convergence: ", entPoint)
         DrawPoint(entPoint) # Draw call=========
 
+        
+
         if (_EnableRayPath):
             frontRP = RayPath()
 

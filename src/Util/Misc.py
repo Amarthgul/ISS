@@ -3,7 +3,7 @@
 import math
 
 from .Backend import backend as bd 
-from .Globals import RNG, SOME_SML_CONST, LambdaLines, RefreshRNG
+from .Globals import RNG, NEAR_ZERO, LambdaLines, RefreshRNG
 
 
 # ==================================================================
@@ -52,7 +52,7 @@ def ArrayNormalized(inputVec):
 
 
 def Partition(inputVec):
-    return inputVec / (bd.sum(inputVec) + SOME_SML_CONST)
+    return inputVec / (bd.sum(inputVec) + NEAR_ZERO)
 
 
 def Minus90(inputRadian):
