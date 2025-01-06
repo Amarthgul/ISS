@@ -3,6 +3,7 @@
 from enum import Enum
 
 from Util.Backend import backend as bd 
+from Util.Backend import backend_name
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
 
 from .Surface import Surface
@@ -37,6 +38,15 @@ class Pupil(VirtualSurface):
 
         self.diameter = None 
 
-        self._heights = []
+        self._height = []
         self._zDepth = []
+
+        def AddSamplePoint(self, point):
+            if (backend_name == 'cupy'):
+                import cupy as cp
+                if(isinstance(point, cp.ndarray)):
+                    point = point.tonumpy()
+
+            self._zDepth.append(point[2].asnumpy())
+            self._height.append([])
 
