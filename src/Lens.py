@@ -8,10 +8,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection
+from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ONE, TWO
+from Util.Globals import ONE, TWO, Axis
+from Util.Misc import AxialDistance
 from Surfaces import Surface, Stop
 from Material import Material
 from Raytracing.RayBatch import RayBatch
@@ -21,7 +22,7 @@ from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace
 
 class Lens:
     def __init__(self):
-        self.entrancePupilDia = constant(25.0)
+        self.entrancePupilDia = constant(25)
 
         self.surfaces = []
         self.env = Material("AIR") # The environment it is submerged in, air by default 
@@ -134,13 +135,14 @@ class Lens:
         entPoint = objectSideRP.FindConvergingPoint(pos, dir)
         print("Point of convergence: ", entPoint)
         DrawPoint(entPoint) # Draw call=========
+        
 
 
         if (_EnableRayPath):
             frontRP = RayPath()
 
         # Front projecting 
-        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO)
+        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO, numRays=60)
         for i in range(len(self.surfaces)):
             if(not isinstance(self.surfaces[i], Stop)):
                 self.surfaces[i].DrawSurface() # Draw call=========
@@ -151,7 +153,12 @@ class Lens:
                 if (_EnableRayPath):
                     frontRP.Append(frontRB, _tir, _vig)
 
+        frontRP.DrawPath(10.0)
+        zIntersections = frontRP.DepthIntersect(entPoint[2], self.surfaces)
+        DrawPoints(zIntersections)
+        pupilDiameter = AxialDistance(zIntersections, Axis.Y.value)
 
+        print("Dia pupils: ", pupilDiameter)
 
         if (_EnableRayPath):
             #frontRP.PlotPath(expendEnd = 10)

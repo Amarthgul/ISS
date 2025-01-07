@@ -17,13 +17,15 @@ def Biotar50mm14():
     biotar.AddSurface(Surface(160.5,    0.825,      18))
     biotar.AddSurface(Surface(22.4,	    7.775,      16,     "SK10"))
     biotar.AddSurface(Surface(-575,	    2.525,      16,     "LZ_LF5"))
-    biotar.AddSurface(Surface(14.15,	5.45,       11))
+    biotar.AddSurface(Surface(14.15,	5.45,       11.25))
     biotar.AddSurface(Stop(             4))
-    biotar.AddSurface(Surface(-19.25,	2.525,      11,     "SF5"))
+    biotar.AddSurface(Surface(-19.25,	2.525,      11.25,     "SF5"))
     biotar.AddSurface(Surface(25.25,	10.61,      14,     "BAF9"))
     biotar.AddSurface(Surface(-26.6,	0.485,      14))
     biotar.AddSurface(Surface(53, 	    6.95,       14.5,   "BAF9"))
     biotar.AddSurface(Surface(-60,	    32.3552,    14.5))
+
+    biotar.entrancePupilDia = 35.714
 
     return biotar 
 

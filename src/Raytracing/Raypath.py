@@ -19,6 +19,7 @@ class RayPath():
         self.reflected = []
         self.vignetted = []
 
+
     def Append(self, raybatch, reflected = None, vignetted = None):
         """
         Append a raybatch to the path. 
@@ -47,7 +48,7 @@ class RayPath():
             self.vignetted.append(vignetted)
 
 
-    def PlotPath(self, expendEnd = 0.0):
+    def DrawPath(self, expendEnd = 0.0):
         """
         Draw the path of the recorded rays. 
 
@@ -135,17 +136,51 @@ class RayPath():
         pass
 
 
-    def DepthIntersect(self, zDepth):
+    def DepthIntersect(self, zDepth, surfaces):
         """
         Try to find the ray intersections of rays at given z depth. 
 
         """
 
+        for i in range(len(surfaces)):
+            ct = surfaces[i].cumulativeThickness
+            t = surfaces[i].thickness
+            if(zDepth > ct and zDepth < (t+ct)):
+                intersections = self._zPlaneIntersections(
+                    zDepth, 
+                    self.position[i], 
+                    self.direction[i])
+
+        return intersections
+
         
 
-        pass 
+    def _zPlaneIntersections(self, zDepth, positions, directions):
+        """
+        Calculate the intersections between rays (vectors from points) and a 3D plane in square shape.
+        :param surfaceIndex: the index of the surface to intersect. 
+        """
 
+        # TODO: add tilt shift support here
+        imager_normal = bd.array([0, 0, -1])
+        plane_point = bd.array([ZERO, ZERO, zDepth])
+        
+        # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
+        d = -bd.dot(imager_normal, plane_point)
 
+        # Calculate dot product of direction vectors with the plane normal
+        denom = bd.dot(directions, imager_normal)
+        
+        # Avoid division by zero (for parallel rays)
+        # valid_rays = (denom != 0)
+
+        # For valid rays, calculate t where the intersection occurs
+        t = -(bd.dot(positions, imager_normal) + d) / denom
+        
+        # Calculate the intersection points
+        intersections = positions + t[:, bd.newaxis] * directions
+
+        return intersections  
 
 
 

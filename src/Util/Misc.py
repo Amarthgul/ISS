@@ -3,7 +3,7 @@
 import math
 
 from .Backend import backend as bd 
-from .Globals import RNG, NEAR_ZERO, LambdaLines, RefreshRNG
+from .Globals import RNG, NEAR_ZERO, LambdaLines, RefreshRNG, Axis
 
 
 # ==================================================================
@@ -173,6 +173,29 @@ def angleBetweenVectors(v1, v2, use_degrees = False):
         bd.degrees(angle_radians)
     else:
         return angle_radians
+
+
+def AxialDistance(vectors, axis):
+    """
+    Calculate the distance between the max and min values of 3D vectors along a specified axis.
+
+    Parameters:
+    vectors (ndarray): N x 3 array of 3D vectors.
+    axis (str): Axis to calculate the distance ('x', 'y', 'z').
+
+    Returns:
+    float: Distance between max and min values along the specified axis.
+    """
+
+    # Extract the relevant column for the specified axis
+    axis_values = vectors[:, axis]
+    
+    # Calculate max and min along the axis
+    max_value = bd.max(axis_values)
+    min_value = bd.min(axis_values)
+    
+    # Calculate and return the distance
+    return max_value - min_value
 
 
 # ==================================================================

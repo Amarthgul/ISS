@@ -81,6 +81,7 @@ OBJ_FACING = bd.array([0, 0, -1])
 """ ======================== Definitions ======================= """
 # ==================================================================
 
+
 # Fraunhofer symbols used in imager wavelength-RGB conversion 
 # and material RI and Abbe calculation 
 LambdaLines = {
@@ -101,7 +102,10 @@ LambdaLines = {
 }
 
 
-
+class Axis(Enum):
+    X = 0
+    Y = 1
+    Z = 1
 
 
 

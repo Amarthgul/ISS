@@ -5,6 +5,7 @@ from enum import Enum
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
+from Util.Misc import Normalized
 
 from .Surface import Surface
 
@@ -36,17 +37,16 @@ class Pupil(VirtualSurface):
         self.symmetryType = SymmetryType.Axial
         # By default the pupil is axial symmetric 
 
-        self.diameter = None 
+        self.clearSemiDiameter = None 
 
         self._height = []
         self._zDepth = []
 
         def AddSamplePoint(self, point):
-            if (backend_name == 'cupy'):
-                import cupy as cp
-                if(isinstance(point, cp.ndarray)):
-                    point = point.tonumpy()
+            self._zDepth.append(point[2])
+            self._height.append(Normalized(bd.array([point[0], point[1]])))
 
-            self._zDepth.append(point[2].asnumpy())
-            self._height.append([])
+
+        def DrawSurface(self):
+            pass 
 
