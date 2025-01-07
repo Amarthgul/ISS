@@ -18,7 +18,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, FAR_DISTANCE
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis
 
 from Util.PlotTest import DrawRaybatch
 
@@ -278,7 +278,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 """ =================== Emit From Object Space ================= """
 # ==================================================================
 
-def EmitFromObjectSpace(firstSurfaceSD, planar=True, numRays=21, wavelength = 550.0):
+def EmitFromObjectSpace(SD, numRays=21, wavelength = 550.0, planar=True, denseEdge=True):
     """
     Emit rays from the object space infinitely towards the 1st surface of the lens.
 
@@ -290,12 +290,18 @@ def EmitFromObjectSpace(firstSurfaceSD, planar=True, numRays=21, wavelength = 55
     :return: a RayBatch object pointing from infinite object space to the 1st surface.
     """
 
+    k = 4
+
     if(planar):
         # Emit rays along the y plane
-        y_values = bd.linspace(firstSurfaceSD, -firstSurfaceSD, numRays)
+        y_values = bd.linspace(1, -1, numRays)
         position = bd.array([[ZERO, y, bd.array(-0.2)] for y in y_values])
     else: 
-        position = RandomEllipticalDistribution(samplePoints=20) * firstSurfaceSD
+        position = RandomEllipticalDistribution(samplePoints=20) 
+
+    if (denseEdge):
+        position[:, Axis.Y.value] = bd.tanh(k * position[:, Axis.Y.value])
+    position[:, Axis.Y.value] *= SD
 
     direction = bd.tile(bd.array([ZERO, ZERO, ONE]), (numRays, 1))
 

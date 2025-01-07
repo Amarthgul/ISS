@@ -7,7 +7,7 @@ It is not recommended to use this module in the ray tracing process of productio
 """
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, NEAR_ZERO
+from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING
 from Util.PlotTest import DrawLines, DrawNormal
 
 
@@ -136,24 +136,29 @@ class RayPath():
         pass
 
 
-    def DepthIntersect(self, zDepth, surfaces):
+    def DepthIntersect(self, zDepthPoint):
         """
         Try to find the ray intersections of rays at given z depth. 
 
         """
 
-        for i in range(len(surfaces)):
-            ct = surfaces[i].cumulativeThickness
-            t = surfaces[i].thickness
-            if(zDepth > ct and zDepth < (t+ct)):
-                intersections = self._zPlaneIntersections(
-                    zDepth, 
-                    self.position[i], 
-                    self.direction[i])
+        posCount = len(self.position)
+        intersections = bd.array([])
+
+        for i in range(posCount):
+            print("In ", i, " th iter")
+            if(i < posCount-1):
+                thisPos = self.position[i][~self.vignetted[i+1]]
+                nextPos = self.position[i+1]
+                temp = self._LineSegmentIntersection(
+                        thisPos, nextPos, 
+                        zDepthPoint, OBJ_FACING
+                    )
+                if(len(temp > 0)):
+                    bd.concatenate(intersections, temp)
 
         return intersections
 
-        
 
     def _zPlaneIntersections(self, zDepth, positions, directions):
         """
@@ -181,6 +186,27 @@ class RayPath():
         intersections = positions + t[:, bd.newaxis] * directions
 
         return intersections  
+
+
+    def _LineSegmentIntersection(self, P1, P2, plane_point, plane_normal):
+        # Calculate direction vectors for all line segments
+        line_direction = P2 - P1
+        
+        # Calculate the dot product for numerator and denominator (vectorized)
+        numerator = bd.dot((plane_point - P1), plane_normal)
+        denominator = bd.dot(line_direction, plane_normal)
+        
+        # Handle parallel lines (denominator close to zero)
+        parallel_mask = bd.abs(denominator) < NEAR_ZERO
+        t = numerator[~parallel_mask] / denominator[~parallel_mask]
+        
+        # Calculate intersection points
+        intersection_points = P1 + t[:, bd.newaxis] * line_direction
+
+        # Mask out invalid intersections
+        intersection_points[(t < 0) | (t > 1) | parallel_mask] = bd.nan
+        
+        return intersection_points[~bd.any(bd.isnan(intersection_points), axis=1)]
 
 
 
