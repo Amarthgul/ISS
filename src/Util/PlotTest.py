@@ -40,6 +40,19 @@ AX = Setup3Dplot()
 """ ============================================================ """
 # ==================================================================
 
+def RemoveBG(ax=AX):
+    ax.grid(False)  # Remove grid
+    ax.set_xticks([])  # Remove x ticks
+    ax.set_yticks([])  # Remove y ticks
+    ax.set_zticks([])  # Remove z ticks
+
+    ax.xaxis.line.set_color("w")
+    ax.yaxis.line.set_color("w")
+    ax.zaxis.line.set_color("w")
+    # Optional: Remove background panels
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
 
 
 def AddXYZ(unitLength = 10, lineWidth = 1, ax=AX):

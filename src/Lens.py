@@ -154,11 +154,11 @@ class Lens:
                     frontRP.Append(frontRB, _tir, _vig)
 
         frontRP.DrawPath(10.0)
-        zIntersections = frontRP.DepthIntersect(entPoint)
-        DrawPoints(zIntersections)
-        pupilDiameter = AxialDistance(zIntersections, Axis.Y.value)
+        #zIntersections = frontRP.DepthIntersect(entPoint)
+        #DrawPoints(zIntersections)
+        #pupilDiameter = AxialDistance(zIntersections, Axis.Y.value)
 
-        print("Dia pupils: ", pupilDiameter)
+        #print("Dia pupils: ", pupilDiameter)
 
         if (_EnableRayPath):
             #frontRP.PlotPath(expendEnd = 10)

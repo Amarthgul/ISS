@@ -8,7 +8,7 @@ from Raytracing import Emission
 from Raytracing.Raypath import RayPath
 from Util.Backend import backend as bd
 from Util.Backend import GetBackend, constant
-from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal
+from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG
 from Util.Globals import ZERO, ONE, TWO
 
 from ExampleLenses import Biotar50mm14
@@ -59,7 +59,7 @@ def main():
 
     #testLens.DrawLens()
 
-    
+    #RemoveBG()
     plt.show()
     
     

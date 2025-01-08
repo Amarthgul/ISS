@@ -237,6 +237,7 @@ class Material:
 def main():
     newglass = Material("E-KZFH1")
     newglass.DrawRI()
+    print(newglass.coef)
 
  
 if __name__ == "__main__":
