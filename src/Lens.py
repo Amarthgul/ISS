@@ -14,6 +14,7 @@ from Util.Backend import backend as bd
 from Util.Globals import ONE, TWO, Axis
 from Util.Misc import AxialDistance
 from Surfaces import Surface, Stop
+from Surfaces.Pupil import Pupil
 from Material import Material
 from Raytracing.RayBatch import RayBatch
 from Raytracing.Raypath import RayPath
@@ -30,6 +31,8 @@ class Lens:
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
         
+        self.entrancePupil = Pupil() 
+
         self.totalAxialLength = None 
 
         self._lastSurfaceIndex = 0
@@ -47,7 +50,9 @@ class Lens:
         Iterate throught the elements and update their relative parameters. 
         Including starting a ray trace and finds the entrance and exit pupil. 
         """
-        
+        self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
+
+
         currentT = constant(0.0)
 
         for i in range(len(self.surfaces)):
@@ -105,7 +110,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = stopIndex - i - 1
             backwardIndex = stopIndex + i + 1
-            print("Currently in ", i, " th iteration")
+            #print("Currently in ", i, " th iteration")
             if(forwardIndex >= 0):
                 #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
@@ -130,18 +135,17 @@ class Lens:
             #plt.pause(5)
 
         pos, dir = objectSideRP.ExitingPairs(True)
-        print("Exiting point: ", pos, "\n", dir)
         DrawDirection(pos, dir, lineLength=30) # Draw call=========
         entPoint = objectSideRP.FindConvergingPoint(pos, dir)
-        print("Point of convergence: ", entPoint)
-        DrawPoint(entPoint) # Draw call=========
+        self.entrancePupil.AddSamplePoint(entPoint)
+        self.entrancePupil.DrawSurface()
         
 
 
         if (_EnableRayPath):
             frontRP = RayPath()
 
-        # Front projecting 
+        # Principal plane 
         frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO, numRays=60)
         for i in range(len(self.surfaces)):
             if(not isinstance(self.surfaces[i], Stop)):
@@ -154,11 +158,10 @@ class Lens:
                     frontRP.Append(frontRB, _tir, _vig)
 
         frontRP.DrawPath(10.0)
-        #zIntersections = frontRP.DepthIntersect(entPoint)
-        #DrawPoints(zIntersections)
-        #pupilDiameter = AxialDistance(zIntersections, Axis.Y.value)
+        zIntersections = frontRP.DepthIntersect(entPoint)
+        pupilPlaneDiameter = AxialDistance(zIntersections, Axis.Y.value)
 
-        #print("Dia pupils: ", pupilDiameter)
+        print("Dia pupils: ", pupilPlaneDiameter)
 
         if (_EnableRayPath):
             #frontRP.PlotPath(expendEnd = 10)

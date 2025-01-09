@@ -138,15 +138,18 @@ class RayPath():
 
     def DepthIntersect(self, zDepthPoint):
         """
-        Try to find the ray intersections of rays at given z depth. 
+        Try to find the intersections of entire raypath at given z depth. 
 
+        :param zDepthPoint: point whose z location will be used for calculation. 
+
+        :return: set of verteices what interset at the depth, if any. 
         """
 
         posCount = len(self.position)
         intersections = bd.array([])
 
+        # Since a plane can cover several surfaces, iterate through all the segments 
         for i in range(posCount):
-            print("In ", i, " th iter")
             if(i < posCount-1):
                 thisPos = self.position[i][~self.vignetted[i+1]]
                 nextPos = self.position[i+1]
@@ -154,8 +157,16 @@ class RayPath():
                         thisPos, nextPos, 
                         zDepthPoint, OBJ_FACING
                     )
-                if(len(temp > 0)):
-                    bd.concatenate(intersections, temp)
+
+                # For non intersects this returns Nan array, check for not Nan entries
+                naNan = temp[~bd.any(bd.isnan(temp), axis=1)]
+
+                # Concatenate array if there are non Nan entries 
+                if(len(naNan) > 0):
+                    if(len(intersections)==0):
+                        intersections = naNan.copy()
+                    else: 
+                        intersections = bd.concatenate((intersections, naNan))
 
         return intersections
 
@@ -168,10 +179,10 @@ class RayPath():
 
         # TODO: add tilt shift support here
         imager_normal = bd.array([0, 0, -1])
-        plane_point = bd.array([ZERO, ZERO, zDepth])
+        planePoint = bd.array([ZERO, ZERO, zDepth])
         
         # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
-        d = -bd.dot(imager_normal, plane_point)
+        d = -bd.dot(imager_normal, planePoint)
 
         # Calculate dot product of direction vectors with the plane normal
         denom = bd.dot(directions, imager_normal)
@@ -188,25 +199,35 @@ class RayPath():
         return intersections  
 
 
-    def _LineSegmentIntersection(self, P1, P2, plane_point, plane_normal):
+    def _LineSegmentIntersection(self, P1, P2, planePoint, planeNormal):
+        """
+        Given set of lines defined by two ends P1 and P2, find if there are any intersections between the lines and a plane. 
+
+        :param P1: Position of one end of the line.
+        :param P2: Position of the other end of line. 
+        :param planePoint: A point on the plane. 
+        :param planeNormal: the normal of the plane. 
+
+        :return: array of points of intersection, Nan entries if no intersection. 
+        """
         # Calculate direction vectors for all line segments
         line_direction = P2 - P1
         
         # Calculate the dot product for numerator and denominator (vectorized)
-        numerator = bd.dot((plane_point - P1), plane_normal)
-        denominator = bd.dot(line_direction, plane_normal)
+        numerator = bd.dot((planePoint - P1), planeNormal)
+        denominator = bd.dot(line_direction, planeNormal)
         
         # Handle parallel lines (denominator close to zero)
-        parallel_mask = bd.abs(denominator) < NEAR_ZERO
-        t = numerator[~parallel_mask] / denominator[~parallel_mask]
+        parallelMask = bd.abs(denominator) < NEAR_ZERO
+        t = numerator[~parallelMask] / denominator[~parallelMask]
         
         # Calculate intersection points
         intersection_points = P1 + t[:, bd.newaxis] * line_direction
 
         # Mask out invalid intersections
-        intersection_points[(t < 0) | (t > 1) | parallel_mask] = bd.nan
+        intersection_points[(t < 0) | (t > 1) | parallelMask] = bd.nan
         
-        return intersection_points[~bd.any(bd.isnan(intersection_points), axis=1)]
+        return intersection_points
 
 
 

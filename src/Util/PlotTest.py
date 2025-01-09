@@ -110,7 +110,10 @@ def DrawLines(pointSetOne, pointSetTwo, lineColor = "k", lineWidth = 0.5, zorder
         end = bd.asnumpy(end)
 
     # Create segments for Line3DCollection
-    segments = np.array([[s, e] for s, e in zip(start, end)])
+    segments = bd.array([[s, e] for s, e in zip(start, end)])
+    if(backend_name == "cupy"):
+        segments = bd.asnumpy(segments)
+
     line_collection = Line3DCollection(segments, linewidths=lineWidth, color=lineColor)
     ax.add_collection3d(line_collection)
 
@@ -220,6 +223,26 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20
     ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.2)
 
 
+def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX):
+    CheckAX()
+
+    # Parametric equation for the disk
+    theta = bd.linspace(0, 2 * bd.pi, num_points)
+    r = bd.linspace(0, radius, num_points)
+    R, Theta = bd.meshgrid(r, theta)
+
+    # Convert to Cartesian coordinates
+    X = R * bd.cos(Theta)
+    Y = R * bd.sin(Theta)
+    Z = bd.full_like(X, z_height)  # Set Z to constant height
+
+    if(backend_name == "cupy"):
+        X = bd.asnumpy(X)
+        Y = bd.asnumpy(Y)
+        Z = bd.asnumpy(Z)
+
+    # Plot the disk
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
 
 def main():
     SetUnifScale()

@@ -321,6 +321,17 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = 550.0, planar=True, denseEd
 # ==================================================================
 
 
+
+# ==================================================================
+""" ======================= Emit From point ==================== """
+# ==================================================================
+
+def EmitFromPoint(emissionPoint, target1, target2, numRays=21, wavelength = 550.0):
+
+    
+    pass 
+
+
 def main():
     pass 
 
