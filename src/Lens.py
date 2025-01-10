@@ -11,14 +11,14 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ONE, TWO, Axis
+from Util.Globals import ZERO, ONE, TWO, Axis
 from Util.Misc import AxialDistance
 from Surfaces import Surface, Stop
 from Surfaces.Pupil import Pupil
 from Material import Material
 from Raytracing.RayBatch import RayBatch
 from Raytracing.Raypath import RayPath
-from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace
+from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
 
 
 class Lens:
@@ -66,7 +66,8 @@ class Lens:
         self.totalAxialLength = currentT
 
         # make sure the surfaces are already set before calling init ray tracing 
-        self.LensStatRayTracing() 
+        #self.LensStatRayTracing() 
+        self._TraceEntrancePupil()
 
 
     def LensStatRayTracing(self):
@@ -176,7 +177,7 @@ class Lens:
         """
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
-                self.surfaces[i].drawSurface()
+                self.surfaces[i].DrawSurface()
 
 
     def SaveLens(self, path):
@@ -189,6 +190,58 @@ class Lens:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _TraceEntrancePupil(self):
+
+        _EnableRayPath = True 
+        stopIndex = 0
+        objectSideRP = RayPath()
+
+        # Create the forward casting raybatch 
+        for i in range(len(self.surfaces)):
+            if isinstance(self.surfaces[i], Stop):
+                targetOne = bd.array([
+                    ZERO, 
+                    self.surfaces[i-1].clearSemiDiameter,
+                    self.surfaces[i-1].sdCumulative
+                ])
+                targetTwo = bd.array([
+                    ZERO, 
+                    -self.surfaces[i-1].clearSemiDiameter,
+                    self.surfaces[i-1].sdCumulative
+                ])
+                objectSideRB = EmitFromPoint(
+                    self.surfaces[i].frontVertex,
+                    targetOne, 
+                    targetTwo
+                )
+                stopIndex = i 
+                #DrawPoint(targetOne)  # Draw call=========
+                #DrawPoint(targetTwo)  # Draw call=========
+                DrawRaybatch(objectSideRB)  # Draw call=========
+                break 
+
+        plt.draw()
+        plt.pause(20)
+                
+        for i in range(len(self.surfaces)):
+            forwardIndex = stopIndex - i - 1
+            print("Currently in ", i, " th iteration")
+            if(forwardIndex >= 0):
+                self.surfaces[forwardIndex].DrawSurface() # Draw call=========
+                objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
+                    objectSideRB, 
+                    self._FindPreviousRI(forwardIndex, objectSideRB)
+                    )
+                DrawRaybatch(objectSideRB)  # Draw call=========
+                plt.draw()
+                plt.pause(20)
+                if (_EnableRayPath):
+                    objectSideRP.Append(objectSideRB, _tir, _vig)
+        
+        objectSideRP.DrawPath()
+              
+
 
 
     def _FindPreviousRI(self, index, raybatch, inverted = False):

@@ -8,7 +8,7 @@ from Material import Material
 
 class Stop(Surface):
     def __init__(self, t):
-        super().__init__(0, t, 0, "AIR")
+        self.thickness = t 
         self.bladeShape = None
         self.bladeCount = 5
 

@@ -3,7 +3,7 @@
 import math
 
 from .Backend import backend as bd 
-from .Globals import RNG, NEAR_ZERO, LambdaLines, RefreshRNG, Axis
+from .Globals import RNG, NEAR_ZERO, ONE, LambdaLines, RefreshRNG, Axis
 
 
 # ==================================================================
@@ -86,6 +86,23 @@ def Translate(ibdutVertex, translation):
     return bd.transpose(bd.transpose(ibdutVertex) + translation)
 
 
+# ==================================================================
+""" =========================== Math =========================== """
+# ==================================================================
+
+def Sigmoid(input, amp = 8, offset=-.5):
+    return ONE / (ONE + bd.exp(-amp * (input+offset) ))
+
+
+def InvSigmoid(input, amp = 10, offset=0.5):
+    return offset + bd.log(input / (ONE-input)) / 10
+
+
+def CartesianToPolar(point, origin):
+        delta = point - origin
+        angle = bd.arctan2(delta[1], delta[0])
+        radius = bd.linalg.norm(delta)
+        return angle, radius
 
 # ==================================================================
 """ ========================= Geometries ======================= """

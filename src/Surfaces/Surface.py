@@ -61,7 +61,7 @@ class Surface:
         self.radiusCenter = None 
         
         """Thickness or z location of the clear semi diameter edge, scaler t_sd"""
-        self.sdThickness = None
+        self.sdCumulative = None
 
         """Local optical axis of the surface, normalized vector (x, y, z)"""
         self._axis = OBJ_FACING
@@ -93,7 +93,7 @@ class Surface:
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
         self._radiusDirection = self.frontVertex - self.radiusCenter
 
-        self.sdThickness = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+        self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
 
 
     def SetVertices(self, frontVtx, radiusVtx):

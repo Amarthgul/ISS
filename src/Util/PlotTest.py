@@ -74,6 +74,7 @@ def DrawPoint(point, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         point = bd.asnumpy(point)
+
     ax.scatter3D(point[0], point[1], point[2])
 
 
@@ -148,7 +149,7 @@ def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
     q = ax.quiver(x, y, z, u, v, w,
               length=length,                # Increase arrow length
               normalize=False,           # Maintain relative vector sizes
-              arrow_length_ratio=0,    # Smaller arrowhead
+              arrow_length_ratio=0.1,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
               linewidths=0.5,            # Thicker arrows
               color=lineColor) 
@@ -243,6 +244,7 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
+
 
 def main():
     SetUnifScale()

@@ -17,8 +17,8 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 from Util.Backend import backend as bd
 from Util.Backend import constant
-from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis
+from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution, CartesianToPolar
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines
 
 from Util.PlotTest import DrawRaybatch
 
@@ -194,7 +194,7 @@ def InitRays(r, sd, posP, wavelength = 550):
 
     # if(ENABLE_RAYPATH):
     #     # Append the starting point into ray path 
-    #     self.rayPath.append(np.copy(mat1))
+    #     self.rayPath.append(bd.copy(mat1))
 
     return rayBatch 
 
@@ -278,7 +278,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 """ =================== Emit From Object Space ================= """
 # ==================================================================
 
-def EmitFromObjectSpace(SD, numRays=21, wavelength = 550.0, planar=True, denseEdge=True):
+def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=True, denseEdge=True):
     """
     Emit rays from the object space infinitely towards the 1st surface of the lens.
 
@@ -326,10 +326,61 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = 550.0, planar=True, denseEd
 """ ======================= Emit From point ==================== """
 # ==================================================================
 
-def EmitFromPoint(emissionPoint, target1, target2, numRays=21, wavelength = 550.0):
+def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['D'], denseEdge = False):
+
+    #t_values = bd.linspace(0, 1, numRays)
+    # if (not denseEdge):
+    #     k = 1
+    #     t_values = InvSigmoid(t_values, amp=1000)
+
+    # # Compute sampled points
+    # points = bd.outer(1 - t_values, target1) + bd.outer(t_values, target2)
+    #direction = points - emissionPoint
+
+    # TODO: add angular spilt 
+
+    source_yz = emissionPoint[1:]
+    target1_yz = target1[1:]
+    target2_yz = target2[1:]
+
+    angle1, radius1 = CartesianToPolar(target1_yz, source_yz)
+    angle2, radius2 = CartesianToPolar(target2_yz, source_yz)
+
+    # Ensure angles are ordered correctly
+    if angle1 > angle2:
+        angle1, angle2 = angle2, angle1
+        radius1, radius2 = radius2, radius1
+
+    # Generate evenly spaced angles
+    angles = bd.linspace(angle1, angle2, numRays)
+
+    # Use the average radius for simplicity
+    average_radius = (radius1 + radius2) / 2
+
+    # Convert polar coordinates back to Cartesian
+    points_yz = bd.array([
+        source_yz + average_radius * bd.array([bd.cos(angle), bd.sin(angle)])
+        for angle in angles
+    ])
+
+    # Compute vectors from source to each sampled point (in 3D)
+    points = bd.column_stack((points_yz, bd.full(len(points_yz), emissionPoint[0])))  # Add Z component
+    vectors = points - emissionPoint
+
+    # Normalize vectors (optional)
+    vectors = vectors / bd.linalg.norm(vectors, axis=1, keepdims=True)
 
     
-    pass 
+    emissionPoint = bd.tile(emissionPoint, (numRays, 1))
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    
+    return RayBatch(
+        bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)
+        )
 
 
 def main():
