@@ -364,7 +364,7 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
     ])
 
     # Compute vectors from source to each sampled point (in 3D)
-    points = bd.column_stack((points_yz, bd.full(len(points_yz), emissionPoint[0])))  # Add Z component
+    points = bd.column_stack((bd.full(len(points_yz), emissionPoint[0]), points_yz))  # Add Z component
     vectors = points - emissionPoint
 
     # Normalize vectors (optional)
