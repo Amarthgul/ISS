@@ -28,5 +28,15 @@ class Pupil(VirtualSurface):
 
 
     def DrawSurface(self):
-        DrawDisk(self.clearSemiDiameter, self._zDepth[0])
+
+        if(len(self._zDepth) == 1):
+            # When there is only one data point,
+            # Assume it is the center point on axis and use it as the overall depth 
+            DrawDisk(self.clearSemiDiameter, self._zDepth[0])
+
+        else:
+            # When there are many different points for the pupil plane 
+            pass 
+
+
 

@@ -215,7 +215,7 @@ def InitRays(r, sd, posP, wavelength = 550):
 # ==================================================================
 
 
-def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = 550.0):
+def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = LambdaLines['D']):
     """
     Emit rays from the center of the stop towards the object and image side.
     The angle of the rays are determined by the edge of previous and next surface.

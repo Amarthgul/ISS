@@ -11,7 +11,7 @@ from Util.Backend import GetBackend, constant
 from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 from Util.Globals import ZERO, ONE, TWO
 
-from ExampleLenses import Biotar50mm14
+from ExampleLenses import Biotar50mmf14, Helios58mmf2
 
 
 def SurfaceTest():
@@ -54,13 +54,13 @@ def main():
     SetUnifScale(50)
     AddXYZ()
 
-    testLens = Biotar50mm14()
+    testLens = Biotar50mmf14()
     testLens.UpdateLens()
 
 
     #testLens.DrawLens()
 
-    #RemoveBG()
+    RemoveBG()
     #DrawDisk(19)
     plt.show()
     

@@ -105,7 +105,8 @@ LambdaLines = {
 class Axis(Enum):
     X = 0
     Y = 1
-    Z = 1
+    Z = 2
+
 
 
 

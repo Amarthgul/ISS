@@ -16,7 +16,7 @@ from Util.Misc import AxialDistance
 from Surfaces import Surface, Stop
 from Surfaces.Pupil import Pupil
 from Material import Material
-from Raytracing.RayBatch import RayBatch
+from Raytracing.RayBatch import RayBatch, GenerateEmpty
 from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
 
@@ -33,6 +33,10 @@ class Lens:
         
         self.entrancePupil = Pupil() 
 
+        """Index of stop amopng the lens surfaces for easier indexing"""
+        self.stopIndex = None 
+
+        """Axial direction length of all the surfaces. From front vertex of the first surface to the last surface"""
         self.totalAxialLength = None 
 
         self._lastSurfaceIndex = 0
@@ -60,6 +64,8 @@ class Lens:
             if(i != len(self.surfaces)-1):
                 # The last surface's thickness of a lens is not useful for the lens 
                 currentT += self.surfaces[i].thickness
+            if isinstance(self.surfaces[i], Stop):
+                self.stopIndex = i 
             self._lastSurfaceIndex = i
 
         # Total axial length, counting from the first surface vertex to the last  
@@ -191,64 +197,102 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _TraceEntrancePupil(self):
+    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=5):
+        colors = plt.get_cmap('tab10').colors
 
-        _EnableRayPath = True 
-        stopIndex = 0
-        objectSideRP = RayPath()
+        objectSideRPs = [RayPath() for i in range(sampleCount)] 
+        _tirs = [[]for i in range(sampleCount)]
+        _vigs = [[]for i in range(sampleCount)]
 
-        # Create the forward casting raybatch 
+        # Create the target and source points 
+        targetOne = bd.array([
+            ZERO, 
+            self.surfaces[self.stopIndex-1].clearSemiDiameter,
+            self.surfaces[self.stopIndex-1].sdCumulative
+        ])
+        targetTwo = bd.array([
+            ZERO, 
+            -self.surfaces[self.stopIndex-1].clearSemiDiameter,
+            self.surfaces[self.stopIndex-1].sdCumulative
+        ])
+
+        # Generate raybatch 
+        objectSideRBs = [
+            EmitFromPoint(
+            self.surfaces[self.stopIndex].frontVertex+bd.array([ZERO, p, ZERO]),
+            targetOne, targetTwo)
+            for p in bd.linspace(ZERO, stopSD, sampleCount)
+        ]
+        #DrawPoint(targetOne)  # Draw call=========
+        #DrawPoint(targetTwo)  # Draw call=========
+        #DrawRaybatch(objectSideRB)  # Draw call=========
+        #plt.draw()
+        #plt.pause(20)
+        for j in range(sampleCount):
+            objectSideRPs[j].Append(objectSideRBs[j], None, None)
+        
+        # Propogate through the surfaces 
         for i in range(len(self.surfaces)):
-            if isinstance(self.surfaces[i], Stop):
-                targetOne = bd.array([
-                    ZERO, 
-                    self.surfaces[i-1].clearSemiDiameter,
-                    self.surfaces[i-1].sdCumulative
-                ])
-                targetTwo = bd.array([
-                    ZERO, 
-                    -self.surfaces[i-1].clearSemiDiameter,
-                    self.surfaces[i-1].sdCumulative
-                ])
-                objectSideRB = EmitFromPoint(
-                    self.surfaces[i].frontVertex,
-                    targetOne, 
-                    targetTwo
-                )
-                stopIndex = i 
-                #DrawPoint(targetOne)  # Draw call=========
-                #DrawPoint(targetTwo)  # Draw call=========
-                DrawRaybatch(objectSideRB)  # Draw call=========
-                break 
-
-        plt.draw()
-        plt.pause(20)
-                
-        for i in range(len(self.surfaces)):
-            forwardIndex = stopIndex - i - 1
-            print("Currently in ", i, " th iteration")
+            forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
                 self.surfaces[forwardIndex].DrawSurface() # Draw call=========
-                objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
-                    objectSideRB, 
-                    self._FindPreviousRI(forwardIndex, objectSideRB)
-                    )
-                DrawRaybatch(objectSideRB)  # Draw call=========
-                plt.draw()
-                plt.pause(20)
-                if (_EnableRayPath):
-                    objectSideRP.Append(objectSideRB, _tir, _vig)
-        
-        objectSideRP.DrawPath()
+                for j in range(sampleCount):
+                    objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
+                        objectSideRBs[j], 
+                        self._FindPreviousRI(forwardIndex, objectSideRBs[j]), True
+                        ) 
+                    objectSideRPs[j].Append(objectSideRBs[j], _tirs[j], _vigs[j])
+                #DrawRaybatch(objectSideRB)  # Draw call=========
+                #plt.draw()
+                #plt.pause(4)
+
+        # for j in range(sampleCount):
+        #     objectSideRPs[j].DrawPath(10, colors[j])
+
+        poss = [[]for i in range(sampleCount)]
+        dirs = [[]for i in range(sampleCount)]
+        intersections = [[]for i in range(sampleCount)]
+        for j in range(sampleCount):
+            poss[j], dirs[j] = objectSideRPs[j].ExitingPairs()
+            intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
+            DrawPoint(intersections[j], color=colors[j])
+            DrawDirection(poss[j], dirs[j], lineColor=colors[j], lineLength=40, arrowRatio=0)
+        print(intersections)
+
+
+
+
+        bSelect = 3
+        testRP = RayPath()
+        testRB = GenerateEmpty(len(dirs[bSelect]))
+        testRB.SetDirection(dirs[bSelect])
+        testRB.SetPosition(poss[bSelect]-dirs[bSelect])
+        DrawRaybatch(testRB)  # Draw call=========
+
+        # for i in range(len(self.surfaces)):
+        #     if(not isinstance(self.surfaces[i], Stop)):
+        #         testRB, _tir,  _vig = self.surfaces[i].NaiveTrace(
+        #             testRB, 
+        #             self._FindPreviousRI(i, testRB)
+        #             ) 
+        #         print("RI: ", self._FindPreviousRI(i, testRB)[0])
+        #         testRP.Append(testRB, _tir,  _vig)
+        #         DrawRaybatch(testRB)
+        #         plt.draw()
+        #         plt.pause(5)
+        # testRP.DrawPath(10)
+        # objectSideRPs[bSelect].DrawPath(10, colors[bSelect])
+
+
               
 
 
 
-    def _FindPreviousRI(self, index, raybatch, inverted = False):
+    def _FindPreviousRI(self, index, raybatch):
         """
-        Find the refractive index of the previous lens element. This is different from surfaces, this method tries to find the lens element, which has front and back surfaces.
+        Find the refractive index of the previous surface. 
         """
-        if (index == 0):
+        if (index == 0 or isinstance(self.surfaces[index-1], Stop)):
             return self.env.RI(raybatch.Wavelength())
         else:
             return self.surfaces[index -1].RI(raybatch.Wavelength())

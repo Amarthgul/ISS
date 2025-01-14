@@ -1,6 +1,7 @@
 
 
 from Util.Backend import backend as bd 
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, LambdaLines
 
 class RayBatch:
     """
@@ -86,6 +87,21 @@ class RayBatch:
     def RandomDrop(self, keeprate = 1):
         pass 
 
+
+
+def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
+
+    pos = bd.zeros(6)
+    pos = bd.tile(pos, (size, 1))
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    
+    return RayBatch(
+        bd.concatenate([pos, bd.tile(temp, (size, 1))], axis=1)
+    ) 
 
 
 

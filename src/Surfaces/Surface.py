@@ -233,7 +233,7 @@ class Surface:
         return refreacted, reflected, vignetted
 
 
-    def NaiveTrace(self, incidentRaybatch, previousRI):
+    def NaiveTrace(self, incidentRaybatch, previousRI, inverted=False):
         """
         Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned and not calculated. 
         """
@@ -262,6 +262,10 @@ class Surface:
         directions = incidentRaybatch.Direction()[~boolVig]
         currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         previousRI = previousRI[~boolVig]
+
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            currentRI, previousRI = previousRI, currentRI 
 
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)

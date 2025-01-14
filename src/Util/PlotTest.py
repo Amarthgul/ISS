@@ -70,12 +70,12 @@ def SetUnifScale(lim = 10, ax=AX):
     ax.set_zlim(lim, 0)
 
 
-def DrawPoint(point, ax=AX):
+def DrawPoint(point, ax=AX, color='red'):
     CheckAX()
     if(backend_name == "cupy"):
         point = bd.asnumpy(point)
 
-    ax.scatter3D(point[0], point[1], point[2])
+    ax.scatter3D(point[0], point[1], point[2], color=color)
 
 
 def DrawPoints(points, ax=AX):

@@ -48,7 +48,7 @@ class RayPath():
             self.vignetted.append(vignetted)
 
 
-    def DrawPath(self, expendEnd = 0.0):
+    def DrawPath(self, expendEnd = 0.0, color = 'red'):
         """
         Draw the path of the recorded rays. 
 
@@ -61,10 +61,11 @@ class RayPath():
         for i in range(len(self.position) - 1):
             # Bool filter out the rays that are vignetted or reflected 
             # so that both set of points have the same size 
+            if(len(self.position[i+1]) == 0): break 
             DrawLines(
                 self.position[i][~self.vignetted[i+1]][~self.reflected[i+1]],    
                 self.position[i+1], 
-                lineColor = 'red', 
+                lineColor = color, 
                 lineWidth = 0.5
             )
 
@@ -74,12 +75,12 @@ class RayPath():
             DrawNormal(
                 self.position[i][~self.reflected[i]], 
                 self.direction[i][~self.reflected[i]], 
-                lineColor = 'red',
+                lineColor = color,
                 lineLength = expendEnd
                 )
 
 
-    def ExitingPairs(self, invertDirection = False):
+    def ExitingPairs(self, invertDirection = True):
         """
         Get the exiting ray pairs.
         """
@@ -170,6 +171,9 @@ class RayPath():
 
         return intersections
 
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
 
     def _zPlaneIntersections(self, zDepth, positions, directions):
         """
