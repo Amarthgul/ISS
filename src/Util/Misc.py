@@ -37,6 +37,9 @@ def Magnitude(inputVec):
     return bd.linalg.norm(inputVec)
 
 
+def ArrayMagnitude(inputVec):
+    return bd.linalg.norm(inputVec, axis=1, keepdims=True)
+
 def Normalized(inputVec):
     """
     Normalize a single vector. 

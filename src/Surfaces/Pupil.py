@@ -2,9 +2,9 @@
 
 
 
-from Util.Misc import Normalized
+from Util.Misc import Normalized, ArrayMagnitude
 from Util.Backend import backend as bd 
-from Util.PlotTest import DrawDisk
+from Util.PlotTest import DrawDisk, DrawPupil
 
 
 from .VirtualSurface import VirtualSurface, SymmetryType
@@ -27,6 +27,11 @@ class Pupil(VirtualSurface):
         self._height.append(Normalized(bd.array([point[0], point[1]])))
 
 
+    def SetSamplePoints(self, points):
+        self._zDepth = points[:, 2]
+        self._height = bd.linalg.norm(points[:, :2], axis=1)
+
+
     def DrawSurface(self):
 
         if(len(self._zDepth) == 1):
@@ -36,7 +41,7 @@ class Pupil(VirtualSurface):
 
         else:
             # When there are many different points for the pupil plane 
-            pass 
+            DrawPupil(self._height, self._zDepth)
 
 
 

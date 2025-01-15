@@ -7,7 +7,8 @@ It is not recommended to use this module in the ray tracing process of productio
 """
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING
+from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING, SOME_BIG_CONST, Axis
+from Util.Misc import ArrayMagnitude, Magnitude
 from Util.PlotTest import DrawLines, DrawNormal
 
 
@@ -98,7 +99,7 @@ class RayPath():
         pass 
 
 
-    def FindConvergingPoint(self, position, direction):
+    def FindConvergingPoint(self, position, direction, enableProne=True):
         """
         Find the converging point of the exiting rays. 
 
@@ -121,9 +122,17 @@ class RayPath():
         threshold = NEAR_ZERO
         solved = bd.linalg.solve(m, b) 
 
-        return bd.where(bd.abs(solved) < threshold, ZERO, solved)
-        
 
+        # Oblique rays will disrupt the convergence, so some prone may be used 
+        if(enableProne):
+            solved = self._ProneOffAxisZ(solved, position, direction)
+
+        # Replace the near zeros with zeros 
+        solved = bd.where(bd.abs(solved) < threshold, ZERO, solved)
+
+        return solved
+
+        
     def FindAxialIntersection(self, position, direction):
         """
         Find the intersection between a ray and the optical axis (where x=y=0). 
@@ -234,7 +243,32 @@ class RayPath():
         return intersection_points
 
 
+    def _ProneOffAxisZ(self, intersection, positions, directions, threshold = 0.1):
+        """
+        Prone converging rays whoese position is too far away from the given intersection until the Z axis delta is smaller than the threshold. 
 
+        :param intersection: single point of convergence. 
+        :param positions: list of ray positions. 
+        :param directions: list of ray directions. 
+        :param threshold: scalar threshold to judge the delta change. 
+
+        :return: a theoretically more accurate point.  
+        """
+
+        delta = SOME_BIG_CONST
+
+        while(len(positions)>2 and delta>threshold):
+            dist = ArrayMagnitude((positions - intersection)[:, :2])
+            largeInd = bd.argmax(dist)
+            positions = bd.concatenate([positions[:largeInd], positions[largeInd + 1:]])
+            directions = bd.concatenate([directions[:largeInd], directions[largeInd + 1:]])
+            newIntersect = self.FindConvergingPoint(positions, directions, False)
+
+            # Only testing the z axis delta 
+            delta = Magnitude((newIntersect - intersection)[2])
+            intersection = newIntersect
+
+        return intersection
 
 
 

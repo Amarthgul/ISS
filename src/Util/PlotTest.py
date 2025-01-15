@@ -14,6 +14,7 @@ from numpy.linalg import norm
 """ ============================================================ """
 # ==================================================================
 
+
 # Matplotlib z axis is always shortened 
 zAxisCompensationFactor = 1.25
 
@@ -244,6 +245,29 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
+
+
+def DrawPupil(radius, heights, num_points = 100 ,surfaceColor = "b",  ax=AX):
+    CheckAX()
+
+    # Parametric equation for the disk
+    theta = bd.linspace(0, 2 * bd.pi, num_points)
+    r = radius
+    R, Theta = bd.meshgrid(r, theta)
+
+    # Convert to Cartesian coordinates
+    X = R * bd.cos(Theta)
+    Y = R * bd.sin(Theta)
+    Z = bd.tile(heights, (len(theta), 1))  # Repeat z values for each angle
+
+    if(backend_name == "cupy"):
+        X = bd.asnumpy(X)
+        Y = bd.asnumpy(Y)
+        Z = bd.asnumpy(Z)
+
+    # Plot the disk
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2, edgecolor=surfaceColor)
+
 
 
 def main():

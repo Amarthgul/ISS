@@ -197,7 +197,7 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=5):
+    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=9):
         colors = plt.get_cmap('tab10').colors
 
         objectSideRPs = [RayPath() for i in range(sampleCount)] 
@@ -235,7 +235,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                self.surfaces[forwardIndex].DrawSurface() # Draw call=========
+                #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
                         objectSideRBs[j], 
@@ -255,33 +255,12 @@ class Lens:
         for j in range(sampleCount):
             poss[j], dirs[j] = objectSideRPs[j].ExitingPairs()
             intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
-            DrawPoint(intersections[j], color=colors[j])
-            DrawDirection(poss[j], dirs[j], lineColor=colors[j], lineLength=40, arrowRatio=0)
-        print(intersections)
+            #DrawPoint(intersections[j], color=colors[j])
+            #DrawDirection(poss[j], dirs[j], lineColor=colors[j], lineLength=40, arrowRatio=0)
+        self.entrancePupil.SetSamplePoints(bd.array(intersections))
 
-
-
-
-        bSelect = 3
-        testRP = RayPath()
-        testRB = GenerateEmpty(len(dirs[bSelect]))
-        testRB.SetDirection(dirs[bSelect])
-        testRB.SetPosition(poss[bSelect]-dirs[bSelect])
-        DrawRaybatch(testRB)  # Draw call=========
-
-        # for i in range(len(self.surfaces)):
-        #     if(not isinstance(self.surfaces[i], Stop)):
-        #         testRB, _tir,  _vig = self.surfaces[i].NaiveTrace(
-        #             testRB, 
-        #             self._FindPreviousRI(i, testRB)
-        #             ) 
-        #         print("RI: ", self._FindPreviousRI(i, testRB)[0])
-        #         testRP.Append(testRB, _tir,  _vig)
-        #         DrawRaybatch(testRB)
-        #         plt.draw()
-        #         plt.pause(5)
-        # testRP.DrawPath(10)
-        # objectSideRPs[bSelect].DrawPath(10, colors[bSelect])
+        #print(intersections)
+        #self.entrancePupil.DrawSurface()
 
 
               

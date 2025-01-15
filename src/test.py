@@ -58,7 +58,8 @@ def main():
     testLens.UpdateLens()
 
 
-    #testLens.DrawLens()
+    testLens.DrawLens()
+    testLens.entrancePupil.DrawSurface()
 
     RemoveBG()
     #DrawDisk(19)
