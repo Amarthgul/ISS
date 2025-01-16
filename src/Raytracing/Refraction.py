@@ -8,7 +8,7 @@ from Util.Backend import backend as bd
 
 def Refract(incident, normal, n1, n2):
     """
-    Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices.
+    Calculates the refracted vectors given incident vectors, normal vectors, and the refractive indices. Since all rays arriving should land on the surface, there should not be any vignetted rays. 
     
     :param incident: Array of incident vectors (shape: Nx3).
     :param normal: Array of normal vectors (shape: Nx3).

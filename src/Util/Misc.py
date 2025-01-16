@@ -2,8 +2,9 @@
 
 import math
 
-from .Backend import backend as bd 
-from .Globals import RNG, NEAR_ZERO, ONE, LambdaLines, RefreshRNG, Axis
+from Util.Backend import backend as bd 
+from Util.Backend import backend_name
+from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ONE, LambdaLines, RefreshRNG, Axis
 
 
 # ==================================================================
@@ -33,12 +34,14 @@ class MemoryManagement():
 """ ===================== 3D transformations =================== """
 # ==================================================================
 
+
 def Magnitude(inputVec):
     return bd.linalg.norm(inputVec)
 
 
 def ArrayMagnitude(inputVec):
     return bd.linalg.norm(inputVec, axis=1, keepdims=True)
+
 
 def Normalized(inputVec):
     """
@@ -93,6 +96,7 @@ def Translate(ibdutVertex, translation):
 """ =========================== Math =========================== """
 # ==================================================================
 
+
 def Sigmoid(input, amp = 8, offset=-.5):
     return ONE / (ONE + bd.exp(-amp * (input+offset) ))
 
@@ -107,10 +111,10 @@ def CartesianToPolar(point, origin):
         radius = bd.linalg.norm(delta)
         return angle, radius
 
+
 # ==================================================================
 """ ========================= Geometries ======================= """
 # ==================================================================
-
 
 
 def linePlaneIntersection(plane_normal, point_on_plane, line_direction, point_on_line):
@@ -216,6 +220,11 @@ def AxialDistance(vectors, axis):
     
     # Calculate and return the distance
     return max_value - min_value
+
+
+def AxialSnap(points):
+    points[points[:, 0] < AXIAL_ZERO, 1] = 0
+    points[points[:, 1] < AXIAL_ZERO, 1] = 0
 
 
 # ==================================================================
@@ -487,10 +496,16 @@ def WavelengthToRGB(wavelength,
     return bd.array([R, G, B])
 
         
+def ColorTuplePLT(arrayRGB):
+    if(backend_name == 'cupy'):
+        arrayRGB = bd.asnumpy(arrayRGB)
+
+    return tuple(arrayRGB)
+
 
 
 def main():
-    pass 
+    print(WavelengthToRGB(550.0))
 
 
 

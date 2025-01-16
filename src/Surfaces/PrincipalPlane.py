@@ -10,7 +10,7 @@ from Util.PlotTest import DrawDisk, DrawPupil
 from .VirtualSurface import VirtualSurface, SymmetryType
 
 
-class Pupil(VirtualSurface):
+class PrincipalPlane(VirtualSurface):
     def __init__(self):
         
         self.symmetryType = SymmetryType.Axial

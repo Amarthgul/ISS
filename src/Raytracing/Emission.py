@@ -278,29 +278,34 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 """ =================== Emit From Object Space ================= """
 # ==================================================================
 
-def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=True, denseEdge=True):
+
+def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=True, halfSide=False, denseEdge=True, density=3):
     """
     Emit rays from the object space infinitely towards the 1st surface of the lens.
 
-    :param firstSurfaceSD: clear semi-diameter of the first surface.
-    :param planar: if True, rays are emitted along the y-plane.
+    :param SD: clear semi-diameter of the first surface.
     :param numRays: number of rays to be emitted, it is suggested to have an odd number so that there is one ray along the optical axis.
     :param wavelength: wavelength of the rays in nm.
+    :param planar: When enabled, rays will eixsts on the YZ plane only. 
+    :param denseEdge: When enabled, rays will be denser at thr edges. 
+    :param density: Controls the ray density around edges when denseEdge is enabled. 
 
     :return: a RayBatch object pointing from infinite object space to the 1st surface.
     """
 
-    k = 4
+    startValue = 1
+    if(halfSide):
+        startValue = 0
 
     if(planar):
         # Emit rays along the y plane
-        y_values = bd.linspace(1, -1, numRays)
-        position = bd.array([[ZERO, y, bd.array(-0.2)] for y in y_values])
+        y_values = bd.linspace(startValue, -1, numRays)
+        position = bd.array([[ZERO, y, -FAR_DISTANCE] for y in y_values])
     else: 
         position = RandomEllipticalDistribution(samplePoints=20) 
 
     if (denseEdge):
-        position[:, Axis.Y.value] = bd.tanh(k * position[:, Axis.Y.value])
+        position[:, Axis.Y.value] = bd.tanh(density * position[:, Axis.Y.value])
     position[:, Axis.Y.value] *= SD
 
     direction = bd.tile(bd.array([ZERO, ZERO, ONE]), (numRays, 1))
@@ -325,6 +330,7 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=Tr
 # ==================================================================
 """ ======================= Emit From point ==================== """
 # ==================================================================
+
 
 def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['D'], denseEdge = False):
 

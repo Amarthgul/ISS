@@ -270,6 +270,7 @@ class Surface:
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
 
+        # This _temp is for a different use from the _temp above 
         _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         _temp.SetPosition(intersections[~TIR])
         _temp.SetDirection(refracted)

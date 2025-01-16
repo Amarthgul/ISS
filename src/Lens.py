@@ -11,10 +11,11 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis
-from Util.Misc import AxialDistance
+from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines
+from Util.Misc import AxialDistance, WavelengthToRGB, ColorTuplePLT
 from Surfaces import Surface, Stop
 from Surfaces.Pupil import Pupil
+from Surfaces.PrincipalPlane import PrincipalPlane
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateEmpty
 from Raytracing.Raypath import RayPath
@@ -23,7 +24,12 @@ from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
 
 class Lens:
     def __init__(self):
-        self.entrancePupilDia = constant(25)
+        self.entrancePupilDia = constant(25.0)
+
+        self.fNumber = constant(2.0)
+        self.focalLength = constant(50.0)
+
+        self.focalPoint = None 
 
         self.surfaces = []
         self.env = Material("AIR") # The environment it is submerged in, air by default 
@@ -32,6 +38,7 @@ class Lens:
         self.rayPath = [] # Rays with only position info on each surface 
         
         self.entrancePupil = Pupil() 
+        self.frontPincipalPlane = PrincipalPlane() 
 
         """Index of stop amopng the lens surfaces for easier indexing"""
         self.stopIndex = None 
@@ -74,6 +81,7 @@ class Lens:
         # make sure the surfaces are already set before calling init ray tracing 
         #self.LensStatRayTracing() 
         self._TraceEntrancePupil()
+        self._TraceFocalPrincipal() 
 
 
     def LensStatRayTracing(self):
@@ -197,7 +205,12 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=9):
+    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=11, wavelength = LambdaLines['D']):
+        """
+        Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
+        """
+
+        self.entrancePupil.sampleWavelength = wavelength
         colors = plt.get_cmap('tab10').colors
 
         objectSideRPs = [RayPath() for i in range(sampleCount)] 
@@ -220,7 +233,7 @@ class Lens:
         objectSideRBs = [
             EmitFromPoint(
             self.surfaces[self.stopIndex].frontVertex+bd.array([ZERO, p, ZERO]),
-            targetOne, targetTwo)
+            targetOne, targetTwo, wavelength = wavelength)
             for p in bd.linspace(ZERO, stopSD, sampleCount)
         ]
         #DrawPoint(targetOne)  # Draw call=========
@@ -260,10 +273,38 @@ class Lens:
         self.entrancePupil.SetSamplePoints(bd.array(intersections))
 
         #print(intersections)
-        #self.entrancePupil.DrawSurface()
+        #self.entrancePupil.DrawSurface(overrideColor='b')
 
 
-              
+    def _TraceFocalPrincipal(self, wavelength = LambdaLines['D']):
+        """
+        Trace the front focal point and principal plane. 
+        """
+        self.frontPincipalPlane.sampleWavelength = wavelength
+
+        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO, numRays=15, halfSide=True)
+        frontRP = RayPath()
+        frontRP.Append(frontRB, None, None)
+
+        for i in range(len(self.surfaces)):
+            if(not isinstance(self.surfaces[i], Stop)):
+                frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
+                    frontRB, self._FindPreviousRI(i, frontRB))   
+                frontRP.Append(frontRB, _tir, _vig)  
+
+        frontRP = frontRP.PruneAll()
+        frontRP.DrawPath(40)
+        
+        pos, dir = frontRP.ExitingPairs()
+        focalPoint = frontRP.FindConvergingPoint(pos, dir)
+        print(focalPoint)
+        DrawPoint(focalPoint)
+
+        intersections = frontRP.EndToEndIntersection() 
+        self.frontPincipalPlane.SetSamplePoints(intersections)
+        #self.frontPincipalPlane.DrawSurface()
+        DrawPoints(intersections)
+        # print(intersections)
 
 
 
@@ -276,6 +317,8 @@ class Lens:
         else:
             return self.surfaces[index -1].RI(raybatch.Wavelength())
         
+
+
 
 
 def main():

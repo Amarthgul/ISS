@@ -45,7 +45,14 @@ RADIANT_KILL = bd.array(0.001)
 
 # Placeholder varible for arguments 
 SOME_BIG_CONST = 1024
+
+
+# Value that can be viewed as the same zero 
 NEAR_ZERO = 1e-10
+
+
+# Value that can be viewed as on an axis when comparing 
+AXIAL_ZERO = 1e-3
 
 
 # Far distance is treated as 50m away from the lens

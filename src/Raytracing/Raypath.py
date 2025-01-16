@@ -7,7 +7,7 @@ It is not recommended to use this module in the ray tracing process of productio
 """
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING, SOME_BIG_CONST, Axis
+from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING, SOME_BIG_CONST, AXIAL_ZERO, Axis
 from Util.Misc import ArrayMagnitude, Magnitude
 from Util.PlotTest import DrawLines, DrawNormal
 
@@ -119,7 +119,6 @@ class RayPath():
 
         # This calculation will return non zero for on axis results, 
         # thus needing to replace small numbers with 0 
-        threshold = NEAR_ZERO
         solved = bd.linalg.solve(m, b) 
 
 
@@ -128,7 +127,7 @@ class RayPath():
             solved = self._ProneOffAxisZ(solved, position, direction)
 
         # Replace the near zeros with zeros 
-        solved = bd.where(bd.abs(solved) < threshold, ZERO, solved)
+        solved = bd.where(bd.abs(solved) < NEAR_ZERO, ZERO, solved)
 
         return solved
 
@@ -180,9 +179,74 @@ class RayPath():
 
         return intersections
 
+
+    def PruneAll(self):
+        """
+        Prune all the rays that are vignetted or reflected, leaving only the refeacted rays. Not that this only works for refractive optics. 
+        """
+        doppelganger = RayPath()
+        doppelganger.position = list.copy(self.position)
+        doppelganger.direction = list.copy(self.direction)
+        doppelganger.reflected = list.copy(self.reflected)
+        doppelganger.vignetted = list.copy(self.vignetted)
+
+        ineffective = doppelganger.vignetted[len(doppelganger.position)-1] 
+        ineffective[~ineffective] &= doppelganger.reflected[len(doppelganger.position)-1]
+
+        for i in range(len(doppelganger.position)-1, -1, -1):
+            if(i < len(doppelganger.position)-1 and i >1):
+                # Bool AND the ineffective rays 
+                doppelganger.vignetted[i-1][~doppelganger.vignetted[i-1]] |= doppelganger.vignetted[i]
+                doppelganger.reflected[i-1][~doppelganger.vignetted[i]] |= doppelganger.reflected[i][~doppelganger.vignetted[i+1]]
+
+                # Merge the reflected and vignetted 
+                ineffective = doppelganger.vignetted[i] 
+                ineffective[~doppelganger.vignetted[i]] |= doppelganger.reflected[i][~doppelganger.vignetted[i+1]]
+
+                # Apply the ineffective rays to prune the positions  and directions 
+                doppelganger.position[i-1] = doppelganger.position[i-1][~ineffective]
+                doppelganger.direction[i-1] = doppelganger.direction[i-1][~ineffective]
+        
+        # In the event of the raypath containing the emission source, index 0 is None
+        if(doppelganger.vignetted[0] == None):
+            # Manually apply the last ineffective mask to the first entry 
+            doppelganger.position[0] = doppelganger.position[0][~ineffective]
+            doppelganger.direction[0] = doppelganger.direction[0][~ineffective]
+
+        # Since ray positions and directions are all pruned, reset all vignetted and relfected masks to false. 
+        for i in range(len(doppelganger.position)-1, 0, -1):
+            doppelganger.vignetted[i] = bd.zeros(len(doppelganger.position[i])).astype(bd.bool_)
+            doppelganger.reflected[i] = bd.zeros(len(doppelganger.position[i])).astype(bd.bool_)
+
+        return doppelganger
+
+
+    def EndToEndIntersection(self):
+        """
+        Find the intersections of the incident rays and the exiting rays. 
+        This assume the path include the light source and is infinite conjugate. 
+        """
+
+        D1 = self.direction[0]
+        P1 = self.position[0]
+
+        P2 = self.position[len(self.position)-1]
+        D2 = self.direction[len(self.direction)-1]
+
+        # Clip them to use only the YZ coordinates 
+        A = bd.stack([D1[:, 1:], -D2[:, 1:]], axis=2) 
+        B = P2[:, 1:] - P1[:, 1:]  
+
+        t = bd.linalg.solve(A, B)
+        intersections = P1 + t[:, 0, bd.newaxis] * D1  # Shape (n, 3)
+
+        return intersections
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
 
     def _zPlaneIntersections(self, zDepth, positions, directions):
         """

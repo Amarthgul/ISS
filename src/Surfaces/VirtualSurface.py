@@ -26,10 +26,14 @@ class VirtualSurface():
         self.vertex = []
         self.symmetryType = None
 
+        self._height = []
+        self._zDepth = []
+
     def DrawSurface(self,):
         pass 
 
 
-    
+    def SetSamplePoints(self, points):
+        pass 
 
 
