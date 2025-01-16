@@ -8,7 +8,7 @@ from Raytracing import Emission
 from Raytracing.Raypath import RayPath
 from Util.Backend import backend as bd
 from Util.Backend import GetBackend, constant
-from Util.PlotTest import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
+from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 from Util.Globals import ZERO, ONE, TWO
 
 from ExampleLenses import Biotar50mmf14, Helios58mmf2

@@ -1,6 +1,7 @@
 
 """
-This module is used to provide visual validation for the process. 
+This module is used to provide preliminary visuals for the project, it is not the best for accuracy nor effect. 
+In the future the project should consider switching to mayavi or better libaraies for scientific visulization. 
 """
 
 from Util.Backend import backend as bd

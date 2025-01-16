@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Misc import Magnitude, Normalized, ArrayNormalized
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
-from Util.PlotTest import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
 from Raytracing.RayBatch import RayBatch 
 from Material import Material 

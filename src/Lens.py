@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
+from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines
@@ -228,18 +228,13 @@ class Lens:
             self.surfaces[self.stopIndex-1].sdCumulative
         ])
 
-        # Generate raybatch 
+        # Generate raybatch and add them into the path record
         objectSideRBs = [
             EmitFromPoint(
             self.surfaces[self.stopIndex].frontVertex+bd.array([ZERO, p, ZERO]),
             targetOne, targetTwo, wavelength = wavelength)
             for p in bd.linspace(ZERO, stopSD, sampleCount)
         ]
-        #DrawPoint(targetOne)  # Draw call=========
-        #DrawPoint(targetTwo)  # Draw call=========
-        #DrawRaybatch(objectSideRB)  # Draw call=========
-        #plt.draw()
-        #plt.pause(20)
         for j in range(sampleCount):
             objectSideRPs[j].Append(objectSideRBs[j], None, None)
         
@@ -270,9 +265,6 @@ class Lens:
             #DrawPoint(intersections[j], color=colors[j])
             #DrawDirection(poss[j], dirs[j], lineColor=colors[j], lineLength=40, arrowRatio=0)
         self.entrancePupil.SetSamplePoints(bd.array(intersections))
-
-        #print(intersections)
-        #self.entrancePupil.DrawSurface(overrideColor='b')
 
 
     def _TraceFocalPrincipal(self, wavelength = LambdaLines['D']):

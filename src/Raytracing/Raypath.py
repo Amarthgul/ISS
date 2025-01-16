@@ -9,7 +9,7 @@ It is not recommended to use this module in the ray tracing process of productio
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING, SOME_BIG_CONST, AXIAL_ZERO, Axis
 from Util.Misc import ArrayMagnitude, Magnitude, TransversalDistance
-from Util.PlotTest import DrawLines, DrawNormal
+from Util.PltPlot import DrawLines, DrawNormal
 
 
 
@@ -49,17 +49,24 @@ class RayPath():
             self.vignetted.append(vignetted)
 
 
-    def DrawPath(self, expendEnd = 0.0, color = 'red'):
+    def DrawPath(self, expendEnd = 0.0, omitIncident = True, color = 'red'):
         """
         Draw the path of the recorded rays. 
 
         :param expendEnd: The length of the path after the last surface.
+        :param omitIncident: when enabled, the fist set of rays will not be plotted, in most cases this refers to the incident ray. 
+        :param color: color of the oath lines. 
         """
         
         if(len(self.position) <= 1):
             raise ValueError("The path is too short to plot.")
 
-        for i in range(len(self.position) - 1):
+        start = 0 
+        if(omitIncident):
+            start = 1 
+        end = len(self.position) - 1
+
+        for i in range(start, end):
             # Bool filter out the rays that are vignetted or reflected 
             # so that both set of points have the same size 
             if(len(self.position[i+1]) == 0): break 
@@ -232,6 +239,10 @@ class RayPath():
         P2 = self.position[len(self.position)-1]
         D2 = self.direction[len(self.direction)-1]
 
+        # There might be ray vecs that's on the optical axis at the beginning,
+        # and for axial symmetric lens it'll stay on the axis through to the end. 
+        # This will make later linalg.solve to fail when using numpy. 
+        # the following steps are to check for on axis rays and remove them. 
         bP1 = bd.isclose(TransversalDistance(P1), ZERO, AXIAL_ZERO) 
         bD1 = bd.isclose(TransversalDistance(D1), ZERO, AXIAL_ZERO) 
         bP2 = bd.isclose(TransversalDistance(P2), ZERO, AXIAL_ZERO) 

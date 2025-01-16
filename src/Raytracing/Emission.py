@@ -20,7 +20,7 @@ from Util.Backend import constant
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution, CartesianToPolar
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines
 
-from Util.PlotTest import DrawRaybatch
+from Util.PltPlot import DrawRaybatch
 
 from .RayBatch import RayBatch 
 

@@ -4,7 +4,7 @@
 
 from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB
 from Util.Backend import backend as bd 
-from Util.PlotTest import DrawDisk, DrawPupil
+from Util.PltPlot import DrawDisk, DrawPupil
 
 
 from .VirtualSurface import VirtualSurface, SymmetryType

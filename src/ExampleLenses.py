@@ -3,12 +3,31 @@
 
 from Surfaces import Surface, Stop
 from Lens import Lens 
+from Util.DataReadWrite import Save, Load
+
+
+
+
+class Example():
+    def __init__(self, input, fileName):
+        self.data = input 
+        self.fileName = fileName
+
+    def Save(self):
+        Save(self.data, self.fileName)
+
+    def Load(self):
+        self.data = Load(self.fileName)
+
+
+# TODO: make the lenses into example instances 
 
 
 def Biotar50mmf14():
     """
     Zeiss Biotar 500mm f/1.4. 
     Data from US 1786916 Example 2, EFL 100mm. 
+
     :return: Lens object with only data and not initlized.
     """
     biotar = Lens() 
@@ -31,6 +50,12 @@ def Biotar50mmf14():
 
 
 def Helios58mmf2():
+    """
+    Helios 44, 58mm f/2. 
+    Data from Bill Claff.
+
+    :return: Lens object with only data and not initlized.
+    """
     helios = Lens()
 
     helios.AddSurface(Surface(38.070,	4.810,  15,     "LZ_TK14"))
