@@ -8,7 +8,7 @@ It is not recommended to use this module in the ray tracing process of productio
 
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, NEAR_ZERO, OBJ_FACING, SOME_BIG_CONST, AXIAL_ZERO, Axis
-from Util.Misc import ArrayMagnitude, Magnitude
+from Util.Misc import ArrayMagnitude, Magnitude, TransversalDistance
 from Util.PlotTest import DrawLines, DrawNormal
 
 
@@ -227,15 +227,24 @@ class RayPath():
         This assume the path include the light source and is infinite conjugate. 
         """
 
-        D1 = self.direction[0]
         P1 = self.position[0]
-
+        D1 = self.direction[0]
         P2 = self.position[len(self.position)-1]
         D2 = self.direction[len(self.direction)-1]
 
+        bP1 = bd.isclose(TransversalDistance(P1), ZERO, AXIAL_ZERO) 
+        bD1 = bd.isclose(TransversalDistance(D1), ZERO, AXIAL_ZERO) 
+        bP2 = bd.isclose(TransversalDistance(P2), ZERO, AXIAL_ZERO) 
+        bD2 = bd.isclose(TransversalDistance(D2), ZERO, AXIAL_ZERO) 
+        onAxis = (bP1 & bD1 & bP2 & bD2)    
+        P1 = P1[~onAxis[:, 0]]
+        D1 = D1[~onAxis[:, 0]]
+        P2 = P2[~onAxis[:, 0]]
+        D2 = D2[~onAxis[:, 0]]
+
         # Clip them to use only the YZ coordinates 
         A = bd.stack([D1[:, 1:], -D2[:, 1:]], axis=2) 
-        B = P2[:, 1:] - P1[:, 1:]  
+        B = P2[:, 1:] - P1[:, 1:] 
 
         t = bd.linalg.solve(A, B)
         intersections = P1 + t[:, 0, bd.newaxis] * D1  # Shape (n, 3)
