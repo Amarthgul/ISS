@@ -7,12 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-
 from Util.PlotTest import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines
-from Util.Misc import AxialDistance, WavelengthToRGB, ColorTuplePLT
+from Util.Misc import AxialDistance, WavelengthToRGB, TransversalDistance
 from Surfaces import Surface, Stop
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
@@ -296,15 +295,23 @@ class Lens:
         frontRP.DrawPath(40)
         
         pos, dir = frontRP.ExitingPairs()
-        focalPoint = frontRP.FindConvergingPoint(pos, dir)
-        print(focalPoint)
-        DrawPoint(focalPoint)
+        self.focalPoint = frontRP.FindConvergingPoint(pos, dir)
+        #DrawPoint(self.focalPoint) # Draw call =======
 
         intersections = frontRP.EndToEndIntersection() 
+        intersections = intersections[~bd.any(bd.isnan(intersections), axis=1)]
         self.frontPincipalPlane.SetSamplePoints(intersections)
-        #self.frontPincipalPlane.DrawSurface()
-        DrawPoints(intersections)
-        # print(intersections)
+        
+
+        minPoint = TransversalDistance(intersections)
+        minPoint = intersections[bd.argmin(minPoint)]
+        minPoint = bd.array([ZERO, ZERO, minPoint[Axis.Z.value]])
+        self.frontPincipalPlane.AddSamplePoint(minPoint)
+        #self.frontPincipalPlane.DrawSurface() # Draw call =======
+
+        # Calculate the focal length 
+        self.focalLength = self.focalPoint[Axis.Z.value] - self.frontPincipalPlane.GetInnerZ()
+
 
 
 

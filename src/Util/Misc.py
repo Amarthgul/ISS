@@ -47,7 +47,12 @@ def Normalized(inputVec):
     """
     Normalize a single vector. 
     """
-    return inputVec / bd.linalg.norm(inputVec)
+    mag = bd.linalg.norm(inputVec)
+    
+    if (mag == 0):
+        return 0
+    
+    return inputVec / mag
 
 
 def ArrayNormalized(inputVec):
@@ -225,6 +230,14 @@ def AxialDistance(vectors, axis):
 def AxialSnap(points):
     points[points[:, 0] < AXIAL_ZERO, 1] = 0
     points[points[:, 1] < AXIAL_ZERO, 1] = 0
+
+
+def TransversalDistance(vectors):
+    """
+    Find the distance of vectors to the optical axis (z axis). 
+    """
+
+    return ArrayMagnitude(vectors[:, :2])
 
 
 # ==================================================================

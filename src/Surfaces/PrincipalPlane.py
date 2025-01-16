@@ -27,13 +27,45 @@ class PrincipalPlane(VirtualSurface):
 
 
     def AddSamplePoint(self, point):
-        self._zDepth.append(point[2])
-        self._height.append(Normalized(bd.array([point[0], point[1]])))
+        """
+        Add a single point into the principal plane samples.
+        """
+
+        self._zDepth = bd.append(self._zDepth, point[2])
+        self._height = bd.append(self._height, Normalized(bd.array([point[0], point[1]])))
+
+        # The newly inserted value may cause trouble when plotting 
+        # A re-sorting is needed to ensure both array are in order 
+        sortedIndices = bd.argsort(self._height)
+        self._zDepth = self._zDepth[sortedIndices]
+        self._height = self._height[sortedIndices]
 
 
     def SetSamplePoints(self, points):
+        """
+        Set the sample points, this will override all previous points. 
+        """
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)
+
+
+    def GetOuterZ(self):
+        """
+        Find the z depth of the principle plane using the coordinate of the outer-most sample point. 
+        """
+
+        outerIndex = bd.argmax(self._height)
+        return self._zDepth[outerIndex]
+
+
+    def GetInnerZ(self):
+        """
+        Find the z depth of the principle plane using the coordinate of the inner-most sample point. 
+        """
+
+        outerIndex = bd.argmin(self._height)
+        return self._zDepth[outerIndex]
+
 
 
     def DrawSurface(self, overrideColor=None):

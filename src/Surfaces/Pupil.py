@@ -27,11 +27,23 @@ class Pupil(VirtualSurface):
 
 
     def AddSamplePoint(self, point):
+        """
+        Add a single point into the pupil samples.
+        """
         self._zDepth.append(point[2])
         self._height.append(Normalized(bd.array([point[0], point[1]])))
 
+        # The newly inserted value may cause trouble when plotting 
+        # A re-sorting is needed to ensure both array are in order 
+        sortedIndices = bd.argsort(self._height)
+        self._zDepth = self._zDepth[sortedIndices]
+        self._height = self._height[sortedIndices]
+
 
     def SetSamplePoints(self, points):
+        """
+        Set the sample points, this will override all previous points. 
+        """
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)
 
