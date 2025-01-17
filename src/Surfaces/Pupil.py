@@ -2,7 +2,7 @@
 
 
 from Util.Globals import ZERO
-from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB
+from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB, MovingAverageSmoothing, GaussianSmooth
 from Util.Backend import backend as bd 
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 
@@ -69,7 +69,7 @@ class Pupil(VirtualSurface):
             DrawPupil(self._height, self._zDepth, surfaceColor=wlColor)
 
 
-    def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True):
+    def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
 
         wlColor = 'b'
 
@@ -78,12 +78,17 @@ class Pupil(VirtualSurface):
         if(not overrideColor == None):
             wlColor = overrideColor
 
+        smoothDepth = self._zDepth
+        if(smoothPoints):
+            smoothDepth = GaussianSmooth(self._zDepth)
+
         points = bd.stack(
-            (bd.zeros(len(self._height)), self._height, self._zDepth), axis=-1)
+            (bd.zeros(len(self._height)), self._height, smoothDepth), axis=-1)
 
         if(duplicateAxial):
             opposite = bd.stack(
-                (bd.zeros(len(self._height)), -self._height, self._zDepth), axis=-1)
+                (bd.zeros(len(self._height)), -self._height, smoothDepth), axis=-1)
             points = bd.vstack((points, opposite))
+
 
         DrawPoints(points, color=wlColor)

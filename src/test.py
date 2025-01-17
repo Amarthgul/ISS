@@ -57,7 +57,7 @@ def main():
     testLens = Biotar50mmf14()
     testLens.UpdateLens()
 
-    # TODO: add smoothing algorithm for pupil 
+    
     testLens.DrawLens()
     testLens.entrancePupil.DrawSamplePoints()
     testLens.frontPincipalPlane.DrawSamplePoints()

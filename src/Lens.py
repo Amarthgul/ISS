@@ -79,8 +79,9 @@ class Lens:
 
         # make sure the surfaces are already set before calling init ray tracing 
         #self.LensStatRayTracing() 
-        self._TraceEntrancePupil()
         self._TraceFocalPrincipal() 
+        self._TraceEntrancePupil()
+        
 
 
     def LensStatRayTracing(self):
@@ -207,6 +208,10 @@ class Lens:
     def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=11, wavelength = LambdaLines['D']):
         """
         Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
+
+        :param stopSD: Semi diameter of the stop. 
+        :param sampleCount: number of sample sets to be emitted from the stop. 
+        :param wavelength: the wavelength at which the calculations will be performed. 
         """
 
         self.entrancePupil.sampleWavelength = wavelength
@@ -269,7 +274,9 @@ class Lens:
 
     def _TraceFocalPrincipal(self, wavelength = LambdaLines['D']):
         """
-        Trace the front focal point and principal plane. 
+        Trace the front focal point and principal plane. These two will then be used to calculate the focal length. 
+
+        :param wavelength: the wavelength at which the calculations will be performed. 
         """
         self.frontPincipalPlane.sampleWavelength = wavelength
 

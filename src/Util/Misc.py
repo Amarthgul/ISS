@@ -2,6 +2,8 @@
 
 import math
 
+
+
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ONE, LambdaLines, RefreshRNG, Axis
@@ -115,6 +117,42 @@ def CartesianToPolar(point, origin):
         angle = bd.arctan2(delta[1], delta[0])
         radius = bd.linalg.norm(delta)
         return angle, radius
+
+
+def MovingAverageSmoothing(values):
+    """
+    Smooth the data with end points preservation. 
+
+    :param values: data values to be smoothed. 
+
+    :return: copied and smoothed data. 
+    """
+
+    smoothed = values.copy()
+    smoothed[1:-1] = (values[:-2] + values[1:-1] + values[2:]) / 3
+    return smoothed
+
+
+def GaussianSmooth(values, sigma=1):
+    """
+    Apply Gaussian smoothing to a set of values. 
+
+    :param values: data values to be smoothed. 
+    :param sigma: standard deviation that controls how strong the smooth effect is, the higher the value, the stronger the smoothing. 
+
+    :return: new set of data that have been smoothed. 
+    """
+
+    if(backend_name=='cupy'):
+        from cupyx.scipy.ndimage import gaussian_filter1d
+    else:
+        from scipy.ndimage import gaussian_filter1d
+
+    smoothed = gaussian_filter1d(values, sigma=sigma, mode='nearest')
+    smoothed[0] = values[0]
+    smoothed[-1] = values[-1]
+    
+    return smoothed
 
 
 # ==================================================================
