@@ -4,7 +4,7 @@
 
 from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB
 from Util.Backend import backend as bd 
-from Util.PltPlot import DrawDisk, DrawPupil
+from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 
 
 from .VirtualSurface import VirtualSurface, SymmetryType
@@ -87,4 +87,22 @@ class PrincipalPlane(VirtualSurface):
             DrawPupil(self._height, self._zDepth, surfaceColor=wlColor)
 
 
+    def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True):
+
+        wlColor = 'b'
+
+        if (not self.sampleWavelength == None):
+            wlColor = ColorTuplePLT(WavelengthToRGB(self.sampleWavelength))
+        if(not overrideColor == None):
+            wlColor = overrideColor
+
+        points = bd.stack(
+            (bd.zeros(len(self._height)), self._height, self._zDepth), axis=-1)
+
+        if(duplicateAxial):
+            opposite = bd.stack(
+                (bd.zeros(len(self._height)), -self._height, self._zDepth), axis=-1)
+            points = bd.vstack((points, opposite))
+
+        DrawPoints(points, color=wlColor)
 
