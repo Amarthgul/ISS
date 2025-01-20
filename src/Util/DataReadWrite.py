@@ -13,7 +13,7 @@ def Save(object, fileName):
 
 
 def Load(fileName):
-    with open(savePath+fileName, 'wb') as f:  
+    with open(savePath+fileName, 'rb') as f:  
         data = pickle.load(f)
     return data 
 

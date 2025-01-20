@@ -1,29 +1,37 @@
 
 
+import matplotlib.pyplot as plt
+import time
 
 from Surfaces import Surface, Stop
 from Lens import Lens 
 from Util.DataReadWrite import Save, Load
+from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 
 
+# When flagged, lenses will be loaded from file rather than calculated 
+LOAD_LENS_FROM_FILE = True 
 
 
 class Example():
-    def __init__(self, input, fileName):
+    def __init__(self, input=None, fileName=None):
         self.data = input 
         self.fileName = fileName
 
-    def Save(self):
+    def SaveExample(self):
         Save(self.data, self.fileName)
 
-    def Load(self):
+    def LoadExample(self):
         self.data = Load(self.fileName)
 
 
 # TODO: make the lenses into example instances 
 
+# ==================================================================
+""" ==================== Zeiss Biotar 50mm f/1.4 =============== """
+# ==================================================================
 
-def Biotar50mmf14():
+def _Biotar50mm14Data():
     """
     Zeiss Biotar 500mm f/1.4. 
     Data from US 1786916 Example 2, EFL 100mm. 
@@ -49,12 +57,32 @@ def Biotar50mmf14():
     return biotar 
 
 
-def Helios58mmf2():
+def Biotar50mmf14():
     """
-    Helios 44, 58mm f/2. 
-    Data from Bill Claff.
+    Zeiss Biotar 500mm f/1.4. 
 
-    :return: Lens object with only data and not initlized.
+    :return: initlized lens object.
+    """
+    biotarExample = Example(None, "ZeissBiotar50mmf1.4")
+
+    if(LOAD_LENS_FROM_FILE):
+        biotarExample.LoadExample()
+        biotar = biotarExample.data
+    else: 
+        biotar = _Biotar50mm14Data()
+        biotar.UpdateLens()
+        biotarExample.data = biotar
+        biotarExample.SaveExample()
+
+    return biotar
+
+# ==================================================================
+""" ====================== Helios-44 58mm f/2 ================= """
+# ==================================================================
+
+def _Helios58mmf2Data():
+    """
+    Data from Bill Claff.
     """
     helios = Lens()
 
@@ -75,4 +103,44 @@ def Helios58mmf2():
     return helios
 
 
+def Helios58mmf2():
+    """
+    Helios 44, 58mm f/2. 
+    
+    :return: initlized lens object.
+    """
+    HeliosExample = Example(None, "Helios-44-50mmf2")
 
+    if(LOAD_LENS_FROM_FILE):
+        HeliosExample.LoadExample()
+        helios = HeliosExample.data
+    else: 
+        helios = _Helios58mmf2Data()
+        helios.UpdateLens()
+        HeliosExample.data = helios
+        HeliosExample.SaveExample()
+
+    return helios
+
+
+
+def main():
+    start = time.time()
+
+    biotar = Biotar50mmf14()
+
+    end = time.time()
+    print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
+
+    biotar.DrawLens()
+    biotar.entrancePupil.DrawSamplePoints()
+    #biotar.frontPincipalPlane.DrawSamplePoints()
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    plt.show()
+
+    
+
+if __name__ == "__main__":
+    main()

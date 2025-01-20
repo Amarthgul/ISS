@@ -106,7 +106,7 @@ class RayPath():
         pass 
 
 
-    def FindConvergingPoint(self, position, direction, enableProne=True):
+    def FindConvergingPoint(self, position, direction, enablePrune=True):
         """
         Find the converging point of the exiting rays. 
 
@@ -130,7 +130,7 @@ class RayPath():
 
 
         # Oblique rays will disrupt the convergence, so some prone may be used 
-        if(enableProne):
+        if(enablePrune):
             solved = self._ProneOffAxisZ(solved, position, direction)
 
         # Replace the near zeros with zeros 

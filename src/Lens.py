@@ -259,7 +259,7 @@ class Lens:
                 #plt.pause(4)
 
         # for j in range(sampleCount):
-        #     objectSideRPs[j].DrawPath(10, colors[j])
+        #     objectSideRPs[j].DrawPath(10, colors[j%len(colors)])
 
         poss = [[]for i in range(sampleCount)]
         dirs = [[]for i in range(sampleCount)]
@@ -291,11 +291,11 @@ class Lens:
                 frontRP.Append(frontRB, _tir, _vig)  
 
         frontRP = frontRP.PruneAll()
-        frontRP.DrawPath(40)
+        #frontRP.DrawPath(40) # Draw call =======
         
         pos, dir = frontRP.ExitingPairs()
         self.focalPoint = frontRP.FindConvergingPoint(pos, dir)
-        #DrawPoint(self.focalPoint) # Draw call =======
+        # DrawPoint(self.focalPoint) # Draw call =======
 
         intersections = frontRP.EndToEndIntersection() 
         intersections = intersections[~bd.any(bd.isnan(intersections), axis=1)]
@@ -305,8 +305,8 @@ class Lens:
         minPoint = TransversalDistance(intersections)
         minPoint = intersections[bd.argmin(minPoint)]
         minPoint = bd.array([ZERO, ZERO, minPoint[Axis.Z.value]])
-        self.frontPincipalPlane.AddSamplePoint(minPoint)
-        #self.frontPincipalPlane.DrawSurface() # Draw call =======
+        #self.frontPincipalPlane.AddSamplePoint(minPoint)
+        #self.frontPincipalPlane.DrawSamplePoints() # Draw call =======
 
         # Calculate the focal length 
         self.focalLength = self.focalPoint[Axis.Z.value] - self.frontPincipalPlane.GetInnerZ()
