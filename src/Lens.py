@@ -83,7 +83,6 @@ class Lens:
         self._TraceEntrancePupil()
         
 
-
     def LensStatRayTracing(self):
         """
         At the position of the stop, start a ray tracing and try to find the pupils, the principal planes and the nodal points.
@@ -194,12 +193,18 @@ class Lens:
                 self.surfaces[i].DrawSurface()
 
 
-    def SaveLens(self, path):
+    def SetAperture(self, aperture):
         """
-        Save the lens and its parameters to an offline file. 
-        """
+        Set the aperture of the lens. 
 
-        pass
+        :param aperture: f-number of the lens.
+        """
+        
+        # TODO: add some algorithms to include the shape of aperture blades 
+
+        self.entrancePupilDia = self.focalLength / aperture
+
+        
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

@@ -18,7 +18,7 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution, CartesianToPolar
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines
+from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY
 
 from Util.PltPlot import DrawRaybatch
 
@@ -281,7 +281,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 
 def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=True, halfSide=False, denseEdge=True, density=3):
     """
-    Emit rays from the object space infinitely towards the 1st surface of the lens.
+    Emit collimated rays parallel to the optical axis from the object space infinity towards the 1st surface of the lens.
 
     :param SD: clear semi-diameter of the first surface.
     :param numRays: number of rays to be emitted, it is suggested to have an odd number so that there is one ray along the optical axis.
@@ -321,6 +321,13 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=Tr
         )
 
 
+def EmitField(fieldAngle, distance=INFINITY, samplePool=None,sampleCount=256, wavelength = LambdaLines['D']):
+    """
+    Emit rays defined by field angle and distance, towards a pool of samples.
+    """
+
+    pass 
+
 # ==================================================================
 """ ==================== Emit From Image Space ================= """
 # ==================================================================
@@ -332,16 +339,16 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=Tr
 # ==================================================================
 
 
-def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['D'], denseEdge = False):
+def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['D']):
+    """
+    Emit rays from a point, the range of the rays are determined by two target points, with samples in between.
 
-    #t_values = bd.linspace(0, 1, numRays)
-    # if (not denseEdge):
-    #     k = 1
-    #     t_values = InvSigmoid(t_values, amp=1000)
-
-    # # Compute sampled points
-    # points = bd.outer(1 - t_values, target1) + bd.outer(t_values, target2)
-    #direction = points - emissionPoint
+    :param emissionPoint: the point where the rays are emitted from.
+    :param target1: the first target point.
+    :param target2: the second target point.
+    :param numRays: number of rays to be emitted.
+    :param wavelength: wavelength of the rays in nm.
+    """
 
     # TODO: add angular spilt 
 
@@ -387,6 +394,9 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
     return RayBatch(
         bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)
         )
+
+
+
 
 
 def main():

@@ -24,6 +24,8 @@ class Pupil(VirtualSurface):
         self._height = []
         self._zDepth = []
 
+        # The sample pool of points for the pupil at current size 
+        self._pupilPointSamples = None
 
 
     def AddSamplePoint(self, point):
@@ -51,6 +53,8 @@ class Pupil(VirtualSurface):
     def DrawSurface(self, overrideColor=None):
         """
         Draw the pupil surface depending on the number of sample points. 
+
+        :param overrideColor: color to override the default blue color.
         """
         wlColor = 'b'
 
@@ -70,6 +74,13 @@ class Pupil(VirtualSurface):
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
+        """
+        Draw the sample poinst that are used to define the pupil.
+
+        :param overrideColor: color to override the default blue color.
+        :param duplicateAxial: duplicate the points on the opposite side of the axis.
+        :param smoothPoints: smooth the points using a Gaussian filter.
+        """
 
         wlColor = 'b'
 
@@ -92,3 +103,21 @@ class Pupil(VirtualSurface):
 
 
         DrawPoints(points, color=wlColor)
+
+
+    def SetPupilSize(self, semiDiameter):
+        """
+        Set the clear semi-diameter of the pupil. This can be used to reflect the change of f-number.
+        """
+
+        self.clearSemiDiameter = semiDiameter
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+    def _ResetSamplePool(self, poolSize=1024):
+        """
+        Reset the sample pool size. 
+        """
+        pass 

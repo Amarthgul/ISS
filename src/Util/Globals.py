@@ -43,6 +43,9 @@ RADIANT_KILL = bd.array(0.001)
 # Changing this could increase accuracy, at the cost of increase time 
 
 
+INFINITY = bd.inf
+
+
 # Placeholder varible for arguments 
 SOME_BIG_CONST = 1024
 

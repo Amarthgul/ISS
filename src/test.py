@@ -59,7 +59,7 @@ def main():
 
     
     testLens.DrawLens()
-    #testLens.entrancePupil.DrawSamplePoints()
+    testLens.entrancePupil.DrawSamplePoints()
     #testLens.frontPincipalPlane.DrawSamplePoints()
 
     RemoveBG()
