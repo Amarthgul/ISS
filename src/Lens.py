@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines
+from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
 from Util.Misc import AxialDistance, WavelengthToRGB, TransversalDistance
 from Surfaces import Surface, Stop
 from Surfaces.Pupil import Pupil
@@ -83,107 +83,6 @@ class Lens:
         self._TraceEntrancePupil()
         
 
-    def LensStatRayTracing(self):
-        """
-        At the position of the stop, start a ray tracing and try to find the pupils, the principal planes and the nodal points.
-        """
-
-        # Enable ray path for debugging
-        _EnableRayPath = True
-
-        # Sicne this method is only called once during setup, it is not written very efficiently.
-
-
-        objectSideRB = None 
-        imageSideRB = None
-        stopIndex = None # Array index of the stop among the surfaces 
-
-        if(_EnableRayPath):
-            objectSideRP = RayPath()
-            imagesideRP = RayPath()
-
-        # Find the stop and generate a raybatch from the center of it
-        for i in range(len(self.surfaces)):
-            if isinstance(self.surfaces[i], Stop):
-                objectSideRB, imageSideRB = EmitFromStop(
-                    i,
-                    self.surfaces[i].frontVertex,
-                    self.surfaces[i-1].clearSemiDiameter,
-                    self.surfaces[i+1].clearSemiDiameter,
-                    self.surfaces[i-1].sdThickness,
-                    self.surfaces[i+1].sdThickness, 
-                    numRays=40
-                )
-                stopIndex = i
-                if(_EnableRayPath):
-                    objectSideRP.Append(objectSideRB)
-                    imagesideRP.Append(imageSideRB)
-                break
-
-        # Propagate the rays through the lens in both directions
-        for i in range(len(self.surfaces)):
-            forwardIndex = stopIndex - i - 1
-            backwardIndex = stopIndex + i + 1
-            #print("Currently in ", i, " th iteration")
-            if(forwardIndex >= 0):
-                #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
-                objectSideRB, _tir, _vig = self.surfaces[forwardIndex].NaiveTrace(
-                    objectSideRB, 
-                    self._FindPreviousRI(forwardIndex, objectSideRB)
-                    )
-                if (_EnableRayPath):
-                    objectSideRP.Append(objectSideRB, _tir, _vig)
-                #DrawRaybatch(objectSideRB) # Draw call=========
-                
-            if(backwardIndex <= self._lastSurfaceIndex):
-                #self.surfaces[backwardIndex].DrawSurface() # Draw call=========
-                imageSideRB, _tir, _vig = self.surfaces[backwardIndex].NaiveTrace(
-                    imageSideRB, 
-                    self._FindPreviousRI(backwardIndex, imageSideRB, True)
-                    )
-                if (_EnableRayPath):
-                    imagesideRP.Append(imageSideRB, _tir, _vig)
-                #DrawRaybatch(imageSideRB) # Draw call=========
-
-            #plt.draw()
-            #plt.pause(5)
-
-        pos, dir = objectSideRP.ExitingPairs(True)
-        DrawDirection(pos, dir, lineLength=30) # Draw call=========
-        entPoint = objectSideRP.FindConvergingPoint(pos, dir)
-        self.entrancePupil.AddSamplePoint(entPoint)
-        self.entrancePupil.DrawSurface()
-        
-
-
-        if (_EnableRayPath):
-            frontRP = RayPath()
-
-        # Principal plane 
-        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO, numRays=60)
-        for i in range(len(self.surfaces)):
-            if(not isinstance(self.surfaces[i], Stop)):
-                self.surfaces[i].DrawSurface() # Draw call=========
-                frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
-                    frontRB, 
-                    self._FindPreviousRI(i, frontRB)
-                )
-                if (_EnableRayPath):
-                    frontRP.Append(frontRB, _tir, _vig)
-
-        frontRP.DrawPath(10.0)
-        zIntersections = frontRP.DepthIntersect(entPoint)
-        pupilPlaneDiameter = AxialDistance(zIntersections, Axis.Y.value)
-
-        print("Dia pupils: ", pupilPlaneDiameter)
-
-        if (_EnableRayPath):
-            #frontRP.PlotPath(expendEnd = 10)
-            #imagesideRP.PlotPath(expendEnd = 10)
-            #objectSideRP.PlotPath(expendEnd = 10)
-            pass 
-
-
     def DrawLens(self):
         """
         Iterate through the surfaces and draw them.
@@ -200,9 +99,11 @@ class Lens:
         :param aperture: f-number of the lens.
         """
         
-        # TODO: add some algorithms to include the shape of aperture blades 
+        calculatedPupilSize = self.focalLength / aperture
+        
+        self.entrancePupil.SetPupilSize(calculatedPupilSize / TWO)
 
-        self.entrancePupilDia = self.focalLength / aperture
+        DrawPoints(self.entrancePupil.GetSamplePoints(64))
 
         
 
@@ -210,14 +111,23 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _TraceEntrancePupil(self, stopSD=10.0, sampleCount=11, wavelength = LambdaLines['D']):
+    def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
         """
         Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
 
-        :param stopSD: Semi diameter of the stop. 
+        :param stopSD: Semi diameter of the stop, if not given, this will be calculated from the adjacent surfaces. 
         :param sampleCount: number of sample sets to be emitted from the stop. 
         :param wavelength: the wavelength at which the calculations will be performed. 
         """
+
+        
+        # The physical diaghram of the stop should not be bigger than the adjacent surfaces, as such, if not given, the smallest of the two will be used.
+        if(stopSD == None):
+            priorSD = self.surfaces[self.stopIndex-1].clearSemiDiameter
+            postSD = self.surfaces[self.stopIndex+1].clearSemiDiameter
+            # Minus a small value to avoid potential error caused by identical values
+            stopSD = bd.min(bd.array([priorSD, postSD])) - AXIAL_ZERO
+
 
         self.entrancePupil.sampleWavelength = wavelength
         colors = plt.get_cmap('tab10').colors
@@ -273,7 +183,7 @@ class Lens:
             poss[j], dirs[j] = objectSideRPs[j].ExitingPairs()
             intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
             #DrawPoint(intersections[j], color=colors[j])
-            #DrawDirection(poss[j], dirs[j], lineColor=colors[j], lineLength=40, arrowRatio=0)
+            #DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
         self.entrancePupil.SetSamplePoints(bd.array(intersections))
 
 
@@ -315,8 +225,6 @@ class Lens:
 
         # Calculate the focal length 
         self.focalLength = self.focalPoint[Axis.Z.value] - self.frontPincipalPlane.GetInnerZ()
-
-
 
 
     def _FindPreviousRI(self, index, raybatch):

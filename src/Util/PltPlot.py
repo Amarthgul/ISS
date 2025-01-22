@@ -223,7 +223,7 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20
         y = bd.asnumpy(y)
         z = bd.asnumpy(z)
 
-    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.2)
+    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.1)
 
 
 def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX):

@@ -327,7 +327,7 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
     return points * radius * shrink
 
 
-def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z = 0, shrink=1):
+def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, zDepth = 0, shrink=1):
     """
     Generate a random, even distribution of points on an ellipse.
     
@@ -355,9 +355,9 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z
     x *= major_axis * shrink
     y *= minor_axis * shrink
 
-    z = bd.ones(len(x)) * z
+    zDepth = bd.ones(len(x)) * zDepth
     
-    return bd.vstack((x, y, z))
+    return bd.vstack((x, y, zDepth))
 
 
 # ==================================================================

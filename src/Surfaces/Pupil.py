@@ -1,8 +1,10 @@
 
 
+import warnings
 
-from Util.Globals import ZERO
-from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB, MovingAverageSmoothing, GaussianSmooth
+
+from Util.Globals import ZERO, RNG
+from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB, MovingAverageSmoothing, GaussianSmooth, RandomEllipticalDistribution
 from Util.Backend import backend as bd 
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 
@@ -23,6 +25,10 @@ class Pupil(VirtualSurface):
 
         self._height = []
         self._zDepth = []
+
+
+        self._maxPupilSize = None
+
 
         # The sample pool of points for the pupil at current size 
         self._pupilPointSamples = None
@@ -49,10 +55,12 @@ class Pupil(VirtualSurface):
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)
 
+        self._maxPupilSize = bd.max(self._height)
+
 
     def DrawSurface(self, overrideColor=None):
         """
-        Draw the pupil surface depending on the number of sample points. 
+        Draw the pupil surface at the given aperture (f-number). 
 
         :param overrideColor: color to override the default blue color.
         """
@@ -63,14 +71,20 @@ class Pupil(VirtualSurface):
         if(not overrideColor == None):
             wlColor = overrideColor
 
+        # When there is only one data point,
         if(len(self._zDepth) == 1):
-            # When there is only one data point,
             # Assume it is the center point on axis and use it as the overall depth 
             DrawDisk(self.clearSemiDiameter, self._zDepth[0], surfaceColor=wlColor)
 
+
+        # When there are many different points for the pupil plane 
         else:
-            # When there are many different points for the pupil plane 
-            DrawPupil(self._height, self._zDepth, surfaceColor=wlColor)
+            heightConstraint = self._height < self.clearSemiDiameter
+            newHeight = self._height[heightConstraint]
+            newDepth = self._zDepth[heightConstraint]
+            newHeight[bd.argmax(newHeight)] = self.clearSemiDiameter
+
+            DrawPupil(newHeight, newDepth, surfaceColor=wlColor)
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
@@ -107,17 +121,48 @@ class Pupil(VirtualSurface):
 
     def SetPupilSize(self, semiDiameter):
         """
-        Set the clear semi-diameter of the pupil. This can be used to reflect the change of f-number.
+        Set the clear semi-diameter of the pupil, also regenerates the sample pool. This can be used to reflect the change of f-number.
         """
 
+        # Check if the semi-diameter given is plausible
+        if(semiDiameter > self._maxPupilSize):
+            warnings.warn("The pupil size is larger than possible. Max possible size is used instead.")
+            semiDiameter = self._maxPupilSize
+        
         self.clearSemiDiameter = semiDiameter
+
+        self._ResetSamplePool()
+
+
+    def GetSamplePoints(self, sampleCount):
+        """
+        Get some sample points that are on the pupil. 
+        """
+        selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
+
+        return self._pupilPointSamples[selectedIndices]
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _ResetSamplePool(self, poolSize=1024):
+
+    def _ResetSamplePool(self, poolSize=128):
         """
-        Reset the sample pool size. 
+        Regenerate the sample pool of points for the pupil. 
         """
-        pass 
+
+        # Using the curved pupil surface might introduce some unevenness after propagation, an average is used here. Other methods can also be used to calculate the average depth depending on the desired effect.
+        pupilZdepth = bd.mean(self._zDepth)
+
+
+        # TODO: Currently this assumes the shape of the pupil is circular, in the future, other shapes can be added.
+        self._pupilPointSamples = RandomEllipticalDistribution(
+            major_axis=self.clearSemiDiameter,
+            minor_axis=self.clearSemiDiameter,
+            samplePoints=poolSize, 
+            zDepth=pupilZdepth).T
+
+        print("Somehing")
+        

@@ -56,11 +56,14 @@ def main():
 
     testLens = Biotar50mmf14()
     testLens.UpdateLens()
+    testLens.SetAperture(2.0)
 
     
     testLens.DrawLens()
     testLens.entrancePupil.DrawSamplePoints()
+    testLens.entrancePupil.DrawSurface()
     #testLens.frontPincipalPlane.DrawSamplePoints()
+    
 
     RemoveBG()
     #DrawDisk(19)
