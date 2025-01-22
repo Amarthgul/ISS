@@ -84,8 +84,9 @@ def DrawPoints(points, ax=AX, color='red'):
     CheckAX()
 
     if(backend_name == "cupy"):
-        data = bd.asnumpy(points)
-    x, y, z = data[:, 0], data[:, 1], data[:, 2]
+        points = bd.asnumpy(points)
+    
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
     ax.scatter3D(x, y, z, color=color)
 
 

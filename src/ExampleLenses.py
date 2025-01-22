@@ -6,6 +6,7 @@ import time
 from Surfaces import Surface, Stop
 from Lens import Lens 
 from Util.DataReadWrite import Save, Load
+from Util.Backend import backend_name
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 
 
@@ -59,7 +60,14 @@ def Biotar50mmf14():
 
     :return: initlized lens object.
     """
-    biotarExample = Example(None, "ZeissBiotar50mmf1.4")
+    fileName = "ZeissBiotar50mmf1.4"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    biotarExample = Example(None, fileName)
 
     if(LOAD_LENS_FROM_FILE):
         biotarExample.LoadExample()
@@ -105,7 +113,15 @@ def Helios58mmf2():
     
     :return: initlized lens object.
     """
-    HeliosExample = Example(None, "Helios-44-50mmf2")
+
+    fileName = "Helios-44-50mmf2"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    HeliosExample = Example(None, fileName)
 
     if(LOAD_LENS_FROM_FILE):
         HeliosExample.LoadExample()
