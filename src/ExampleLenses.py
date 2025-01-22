@@ -10,7 +10,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = False 
+LOAD_LENS_FROM_FILE = True 
 
 
 class Example():
@@ -49,8 +49,6 @@ def _Biotar50mm14Data():
     biotar.AddSurface(Surface(-26.6,	0.485,      14))
     biotar.AddSurface(Surface(53, 	    6.95,       14.5,   "BAF9"))
     biotar.AddSurface(Surface(-60,	    32.3552,    14.5))
-
-    biotar.entrancePupilDia = 35.714
 
     return biotar 
 
@@ -96,7 +94,7 @@ def _Helios58mmf2Data():
     helios.AddSurface(Surface(191.540,	4.940,  13.25,  "LZ_BF16"))
     helios.AddSurface(Surface(-52.725,	37.120, 13.25))
 
-    helios.entrancePupilDia = 29.5
+    #helios.entrancePupilDia = 29.5
 
     return helios
 
@@ -125,16 +123,18 @@ def Helios58mmf2():
 def main():
     start = time.time()
 
-    biotar = Biotar50mmf14()
+    exampleLens = Biotar50mmf14()
+    #exampleLens.SetAperture(2.8)
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
 
-    print(biotar.GetInfo())
+    print(exampleLens.GetInfo())
 
-    biotar.DrawLens()
-    biotar.entrancePupil.DrawSamplePoints()
-    #biotar.frontPincipalPlane.DrawSamplePoints()
+    exampleLens.DrawLens()
+    exampleLens.entrancePupil.DrawSamplePoints()
+    exampleLens.entrancePupil.DrawSurface()
+    #exampleLens.frontPincipalPlane.DrawSamplePoints()
     SetUnifScale(50)
     AddXYZ()
     RemoveBG()

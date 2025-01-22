@@ -23,8 +23,6 @@ from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
 
 class Lens:
     def __init__(self):
-        self.entrancePupilDia = constant(25.0)
-
         self.fNumber = constant(2.0)
         self.focalLength = constant(50.0)
 
@@ -60,7 +58,7 @@ class Lens:
         Iterate throught the elements and update their relative parameters. 
         Including starting a ray trace and finds the entrance and exit pupil. 
         """
-        self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
+        #self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
 
 
         currentT = constant(0.0)
@@ -77,12 +75,14 @@ class Lens:
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
 
+        self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter)
+
         # make sure the surfaces are already set before calling init ray tracing 
         #self.LensStatRayTracing() 
-        self._TraceFocalPrincipal() 
         self._TraceEntrancePupil()
+        self._TraceFocalPrincipal() 
         
-
+        
     def DrawLens(self):
         """
         Iterate through the surfaces and draw them.
@@ -106,11 +106,13 @@ class Lens:
 
     def GetInfo(self):
         info = "Lens Info: \n" +\
-            "Focal Length: " + str(self.focalLength) + "\n" +\
-            "Max P: " + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
-            "Working max N: f/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize())
+            "Focal Length:   \t" + str(self.focalLength) + "\n" +\
+            "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize()) + "\n" +\
+            "Max pupil dia:  \t" + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
+            "Axial length:   \t" + str(self.totalAxialLength) + "\n" 
             
         return info
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -200,7 +202,7 @@ class Lens:
         """
         self.frontPincipalPlane.sampleWavelength = wavelength
 
-        frontRB = EmitFromObjectSpace(self.entrancePupilDia / TWO, numRays=15, halfSide=True)
+        frontRB = EmitFromObjectSpace(self.entrancePupil.GetMaxPupilSize() / TWO, numRays=15, halfSide=True)
         frontRP = RayPath()
         frontRP.Append(frontRB, None, None)
 
@@ -210,6 +212,9 @@ class Lens:
                     frontRB, self._FindPreviousRI(i, frontRB))   
                 frontRP.Append(frontRB, _tir, _vig)  
 
+        #frontRP.DrawPath(40) # Draw call =======
+        #plt.draw()
+        #plt.pause(10)
         frontRP = frontRP.PruneAll()
         #frontRP.DrawPath(40) # Draw call =======
         

@@ -31,7 +31,7 @@ class Image2D:
         self.fitToAoV = True 
 
         # How to fit the image when aspect ratio is different from AoV  
-        self.fitMethod = Fit.FIT
+        #self.fitMethod = Fit.FIT
         
 
         # Physical size of the image in millimeter. 

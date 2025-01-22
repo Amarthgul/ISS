@@ -29,9 +29,11 @@ class Imager():
 
         self._Start()
 
+
     def _Start(self):
         if (self.verticalPx == None):
             self.verticalPx = int((self.height / self.width ) * self.horizontalPx)
+
 
     def SetLensLength(self, length):
         """
@@ -53,6 +55,7 @@ class Imager():
 
         self._ImagePlaneIntersections() 
         return self._integralRays(primaries, secondaries, UVIRcut, baseImg=baseImg, valueClamp=valueClamp) 
+
 
     def Test(self):
         pass 

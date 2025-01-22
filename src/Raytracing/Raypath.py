@@ -216,7 +216,10 @@ class RayPath():
         
         # In the event of the raypath containing the emission source, index 0 is None
         if(doppelganger.vignetted[0] == None):
-            # Manually apply the last ineffective mask to the first entry 
+            # In this case, the vignetted mask of the emission needs to be manually applied from the first entry
+            temp = doppelganger.vignetted[1]
+            temp[~temp] = ineffective[~ineffective]
+            ineffective = temp
             doppelganger.position[0] = doppelganger.position[0][~ineffective]
             doppelganger.direction[0] = doppelganger.direction[0][~ineffective]
 

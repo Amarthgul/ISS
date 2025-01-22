@@ -5,6 +5,7 @@ import time
 
 from Util.Backend import backend as bd
 from Lens import Lens 
+from ExampleLenses import Biotar50mmf14
 from Imagers import Imager 
 from Util.Globals import RNG
 from Surfaces import Surface
@@ -58,7 +59,7 @@ def main():
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
-    imgSys.AddLens()
+    imgSys.AddLens(Biotar50mmf14())
     imgSys.AddImager(imager)
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
 

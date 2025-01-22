@@ -31,6 +31,8 @@ class Pupil(VirtualSurface):
         # The maximum possible pupil size, derived from the theoretical height 
         self._maxPupilSD = None
 
+        self._firstElementSD = None
+
         # This set of points represent the pupil size that is currently used at the current f-number
         self._workingHeight = []
         self._workingDepth = []
@@ -60,36 +62,59 @@ class Pupil(VirtualSurface):
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)
 
+        # Since this method reset all sample points, the max pupil size is copied from the theoretical maxmimum size, this could be changed later if pupil size is changed. 
+        self.clearSemiDiameter = bd.max(self._height)
+
+        # Record the maximum possible pupil size, this is a constant value and should not be change. 
         self._maxPupilSD = bd.max(self._height)
 
         # Copy the theoretical pupil size to the working size
         self._workingDepth = self._zDepth.copy()
         self._workingHeight = self._height.copy()
 
+        self._CheckStopSize()
         self._ResetSamplePool()
 
 
-    def DrawSurface(self, overrideColor=None):
+    def SetFirstElementSD(self, firstElementSD):
         """
-        Draw the pupil surface at the given aperture (f-number). 
-
-        :param overrideColor: color to override the default blue color.
+        Set the semi-diameter of the first element, this is used to determine the maximum possible pupil size. 
         """
-        wlColor = 'b'
+        self._firstElementSD = firstElementSD
 
-        if (not self.sampleWavelength == None):
-            wlColor = ColorTuplePLT(WavelengthToRGB(self.sampleWavelength))
-        if(not overrideColor == None):
-            wlColor = overrideColor
 
-        # When there is only one data point,
-        if(len(self._zDepth) == 1):
-            # Assume it is the center point on axis and use it as the overall depth 
-            DrawDisk(self.clearSemiDiameter, self._zDepth[0], surfaceColor=wlColor)
+    def SetPupilSize(self, semiDiameter):
+        """
+        Set the clear semi-diameter of the pupil, also regenerates the sample pool. This can be used to reflect the change of f-number.
+        """
 
-        # When there are many different points for the pupil plane 
-        else:
-            DrawPupil(self._workingHeight, self._workingDepth, surfaceColor=wlColor)
+        # Check if the semi-diameter given is plausible
+        if(semiDiameter > self._maxPupilSD):
+            warnings.warn("The pupil size is larger than possible. Max possible size is used instead.")
+            semiDiameter = self._maxPupilSD
+        
+        self.clearSemiDiameter = semiDiameter
+
+        self._CheckStopSize()
+
+        self._ResetWorkingPupilSize()
+        self._ResetSamplePool()
+
+
+    def GetMaxPupilSize(self):
+        """
+        Get the maximum possible pupil size.
+        """
+        return self._maxPupilSD * 2
+
+
+    def GetSamplePoints(self, sampleCount):
+        """
+        Get some sample points that are on the pupil. 
+        """
+        selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
+
+        return self._pupilPointSamples[selectedIndices]
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
@@ -124,41 +149,37 @@ class Pupil(VirtualSurface):
         DrawPoints(points, color=wlColor)
 
 
-    def SetPupilSize(self, semiDiameter):
+    def DrawSurface(self, overrideColor=None, smoothPoints=True):
         """
-        Set the clear semi-diameter of the pupil, also regenerates the sample pool. This can be used to reflect the change of f-number.
+        Draw the pupil surface at the given aperture (f-number). 
+
+        :param overrideColor: color to override the default blue color.
+        :param smoothPoints: smooth the points using a Gaussian filter. 
         """
+        wlColor = 'b'
 
-        # Check if the semi-diameter given is plausible
-        if(semiDiameter > self._maxPupilSD):
-            warnings.warn("The pupil size is larger than possible. Max possible size is used instead.")
-            semiDiameter = self._maxPupilSD
-        
-        self.clearSemiDiameter = semiDiameter
+        if (not self.sampleWavelength == None):
+            wlColor = ColorTuplePLT(WavelengthToRGB(self.sampleWavelength))
+        if(not overrideColor == None):
+            wlColor = overrideColor
 
-        self._ResetWorkingPupilSize()
-        self._ResetSamplePool()
+        # When there is only one data point,
+        if(len(self._zDepth) == 1):
+            # Assume it is the center point on axis and use it as the overall depth 
+            DrawDisk(self.clearSemiDiameter, self._zDepth[0], surfaceColor=wlColor)
 
-
-    def GetMaxPupilSize(self):
-        """
-        Get the maximum possible pupil size.
-        """
-        return self._maxPupilSD * 2
-
-
-    def GetSamplePoints(self, sampleCount):
-        """
-        Get some sample points that are on the pupil. 
-        """
-        selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
-
-        return self._pupilPointSamples[selectedIndices]
+        # When there are many different points for the pupil plane 
+        else:
+            smoothDepth = self._workingDepth
+            if(smoothPoints):
+                smoothDepth = GaussianSmooth(self._workingDepth)
+            DrawPupil(self._workingHeight, smoothDepth, surfaceColor=wlColor)
 
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
 
     def _ResetWorkingPupilSize(self):
         """
@@ -197,3 +218,15 @@ class Pupil(VirtualSurface):
         #self._pupilPointSamples = PoissonDiskDistribution()
 
         
+    def _CheckStopSize(self):
+        """
+        Ideally, the entrance pupil is defined by the aperture stop, i.e., the physical diaphragm. However, in some cases, when the 1st surface is smaller than the pupil, the entrance pupil will not be able to project fully onto the 1st surface. This method checks if the 1st surface is smaller than the pupil and adjust the max pupil size accordingly.
+        """
+        
+        if(self._firstElementSD is None):
+            return
+
+        # When pupil is smaller than 
+        if(self._maxPupilSD > self._firstElementSD):
+            self._maxPupilSD = self._firstElementSD
+
