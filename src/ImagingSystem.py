@@ -52,29 +52,13 @@ class ImagingSystem:
 
     
 def main():
-    biotar = Lens() 
-
-    # Set up the lens 
-    # Zeiss Biotar 50 1.4 
-    biotar.AddSurface(Surface(41.8,     5.375,  17, "BAF9"))
-    biotar.AddSurface(Surface(160.5,    0.825,  17))
-    biotar.AddSurface(Surface(22.4,	    7.775,  16, "SK10"))
-    biotar.AddSurface(Surface(-575,	    2.525,  16, "LZ_LF5"))
-    biotar.AddSurface(Surface(14.15,	9.45,   11))
-    biotar.AddSurface(Surface(-19.25,	2.525,  11, "SF5"))
-    biotar.AddSurface(Surface(25.25,	10.61,  13, "BAF9"))
-    biotar.AddSurface(Surface(-26.6,	0.485,  13))
-    biotar.AddSurface(Surface(53, 	    6.95,   14, "BAF9"))
-    biotar.AddSurface(Surface(-60,	    32.3552, 14))
-    # Update immediately after all the surfaces are defined  
-    biotar.UpdateLens() 
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
     imager = Imager(bfd=35)
 
     # Assemble the imaging system 
     imgSys = ImagingSystem() 
-    imgSys.AddLens(biotar)
+    imgSys.AddLens()
     imgSys.AddImager(imager)
     imgSys.imager.SetLensLength(imgSys.lens.totalLength)
 

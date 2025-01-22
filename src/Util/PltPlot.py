@@ -248,7 +248,7 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
 
 
-def DrawPupil(radius, heights, num_points = 100 ,surfaceColor = "b",  ax=AX):
+def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):
     CheckAX()
 
     # Parametric equation for the disk
@@ -259,7 +259,7 @@ def DrawPupil(radius, heights, num_points = 100 ,surfaceColor = "b",  ax=AX):
     # Convert to Cartesian coordinates
     X = R * bd.cos(Theta)
     Y = R * bd.sin(Theta)
-    Z = bd.tile(heights, (len(theta), 1))  # Repeat z values for each angle
+    Z = bd.tile(axialDepth, (len(theta), 1))  # Repeat z values for each angle
 
     if(backend_name == "cupy"):
         X = bd.asnumpy(X)

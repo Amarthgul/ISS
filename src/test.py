@@ -62,6 +62,7 @@ def main():
     testLens.DrawLens()
     testLens.entrancePupil.DrawSamplePoints()
     testLens.entrancePupil.DrawSurface()
+    DrawPoints(testLens.entrancePupil.GetSamplePoints(64))
     #testLens.frontPincipalPlane.DrawSamplePoints()
     
 

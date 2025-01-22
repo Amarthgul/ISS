@@ -10,7 +10,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False 
 
 
 class Example():
@@ -24,8 +24,6 @@ class Example():
     def LoadExample(self):
         self.data = Load(self.fileName)
 
-
-# TODO: make the lenses into example instances 
 
 # ==================================================================
 """ ==================== Zeiss Biotar 50mm f/1.4 =============== """
@@ -131,6 +129,8 @@ def main():
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
+
+    print(biotar.GetInfo())
 
     biotar.DrawLens()
     biotar.entrancePupil.DrawSamplePoints()

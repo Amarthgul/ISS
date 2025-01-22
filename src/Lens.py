@@ -102,10 +102,15 @@ class Lens:
         calculatedPupilSize = self.focalLength / aperture
         
         self.entrancePupil.SetPupilSize(calculatedPupilSize / TWO)
-
-        DrawPoints(self.entrancePupil.GetSamplePoints(64))
-
         
+
+    def GetInfo(self):
+        info = "Lens Info: \n" +\
+            "Focal Length: " + str(self.focalLength) + "\n" +\
+            "Max P: " + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
+            "Working max N: f/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize())
+            
+        return info
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

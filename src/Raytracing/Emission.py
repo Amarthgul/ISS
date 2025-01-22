@@ -17,7 +17,8 @@ Projecting to the entrance pupil is faster, but it will offer less flare and gla
 
 from Util.Backend import backend as bd
 from Util.Backend import constant
-from Util.Misc import Normalized, ArrayNormalized, CircularDistribution, angleBetweenVectors, Rotate, Translate, RandomEllipticalDistribution, CartesianToPolar
+from Util.Sampling import RandomEllipticalDistribution, CircularDistribution
+from Util.Misc import Normalized, ArrayNormalized, angleBetweenVectors, Rotate, Translate, CartesianToPolar
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY
 
 from Util.PltPlot import DrawRaybatch
@@ -64,17 +65,14 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
     offset[2] = posA[2]
     onAxis = False 
 
-    one = constant(1.0)
-    zero = constant(0)
-
     # On axis scenario 
-    if (bd.isclose(posP[0], zero) and bd.isclose(posP[1], zero)):
-        P_xy_projection = bd.array([sd, zero, zero])
+    if (bd.isclose(posP[0], ZERO) and bd.isclose(posP[1], ZERO)):
+        P_xy_projection = bd.array([sd, ZERO, ZERO])
         onAxis = True 
     else:
         # Util vectors 
         P_xy_projection = posP.copy()
-        P_xy_projection[2] = zero
+        P_xy_projection[2] = ZERO
 
     vecCA = posA - posC
     
@@ -84,7 +82,7 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
             # Move the point along the z axis 
             points = bd.transpose(RandomEllipticalDistribution()) + offset
             # Scale it on the two semi-major axis 
-            points = bd.transpose(points * bd.array([sd, sd, one]))
+            points = bd.transpose(points * bd.array([sd, sd, ONE]))
             
         else:
             # Generate the contour of the ellipse 
@@ -321,12 +319,45 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=Tr
         )
 
 
-def EmitField(fieldAngle, distance=INFINITY, samplePool=None,sampleCount=256, wavelength = LambdaLines['D']):
+def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, wavelength = LambdaLines['D']):
     """
     Emit rays defined by field angle and distance, towards a pool of samples.
-    """
 
-    pass 
+    :param fieldAngleX: field angle in the x direction, unit in degrees.
+    :param fieldAngleY: field angle in the y direction, unit in degrees.
+    :param distance: distance of the rays from the origin.
+    :param sampleTargets: a pool of sample points to emit rays towards.
+    :param wavelength: wavelength of the rays in nm.
+
+    :return: a RayBatch object pointing from the object space to the sample points.
+    """
+    numRays = len(sampleTargets)
+
+    xDist = FAR_DISTANCE * bd.tan(bd.radians(fieldAngleX))
+    yDist = FAR_DISTANCE * bd.tan(bd.radians(fieldAngleY))
+
+    if(distance == INFINITY):
+        # Apprently it is not possible to have a ray from infinity while being off-axis, there is no way to represent the position of that ray. Far distance is used as an intercept on the infinity direction. 
+        position = sampleTargets.copy()
+        position[:, 0] += xDist
+        position[:, 1] += yDist
+        position[:, 2] = -FAR_DISTANCE # Object space is negative
+        direction = sampleTargets - position
+    else:
+        position = bd.tile(bd.array([xDist, yDist, -distance]), (numRays, 1))
+        direction = sampleTargets - position[:, bd.newaxis]
+
+
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    
+    return RayBatch(
+        bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
+        )
+
 
 # ==================================================================
 """ ==================== Emit From Image Space ================= """
