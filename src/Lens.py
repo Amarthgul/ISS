@@ -75,10 +75,8 @@ class Lens:
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
 
-        self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter)
+        self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter) 
 
-        # make sure the surfaces are already set before calling init ray tracing 
-        #self.LensStatRayTracing() 
         self._TraceEntrancePupil()
         self._TraceFocalPrincipal() 
         
@@ -104,12 +102,41 @@ class Lens:
         self.entrancePupil.SetPupilSize(calculatedPupilSize / TWO)
         
 
+    def SetIncidentRaybatch(self, raybatch):
+        """
+        Set the incident raybatch for the lens. 
+
+        :param raybatch: the raybatch to be used to propagate through the lens.
+        """
+        self.rayBatch = raybatch
+
+
+    def Propagate(self):
+        """
+        Propagate the raybatch through the lens. 
+        """
+
+        self.rayPath = RayPath()
+        self.rayPath.Append(self.rayBatch, None, None)
+
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                self.rayBatch, _tir, _vig = self.surfaces[i].Trace(
+                    self.rayBatch, self._FindPreviousRI(i, self.rayBatch))
+                self.rayPath.Append(self.rayBatch, _tir, _vig)
+
+        self.rayPath.DrawPath(40)
+        return self.rayBatch
+
+
     def GetInfo(self):
-        info = "Lens Info: \n" +\
+        info = "- Lens Info: \n" +\
             "Focal Length:   \t" + str(self.focalLength) + "\n" +\
             "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize()) + "\n" +\
             "Max pupil dia:  \t" + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
-            "Axial length:   \t" + str(self.totalAxialLength) + "\n" 
+            "Axial length:   \t" + str(self.totalAxialLength) + "\n" +\
+            "Principal plane:\t" + str(self.frontPincipalPlane.GetInnerZ()) + "\n" +\
+            "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
             
         return info
 

@@ -73,6 +73,7 @@ class Pupil(VirtualSurface):
         self._workingHeight = self._height.copy()
 
         self._CheckStopSize()
+        self._ResetWorkingPupilSize()
         self._ResetSamplePool()
 
 
@@ -96,7 +97,6 @@ class Pupil(VirtualSurface):
         self.clearSemiDiameter = semiDiameter
 
         self._CheckStopSize()
-
         self._ResetWorkingPupilSize()
         self._ResetSamplePool()
 
@@ -112,6 +112,19 @@ class Pupil(VirtualSurface):
         """
         Get some sample points that are on the pupil. 
         """
+
+        # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples. 
+        if(sampleCount > self._pupilPointSamples.shape[0]):
+            # Same as self._ResetSamplePool()
+            pupilZdepth = bd.mean(self._workingDepth)
+            return RandomEllipticalDistribution(
+                major_axis=self.clearSemiDiameter,
+                minor_axis=self.clearSemiDiameter,
+                samplePoints=sampleCount, 
+                zDepth=pupilZdepth, 
+                groupByPoint=True)
+
+
         selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
 
         return self._pupilPointSamples[selectedIndices]
@@ -185,6 +198,10 @@ class Pupil(VirtualSurface):
         """
         Reset the working pupil size to the current clear semi-diameter.
         """
+
+        # Check if the current clear semi-diameter is plausible. Sometimes if the lens is wide open, the direct calculated value can be bigger than the maximum possible size.
+        if(self.clearSemiDiameter > self._maxPupilSD):
+            self.clearSemiDiameter = self._maxPupilSD
 
         # Find the index where the clear semi-diameter should be inserted
         insert_index = bd.searchsorted(self._height, self.clearSemiDiameter)

@@ -1,8 +1,8 @@
 
 import PIL.Image
-import numpy as np 
-from src.Util.Misc import * 
 import copy
+
+from Util.Backend import backend as bd
 
 
 class Image2D:
@@ -14,8 +14,8 @@ class Image2D:
 
         # Angle of view on x, y, and diagonal direction.
         # Sign is based on negative z direction, where clockwise is positive. 
-        self.xAoV = np.array([-19.8, 19.8])
-        self.yAoV = np.array([-13.5, 13.5])
+        self.xAoV = bd.array([-19.8, 19.8])
+        self.yAoV = bd.array([-13.5, 13.5])
 
         self.diagonalAoV = 46.8
         # Dafult values are for a 50mm lens on a 135 imager. 
@@ -29,9 +29,6 @@ class Image2D:
         # Whether the image will be fit to the AoV. 
         # When flagged, the size will be auto calculated based on AoV and distance 
         self.fitToAoV = True 
-
-        # How to fit the image when aspect ratio is different from AoV  
-        #self.fitMethod = Fit.FIT
         
 
         # Physical size of the image in millimeter. 
@@ -61,18 +58,18 @@ class Image2D:
             self.img =  PIL.Image.open(self.imgpath)
             self._sourceImg = copy.deepcopy(self.img)
 
-        _xAoVRad = np.radians(self.xAoV)
-        _yAoVRad = np.radians(self.yAoV)
+        _xAoVRad = bd.radians(self.xAoV)
+        _yAoVRad = bd.radians(self.yAoV)
         xTotalAoV = abs(self.xAoV[1] - self.xAoV[0]) # In degrees 
         yTotalAoV = abs(self.yAoV[1] - self.yAoV[0])
         # Update the diagonal 
-        self.diagonalAoV = 2 * np.arctan(
-            np.sqrt(
-                np.tan(xTotalAoV/2)**2 + np.tan(yTotalAoV/2)**2  
+        self.diagonalAoV = 2 * bd.arctan(
+            bd.sqrt(
+                bd.tan(xTotalAoV/2)**2 + bd.tan(yTotalAoV/2)**2  
                 ))
         # Anchor points on x and y direction 
-        xAnchors = self.distance * np.tan(_xAoVRad)
-        yAnchors = self.distance * np.tan(_yAoVRad)
+        xAnchors = self.distance * bd.tan(_xAoVRad)
+        yAnchors = self.distance * bd.tan(_yAoVRad)
 
         #print("Anchor positions ", xAnchors, "  ", yAnchors)
 
@@ -92,11 +89,11 @@ class Image2D:
         #print("Spatial size  ", self.sizeX, "       ", self.sizeY)
         #print("Sample amount ", self.sampleX, "       ", self.sampleY)
         # Create the sample point grid 
-        xLoc = np.linspace(xAnchors[0], xAnchors[1], self.sampleX)
-        yLoc = np.linspace(yAnchors[0], yAnchors[1], self.sampleY)
-        x, y = np.meshgrid(xLoc, yLoc)
+        xLoc = bd.linspace(xAnchors[0], xAnchors[1], self.sampleX)
+        yLoc = bd.linspace(yAnchors[0], yAnchors[1], self.sampleY)
+        x, y = bd.meshgrid(xLoc, yLoc)
         z = (x * 0) - self.distance
-        positions = np.stack((x, y, z), axis=-1)
+        positions = bd.stack((x, y, z), axis=-1)
         #print("x and y: \n", xLoc, "\ny Loc\n", yLoc)
 
         # Resize the image to the exact sample points 
@@ -104,7 +101,7 @@ class Image2D:
         colorArray = self.ImageToRGBArray()
 
         # An array, each entry is of format (x, y, z, R, G, B)
-        self.pointData = np.concatenate((positions, colorArray), axis=-1)
+        self.pointData = bd.concatenate((positions, colorArray), axis=-1)
 
 
     def SetImage(self, input):
@@ -136,8 +133,8 @@ class Image2D:
             #print("\nWidth spilt")
             p1Box = (0, 0, width // 2, height)    # Left half
             p2Box = (width // 2, 0, width, height)  # Right half
-            xAoV1 = np.array([self.xAoV[0], xTotalAoV/2])
-            xAoV2 = np.array([xTotalAoV/2, self.xAoV[1]])
+            xAoV1 = bd.array([self.xAoV[0], xTotalAoV/2])
+            xAoV2 = bd.array([xTotalAoV/2, self.xAoV[1]])
             yAoV1 = self.yAoV
             yAoV2 = self.yAoV
         else:
@@ -145,8 +142,8 @@ class Image2D:
             p2Box = (0, height // 2, width, height)  # Bottom half
             xAoV1 = self.xAoV
             xAoV2 = self.xAoV
-            yAoV1 = np.array([self.yAoV[0], yTotalAoV/2])
-            yAoV2 = np.array([yTotalAoV/2, self.yAoV[1]])
+            yAoV1 = bd.array([self.yAoV[0], yTotalAoV/2])
+            yAoV2 = bd.array([yTotalAoV/2, self.yAoV[1]])
 
         p1 = self.img.crop(p1Box)
         p2 = self.img.crop(p2Box)
@@ -199,7 +196,7 @@ class Image2D:
         """
         # TODO: add more implementations for images not directly read as RGB
         # For color space conversion and gamma correction, also put them here 
-        return np.array(self.img)
+        return bd.array(self.img)
 
 
 class Point:
@@ -215,10 +212,10 @@ class Point:
         self.fieldIsDegree = True 
 
         # Distance is unsigned length in mm counting from the front vertex of the lens
-        self.distance = np.inf  
+        self.distance = bd.inf  
 
-        self.position = np.array([0, 0, 0])
-        self.RGB = np.array([0, 0, 0])
+        self.position = bd.array([0, 0, 0])
+        self.RGB = bd.array([0, 0, 0])
         self.bitDepth = 0 # when set to 0, RGB will be in [0, 1] range 
 
 
@@ -227,16 +224,16 @@ class Point:
         Calculate the position based on field angles and distance. 
         """
         if (self.fieldIsDegree):
-            angleX = np.radians(self.fieldX)
-            angleY = np.radians(self.fieldY)
+            angleX = bd.radians(self.fieldX)
+            angleY = bd.radians(self.fieldY)
         else:
             angleX = self.fieldX
             angleY = self.fieldY
 
-        oppositeX = self.distance * np.tan(angleX)
-        oppositeY = self.distance * np.tan(angleY)
+        oppositeX = self.distance * bd.tan(angleX)
+        oppositeY = self.distance * bd.tan(angleY)
 
-        self.position = np.array([oppositeX, oppositeY, -self.distance])
+        self.position = bd.array([oppositeX, oppositeY, -self.distance])
 
 
     def GetPosition(self):
@@ -246,7 +243,7 @@ class Point:
 
         :return: XYZ coordiantes of the point source. 
         """
-        if(np.dot(self.position, self.position) == 0):
+        if(bd.dot(self.position, self.position) == 0):
             self._Update() 
 
         return self.position
@@ -277,8 +274,8 @@ def main():
         testImgPath = r"resources/Henri-Cartier-Bresson.png"
 
         testImg = Image2D(testImgPath)
-        testImg.xAoV = np.array([-19.8, 0])
-        testImg.yAoV = np.array([-13.5, 0])
+        testImg.xAoV = bd.array([-19.8, 0])
+        testImg.yAoV = bd.array([-13.5, 0])
         testImg.Update()
         testImg.ChannelSpilt()
     

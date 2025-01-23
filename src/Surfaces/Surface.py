@@ -82,6 +82,7 @@ class Surface:
     """ ====================== Setting up ====================== """
     # ==============================================================
 
+
     def SetCumulative(self, cumulativeT):
         """
         Given the cumulative thickness, calculate the vertices. This is for when the surface share the same optical axis with the lens. 
@@ -121,6 +122,7 @@ class Surface:
     # ==============================================================
     """ ===================== Calculations ===================== """
     # ==============================================================
+
 
     def RI(self, wavelength):
         return self.material.RI(wavelength)
@@ -277,6 +279,47 @@ class Surface:
 
         return _temp, TIR, boolVig
 
+
+    def Trace(self, incidentRaybatch, previousRI, inverted=False):
+        """
+        Deal with all the reactions the rays have upon reaching the surface. This includes: 
+        - Refraction. 
+        - Reflection. 
+        - Vignette.
+        This is the main method that should be called when tracing rays through the lens to accquire an image.
+        """
+
+        # First find the intersections 
+        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+        
+        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
+        
+        normals = self.Normal(intersections)
+
+        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+        
+        # Truncate the rays that are vignetted 
+        directions = incidentRaybatch.Direction()[~boolVig]
+        currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
+        previousRI = previousRI[~boolVig]
+
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            currentRI, previousRI = previousRI, currentRI 
+
+        # Only the non vignetted rays goes into refraction 
+        refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
+
+        # TODO: add reflection and vignette
+
+        # This _temp is for a different use from the _temp above 
+        _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        _temp.SetPosition(intersections[~TIR])
+        _temp.SetDirection(refracted)
+
+        return _temp, TIR, boolVig
+    
 
 
 def main():
