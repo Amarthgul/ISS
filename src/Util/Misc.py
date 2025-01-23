@@ -6,7 +6,7 @@ import math
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ONE, LambdaLines, RefreshRNG, Axis
+from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis
 
 
 # ==================================================================
@@ -428,7 +428,7 @@ def WavelengthToRGB(wavelength,
     # For this reason, there is no secondaries here since they are just linear interpolations and can be just ignored  
 
     # Default RGB values (intensity normalized to 0-1)
-    R, G, B = 0.0, 0.0, 0.0
+    R, G, B = ZERO, ZERO, ZERO
 
     # Calculate bit depth scaling factor
     bits = 2 ** bitDepth - 1
@@ -458,9 +458,9 @@ def WavelengthToRGB(wavelength,
     # Scale to bit depth and return
     
     if (useBits):
-        R = int(bd.clip(R * bits, 0, bits))
-        G = int(bd.clip(G * bits, 0, bits))
-        B = int(bd.clip(B * bits, 0, bits))
+        R = int(bd.clip(R * bits, ZERO, bits))
+        G = int(bd.clip(G * bits, ZERO, bits))
+        B = int(bd.clip(B * bits, ZERO, bits))
 
     return bd.array([R, G, B])
 

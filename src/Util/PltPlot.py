@@ -19,10 +19,11 @@ from numpy.linalg import norm
 # Matplotlib z axis is always shortened 
 zAxisCompensationFactor = 1.25
 
+fig = plt.figure()
+
 AX = None
 
 def Setup3Dplot():
-    fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     return ax 
     
@@ -34,6 +35,10 @@ def CheckAX():
     global AX
     if (AX == None):
         AX = Setup3Dplot()
+
+def Reset2D():
+    fig = plt.figure()
+
 
 AX = Setup3Dplot()
 

@@ -54,7 +54,7 @@ class ImagingSystem:
 def main():
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = Imager(bfd=35)
+    imager = Imager(bfd=30)
 
     lens = Biotar50mmf14()
 
@@ -77,11 +77,14 @@ def main():
     lens.SetIncidentRaybatch(mainRB)
     lens.Propagate()
 
-    lens.DrawLens()
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
-    plt.show()
+    image = imager.IntegralRays(mainRB)
+
+
+    #lens.DrawLens()
+    # SetUnifScale(50)
+    # AddXYZ()
+    # RemoveBG()
+    # plt.show()
 
 
 if __name__ == "__main__":

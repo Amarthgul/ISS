@@ -125,7 +125,7 @@ class Lens:
                     self.rayBatch, self._FindPreviousRI(i, self.rayBatch))
                 self.rayPath.Append(self.rayBatch, _tir, _vig)
 
-        self.rayPath.DrawPath(40)
+        # self.rayPath.DrawPath(40)
         return self.rayBatch
 
 

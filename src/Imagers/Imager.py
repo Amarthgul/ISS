@@ -6,6 +6,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from Util.Misc import WavelengthToRGB
 from Util.Backend import backend as bd
+from Util.Backend import backend_name
+from Util.Globals import ZERO, ONE
+from Util.PltPlot import Reset2D, DrawRaybatch
 
 
 class Imager():
@@ -49,12 +52,12 @@ class Imager():
         return self._zPos
     
 
-    def IntegralRays(self, raybatch, primaries, secondaries, UVIRcut, baseImg=None, valueClamp=None):
+    def IntegralRays(self, raybatch, baseImg=None, valueClamp=None):
         self.rayBatch = raybatch
         self.rayPath = [bd.copy(self.rayBatch.Position())]
 
         self._ImagePlaneIntersections() 
-        return self._integralRays(primaries, secondaries, UVIRcut, baseImg=baseImg, valueClamp=valueClamp) 
+        return self._integralRays(baseImg=baseImg, valueClamp=valueClamp) 
 
 
     def Test(self):
@@ -71,15 +74,12 @@ class Imager():
         Calculate the intersections between rays (vectors from points) and a 3D plane in square shape.
         :param surfaceIndex: the index of the surface to intersect. 
         """
-        og_positions = self.rayBatch.Position()
-        og_direction = self.rayBatch.Direction()
-
-        ray_positions = og_positions[bd.where(self.rayBatch.Sequential() == 1)]
-        ray_directions = og_direction[bd.where(self.rayBatch.Sequential() == 1)]
+        ray_positions = self.rayBatch.Position()
+        ray_directions = self.rayBatch.Direction()
 
         # TODO: add tilt shift support here
-        imager_normal = bd.array([0, 0, -1])
-        plane_point = bd.array([0, 0, self._zPos])
+        imager_normal = bd.array([ZERO, ZERO, -ONE])
+        plane_point = bd.array([ZERO, ZERO, self._zPos])
         
         # Calculate d (the offset from the origin in the plane equation ax + by + cz + d = 0)
         d = -bd.dot(imager_normal, plane_point)
@@ -105,17 +105,12 @@ class Imager():
         # Only replace the in bound ray positions 
         ray_positions[~outOfBoundInd] = intersection_points[~outOfBoundInd]
         
-        # Update the current ray batch positions 
-        og_positions[bd.where(self.rayBatch.Sequential() == 1)] = ray_positions
-        self.rayBatch.SetPosition(og_positions)
-
-        # Copy the positions into path 
-        self.rayPath.append(bd.copy(og_positions))
-
-        self.rayBatch.SetVignette(bd.where(~valid_rays & outOfBoundInd))
+        DrawRaybatch(self.rayBatch, length=10)
+        plt.draw()
+        plt.pause(10)
 
         
-    def _integralRays(self, primaries, secondaries, UVIRcut, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
+    def _integralRays(self, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -161,7 +156,7 @@ class Imager():
             bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             bd.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-        maxValue = bd.max([radiantGridR.max(), radiantGridG.max(), radiantGridB.max()])
+        maxValue = bd.max(bd.array([bd.max(radiantGridR), bd.max(radiantGridG), bd.max(radiantGridB)]))
         bits = 2.0**bitDepth-1
 
         if(valueClamp is None):
@@ -187,9 +182,11 @@ class Imager():
         else:
             # In case this is an iterative call with an already formed image 
             rgb_image += bd.stack((red_channel, green_channel, blue_channel), axis=-1)
-
+        print(bd.max(rgb_image))
         if (plotResult):
-            #plt.imshow(radiantGrid, cmap='gray', vmin=0, vmax=bd.max(radiantGrid))
+            if(backend_name == 'cupy'):       
+                rgb_image = bd.asnumpy(rgb_image)
+            Reset2D()
             plt.imshow(rgb_image)
             #plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
