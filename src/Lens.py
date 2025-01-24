@@ -145,6 +145,7 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
+
     def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
         """
         Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
@@ -218,6 +219,10 @@ class Lens:
             intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
             #DrawPoint(intersections[j], color=colors[j])
             #DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
+        # intersections = bd.vstack(intersections)
+        # wColor = WavelengthToRGB(wavelength).tolist()
+        # DrawPoints(intersections, color=tuple(wColor))
+
         self.entrancePupil.SetSamplePoints(bd.array(intersections))
 
 

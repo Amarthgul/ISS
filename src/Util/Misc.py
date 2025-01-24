@@ -442,27 +442,26 @@ def WavelengthToRGB(wavelength,
         # Between Green and Red
         ratio = (wavelength - LambdaLines[primaries["G"]]) / (LambdaLines[primaries["R"]] - LambdaLines[primaries["G"]])
         R = ratio
-        G = 1 - ratio
+        G = ONE - ratio
 
     elif (LambdaLines[primaries["B"]] <= wavelength < LambdaLines[primaries["G"]]):
         # Between Blue and Green
         ratio = (wavelength - LambdaLines[primaries["B"]]) / (LambdaLines[primaries["G"]]- LambdaLines[primaries["B"]])
         G = ratio
-        B = 1 - ratio
+        B = ONE - ratio
 
     elif (LambdaLines[UVIRcut[0]] <= wavelength < LambdaLines[primaries["B"]]):
         # Between Blue primary and UV cutoff
-        B = 1.0
+        B = ONE
         G = (wavelength - LambdaLines[UVIRcut[0]]) / (LambdaLines[primaries["B"]] - LambdaLines[UVIRcut[0]])
 
-    # Scale to bit depth and return
-    
-    if (useBits):
-        R = int(bd.clip(R * bits, ZERO, bits))
-        G = int(bd.clip(G * bits, ZERO, bits))
-        B = int(bd.clip(B * bits, ZERO, bits))
 
-    return bd.array([R, G, B])
+    R, G, B = bd.array(R), bd.array(G), bd.array(B)
+
+    if (useBits):
+        return bd.clip(bd.array([R, G, B]) * bits, ZERO, bits)
+    else:
+        return bd.array([R, G, B])
 
         
 def ColorTuplePLT(arrayRGB):

@@ -104,7 +104,9 @@ class Imager():
         
         # Only replace the in bound ray positions 
         ray_positions[~outOfBoundInd] = intersection_points[~outOfBoundInd]
-        
+
+        self.rayBatch.SetPosition(ray_positions)
+
         DrawRaybatch(self.rayBatch, length=10)
         plt.draw()
         plt.pause(10)

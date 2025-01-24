@@ -63,10 +63,7 @@ def main():
     source.RGB= bd.array([1, 1, 1])
 
     # Assemble the imaging system 
-    imgSys = ImagingSystem() 
-    imgSys.AddLens(Biotar50mmf14())
-    imgSys.AddImager(imager)
-    imgSys.imager.SetLensLength(imgSys.lens.totalAxialLength)
+    imager.SetLensLength(lens.totalAxialLength)
 
     mainRB = EmitField(
         source.fieldX, 
@@ -77,14 +74,15 @@ def main():
     lens.SetIncidentRaybatch(mainRB)
     lens.Propagate()
 
-    image = imager.IntegralRays(mainRB)
+    # image = imager.IntegralRays(mainRB)
 
 
-    #lens.DrawLens()
-    # SetUnifScale(50)
-    # AddXYZ()
-    # RemoveBG()
-    # plt.show()
+    lens.DrawLens()
+    DrawRaybatch(lens.rayBatch, length=40)
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    plt.show()
 
 
 if __name__ == "__main__":

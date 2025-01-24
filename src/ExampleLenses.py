@@ -140,7 +140,7 @@ def main():
     start = time.time()
 
     exampleLens = Biotar50mmf14()
-    #exampleLens.SetAperture(2.8)
+    exampleLens.UpdateLens()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
@@ -149,8 +149,8 @@ def main():
 
     exampleLens.DrawLens()
     exampleLens.entrancePupil.DrawSamplePoints()
-    exampleLens.entrancePupil.DrawSurface()
-    #exampleLens.frontPincipalPlane.DrawSamplePoints()
+    #exampleLens.entrancePupil.DrawSurface()
+    exampleLens.frontPincipalPlane.DrawSamplePoints()
     SetUnifScale(50)
     AddXYZ()
     RemoveBG()
