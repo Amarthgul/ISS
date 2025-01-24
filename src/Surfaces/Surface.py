@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd 
 from Util.Backend import constant
 from Util.Misc import Magnitude, Normalized, ArrayNormalized
-from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
 from Raytracing.RayBatch import RayBatch 
@@ -146,51 +146,11 @@ class Surface:
         :return: An array of intersections, a bull secondary array, the bool array of vingetted. 
         """
 
-        # TODO: add case for when radius is infinity 
-
-        position = incomingRaybatch.Position()
-        direction = incomingRaybatch.Direction()
-
-        if(not self.IsOnAxis):
-            # TODO: Add inverse transfrom here to compensate the off axis element position, if any.
-            pass 
-
-        # Translate to sphere's local space
-        oc = position - self.radiusCenter
+        if(self.radius == INFINITY):
+            return self._PlaneIntersection(incomingRaybatch)
+        else:
+            return self._SphericalIntersection(incomingRaybatch)
         
-        # Coefficients for quadratic equation
-        a = bd.sum(direction**TWO, axis=1) 
-        b = 2.0 * bd.sum(oc * direction, axis=1)
-        c = bd.sum(oc**TWO, axis=1) - self.radius**TWO
-
-        # Discriminant
-        discriminant = b ** TWO - constant(4) * a * c
-        
-        # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
-        intersetIndices = discriminant > 0
-
-        # Calculate t values
-        t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
-        t2 = (-b + bd.sqrt(discriminant)) / (TWO * a)
-
-        # This t value is to determine which side of the spherical surface is the right intersection 
-        t = t1 
-        mask = bd.sign(self.radius) != bd.sign(direction[:, 2])
-        t[mask] = t2[mask]
-
-        # Intersection points
-        p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
-
-        # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
-        clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
-
-        # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
-        clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
-
-        intersetIndices[intersetIndices] = clear
-
-        return p[clear], None, ~intersetIndices
-    
 
     def Normal(self, intersections):
         """
@@ -320,6 +280,79 @@ class Surface:
 
         return _temp, TIR, boolVig
     
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
+    def _PlaneIntersection(self, incomingRaybatch):
+        """
+        Given a plane, return the expression of the surface on this plane.
+        Mostly for initial setup of the lens. 
+        """
+
+        position = incomingRaybatch.Position()
+        direction = incomingRaybatch.Direction()
+
+        denom = bd.dot(direction, self._axis)
+        
+        # Avoid division by zero for parallel vectors
+        parallel_mask = bd.isclose(denom, 0)
+        
+        # Compute t for each vector
+        t = bd.dot((self.frontVertex - position), self._axis) / denom
+        t[parallel_mask] = bd.nan  # Assign NaN for parallel vectors
+        
+        # Compute the intersection points
+        intersections = position + t[:, bd.newaxis] * direction
+        
+        return intersections, None, parallel_mask
+
+
+    def _SphericalIntersection(self, incomingRaybatch):
+        position = incomingRaybatch.Position()
+        direction = incomingRaybatch.Direction()
+
+        if(not self.IsOnAxis):
+            # TODO: Add inverse transfrom here to compensate the off axis element position, if any.
+            pass 
+
+        # Translate to sphere's local space
+        oc = position - self.radiusCenter
+        
+        # Coefficients for quadratic equation
+        a = bd.sum(direction**TWO, axis=1) 
+        b = 2.0 * bd.sum(oc * direction, axis=1)
+        c = bd.sum(oc**TWO, axis=1) - self.radius**TWO
+
+        # Discriminant
+        discriminant = b ** TWO - constant(4) * a * c
+        
+        # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
+        intersetIndices = discriminant > 0
+
+        # Calculate t values
+        t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
+        t2 = (-b + bd.sqrt(discriminant)) / (TWO * a)
+
+        # This t value is to determine which side of the spherical surface is the right intersection 
+        t = t1 
+        mask = bd.sign(self.radius) != bd.sign(direction[:, 2])
+        t[mask] = t2[mask]
+
+        # Intersection points
+        p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
+
+        # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
+        clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
+
+        # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
+        clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
+
+        intersetIndices[intersetIndices] = clear
+
+        return p[clear], None, ~intersetIndices
 
 
 def main():
