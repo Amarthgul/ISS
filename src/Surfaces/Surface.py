@@ -22,6 +22,13 @@ class CurvatureType(Enum):
 
 
 
+# Field stop constrains the rays to a certain area, out of area rays are vignetted.
+# This is also used to define the boundary of each surface. A typicaly spherical surface has a circular boundary, thus circular field stop. Some surfaces, such as anaomorphics, have rectangular field stops. Additionally, the imager typically also has a rectangular field stop.
+class FieldStopType(Enum):
+    Circular = 0
+    Rectangular = 1
+
+
 
 # ==================================================================
 """ ============================================================ """
@@ -29,10 +36,10 @@ class CurvatureType(Enum):
 
 
 """
-All the methods that calculate ray related results must return 3 parts:
--  Refraction or direct result 
--  Reflection or secondary result 
--  Vignetted 
+All the methods that calculate raybatch related results should return 3 parts:
+-  Refraction rays (or direct resul). 
+-  Reflection rays (or secondary result). 
+-  Vignetted rays. 
 """
 
 
@@ -74,8 +81,11 @@ class Surface:
         self._inverseTransform = bd.identity(4)
         # If the surface is on axis, then use the identity matrix
 
-
+        """Type of the curvature. By default it is standard spherical surface"""
         self.cType = CurvatureType.Standard
+
+        """Type of the field stop. By default it is circular"""
+        self.fType = FieldStopType.Circular
 
 
     # ==============================================================
@@ -345,7 +355,8 @@ class Surface:
         p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
 
         # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
-        clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
+        clear = self._FieldStopMask(p)
+        #clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
 
         # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
         clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
@@ -353,6 +364,17 @@ class Surface:
         intersetIndices[intersetIndices] = clear
 
         return p[clear], None, ~intersetIndices
+
+
+    def _FieldStopMask(self, intersections):
+        """
+        Given the intersections, filter out the ones that are outside of the field stop. 
+        """
+        if(self.fType == FieldStopType.Circular):
+            # TODO: add tilt shift handling here
+            return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+        else:
+            pass 
 
 
 def main():

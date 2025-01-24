@@ -74,6 +74,8 @@ class Imager():
         Calculate the intersections between rays (vectors from points) and a 3D plane in square shape.
         :param surfaceIndex: the index of the surface to intersect. 
         """
+        # TODO: This does not seem to be working.
+        
         ray_positions = self.rayBatch.Position()
         ray_directions = self.rayBatch.Direction()
 
@@ -96,7 +98,7 @@ class Imager():
         # Calculate the intersection points
         intersection_points = ray_positions + t[:, bd.newaxis] * ray_directions
 
-        # Find the rays that fall out of the image plane 
+        # Find the rays that fall out of th image plane 
         outOfBoundInd = (intersection_points[:, 0] > (self.width/2)) | \
             (intersection_points[:, 0] < (-self.width/2)) | \
             (intersection_points[:, 1] > (self.height/2)) | \

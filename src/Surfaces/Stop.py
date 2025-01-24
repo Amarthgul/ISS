@@ -6,6 +6,7 @@ from Util.Backend import backend as bd
 from .Surface import Surface 
 from Material import Material
 
+
 class Stop(Surface):
     def __init__(self, t):
         self.thickness = t 

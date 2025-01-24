@@ -197,7 +197,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
+                self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
                         objectSideRBs[j], 
@@ -208,8 +208,10 @@ class Lens:
                 #plt.draw()
                 #plt.pause(4)
 
-        # for j in range(sampleCount):
-        #     objectSideRPs[j].DrawPath(10, colors[j%len(colors)])
+        for j in range(sampleCount):
+            objectSideRPs[j].DrawPath(10, colors[j%len(colors)])
+        plt.draw()
+        plt.pause(10)
 
         poss = [[]for i in range(sampleCount)]
         dirs = [[]for i in range(sampleCount)]

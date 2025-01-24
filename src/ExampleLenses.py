@@ -5,13 +5,14 @@ import time
 
 from Surfaces import Surface, Stop
 from Lens import Lens 
+from Util.Globals import ZERO, ONE, INFINITY
 from Util.DataReadWrite import Save, Load
 from Util.Backend import backend_name
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False 
 
 
 class Example():
@@ -29,6 +30,7 @@ class Example():
 # ==================================================================
 """ ==================== Zeiss Biotar 50mm f/1.4 =============== """
 # ==================================================================
+
 
 def _Biotar50mm14Data():
     """
@@ -80,9 +82,11 @@ def Biotar50mmf14():
 
     return biotar
 
+
 # ==================================================================
 """ ====================== Helios-44 58mm f/2 ================= """
 # ==================================================================
+
 
 def _Helios58mmf2Data():
     """
@@ -135,11 +139,71 @@ def Helios58mmf2():
     return helios
 
 
+# ==================================================================
+""" ====================== Canon FD 50mm f/1.8 ================= """
+# ==================================================================
+
+
+def _CanonFD50mmf18Data():
+    """
+    Data from patent JP 1988-081312, Example ML. 
+    Note that the original patent contains a teleconverter at the rear, the data below has removed it.
+    """
+    canon = Lens()
+
+    canon.AddSurface(Surface(37.554,	3.10,   16,     "M-NBFD130"))
+    canon.AddSurface(Surface(142.589,	0.29,   16))
+    canon.AddSurface(Surface(20.991,	7.66,   14,     "F5"))
+    canon.AddSurface(Surface(INFINITY,	1.46,   14,     "PBH4W"))
+    canon.AddSurface(Surface(14.665,	5.50,   10))
+    canon.AddSurface(Stop(              7.38))
+    canon.AddSurface(Surface(-14.336,	1.07,   10,     "E-FD10"))
+    canon.AddSurface(Surface(436.258,	4.85,   12,     "M-NBFD130"))
+    canon.AddSurface(Surface(-18.860,	0.1,    12))
+    canon.AddSurface(Surface(274.101,	2.91,   14,     "M-NBFD130"))
+    canon.AddSurface(Surface(-44.781,	34.81,  14))
+
+    return canon
+
+
+def CanonFD50mmf18():
+    """
+    Canon FD 50mm f/1.8. 
+    
+    :return: initlized lens object.
+    """
+
+    fileName = "CanonFD50mmf1.8"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    CanonExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        CanonExample.LoadExample()
+        canon = CanonExample.data
+    else: 
+        canon = _CanonFD50mmf18Data()
+        canon.UpdateLens()
+        CanonExample.data = canon
+        CanonExample.SaveExample()
+
+    return canon
+
+
 
 def main():
+    
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
     start = time.time()
 
-    exampleLens = Biotar50mmf14()
+    exampleLens = CanonFD50mmf18()
     exampleLens.UpdateLens()
 
     end = time.time()
@@ -151,9 +215,7 @@ def main():
     exampleLens.entrancePupil.DrawSamplePoints()
     #exampleLens.entrancePupil.DrawSurface()
     exampleLens.frontPincipalPlane.DrawSamplePoints()
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
+    
     plt.show()
 
     
