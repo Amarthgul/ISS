@@ -4,12 +4,17 @@ This module is used to provide preliminary visuals for the project, it is not th
 In the future the project should consider switching to mayavi or better libaraies for scientific visulization. 
 """
 
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from numpy.linalg import norm
+
+
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import ORIGIN, INFINITY
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from numpy.linalg import norm
+
 
 # ==================================================================
 """ ============================================================ """
@@ -262,6 +267,17 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
+
+
+def DrawPlane(points, color = "b", ax=AX):
+    CheckAX()
+    if(backend_name == "cupy"):
+        points = bd.asnumpy(points)
+
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
+    verts = [list(zip(x, y, z))]
+    plane = Poly3DCollection(verts, alpha=0.2, color=color)
+    ax.add_collection3d(plane)
 
 
 def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):

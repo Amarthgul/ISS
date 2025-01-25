@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 from ExampleLenses import Biotar50mmf14
-from Imagers import Imager 
+from Imagers.Standard import StdImager 
 from ObjectSpace import Point
 from Raytracing.Emission import EmitField
 
@@ -53,32 +53,36 @@ class ImagingSystem:
     
 def main():
 
-    # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = Imager(bfd=30)
-
     lens = Biotar50mmf14()
+
+     # Set up the imager 32.3552 (34.25 for 1500 distance)
+    imager = StdImager(bfd=10)
+    # Assemble the imaging system 
+    imager.SetLensLength(lens.totalAxialLength)
 
     source = Point()
     source.fieldX = 10
     source.RGB= bd.array([1, 1, 1])
 
-    # Assemble the imaging system 
-    imager.SetLensLength(lens.totalAxialLength)
 
     mainRB = EmitField(
         source.fieldX, 
         source.fieldY, 
         source.distance, 
-        lens.entrancePupil.GetSamplePoints(64))
+        lens.entrancePupil.GetSamplePoints(50000))
     
     lens.SetIncidentRaybatch(mainRB)
-    lens.Propagate()
+    mainRB, mainRP = lens.Propagate()
 
-    # image = imager.IntegralRays(mainRB)
+    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+    mainRP.Append(mainRB, _tir, _vig)
 
+    imager.IntegralRays(mainRB)
 
     lens.DrawLens()
-    DrawRaybatch(lens.rayBatch, length=40)
+    imager.DrawSurface()
+    mainRP.DrawPath()
+
     SetUnifScale(50)
     AddXYZ()
     RemoveBG()

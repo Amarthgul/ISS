@@ -278,6 +278,97 @@ def TransversalDistance(vectors):
     return ArrayMagnitude(vectors[:, :2])
 
 
+def RayTriangleIntersection(origin, direction, A, B, C, epsilon=1e-6):
+    """
+    Check if a ray intersects a triangle in 3D using the Möller–Trumbore algorithm.
+    
+    Parameters:
+    origin (ndarray): Origin of the ray (3D point).
+    direction (ndarray): Direction of the ray (3D vector, normalized).
+    A, B, C (ndarray): Vertices of the triangle (3D points).
+    epsilon (float): Small threshold for numerical stability.
+    
+    Returns:
+    bool: True if the ray intersects the triangle, False otherwise.
+    float: The intersection distance `t` along the ray if an intersection occurs.
+    """
+    # Compute edge vectors
+    E1 = B - A
+    E2 = C - A
+    
+    # Compute determinant
+    P = bd.cross(direction, E2)
+    det = bd.dot(E1, P)
+    
+    # If determinant is near zero, the ray is parallel to the triangle
+    if abs(det) < epsilon:
+        return False, None
+    
+    inv_det = 1.0 / det
+    
+    # Compute the distance from A to the ray origin
+    T = origin - A
+    
+    # Compute barycentric coordinate u
+    u = bd.dot(T, P) * inv_det
+    if u < 0 or u > 1:
+        return False, None
+    
+    # Compute barycentric coordinate v
+    Q = bd.cross(T, E1)
+    v = bd.dot(direction, Q) * inv_det
+    if v < 0 or u + v > 1:
+        return False, None
+    
+    # Compute intersection distance t
+    t = bd.dot(E2, Q) * inv_det
+    if t < 0:
+        return False, None
+    
+    return True, t
+
+
+def PointsInTriangle(points, A, B, C):
+    """
+    Check if points are inside a triangle in 3D space.
+    
+    Parameters:
+    points (ndarray): Array of shape (n, 3) representing the points to test.
+    A, B, C (ndarray): Vertices of the triangle (3D points).
+    
+    Returns:
+    ndarray: Boolean array of shape (n,) indicating whether each point is inside the triangle.
+    """
+    # Compute edge vectors of the triangle
+    E1 = B - A
+    E2 = C - A
+
+    # Compute normal vector of the triangle
+    normal = bd.cross(E1, E2)
+    normal = normal / bd.linalg.norm(normal)
+
+    # Project points onto the triangle plane
+    AP = points - A
+    plane_distances = bd.dot(AP, normal)
+    projected_points = points - bd.outer(plane_distances, normal)
+
+    # Convert to 2D coordinates in the triangle plane
+    E1_norm = E1 / bd.linalg.norm(E1)
+    E2_proj = E2 - bd.dot(E2, E1_norm) * E1_norm
+    E2_norm = E2_proj / bd.linalg.norm(E2_proj)
+    local_coords = bd.column_stack([bd.dot(AP, E1_norm), bd.dot(AP, E2_norm)])
+
+    # Compute barycentric coordinates
+    E1_2D = bd.array([bd.dot(E1, E1_norm), bd.dot(E1, E2_norm)])
+    E2_2D = bd.array([bd.dot(E2_proj, E1_norm), bd.dot(E2_proj, E2_norm)])
+    T = bd.linalg.solve(bd.column_stack([E1_2D, E2_2D]), local_coords.T).T
+
+    u, v = T[:, 0], T[:, 1]
+    inside = (u >= 0) & (v >= 0) & (u + v <= 1)
+
+    return inside
+
+
 # ==================================================================
 """ ================== Color and conversions =================== """
 # ==================================================================

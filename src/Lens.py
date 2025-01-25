@@ -116,17 +116,23 @@ class Lens:
         Propagate the raybatch through the lens. 
         """
 
+        # For production use, turn this off to avoid unnecessary memory usage.
+        recordPath = True
+
         self.rayPath = RayPath()
-        self.rayPath.Append(self.rayBatch, None, None)
+        if(recordPath):
+            self.rayPath.Append(self.rayBatch, None, None)
 
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
                 self.rayBatch, _tir, _vig = self.surfaces[i].Trace(
                     self.rayBatch, self._FindPreviousRI(i, self.rayBatch))
-                self.rayPath.Append(self.rayBatch, _tir, _vig)
+                
+                if(recordPath):
+                    self.rayPath.Append(self.rayBatch, _tir, _vig)
 
         # self.rayPath.DrawPath(40)
-        return self.rayBatch
+        return self.rayBatch, self.rayPath
 
 
     def GetInfo(self):
@@ -219,10 +225,10 @@ class Lens:
         for j in range(sampleCount):
             poss[j], dirs[j] = objectSideRPs[j].ExitingPairs()
             intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
-            #DrawPoint(intersections[j], color=colors[j])
-            # DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
-            # plt.draw()
-            # plt.pause(10)
+        #     DrawPoint(intersections[j], color=colors[j%len(colors)])
+        #     DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
+        # plt.draw()
+        # plt.pause(10)
         # intersections = bd.vstack(intersections)
         # wColor = WavelengthToRGB(wavelength).tolist()
         # DrawPoints(intersections, color=tuple(wColor))
@@ -249,8 +255,8 @@ class Lens:
                 frontRP.Append(frontRB, _tir, _vig)  
 
         #frontRP.DrawPath(40) # Draw call =======
-        #plt.draw()
-        #plt.pause(10)
+        #plt.draw() # Draw call =======
+        #plt.pause(10) # Draw call =======
         frontRP = frontRP.PruneAll()
         #frontRP.DrawPath(40) # Draw call =======
         
@@ -260,13 +266,15 @@ class Lens:
 
         intersections = frontRP.EndToEndIntersection() 
         intersections = intersections[~bd.any(bd.isnan(intersections), axis=1)]
-        self.frontPincipalPlane.SetSamplePoints(intersections)
         
-
+        # At this point, the on-axis rays does not have an intersection since they're straight throughout. A separate on-axis point is created, copying the z value of the closest intersection point.
         minPoint = TransversalDistance(intersections)
         minPoint = intersections[bd.argmin(minPoint)]
         minPoint = bd.array([ZERO, ZERO, minPoint[Axis.Z.value]])
-        #self.frontPincipalPlane.AddSamplePoint(minPoint)
+        intersections = bd.vstack([intersections, minPoint])
+
+        # Now, with the on-axis point also created, add the updated intersection into the sample points of the principal plane
+        self.frontPincipalPlane.SetSamplePoints(intersections)
         #self.frontPincipalPlane.DrawSamplePoints() # Draw call =======
 
         # Calculate the focal length 

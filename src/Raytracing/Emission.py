@@ -350,8 +350,8 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
 
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[1] = ONE    # Sagittal radiant
+    temp[2] = ONE    # Tangential radiant
     temp[3] = INIT_PHASE_DIFF   # Phase difference 
     
     return RayBatch(

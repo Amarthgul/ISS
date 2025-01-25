@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
-from Util.Misc import Magnitude, Normalized, ArrayNormalized
+from Util.Misc import Magnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
@@ -84,10 +84,7 @@ class Surface:
         """Type of the curvature. By default it is standard spherical surface"""
         self.cType = CurvatureType.Standard
 
-        """Type of the field stop. By default it is circular"""
-        self.fType = FieldStopType.Circular
-
-
+        
     # ==============================================================
     """ ====================== Setting up ====================== """
     # ==============================================================
@@ -320,7 +317,9 @@ class Surface:
         # Compute the intersection points
         intersections = position + t[:, bd.newaxis] * direction
         
-        return intersections, None, parallel_mask
+        return intersections, \
+            bd.zeros(intersections.shape[0]).astype(bd.bool_),\
+            parallel_mask
 
 
     def _SphericalIntersection(self, incomingRaybatch):
@@ -369,19 +368,18 @@ class Surface:
 
         intersetIndices[intersetIndices] = clear
 
-        return p[clear], None, ~intersetIndices
+        return p[clear], \
+            bd.zeros(p.shape[0]).astype(bd.bool_), \
+            ~intersetIndices
 
 
     def _FieldStopMask(self, intersections):
         """
         Given the intersections, filter out the ones that are outside of the field stop. 
         """
-        if(self.fType == FieldStopType.Circular):
-            # TODO: add tilt shift handling here
-            return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
-        else:
-            # TODO: add rectangular field stop handling here
-            pass 
+        # TODO: add tilt shift handling here
+        return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+
 
 
 def main():
