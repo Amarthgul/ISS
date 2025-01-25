@@ -171,7 +171,7 @@ class Surface:
 
         :return: Normalized normals of the intersection points on this surface. 
         """
-
+        # TODO: consider adding the raybatch as an argument and use it to calculate the right normal direction 
         if(self.radius == INFINITY):
             copied = bd.array([ZERO, ZERO, -ONE])
             return bd.tile(copied, (intersections.shape[0], 1))
@@ -302,8 +302,7 @@ class Surface:
 
     def _PlaneIntersection(self, incomingRaybatch):
         """
-        Given a plane, return the expression of the surface on this plane.
-        Mostly for initial setup of the lens. 
+        Given a plane, calculate the intersection of the rays on the plane.
         """
 
         position = incomingRaybatch.Position()
@@ -325,6 +324,9 @@ class Surface:
 
 
     def _SphericalIntersection(self, incomingRaybatch):
+        """
+        Given a spherical surface, calculate the intersection of the rays on the surface.
+        """
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
 
@@ -378,6 +380,7 @@ class Surface:
             # TODO: add tilt shift handling here
             return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
         else:
+            # TODO: add rectangular field stop handling here
             pass 
 
 

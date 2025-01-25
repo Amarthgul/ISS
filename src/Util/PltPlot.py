@@ -48,14 +48,21 @@ AX = Setup3Dplot()
 # ==================================================================
 
 def RemoveBG(ax=AX):
+    fig.patch.set_alpha(0)
     ax.grid(False)  # Remove grid
     ax.set_xticks([])  # Remove x ticks
     ax.set_yticks([])  # Remove y ticks
     ax.set_zticks([])  # Remove z ticks
 
-    ax.xaxis.line.set_color("w")
-    ax.yaxis.line.set_color("w")
-    ax.zaxis.line.set_color("w")
+    ax.xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+
+    # Remove the lines
+    ax.xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+    ax.yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+    ax.zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+
     # Optional: Remove background panels
     ax.xaxis.pane.fill = False
     ax.yaxis.pane.fill = False

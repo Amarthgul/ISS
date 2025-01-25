@@ -203,6 +203,7 @@ def main():
 
     start = time.time()
 
+    # TODO: this lens needs correction for the axial pupil position.
     exampleLens = CanonFD50mmf18()
     exampleLens.UpdateLens()
 
