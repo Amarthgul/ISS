@@ -172,7 +172,11 @@ class Surface:
         :return: Normalized normals of the intersection points on this surface. 
         """
 
-        return ArrayNormalized(intersections - self.radiusCenter)
+        if(self.radius == INFINITY):
+            copied = bd.array([ZERO, ZERO, -ONE])
+            return bd.tile(copied, (intersections.shape[0], 1))
+        else:
+            return ArrayNormalized(intersections - self.radiusCenter)
 
 
     def CrossSection(self, planeOrientation):
@@ -225,10 +229,10 @@ class Surface:
 
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
-        #DrawRaybatch(incidentRaybatch) # Draw call=========
-        #DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
-        #plt.draw() # Draw call=========
-        #plt.pause(10) # Draw call=========
+        # DrawRaybatch(incidentRaybatch) # Draw call=========
+        # DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
+        # plt.draw() # Draw call=========
+        # plt.pause(10) # Draw call=========
         
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]

@@ -6,7 +6,7 @@ In the future the project should consider switching to mayavi or better libaraie
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ORIGIN
+from Util.Globals import ORIGIN, INFINITY
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.linalg import norm
@@ -210,6 +210,9 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20
     :param numPoints: number of points, controls the subdivision of the surface. 
     :surfaceColor: color of the surface. 
     """
+    if(radius == INFINITY):
+        DrawDisk(clearSemiDiameter, cumulativeThickness, numPoints, surfaceColor)
+
     CheckAX()
     unsignedrRadius = radius * bd.sign(radius)
 
@@ -281,12 +284,8 @@ def main():
     SetUnifScale()
     AddXYZ(6)
     
-    DrawSpherical(-5, 4, 0)
+    DrawSpherical(INFINITY, 4, 0)
     
-    DrawSpherical(10, 4, 0.2)
-    
-    DrawSpherical(10, 4, 1)
-    DrawSpherical(-20, 4, 4)
     
     plt.show()
     

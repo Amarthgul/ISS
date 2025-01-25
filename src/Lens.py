@@ -197,7 +197,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                self.surfaces[forwardIndex].DrawSurface() # Draw call=========
+                #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
                         objectSideRBs[j], 
@@ -208,10 +208,10 @@ class Lens:
                 #plt.draw()
                 #plt.pause(4)
 
-        for j in range(sampleCount):
-            objectSideRPs[j].DrawPath(10, colors[j%len(colors)])
-        plt.draw()
-        plt.pause(10)
+        # for j in range(sampleCount):
+        #     objectSideRPs[j].DrawPath(10, omitIncident=False, color=colors[j%len(colors)]) # Draw call=========
+        # plt.draw()
+        # plt.pause(10)
 
         poss = [[]for i in range(sampleCount)]
         dirs = [[]for i in range(sampleCount)]
@@ -220,7 +220,9 @@ class Lens:
             poss[j], dirs[j] = objectSideRPs[j].ExitingPairs()
             intersections[j] = objectSideRPs[j].FindConvergingPoint(poss[j], dirs[j])
             #DrawPoint(intersections[j], color=colors[j])
-            #DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
+            # DrawDirection(poss[j], dirs[j], lineColor=colors[j%len(colors)], lineLength=40, arrowRatio=0)
+            # plt.draw()
+            # plt.pause(10)
         # intersections = bd.vstack(intersections)
         # wColor = WavelengthToRGB(wavelength).tolist()
         # DrawPoints(intersections, color=tuple(wColor))
