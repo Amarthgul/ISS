@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 from ExampleLenses import Biotar50mmf14
 from Imagers.Standard import StdImager 
-from ObjectSpace import Point
+from ObjectSpace.ObjectSpace import Point
 from Raytracing.Emission import EmitField
 
 class ImagingSystem:
@@ -62,6 +62,7 @@ def main():
 
     source = Point()
     source.fieldX = 10
+    source.distance = bd.array(50)
     source.RGB= bd.array([1, 1, 1])
 
 
