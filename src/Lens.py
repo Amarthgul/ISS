@@ -189,6 +189,7 @@ class Lens:
             self.surfaces[self.stopIndex-1].sdCumulative
         ])
 
+        # TODO: if the stop is constant and is the same with one of the surfaces, this might be undefined. Add support for 0-d stop. 
         # Generate raybatch and add them into the path record
         objectSideRBs = [
             EmitFromPoint(

@@ -477,7 +477,8 @@ def RGBToWavelengthArray(RGB,
     :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"}).
     :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
     :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
-    :return: A NumPy array of wavelengths corresponding to the ibdut RGB array. 
+
+    :return: A NumPy array of wavelengths corresponding to the input RGB array. 
     """
 
     if(RGB.max() > 1):
