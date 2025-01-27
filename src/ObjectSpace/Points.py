@@ -3,7 +3,7 @@
 
 
 from Util.Backend import backend as bd
-from Util.Misc import RGBToWavelengthArray
+from Util.Misc import RGBToWavelengthSameD, Lumi
 from Raytracing.RayBatch import RayBatch
 
 
@@ -14,6 +14,7 @@ class PointsSource:
     Point sources are organized in the form of:
     [[x, y, z, R, G, B], 
        [...], [...], ...]
+    RGB must be float number in the range of [0, 1]. 
     Alternatively, it may also be using field angle representation:
     [[θ_x, θ_y, D, R, G, B], 
        [...], [...], ...]] 
@@ -28,6 +29,9 @@ class PointsSource:
 
         """Whether the angle is in radian"""
         self.angleInRad = False
+
+
+        self.sampleRecord = None 
 
 
 
@@ -47,26 +51,40 @@ class PointsSource:
         return self.value[:, 3:]
 
 
-    def EmitTowards(self, targets, monochannel=None):
+    def EmitTowards(self, source, targets):
         """
         Emit rays from the point sources towards the target points. 
 
+        
         :param targets: collection of points as emission targets. 
-        :param monochannel: 
 
-        :return: raybatch object of rays from the point sources to the target, with corresponding  
+        :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
-        selfPos = self.Position()
-        selfPosExpanded = selfPos[:, bd.newaxis, :]  # Shape (n, 1, 3)
+        sourcePos = source.Position()
+
+        lenSource = sourcePos.shape[0]
+        lenTarget = targets.shape[0]
+
+        sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
         # Compute the cross product pairwise and reshape it 
-        cross_vectors = bd.cross(selfPosExpanded, targetsExpanded).reshape(-1, 3)  
+        cross_vectors = bd.cross(sourceExpanded, targetsExpanded)
+        #cross_vectors = cross_vectors.reshape(-1, 3)  
         
-        print(self.Color())
-        # TODO: create a new method that returns wavelength array with same shape 
-        wavelengths, radiants = RGBToWavelengthArray(self.Color())
+        wavelengths, radiants = RGBToWavelengthSameD(source.Color())
+        wlExpanded = wavelengths[bd.newaxis, :, :]
+        wlBroadcasted = bd.tile(wlExpanded, (cross_vectors.shape[0], 1, 1))
+
+
+        # Accquire the luminisity of the sources
+        lumi = Lumi(self.Color())
+        random_mask = bd.random.random((lenSource, lenTarget)) < lumi[:, bd.newaxis]
+        cross_vectors = cross_vectors[random_mask]
+
         
+
+
 
         print("  ")
 
@@ -82,10 +100,11 @@ def main():
     targets = bd.array([
         [1, 2, 25], 
         [2, 4,25],
-        [-2, 3, 25]
+        [-2, 3, 25], 
+        [1, -2, 25]
     ])
 
-    RB = t.EmitTowards(targets)
+    RB = t.EmitTowards(t, targets)
 
 
 

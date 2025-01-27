@@ -388,6 +388,13 @@ def LumiPeak(RGB, bitDepth = 8):
     return lumi
 
 
+def Lumi(RGB):
+    """
+    Accquiring the lumosity of the inputs by weighted average of RGB
+    """
+    return 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
+
+
 def LumiPeakArray(RGB, bitDepth = 8):
     """
     Naive solution for calculating the luminance based on the RGB channel of an image/array.  
@@ -497,6 +504,35 @@ def RGBToWavelengthArray(RGB,
     radiants = bd.array(RGB)
 
     # TODO: Add secondary support? 
+
+    return (wavelengths, radiants)
+
+
+def RGBToWavelengthSameD(RGB, 
+                primaries = {"R": "C'", "G": "e", "B":"g"}, 
+                bitDepth=8):
+    """
+    Convert an RGB values to corresponding wavelengths and intensity/radiant flux.
+    
+    :param RGB: an array in shape (n, 3) representing many RGB values. 
+    :param primaries: A dictionary mapping RGB to primary wavelength lines (default: {"R": "C'", "G": "e", "B": "g"}).
+    :param secondaries: A dictionary mapping secondary colors to wavelength lines (optional)
+    :param UVIRcut: Cut wavelength for ultraviolet and infrared, the first term is UV and the second is IR. 
+
+    :return: An array of wavelengths corresponding to the input RGB array. 
+    """
+
+    if(RGB.max() > 1):
+        RGB = RGB / (2**bitDepth)
+
+    wavelengths = bd.array([
+        LambdaLines[primaries["R"]], 
+        LambdaLines[primaries["G"]], 
+        LambdaLines[primaries["B"]]
+    ])
+    wavelengths = bd.tile(wavelengths, (RGB.shape[0], 1))
+
+    radiants = bd.array(RGB)
 
     return (wavelengths, radiants)
 
