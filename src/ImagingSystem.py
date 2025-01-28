@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.Misc import NumpyConversion
+from Util.Misc import ImageConversion
 from ExampleLenses import Biotar50mmf14
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
@@ -37,11 +37,7 @@ class ImagingSystem:
 
 
     def Test(self, image, perPointSample):
-        mat = []  
-
-        start = time.time()
-        sX = image.sampleX   # Horizontal sample count
-        sY = image.sampleY   # Vertical sample count 
+        pass
 
 
     # ==================================================================
@@ -57,22 +53,22 @@ def main():
     #lens.SetAperture(2.8)
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = StdImager(bfd=30)
+    imager = StdImager(bfd=37)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     source = PointsSource(bd.array([
-        [0,     0, -5000, 1, 1, 1],
-        [5,     0,  -5000, 1, 1, 1],
-        [10,    0,  -5000, 1, 1, 1],
-        [15,    0,  -5000, 1, 1, 1],
-        [20,    0,  -5000, 1, 1, 1]
+        [0,     0, -20000, 1, 1, 1],
+        [5,     3,  -20000, 1, 1, 1],
+        [10,    6,  -20000, 1, 1, 1],
+        [15,    9,  -20000, 1, 1, 1],
+        [19,    12,  -20000, 1, 1, 1]
         ]))
 
     plt.ion()  # Turn on interactive mode
     fig, ax = plt.subplots()
-    im = ax.imshow(NumpyConversion(image))
+    im = ax.imshow(ImageConversion(image))
     while(True):
         print("- Starting a new sample iteration")
         mainRB = source.EmitTowards(source, lens.entrancePupil.GetSamplePoints(10000))
@@ -81,12 +77,12 @@ def main():
         mainRB, mainRP = lens.Propagate()
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        mainRP.Append(mainRB, _tir, _vig)
+        # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image)
 
         
-        im.set_data(NumpyConversion(image))
+        im.set_data(ImageConversion(image))
         plt.draw()
         plt.pause(0.01)
         print("  Finished a new sample iteration")

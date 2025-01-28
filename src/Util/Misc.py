@@ -604,6 +604,18 @@ def NumpyConversion(ary):
         return bd.asnumpy(ary)
     else: 
         return ary
+    
+
+def ImageConversion(ary, bitDepth=8):
+    """
+    
+    """
+    maxValue = bd.max(ary)
+    bits = 2.0**bitDepth-1
+    scaleRatio = (bits / maxValue) 
+    ary = bd.clip(ary*scaleRatio, 0, bits) 
+
+    return NumpyConversion(ary).astype(bd.uint8)
 
 
 

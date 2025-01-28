@@ -316,10 +316,13 @@ class Surface:
         
         # Compute the intersection points
         intersections = position + t[:, bd.newaxis] * direction
-        
+
+        # Calculate the bool mask for valid intersections within the region 
+        fsMask = self._FieldStopMask(intersections)
+
         return intersections, \
             bd.zeros(intersections.shape[0]).astype(bd.bool_),\
-            parallel_mask
+            parallel_mask | (~fsMask)
 
 
     def _SphericalIntersection(self, incomingRaybatch):

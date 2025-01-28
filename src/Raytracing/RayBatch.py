@@ -88,6 +88,9 @@ class RayBatch:
         pass 
 
 
+    def Mask(self, mask):
+        self.value = self.value[mask]
+
 
 def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 

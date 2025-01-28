@@ -6,7 +6,7 @@ from Surfaces.Surface import FieldStopType, Surface
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
-from Util.Globals import INFINITY, ZERO, ONE, TWO
+from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis
 from Util.Misc import PointsInTriangle, WavelengthToRGB, NumpyConversion
 
 class StdImager(Surface):
@@ -72,6 +72,7 @@ class StdImager(Surface):
         self.rayBatch = raybatch
         intersections, _tir, _vig = self.Intersection(self.rayBatch)
         self.rayBatch.SetPosition(intersections)
+        self.rayBatch.Mask(~_vig)
 
         return self.rayBatch, _tir, _vig
 
@@ -81,7 +82,6 @@ class StdImager(Surface):
         self.rayBatch = raybatch
 
         return self._integralRays(baseImg=baseImg)
-
 
 
     def DrawSurface(self):
@@ -110,10 +110,11 @@ class StdImager(Surface):
         """
         Given the intersections, filter out the ones that are outside of the field stop. 
         """
+        # If tilt shift is involved, consider using the triangle intersection check 
+        heightMask = (intersections[:, Axis.Y.value] > self.height/2 ) |(intersections[:, Axis.Y.value] < -self.height/2)
+        widthMask = (intersections[:, Axis.X.value] > self.width/2 ) | (intersections[:, Axis.X.value] < -self.width/2)
 
-        sideA = PointsInTriangle(intersections, self.gatePoints[0], self.gatePoints[1], self.gatePoints[2])
-        sideB = PointsInTriangle(intersections, self.gatePoints[0], self.gatePoints[2], self.gatePoints[3])
-        return sideA | sideB
+        return ~(heightMask | widthMask)
 
     
     def _integralRays(self, bitDepth=8, baseImg=None, valueClamp=None):
@@ -159,26 +160,15 @@ class StdImager(Surface):
             bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             bd.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-
+        # Stack the channels together as a "latent image"
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
         
+        # Monte Carlo addition 
         if(baseImg is not None):
-            # Stack the channels along the third axis to form an RGB image
             rgb_image = baseImg + rgb_image
-
-        maxValue = bd.max(rgb_image)
-        #print("Max value: ", maxValue)
-        bits = 2.0**bitDepth-1
-        if(valueClamp is None):
-            # Suitable for image sim 
-            scaleRatio = (bits / maxValue) 
-        else:
-            # Spot sim 
-            scaleRatio = (bits / valueClamp)
-        rgb_image = bd.clip(rgb_image*scaleRatio, 0, bits) 
       
 
-        return rgb_image.astype(bd.uint8)
+        return rgb_image
 
 
 
