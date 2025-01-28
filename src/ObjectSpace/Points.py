@@ -4,6 +4,7 @@
 
 from Util.Backend import backend as bd
 from Util.Misc import RGBToWavelengthSameD, Lumi
+from Util.Globals import ONE, INIT_PHASE_DIFF
 from Raytracing.RayBatch import RayBatch
 
 
@@ -65,28 +66,44 @@ class PointsSource:
         lenSource = sourcePos.shape[0]
         lenTarget = targets.shape[0]
 
+        # Accquire the luminisity of the sources
+        lumi = Lumi(source.Color())
+        # Create a mask that prune the rays based on lumi
+        random_mask = bd.random.random((lenSource, lenTarget)) < lumi[:, bd.newaxis]
+
+
         sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
-        # Compute the cross product pairwise and reshape it 
-        cross_vectors = bd.cross(sourceExpanded, targetsExpanded)
-        #cross_vectors = cross_vectors.reshape(-1, 3)  
+        # Compute the direction of acrossing the source and target 
+        dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
         
+        # Expand and append the position into pos/dir pairs 
+        sourcePos = sourcePos[:, bd.newaxis, :]
+        sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
+        appended = bd.concatenate([sourcePos, dirCross], axis=2)[random_mask]
+        # After applying the mask, appended is of shape (m*n', 6)
+
+        # Convert source color to wavelength 
         wavelengths, radiants = RGBToWavelengthSameD(source.Color())
-        wlExpanded = wavelengths[bd.newaxis, :, :]
-        wlBroadcasted = bd.tile(wlExpanded, (cross_vectors.shape[0], 1, 1))
+        # Expand the wavelength to match the pos/dir 
+        wavelengths = wavelengths[:, bd.newaxis, :]
+        wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))[random_mask]
+        # After applying the mask, wavelengths is of shape (m*n', 3)
 
-
-        # Accquire the luminisity of the sources
-        lumi = Lumi(self.Color())
-        random_mask = bd.random.random((lenSource, lenTarget)) < lumi[:, bd.newaxis]
-        cross_vectors = cross_vectors[random_mask]
-
+        # Spilt the wavelengths, copy and concatenate them to 
+        wavelengths = bd.split(wavelengths, indices_or_sections=3, axis=1)
+        appended = [bd.concatenate([appended, b], axis=1) for b in wavelengths]
+        appended = bd.concatenate(appended, axis=0) # This yields a (3*m*n', 7) array 
         
+        temp = bd.ones(3)
+        temp[0] = ONE    # Sagittal radiant
+        temp[1] = ONE    # Tangential radiant
+        temp[2] = INIT_PHASE_DIFF   # Phase difference 
 
-
-
-        print("  ")
+        return RayBatch(
+            bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
+        )
 
 
 def main():
@@ -105,6 +122,8 @@ def main():
     ])
 
     RB = t.EmitTowards(t, targets)
+
+    print(RB.value)
 
 
 

@@ -55,7 +55,7 @@ def main():
 
     lens = Biotar50mmf14()
 
-     # Set up the imager 32.3552 (34.25 for 1500 distance)
+    # Set up the imager 32.3552 (34.25 for 1500 distance)
     imager = StdImager(bfd=10)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
