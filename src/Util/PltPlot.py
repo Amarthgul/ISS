@@ -32,6 +32,7 @@ def Setup3Dplot():
     ax = fig.add_subplot(111, projection='3d')
     return ax 
     
+
 def CheckAX():
     """
     This function checks if the axis is initialized.
@@ -41,7 +42,9 @@ def CheckAX():
     if (AX == None):
         AX = Setup3Dplot()
 
+
 def Reset2D():
+    global fig 
     fig = plt.figure()
 
 

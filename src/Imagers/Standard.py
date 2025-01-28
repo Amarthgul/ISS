@@ -8,13 +8,13 @@ from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
 from Util.Globals import INFINITY, ZERO, ONE, TWO
-from Util.Misc import PointsInTriangle, WavelengthToRGB
+from Util.Misc import PointsInTriangle, WavelengthToRGB, NumpyConversion
 
 class StdImager(Surface):
     """
     Standard virtual imager with no optical effect. 
     """
-    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 300):
+    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 1080):
 
         # Raduis is infinity, no thickness, clear semi-diameter is infinity
         super().__init__(INFINITY, ZERO, INFINITY)
@@ -81,13 +81,25 @@ class StdImager(Surface):
 
         self.rayBatch = raybatch
 
-        self._integralRays(baseImg=baseImg)
+        return self._integralRays(baseImg=baseImg)
 
-        
 
 
     def DrawSurface(self):
         DrawPlane(self.gatePoints, color='black')
+
+
+    def AccquireEmpty(self):
+        """
+        Accquire an empty image array. 
+        """
+        # TODO: add more bitdepth support 
+        imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=bd.uint8)
+        
+        # if(backend_name == 'cupy'):       
+        #     imgAry = bd.asnumpy(imgAry)
+
+        return imgAry
 
 
     # ==================================================================
@@ -105,7 +117,7 @@ class StdImager(Surface):
         return sideA | sideB
 
     
-    def _integralRays(self, bitDepth=8, plotResult=True, baseImg=None, valueClamp=None):
+    def _integralRays(self, bitDepth=8, plotResult=False, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -148,40 +160,31 @@ class StdImager(Surface):
             bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             bd.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
         
-        maxValue = bd.max(bd.array([bd.max(radiantGridR), bd.max(radiantGridG), bd.max(radiantGridB)]))
-        bits = 2.0**bitDepth-1
 
+        rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
+        
+        if(baseImg is not None):
+            # Stack the channels along the third axis to form an RGB image
+            rgb_image = baseImg + rgb_image
+
+        maxValue = bd.max(rgb_image)
+        print("max value: ", maxValue)
+        bits = 2.0**bitDepth-1
         if(valueClamp is None):
             # Suitable for image sim 
             scaleRatio = (bits / maxValue) 
         else:
             # Spot sim 
             scaleRatio = (bits / valueClamp)
+        rgb_image = bd.clip(rgb_image*scaleRatio, 0, bits) 
+      
 
-        red_channel = bd.clip(radiantGridR*scaleRatio, 0, bits) 
-        green_channel = bd.clip(radiantGridG*scaleRatio, 0, bits)  
-        blue_channel = bd.clip(radiantGridB*scaleRatio, 0, bits)
-
-        
-        # Ensure each channel is in the range [0, 255] and convert to uint8
-        # TODO: edit this to reflect bitdepth 
-        red_channel = red_channel.astype(bd.uint8)
-        
-        green_channel = green_channel.astype(bd.uint8)
-        blue_channel = blue_channel.astype(bd.uint8)
-
-        if(baseImg == None):
-            # Stack the channels along the third axis to form an RGB image
-            rgb_image = bd.stack((red_channel, green_channel, blue_channel), axis=-1)
-        else:
-            # In case this is an iterative call with an already formed image 
-            rgb_image += bd.stack((red_channel, green_channel, blue_channel), axis=-1)
+        # Convert to uint 8 as rgb image 
+        rgb_image = rgb_image.astype(bd.uint8)
 
         if (plotResult):
-            if(backend_name == 'cupy'):       
-                rgb_image = bd.asnumpy(rgb_image)
             Reset2D()
-            plt.imshow(rgb_image)
+            plt.imshow(NumpyConversion(rgb_image))
             #plt.colorbar()  # Optional: Add a colorbar to show intensity values
             plt.show()
 

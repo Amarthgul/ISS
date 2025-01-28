@@ -599,6 +599,13 @@ def ColorTuplePLT(arrayRGB):
     return tuple(arrayRGB)
 
 
+def NumpyConversion(ary):
+    if(backend_name == 'cupy'):
+        return bd.asnumpy(ary)
+    else: 
+        return ary
+
+
 
 def main():
     print(WavelengthToRGB(550.0))

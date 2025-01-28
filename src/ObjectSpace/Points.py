@@ -35,7 +35,6 @@ class PointsSource:
         self.sampleRecord = None 
 
 
-
     def SetPoints(self, points):
         self.value = points
 
@@ -48,6 +47,9 @@ class PointsSource:
 
 
     def Position(self):
+        """
+        Calculate and return the Cartesian coordinate of the points. If the point sources are created using field angles, i.e., polar coordinates, they will be converted to Cartesian.  
+        """
         if(self.isCartesian):
             return self.value[:, :3]
         else:
@@ -58,7 +60,6 @@ class PointsSource:
             return bd.column_stack((xPos, yPos, self.value[:, 2]))
             
     
-
     def Color(self):
         return self.value[:, 3:]
 
@@ -115,6 +116,19 @@ class PointsSource:
         return RayBatch(
             bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
         )
+
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
+    def _ResetSampleRecord(self):
+        if(self.value is None):
+            return  
+        else: 
+            self.sampleRecord = bd.zeros(self.value.shape[0])
+
 
 
 def main():

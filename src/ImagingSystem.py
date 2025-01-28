@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
+from Util.Misc import NumpyConversion
 from ExampleLenses import Biotar50mmf14
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
@@ -54,11 +54,13 @@ class ImagingSystem:
 def main():
 
     lens = Biotar50mmf14()
+    #lens.SetAperture(2.8)
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
     imager = StdImager(bfd=30)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
 
     source = PointsSource(bd.array([
         [0,     0, -5000, 1, 1, 1],
@@ -68,24 +70,35 @@ def main():
         [20,    0,  -5000, 1, 1, 1]
         ]))
 
-    mainRB = source.EmitTowards(source, lens.entrancePupil.GetSamplePoints(10000))
-    
-    lens.SetIncidentRaybatch(mainRB)
-    mainRB, mainRP = lens.Propagate()
+    plt.ion()  # Turn on interactive mode
+    fig, ax = plt.subplots()
+    im = ax.imshow(NumpyConversion(image))
+    while(True):
+        print("- Starting a new sample iteration")
+        mainRB = source.EmitTowards(source, lens.entrancePupil.GetSamplePoints(10000))
+        lens.SetIncidentRaybatch(mainRB)
 
-    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-    mainRP.Append(mainRB, _tir, _vig)
+        mainRB, mainRP = lens.Propagate()
 
-    imager.IntegralRays(mainRB)
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        mainRP.Append(mainRB, _tir, _vig)
 
-    lens.DrawLens()
-    imager.DrawSurface()
-    mainRP.DrawPath()
+        image = imager.IntegralRays(mainRB, baseImg=image)
 
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
-    plt.show()
+        
+        im.set_data(NumpyConversion(image))
+        plt.draw()
+        plt.pause(0.01)
+        print("  Finished a new sample iteration")
+
+    # lens.DrawLens()
+    # imager.DrawSurface()
+    # mainRP.DrawPath()
+
+    # SetUnifScale(50)
+    # AddXYZ()
+    # RemoveBG()
+    # plt.show()
 
 
 if __name__ == "__main__":

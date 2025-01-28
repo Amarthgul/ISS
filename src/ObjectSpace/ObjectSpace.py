@@ -4,8 +4,13 @@ import copy
 
 from Util.Backend import backend as bd
 
+"""
+Old version of the object space implementation. 
+Should not be used, left here for reference purpose only and will probably be removed at some point. 
+"""
 
-class Image2D:
+
+class _Image2D:
     def __init__(self, path = None):
         self.imgpath = path 
         self.img = None 
@@ -148,14 +153,14 @@ class Image2D:
         p1 = self.img.crop(p1Box)
         p2 = self.img.crop(p2Box)
 
-        imgP1 = Image2D()
+        imgP1 = _Image2D()
         imgP1.SetImage(p1)
         imgP1.xAoV = xAoV1
         imgP1.yAoV = yAoV1
         imgP1.distance = self.distance
         imgP1.Update()
 
-        imgP2 = Image2D()
+        imgP2 = _Image2D()
         imgP2.SetImage(p2)
         imgP2.xAoV = xAoV2
         imgP2.yAoV = yAoV2
@@ -273,7 +278,7 @@ def main():
         # ISO12233.jpg
         testImgPath = r"resources/Henri-Cartier-Bresson.png"
 
-        testImg = Image2D(testImgPath)
+        testImg = _Image2D(testImgPath)
         testImg.xAoV = bd.array([-19.8, 0])
         testImg.yAoV = bd.array([-13.5, 0])
         testImg.Update()

@@ -32,7 +32,6 @@ class Imager():
 
         self._Start()
 
-
     def _Start(self):
         if (self.verticalPx == None):
             self.verticalPx = int((self.height / self.width ) * self.horizontalPx)
@@ -60,9 +59,8 @@ class Imager():
         return self._integralRays(baseImg=baseImg, valueClamp=valueClamp) 
 
 
-    def Test(self):
-        pass 
-        
+    
+
 
     # ==================================================================
     """ ============================================================ """
@@ -114,7 +112,7 @@ class Imager():
         plt.pause(10)
 
         
-    def _integralRays(self, bitDepth = 8, plotResult = True, baseImg=None, valueClamp=None):
+    def _integralRays(self, bitDepth = 8, plotResult = False, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -185,11 +183,13 @@ class Imager():
             rgb_image = bd.stack((red_channel, green_channel, blue_channel), axis=-1)
         else:
             # In case this is an iterative call with an already formed image 
-            rgb_image += bd.stack((red_channel, green_channel, blue_channel), axis=-1)
-        print(bd.max(rgb_image))
+            rgb_image = baseImg + bd.stack((red_channel, green_channel, blue_channel), axis=-1)
+
+        if(backend_name == 'cupy'):       
+            rgb_image = bd.asnumpy(rgb_image)
+
         if (plotResult):
-            if(backend_name == 'cupy'):       
-                rgb_image = bd.asnumpy(rgb_image)
+            
             Reset2D()
             plt.imshow(rgb_image)
             #plt.colorbar()  # Optional: Add a colorbar to show intensity values
