@@ -2,8 +2,7 @@
 
 import matplotlib.pyplot as plt
 
-
-from Surfaces import Surface, FieldStopType
+from Surfaces.Surface import FieldStopType, Surface
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
@@ -117,7 +116,7 @@ class StdImager(Surface):
         return sideA | sideB
 
     
-    def _integralRays(self, bitDepth=8, plotResult=False, baseImg=None, valueClamp=None):
+    def _integralRays(self, bitDepth=8, baseImg=None, valueClamp=None):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -168,7 +167,7 @@ class StdImager(Surface):
             rgb_image = baseImg + rgb_image
 
         maxValue = bd.max(rgb_image)
-        print("max value: ", maxValue)
+        #print("Max value: ", maxValue)
         bits = 2.0**bitDepth-1
         if(valueClamp is None):
             # Suitable for image sim 
@@ -179,16 +178,7 @@ class StdImager(Surface):
         rgb_image = bd.clip(rgb_image*scaleRatio, 0, bits) 
       
 
-        # Convert to uint 8 as rgb image 
-        rgb_image = rgb_image.astype(bd.uint8)
-
-        if (plotResult):
-            Reset2D()
-            plt.imshow(NumpyConversion(rgb_image))
-            #plt.colorbar()  # Optional: Add a colorbar to show intensity values
-            plt.show()
-
-        return rgb_image
+        return rgb_image.astype(bd.uint8)
 
 
 

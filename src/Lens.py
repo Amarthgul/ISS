@@ -12,7 +12,7 @@ from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
 from Util.Misc import AxialDistance, WavelengthToRGB, TransversalDistance
-from Surfaces import Surface, Stop
+from Surfaces.Stop import Stop
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
 from Material import Material

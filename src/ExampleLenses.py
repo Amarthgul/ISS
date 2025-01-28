@@ -3,7 +3,8 @@
 import matplotlib.pyplot as plt
 import time
 
-from Surfaces import Surface, Stop
+from Surfaces.Surface import Surface
+from Surfaces.Stop import Stop
 from Lens import Lens 
 from Util.Globals import ZERO, ONE, INFINITY
 from Util.DataReadWrite import Save, Load
@@ -12,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False 
 
 
 class Example():
@@ -197,9 +198,9 @@ def CanonFD50mmf18():
 
 def main():
     
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
+    # SetUnifScale(50)
+    # AddXYZ()
+    # RemoveBG()
 
     start = time.time()
 
@@ -212,12 +213,12 @@ def main():
 
     print(exampleLens.GetInfo())
 
-    exampleLens.DrawLens()
-    exampleLens.entrancePupil.DrawSamplePoints()
+    #exampleLens.DrawLens()
+    #exampleLens.entrancePupil.DrawSamplePoints()
     #exampleLens.entrancePupil.DrawSurface()
-    exampleLens.frontPincipalPlane.DrawSamplePoints()
+    #exampleLens.frontPincipalPlane.DrawSamplePoints()
     
-    plt.show()
+    #plt.show()
 
     
 

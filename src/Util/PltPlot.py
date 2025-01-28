@@ -13,7 +13,7 @@ from numpy.linalg import norm
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ORIGIN, INFINITY
+from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE
 
 
 # ==================================================================
@@ -24,14 +24,26 @@ from Util.Globals import ORIGIN, INFINITY
 # Matplotlib z axis is always shortened 
 zAxisCompensationFactor = 1.25
 
-fig = plt.figure()
+fig = None 
+AX = None 
 
-AX = None
+if(DEVELOPER_MODE):
+    fig = plt.figure()
 
 def Setup3Dplot():
+    global fig 
     ax = fig.add_subplot(111, projection='3d')
     return ax 
     
+if(DEVELOPER_MODE):
+    AX = Setup3Dplot()
+
+
+
+def Reset2D():
+    global fig 
+    fig = plt.figure()
+
 
 def CheckAX():
     """
@@ -41,14 +53,6 @@ def CheckAX():
     global AX
     if (AX == None):
         AX = Setup3Dplot()
-
-
-def Reset2D():
-    global fig 
-    fig = plt.figure()
-
-
-AX = Setup3Dplot()
 
 
 # ==================================================================
