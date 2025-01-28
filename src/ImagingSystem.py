@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
 from ExampleLenses import Biotar50mmf14
 from Imagers.Standard import StdImager 
-from ObjectSpace.ObjectSpace import Point
+from ObjectSpace.Points import PointsSource
 from Raytracing.Emission import EmitField
 
 class ImagingSystem:
@@ -56,21 +56,19 @@ def main():
     lens = Biotar50mmf14()
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = StdImager(bfd=10)
+    imager = StdImager(bfd=30)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
 
-    source = Point()
-    source.fieldX = 10
-    source.distance = bd.array(50)
-    source.RGB= bd.array([1, 1, 1])
+    source = PointsSource(bd.array([
+        [0,     0, -5000, 1, 1, 1],
+        [5,     0,  -5000, 1, 1, 1],
+        [10,    0,  -5000, 1, 1, 1],
+        [15,    0,  -5000, 1, 1, 1],
+        [20,    0,  -5000, 1, 1, 1]
+        ]))
 
-
-    mainRB = EmitField(
-        source.fieldX, 
-        source.fieldY, 
-        source.distance, 
-        lens.entrancePupil.GetSamplePoints(50000))
+    mainRB = source.EmitTowards(source, lens.entrancePupil.GetSamplePoints(10000))
     
     lens.SetIncidentRaybatch(mainRB)
     mainRB, mainRP = lens.Propagate()

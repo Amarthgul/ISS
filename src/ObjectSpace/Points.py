@@ -22,7 +22,7 @@ class PointsSource:
     Where D is the distance from the front vertex of the lens, which in this case is the polar origin.
     """
 
-    def __init__(self, data):
+    def __init__(self, data=None):
         self.value = data
 
         """Whether the data is Cartesian XYZ coordinates or field angles"""    
@@ -41,11 +41,22 @@ class PointsSource:
 
 
     def AddPoint(self, point):
-        bd.vstack(self.value, point)
+        if(self.value is None):
+            self.value = point
+        else:
+            bd.vstack(self.value, point)
 
 
     def Position(self):
-        return self.value[:, :3]
+        if(self.isCartesian):
+            return self.value[:, :3]
+        else:
+            xPos = self.value[:, 0] if self.angleInRad else bd.deg2rad(self.value[:, 0])
+            yPos = self.value[:, 1] if self.angleInRad else bd.deg2rad(self.value[:, 1])
+            xPos = self.value[:, 2] * bd.tan(xPos)
+            yPos = self.value[:, 2] * bd.tan(yPos)
+            return bd.column_stack((xPos, yPos, self.value[:, 2]))
+            
     
 
     def Color(self):

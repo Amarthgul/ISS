@@ -392,7 +392,7 @@ def Lumi(RGB):
     """
     Accquiring the lumosity of the inputs by weighted average of RGB
     """
-    return 0.2126*RGB[0] + 0.7152*RGB[1] + 0.0722 *RGB[2]
+    return 0.2126*RGB[:, 0] + 0.7152*RGB[:, 1] + 0.0722 *RGB[:, 2]
 
 
 def LumiPeakArray(RGB, bitDepth = 8):
