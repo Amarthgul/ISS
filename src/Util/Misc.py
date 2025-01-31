@@ -606,14 +606,17 @@ def NumpyConversion(ary):
         return ary
     
 
-def ImageConversion(ary, bitDepth=8):
+def ImageConversion(ary, bitDepth=8, amplifier=0.25, rotate=True):
     """
     
     """
-    maxValue = bd.max(ary)
+    maxValue = bd.max(ary) * amplifier
     bits = 2.0**bitDepth-1
     scaleRatio = (bits / maxValue) 
     ary = bd.clip(ary*scaleRatio, 0, bits) 
+
+    if(rotate):
+        ary  =bd.rot90(ary)
 
     return NumpyConversion(ary).astype(bd.uint8)
 
