@@ -1,11 +1,16 @@
 
 
 import PIL.Image
+import matplotlib.pyplot as plt
 
+if __name__ == "__main__":
+    from Points import PointsSource
+else:
+    from ObjectSpace.Points import PointsSource
 
-from Points import PointsSource
 from Util.Backend import backend as bd
 from Util.Globals import ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE
+from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
 from Raytracing.RayBatch import RayBatch
 
 
@@ -64,8 +69,7 @@ class Image2D:
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
-        pass 
-
+        return self.pointSource.EmitSamplesToward(targets, sampleCount)
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -81,19 +85,20 @@ class Image2D:
         if (self.distance is INFINITY):
             zDist = -FAR_DISTANCE
         else:
-            zDist = -self.distance
+            zDist = -bd.array(self.distance)
 
         # Create the 4 anchor points if they are not defined 
         if(self.pointAnchor is None):
+
             rad = bd.deg2rad(self.horizontalAoV) / 2
-            halfX = bd.tan(rad) * zDist
-            halfY = halfX * (self._file.height / self._file.width)
+            halfX = bd.abs(bd.tan(rad) * zDist)
+            halfY = halfX * bd.abs(self._file.height / self._file.width)
 
             self.pointAnchor = bd.array([
-                [ halfX,  halfY, zDist], 
-                [-halfX,  halfY, zDist], 
                 [-halfX, -halfY, zDist], 
                 [ halfX, -halfY, zDist], 
+                [-halfX,  halfY, zDist], 
+                [ halfX,  halfY, zDist], 
             ])
 
         sampleX = self.image.shape[1]
@@ -108,18 +113,25 @@ class Image2D:
         # Compute the bilinear interpolation
         grid_points = (
             (1 - U)[..., None] * (1 - V)[..., None]  * self.pointAnchor[0].reshape(1, 1, 3) +
-            U[..., None] * (1 - V)[..., None]        * self.pointAnchor[0].reshape(1, 1, 3) +
-            (1 - U)[..., None] * V[..., None]        * self.pointAnchor[0].reshape(1, 1, 3) +
-            U[..., None] * V[..., None]              * self.pointAnchor[0].reshape(1, 1, 3)
+            U[..., None] * (1 - V)[..., None]        * self.pointAnchor[1].reshape(1, 1, 3) +
+            (1 - U)[..., None] * V[..., None]        * self.pointAnchor[2].reshape(1, 1, 3) +
+            U[..., None] * V[..., None]              * self.pointAnchor[3].reshape(1, 1, 3)
         )  
-
+        
+        grid_points = bd.swapaxes(grid_points, 0, 1)
         # Reshape the matrix into the same dimension as the self.image 
-        grid_points = grid_points.reshape(sampleY, sampleX, 3)
+        grid_points = grid_points.reshape(sampleY * sampleX, 3)
+        grid_color = self.image.reshape(sampleY * sampleX, 3)
 
-        grid_points = bd.concatenate([grid_points, self.image], axis=2)
+        grid_points = bd.concatenate([grid_points, grid_color], axis=1)
+
+        #bd.savetxt("tempSave.txt", grid_points)
 
         self.pointSource = PointsSource(grid_points)
 
+
+    def DrawImage(self):
+        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
 
 
 def main():
@@ -132,10 +144,23 @@ def main():
     ])
 
     img = Image2D()
-    img.imageDimensionOverride = 1280 
-    img.LoadFrom8bit(r"resources/ISO12233-4k.png")
+    img.imageDimensionOverride = 100 
+    img.distance = bd.array(100)
+    img.LoadFrom8bit(r"resources/Arrow.png")
     
     RB = img.EmitSamplesToward( targets)
+
+    for i in range(len(RB.value)):
+        print(RB.value[i])
+
+    SetUnifScale(250)
+    AddXYZ()
+    DrawRaybatch(RB, length=50)
+    DrawPoints(targets)
+    img.DrawImage()
+    plt.show()
+
+    
 
 
 if __name__ == "__main__":

@@ -59,9 +59,23 @@ def Normalized(inputVec):
 
 def ArrayNormalized(inputVec):
     """ 
-    Normalize an array of vectors. 
+    Normalize an array of vectors in shape (n, 3). 
     """
     return inputVec / bd.linalg.norm(inputVec, axis=1, keepdims=True)
+
+
+def GridNormalized(inputVec):
+    """
+    This method is designed to normalized a (m, n, 3) array represneting many 3D vectors. 
+    """
+    norms = bd.linalg.norm(inputVec, axis=2, keepdims=True)
+
+    # To avoid division by zero, you can add a small epsilon.
+    epsilon = 1e-8
+    norms = bd.maximum(norms, epsilon)
+
+    # Normalize the vectors: each vector is divided by its norm.
+    return inputVec / norms
 
 
 def Partition(inputVec):
@@ -606,7 +620,7 @@ def NumpyConversion(ary):
         return ary
     
 
-def ImageConversion(ary, bitDepth=8, amplifier=0.25, rotate=True):
+def ImageConversion(ary, bitDepth=8, amplifier=1, rotate=True):
     """
     
     """

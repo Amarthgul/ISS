@@ -1,9 +1,10 @@
 
 
-
+import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.Misc import RGBToWavelengthSameD, Lumi
+from Util.Misc import RGBToWavelengthSameD, Lumi, GridNormalized
+from Util.PltPlot import DrawDirection
 from Util.Globals import ONE, INIT_PHASE_DIFF
 from Raytracing.RayBatch import RayBatch
 
@@ -27,7 +28,7 @@ class PointsSource:
 
 
         """Whether the data is Cartesian XYZ coordinates or field angles"""    
-        self.isCartesian = False
+        self.isCartesian = True
 
 
         """Whether the angle is in radian"""
@@ -125,34 +126,43 @@ class PointsSource:
         lenSource = sourcePos.shape[0]
         lenTarget = targets.shape[0]
 
-        # Accquire the luminisity of the sources
-        lumi = Lumi(sampleSource.Color())
-        # Create a mask that prune the rays based on lumi
-        random_mask = bd.random.random((lenSource, lenTarget)) < lumi[:, bd.newaxis]
-
         # Expand the points to prepare crossing them 
         sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
         # Compute the direction of acrossing the source and target 
         dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
-        
+        dirCross = GridNormalized(dirCross)
+
         # Expand and append the position into pos/dir pairs 
         sourcePos = sourcePos[:, bd.newaxis, :]
         sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
-        appended = bd.concatenate([sourcePos, dirCross], axis=2)[random_mask]
+
+        appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
 
         # Convert source color to wavelength 
         wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
+
+
+
         # Expand the wavelength to match the pos/dir 
         wavelengths = wavelengths[:, bd.newaxis, :]
-        wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))[random_mask]
-        # After applying the mask, wavelengths is of shape (m*n', 3)
-
+        wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))
         # Spilt the wavelengths, copy and concatenate them to 
-        wavelengths = bd.split(wavelengths, indices_or_sections=3, axis=1)
-        appended = [bd.concatenate([appended, b], axis=1) for b in wavelengths]
+        wavelengths = bd.split(wavelengths, indices_or_sections=3, axis=2)
+
+        
+
+        appended = [bd.concatenate([appended, b], axis=2) for b in wavelengths]
+        
+        radiantMask = [bd.random.random((lenSource, lenTarget))<radiants[:, i][:, bd.newaxis] for i in range(radiants.shape[1])] 
+
+        appended = [appended[i][radiantMask[i]] for i in range(len(radiantMask))]
+        
+        #random_mask = [bd.random.random()]
+        #bd.random.random((lenSource, lenTarget)) < radiants[:, bd.newaxis]
+
         appended = bd.concatenate(appended, axis=0) # This yields a (3*m*n', 7) array 
         
         temp = bd.ones(3)
@@ -169,10 +179,11 @@ class PointsSource:
 def main():
     
     t = PointsSource(bd.array([
-        [0,  0, -10000, 1, 1, 1], 
+        #[0,  0, -10000, 1, 1, 1], 
         [0, 10, -10000, 1, 0.6, 0.6],
-        [0, 25, -10000, 1, 0.6, 0.3],
+        [0, 25, -10000, 1, 0.5, 0.2],
     ]))
+    t.isCartesian = False
 
     targets = bd.array([
         [1, 2, 25], 
@@ -181,7 +192,7 @@ def main():
         [1, -2, 25]
     ])
 
-    RB = t.EmitTowards( targets)
+    RB = t.EmitTowards(targets)
 
     print(RB.value)
 

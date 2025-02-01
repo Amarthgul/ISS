@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.Misc import ImageConversion
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
 from ExampleLenses import Biotar50mmf14
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
+from ObjectSpace.Images import Image2D
 from Raytracing.Emission import EmitField
 
 class ImagingSystem:
@@ -53,25 +55,32 @@ def main():
     #lens.SetAperture(2.8)
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = StdImager(bfd=37)
+    imager = StdImager(bfd=32.35)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
-    source = PointsSource(bd.array([
-        [0,     0, -20000, 1, 1, 1],
-        [4.75,     3,  -20000, 1, 1, 1],
-        [9.5,    6,  -20000, 1, 1, 1],
-        [14.25,    9,  -20000, 1, 1, 1],
-        [19.5,    12,  -20000, 1, 1, 1]
-        ]))
+    sourceImage = Image2D()
+    #sourceImage.distance = 1500
+    sourceImage.imageDimensionOverride = 1280 
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png
 
     plt.ion()  # Turn on interactive mode
     fig, ax = plt.subplots()
     im = ax.imshow(ImageConversion(image))
     while(True):
-        print("- Starting a new sample iteration")
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 3)
+        #print("- Starting a new sample iteration")
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 4069)
+
+        #bd.savetxt("tempSave.csv", mainRB.value, delimiter=",")
+
+        # AddXYZ()
+        # SetUnifScale(100)
+        # DrawRaybatch(mainRB, length=150) # Draw call ==============
+        # plt.show()
+        # plt.pause(20)
+
         lens.SetIncidentRaybatch(mainRB)
 
         mainRB, mainRP = lens.Propagate()
@@ -85,8 +94,8 @@ def main():
         im.set_data(ImageConversion(image))
         plt.draw()
         plt.pause(0.01)
-        print("  Finished a new sample iteration")
-        print(source.sampleRecord)
+        #print("  Finished a new sample iteration")
+        #print(source.sampleRecord)
 
     # lens.DrawLens()
     # imager.DrawSurface()

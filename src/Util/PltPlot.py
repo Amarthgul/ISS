@@ -14,6 +14,7 @@ from numpy.linalg import norm
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE
+from Util.Misc import ColorTuplePLT
 
 
 # ==================================================================
@@ -96,7 +97,7 @@ def SetUnifScale(lim = 10, ax=AX):
     ax.set_zlim(lim, 0)
 
 
-def DrawPoint(point, ax=AX, color='red'):
+def DrawPoint(point, color='red', ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         point = bd.asnumpy(point)
@@ -104,14 +105,26 @@ def DrawPoint(point, ax=AX, color='red'):
     ax.scatter3D(point[0], point[1], point[2], color=color)
 
 
-def DrawPoints(points, ax=AX, color='red'):
+def DrawPoints(points, color='red', ax=AX):
     CheckAX()
 
     if(backend_name == "cupy"):
         points = bd.asnumpy(points)
+
     
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
     ax.scatter3D(x, y, z, color=color)
+
+
+def DrawPointsPerColor(points, color, ax=AX):
+    CheckAX()
+
+    if(backend_name == "cupy"):
+        points = bd.asnumpy(points)
+        color = ColorTuplePLT(color)
+    
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
+    ax.scatter3D(x, y, z, color=color, s=0.5)
 
 
 def Draw3D(x, y, z, ax=AX):
@@ -307,6 +320,7 @@ def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2, edgecolor=surfaceColor)
+
 
 
 
