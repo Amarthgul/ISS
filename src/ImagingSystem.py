@@ -60,10 +60,10 @@ def main():
 
     source = PointsSource(bd.array([
         [0,     0, -20000, 1, 1, 1],
-        [5,     3,  -20000, 1, 1, 1],
-        [10,    6,  -20000, 1, 1, 1],
-        [15,    9,  -20000, 1, 1, 1],
-        [19,    12,  -20000, 1, 1, 1]
+        [4.75,     3,  -20000, 1, 1, 1],
+        [9.5,    6,  -20000, 1, 1, 1],
+        [14.25,    9,  -20000, 1, 1, 1],
+        [19.5,    12,  -20000, 1, 1, 1]
         ]))
 
     plt.ion()  # Turn on interactive mode
@@ -71,7 +71,7 @@ def main():
     im = ax.imshow(ImageConversion(image))
     while(True):
         print("- Starting a new sample iteration")
-        mainRB = source.EmitTowards(source, lens.entrancePupil.GetSamplePoints(10000))
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 3)
         lens.SetIncidentRaybatch(mainRB)
 
         mainRB, mainRP = lens.Propagate()
@@ -86,6 +86,7 @@ def main():
         plt.draw()
         plt.pause(0.01)
         print("  Finished a new sample iteration")
+        print(source.sampleRecord)
 
     # lens.DrawLens()
     # imager.DrawSurface()

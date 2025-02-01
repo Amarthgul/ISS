@@ -23,6 +23,10 @@ ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
 
 
+# Data type for the operation 
+PRECISION_TYPE = bd.float32
+
+
 # Placeholder focus/object distance 
 KNOB_DISTANCE = 1500 
 # Name and value from leica lenses which has a focus knob,

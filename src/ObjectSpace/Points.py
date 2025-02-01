@@ -25,18 +25,22 @@ class PointsSource:
     def __init__(self, data=None):
         self.value = data
 
+
         """Whether the data is Cartesian XYZ coordinates or field angles"""    
         self.isCartesian = False
+
 
         """Whether the angle is in radian"""
         self.angleInRad = False
 
 
         self.sampleRecord = None 
+        self._ResetSampleRecord()
 
 
     def SetPoints(self, points):
         self.value = points
+        self._ResetSampleRecord()
 
 
     def AddPoint(self, point):
@@ -44,6 +48,7 @@ class PointsSource:
             self.value = point
         else:
             bd.vstack(self.value, point)
+        self._ResetSampleRecord()
 
 
     def Position(self):
@@ -64,26 +69,68 @@ class PointsSource:
         return self.value[:, 3:]
 
 
-    def EmitTowards(self, source, targets):
+    def EmitTowards(self, targets):
         """
         Emit rays from the point sources towards the target points. 
 
-        
         :param targets: collection of points as emission targets. 
 
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
-        sourcePos = source.Position()
+        return self._SamplesToTargetsEmission(self, targets)
+
+
+    def EmitSamplesToward(self, targets, sampleCount=64):
+        """
+        Emit rays from some of the point sources towards the target points. 
+
+        :param targets: collection of points as emission targets. 
+        :param sampleCount: amount of point sources to be sampled from all the soruces.
+
+        :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
+        """
+
+        # In the case that there is less sources than sample count, return all 
+        if(self.sampleRecord.shape[0] == sampleCount):
+            return self.EmitTowards(targets)
+
+        # TODO: add something here to make those with less record selected more prone to be selected 
+
+        # Create a selection array 
+        selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
+
+        # Increase the sample records of the selected 
+        self.sampleRecord[selectedIndices] += 1
+
+        return self._SamplesToTargetsEmission(
+            PointsSource(self.value[selectedIndices]), 
+            targets)
+        
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
+    def _ResetSampleRecord(self):
+        if(self.value is None):
+            return  
+        else: 
+            self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
+
+
+    def _SamplesToTargetsEmission(self, sampleSource, targets):
+        sourcePos = sampleSource.Position()
 
         lenSource = sourcePos.shape[0]
         lenTarget = targets.shape[0]
 
         # Accquire the luminisity of the sources
-        lumi = Lumi(source.Color())
+        lumi = Lumi(sampleSource.Color())
         # Create a mask that prune the rays based on lumi
         random_mask = bd.random.random((lenSource, lenTarget)) < lumi[:, bd.newaxis]
 
-
+        # Expand the points to prepare crossing them 
         sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
@@ -97,7 +144,7 @@ class PointsSource:
         # After applying the mask, appended is of shape (m*n', 6)
 
         # Convert source color to wavelength 
-        wavelengths, radiants = RGBToWavelengthSameD(source.Color())
+        wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
         # Expand the wavelength to match the pos/dir 
         wavelengths = wavelengths[:, bd.newaxis, :]
         wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))[random_mask]
@@ -118,18 +165,6 @@ class PointsSource:
         )
 
 
-    # ==================================================================
-    """ ====================== Private Methods ===================== """
-    # ==================================================================
-
-
-    def _ResetSampleRecord(self):
-        if(self.value is None):
-            return  
-        else: 
-            self.sampleRecord = bd.zeros(self.value.shape[0])
-
-
 
 def main():
     
@@ -146,7 +181,7 @@ def main():
         [1, -2, 25]
     ])
 
-    RB = t.EmitTowards(t, targets)
+    RB = t.EmitTowards( targets)
 
     print(RB.value)
 
