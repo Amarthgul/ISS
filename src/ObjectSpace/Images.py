@@ -32,8 +32,10 @@ class Image2D:
         """Unsigned unit in mm. If anchors are not explicitly stated, assume image at infinity"""
         self.distance = INFINITY
 
+
         """Unsigned unit in degree. If anchors are not explicitly stated, assume image in 3D fills a horizontal angle of view. Default value 40 degrees, which is a 50mm on 135 format."""
         self.horizontalAoV = 40
+        # Note that since this AoV describes the image and not the lens, decreasing this attribute will make the image smaller, as if the lens is having a higher AoV. 
 
 
         """4 points data in Vec3. The 4 anchor points that pins the image in 3D space """
@@ -89,7 +91,6 @@ class Image2D:
 
         # Create the 4 anchor points if they are not defined 
         if(self.pointAnchor is None):
-
             rad = bd.deg2rad(self.horizontalAoV) / 2
             halfX = bd.abs(bd.tan(rad) * zDist)
             halfY = halfX * bd.abs(self._file.height / self._file.width)
@@ -111,23 +112,24 @@ class Image2D:
         U, V = bd.meshgrid(u, v, indexing="ij")  # Shape (sampleX, sampleY)
 
         # Compute the bilinear interpolation
-        grid_points = (
+        gridPositions = (
             (1 - U)[..., None] * (1 - V)[..., None]  * self.pointAnchor[0].reshape(1, 1, 3) +
             U[..., None] * (1 - V)[..., None]        * self.pointAnchor[1].reshape(1, 1, 3) +
             (1 - U)[..., None] * V[..., None]        * self.pointAnchor[2].reshape(1, 1, 3) +
             U[..., None] * V[..., None]              * self.pointAnchor[3].reshape(1, 1, 3)
         )  
+
+        # The grid generated this way is transposed, thus need the axis swapped
+        gridPositions = bd.swapaxes(gridPositions, 0, 1)
         
-        grid_points = bd.swapaxes(grid_points, 0, 1)
-        # Reshape the matrix into the same dimension as the self.image 
-        grid_points = grid_points.reshape(sampleY * sampleX, 3)
-        grid_color = self.image.reshape(sampleY * sampleX, 3)
+        # Reshape the point position and color array
+        gridPositions = gridPositions.reshape(sampleY * sampleX, 3)
+        gridColors = self.image.reshape(sampleY * sampleX, 3)
 
-        grid_points = bd.concatenate([grid_points, grid_color], axis=1)
+        # Concatenate the position and color 
+        gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)
 
-        #bd.savetxt("tempSave.txt", grid_points)
-
-        self.pointSource = PointsSource(grid_points)
+        self.pointSource = PointsSource(gridPositions)
 
 
     def DrawImage(self):

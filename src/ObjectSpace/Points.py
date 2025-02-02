@@ -29,6 +29,7 @@ class PointsSource:
 
         """Whether the data is Cartesian XYZ coordinates or field angles"""    
         self.isCartesian = True
+        # This should be set to True by default. The only case polar coordinate is useful is spot testing, which can be manually entered, flagged, and adjusted. 
 
 
         """Whether the angle is in radian"""

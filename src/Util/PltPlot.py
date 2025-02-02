@@ -117,6 +117,10 @@ def DrawPoints(points, color='red', ax=AX):
 
 
 def DrawPointsPerColor(points, color, ax=AX):
+    """
+    This is basically the same as DrawPoints(), but the color parameter is treated as an array of same dimension as points. 
+    """
+
     CheckAX()
 
     if(backend_name == "cupy"):
