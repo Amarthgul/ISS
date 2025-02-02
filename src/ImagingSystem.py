@@ -62,7 +62,7 @@ def main():
 
     sourceImage = Image2D()
     #sourceImage.distance = 1500
-    sourceImage.horizontalAoV = 33.5
+    sourceImage.horizontalAoV = 33.75
     sourceImage.imageDimensionOverride = 1280 
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png
