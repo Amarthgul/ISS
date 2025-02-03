@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.Misc import ImageConversion
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
-from ExampleLenses import Biotar50mmf14, Helios58mmf2
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2D
@@ -51,18 +51,18 @@ class ImagingSystem:
     
 def main():
 
-    lens = Helios58mmf2()
+    lens = CanonFD50mmf18()
     #lens.SetAperture(2.8)
 
     # Set up the imager 32.3552 (34.25 for 1500 distance)
-    imager = StdImager(bfd=38)
+    imager = StdImager(bfd=32.6)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2D()
     #sourceImage.distance = 1500
-    sourceImage.horizontalAoV = 33.75
+    sourceImage.horizontalAoV = 40
     sourceImage.imageDimensionOverride = 1280 
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png
@@ -73,14 +73,6 @@ def main():
     while(True):
         #print("- Starting a new sample iteration")
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 8192)
-
-        #bd.savetxt("tempSave.csv", mainRB.value, delimiter=",")
-
-        # AddXYZ()
-        # SetUnifScale(100)
-        # DrawRaybatch(mainRB, length=150) # Draw call ==============
-        # plt.show()
-        # plt.pause(20)
 
         lens.SetIncidentRaybatch(mainRB)
 

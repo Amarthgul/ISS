@@ -11,6 +11,7 @@ else:
 from Util.Backend import backend as bd
 from Util.Globals import ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
+from Util.Misc import Magnitude
 from Raytracing.RayBatch import RayBatch
 
 
@@ -46,6 +47,10 @@ class Image2D:
         self.imageDimensionOverride = None 
 
 
+        """Height/width of each pixel, assuming square pixels"""
+        self.pixelPitch = None 
+
+
     def LoadFrom8bit(self, imgPath):
         """
         For common 8 bit image formats like jpg, bmp, and png. If a png is not 8 bit, do not use this method. Find the right bit depth method instead. 
@@ -71,7 +76,16 @@ class Image2D:
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
-        return self.pointSource.EmitSamplesToward(targets, sampleCount)
+
+        return self.pointSource.EmitSamplesToward(targets, sampleCount, self.pixelPitch)
+
+
+    def DrawImage(self):
+        """
+        Draw the points sources in 3D space with corresponding colors.
+        """
+        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -102,6 +116,9 @@ class Image2D:
                 [ halfX,  halfY, zDist], 
             ])
 
+        # 
+        self.pixelPitch = Magnitude(self.pointAnchor[1]-self.pointAnchor[0]) / self.imageDimensionOverride
+
         sampleX = self.image.shape[1]
         sampleY = self.image.shape[0]
 
@@ -131,9 +148,6 @@ class Image2D:
 
         self.pointSource = PointsSource(gridPositions)
 
-
-    def DrawImage(self):
-        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
 
 
 def main():

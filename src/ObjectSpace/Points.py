@@ -71,7 +71,7 @@ class PointsSource:
         return self.value[:, 3:]
 
 
-    def EmitTowards(self, targets):
+    def EmitTowards(self, targets, jitter=None):
         """
         Emit rays from the point sources towards the target points. 
 
@@ -82,7 +82,7 @@ class PointsSource:
         return self._SamplesToTargetsEmission(self, targets)
 
 
-    def EmitSamplesToward(self, targets, sampleCount=64):
+    def EmitSamplesToward(self, targets, sampleCount=64, jitter=None):
         """
         Emit rays from some of the point sources towards the target points. 
 
@@ -106,7 +106,8 @@ class PointsSource:
 
         return self._SamplesToTargetsEmission(
             PointsSource(self.value[selectedIndices]), 
-            targets)
+            targets, 
+            jitter)
         
 
     # ==================================================================
@@ -121,11 +122,8 @@ class PointsSource:
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
 
-    def _SamplesToTargetsEmission(self, sampleSource, targets):
+    def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None):
         sourcePos = sampleSource.Position()
-
-        lenSource = sourcePos.shape[0]
-        lenTarget = targets.shape[0]
 
         # Expand the points to prepare crossing them 
         sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
@@ -137,7 +135,11 @@ class PointsSource:
 
         # Expand and append the position into pos/dir pairs 
         sourcePos = sourcePos[:, bd.newaxis, :]
-        sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
+        # Introduce jitter to the position if needed 
+        sourcePos = self._AddJitter(
+            bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
+            jitter
+            )
 
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
@@ -146,25 +148,27 @@ class PointsSource:
         wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
 
 
-
         # Expand the wavelength to match the pos/dir 
         wavelengths = wavelengths[:, bd.newaxis, :]
         wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))
         # Spilt the wavelengths, copy and concatenate them to 
         wavelengths = bd.split(wavelengths, indices_or_sections=3, axis=2)
 
-        
-
         appended = [bd.concatenate([appended, b], axis=2) for b in wavelengths]
         
-        radiantMask = [bd.random.random((lenSource, lenTarget))<radiants[:, i][:, bd.newaxis] for i in range(radiants.shape[1])] 
+        # This creates a boolean mask whose filter ratio is based on the radiant of the corresponding wavelength 
+        radiantMask = [
+            bd.random.random((sourcePos.shape[0], targets.shape[0])) < radiants[:, i][:, bd.newaxis] 
+            for i in range(radiants.shape[1])
+            ] 
 
+        # Using the filter from last step to drop the elements.
+        # This is how RGB is created, note that such method rely heavily on large scale Monte Carlo to reduce randomness 
         appended = [appended[i][radiantMask[i]] for i in range(len(radiantMask))]
-        
-        #random_mask = [bd.random.random()]
-        #bd.random.random((lenSource, lenTarget)) < radiants[:, bd.newaxis]
 
-        appended = bd.concatenate(appended, axis=0) # This yields a (3*m*n', 7) array 
+
+        # This yields a (w*m*n', 7) array, prime sign means it's smaller than w*m*n since some of them are just dropped out 
+        appended = bd.concatenate(appended, axis=0) 
         
         temp = bd.ones(3)
         temp[0] = ONE    # Sagittal radiant
@@ -174,6 +178,26 @@ class PointsSource:
         return RayBatch(
             bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
         )
+
+
+    def _AddJitter(self, input, jitterAmount):
+        """
+        This method adds a jittering onto the input, with the range limited to a certain amount. When applied on point positions, this makes them more like sampling a continuous signal rather than a bunch of idealized discrete points in space. This also has anti-aliasing effect in many occasions. 
+
+        :param input: array of whatever size. 
+        :param jitterAmount: scalar of abs value range of the jitter efect. 
+
+        :return: a new array of same size as input but with value jittered. 
+        """
+
+        if(jitterAmount is None):
+            return input
+        
+        # randArr = bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
+        # print(bd.mean(randArr))
+        # print(bd.std(randArr))
+        return input + jitterAmount * bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
+
 
 
 

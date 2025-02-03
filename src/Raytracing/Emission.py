@@ -30,6 +30,12 @@ from .RayBatch import RayBatch
 """ ==================== First Surface Method ================== """
 # ==================================================================
 
+"""
+This set of method finds the ellipse projected by the first surface perpendicular to the incident angle, then create sample points in this ellipse so that off axis rays remains relatively even. 
+This method is thus able to provide a more theoritical accurate situation of ray reaching the lens.   
+However, this does mean that a large chunck of rays will not participate in the formation of the image, they are rather reflected, vignetted, or absorbed. The effenciency is thus quite low. 
+"""
+
 
 def FindB(posA, posC, posP):
     """
@@ -197,15 +203,7 @@ def InitRays(r, sd, posP, wavelength = 550):
     return rayBatch 
 
 
-# TODO: implement a new set of first surface method that takes an array of sources 
-
-
-
-# ==================================================================
-""" =================== Entrance Pupil Method ================== """
-# ==================================================================
-
-# TODO: Implement the entrance pupil method
+# TODO: implement a new set of first surface method that takes an array of sources, also uses polar coordinate instead of Cartesian 
 
 
 # ==================================================================

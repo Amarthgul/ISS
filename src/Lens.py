@@ -90,6 +90,10 @@ class Lens:
                 self.surfaces[i].DrawSurface()
 
 
+    def BFD(self):
+        return self.surfaces[self._lastSurfaceIndex].thickness
+
+
     def SetAperture(self, aperture):
         """
         Set the aperture of the lens. 
