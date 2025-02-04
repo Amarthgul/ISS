@@ -85,7 +85,7 @@ def main():
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 20480)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 8192)
         #print(mainRB.ToString())
 
         lens.SetIncidentRaybatch(mainRB)

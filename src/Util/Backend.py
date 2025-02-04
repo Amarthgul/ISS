@@ -12,6 +12,7 @@ Copyright (c) 2022, Rafael de la Fuente
 All rights reserved.
 """
 
+FORCE_CPU = False
 
 global JAX_AVAILABLE
 global CUPY_CUDA_AVAILABLE
@@ -21,6 +22,7 @@ backend = numpy
 global backend_name
 backend_name = 'numpy'
 
+
 try:
     import cupy
     CUPY_CUDA_AVAILABLE = True
@@ -28,6 +30,11 @@ try:
     backend = cupy 
 except ImportError:
     CUPY_CUDA_AVAILABLE = False
+
+# When force CPU is flagged, numpy will be used regardless 
+if FORCE_CPU:
+    backend = numpy
+    backend_name = 'numpy'
 
 
 def constant(value):

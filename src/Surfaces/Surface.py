@@ -217,7 +217,6 @@ class Surface:
         #DrawPoints(intersections)
         #self.DrawSurface() # Draw call=========
         #DrawDirection(position, direction) # Draw call=========
-        
 
         # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
         desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
@@ -320,7 +319,8 @@ class Surface:
         # Calculate the bool mask for valid intersections within the region 
         fsMask = self._FieldStopMask(intersections)
 
-        return intersections, \
+        # Note that just like the spherical case, the returned intersection contains only the ones that actually falls onto the surface, those outside of the clear semi-diameter are excluded
+        return intersections[fsMask], \
             bd.zeros(intersections.shape[0]).astype(bd.bool_),\
             parallel_mask | (~fsMask)
 

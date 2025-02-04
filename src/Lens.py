@@ -139,6 +139,14 @@ class Lens:
         return self.rayBatch, self.rayPath
 
 
+    def BestFocusBFD(self, distance):
+        """
+        Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
+        """
+
+        pass 
+
+
     def GetInfo(self):
         info = "- Lens Info: \n" +\
             "Focal Length:   \t" + str(self.focalLength) + "\n" +\
@@ -208,6 +216,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
+                print("At surface ", forwardIndex)
                 #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
