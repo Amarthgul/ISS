@@ -108,13 +108,24 @@ class PointsSource:
 
         dists = - bd.ones_like(xAngles) * bd.array(dist)
 
-        append = self._PolarToCart(bd.column_stack((xAngles, yAngles, dists)))
+        #append = self._PolarToCart(bd.column_stack((xAngles, yAngles, dists)))
+        append = bd.column_stack((xAngles, yAngles, dists))
 
         # Concatenate the two arrays along axis 1 (columns)
         self.value = bd.concatenate([append, bd.full((append.shape[0], 3), 1)], axis=1)
 
         self._ResetSampleRecord()
 
+
+    def ToString(self):
+        result = "[\n"
+        for row in self.value:
+            # Convert each row's elements to strings and join them with commas
+            row_str = "  [" + ", ".join(str(x) for x in row) + "],\n"
+            result += row_str
+        
+        result += "]"
+        return result
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -208,7 +219,7 @@ class PointsSource:
 
     def _PolarToCart(self, input=None):
         """
-        Convert polar coordinates to Cartesian, if no input is passed, convert the self value. 
+        Convert polar coordinates to Cartesian, if no input is passed, convert the self value. Note that this assumes x and y to be in polar cooridnate while z is still Cartesian. 
         """
         
         if(input is None):

@@ -71,8 +71,9 @@ class StdImager(Surface):
     def IntersectRays(self, raybatch):
         self.rayBatch = raybatch
         intersections, _tir, _vig = self.Intersection(self.rayBatch)
-        self.rayBatch.SetPosition(intersections)
         self.rayBatch.Mask(~_vig)
+        self.rayBatch.SetPosition(intersections)
+        
 
         return self.rayBatch, _tir, _vig
 

@@ -52,13 +52,15 @@ class ImagingSystem:
 def main():
 
     lens = Biotar50mmf14()
-    lens.SetAperture(8)
+    lens.SetAperture(22)
 
     # FD50 seems to be around 32.6
 
     source = PointsSource()
     source.isCartesian = False
-    #source.GenerateSpots(12, 19.25)
+    source.GenerateSpots(12, 19)
+    print(source.ToString())
+
     source.SetPoints(bd.array([
         [0,     0, -50000, 1, 1, 1],
         [4.75,     3,  -50000, 1, 1, 1],
@@ -67,7 +69,7 @@ def main():
         [19.5,    12,  -50000, 1, 1, 1]
         ]))
 
-    imager = StdImager(bfd=32.4)
+    imager = StdImager(bfd=32.4) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -85,7 +87,7 @@ def main():
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 8192)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 20480)
         #print(mainRB.ToString())
 
         lens.SetIncidentRaybatch(mainRB)
