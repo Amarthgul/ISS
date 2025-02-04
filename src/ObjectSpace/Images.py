@@ -80,6 +80,11 @@ class Image2D:
         return self.pointSource.EmitSamplesToward(targets, sampleCount, self.pixelPitch)
 
 
+    def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
+        self.pointSource = PointsSource()
+        self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
+
+
     def DrawImage(self):
         """
         Draw the points sources in 3D space with corresponding colors.

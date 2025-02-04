@@ -108,10 +108,14 @@ class Pupil(VirtualSurface):
         return self._maxPupilSD * 2
 
 
-    def GetSamplePoints(self, sampleCount):
+    def GetSamplePoints(self, sampleCount=None):
         """
         Get some sample points that are on the pupil. 
         """
+
+        # Return all the samples if no sample count is stated 
+        if(sampleCount is None):
+            return self._pupilPointSamples
 
         # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples. 
         if(sampleCount > self._pupilPointSamples.shape[0]):

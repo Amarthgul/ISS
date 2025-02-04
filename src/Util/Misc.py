@@ -625,6 +625,7 @@ def ImageConversion(ary, bitDepth=8, amplifier=1, rotate=True):
     
     """
     maxValue = bd.max(ary) * amplifier
+    #maxValue = 256
     bits = 2.0**bitDepth-1
     scaleRatio = (bits / maxValue) 
     ary = bd.clip(ary*scaleRatio, 0, bits) 

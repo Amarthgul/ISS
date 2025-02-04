@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.Misc import RGBToWavelengthSameD, Lumi, GridNormalized
 from Util.PltPlot import DrawDirection
-from Util.Globals import ONE, INIT_PHASE_DIFF
+from Util.Globals import ONE, INIT_PHASE_DIFF, FAR_DISTANCE
 from Raytracing.RayBatch import RayBatch
 
 
@@ -60,26 +60,11 @@ class PointsSource:
         if(self.isCartesian):
             return self.value[:, :3]
         else:
-            xPos = self.value[:, 0] if self.angleInRad else bd.deg2rad(self.value[:, 0])
-            yPos = self.value[:, 1] if self.angleInRad else bd.deg2rad(self.value[:, 1])
-            xPos = self.value[:, 2] * bd.tan(xPos)
-            yPos = self.value[:, 2] * bd.tan(yPos)
-            return bd.column_stack((xPos, yPos, self.value[:, 2]))
+            return self._PolarToCart()
             
     
     def Color(self):
         return self.value[:, 3:]
-
-
-    def EmitTowards(self, targets, jitter=None):
-        """
-        Emit rays from the point sources towards the target points. 
-
-        :param targets: collection of points as emission targets. 
-
-        :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
-        """
-        return self._SamplesToTargetsEmission(self, targets)
 
 
     def EmitSamplesToward(self, targets, sampleCount=64, jitter=None):
@@ -92,9 +77,9 @@ class PointsSource:
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
 
-        # In the case that there is less sources than sample count, return all 
-        if(self.sampleRecord.shape[0] == sampleCount):
-            return self.EmitTowards(targets)
+        # In the case that there are less sources than demanded sample count, return all 
+        if(self.sampleRecord.shape[0] <= sampleCount):
+            return self._SamplesToTargetsEmission(self, targets)
 
         # TODO: add something here to make those with less record selected more prone to be selected 
 
@@ -104,11 +89,32 @@ class PointsSource:
         # Increase the sample records of the selected 
         self.sampleRecord[selectedIndices] += 1
 
+        sourceDuplicate = PointsSource(self.value[selectedIndices])
+        sourceDuplicate.isCartesian = self.isCartesian
+
         return self._SamplesToTargetsEmission(
-            PointsSource(self.value[selectedIndices]), 
+            sourceDuplicate, 
             targets, 
             jitter)
         
+
+    def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
+        """
+        Generate white point sources convering from the axis to the postive direction of the given x and y angle. 
+        """
+
+        xAngles = bd.linspace(0, xAngle, sampleField)
+        yAngles = bd.linspace(0, yAngle, sampleField)
+
+        dists = - bd.ones_like(xAngles) * bd.array(dist)
+
+        append = self._PolarToCart(bd.column_stack((xAngles, yAngles, dists)))
+
+        # Concatenate the two arrays along axis 1 (columns)
+        self.value = bd.concatenate([append, bd.full((append.shape[0], 3), 1)], axis=1)
+
+        self._ResetSampleRecord()
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -123,6 +129,7 @@ class PointsSource:
 
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None):
+
         sourcePos = sampleSource.Position()
 
         # Expand the points to prepare crossing them 
@@ -199,16 +206,33 @@ class PointsSource:
         return input + jitterAmount * bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
 
 
+    def _PolarToCart(self, input=None):
+        """
+        Convert polar coordinates to Cartesian, if no input is passed, convert the self value. 
+        """
+        
+        if(input is None):
+            xVal = self.value[:, 0]
+            yVal = self.value[:, 1]
+            zVal = self.value[:, 2]
+        else:
+            xVal = input[:, 0]
+            yVal = input[:, 1]
+            zVal = input[:, 2]
+        
+
+        xPos = xVal if self.angleInRad else bd.deg2rad(xVal)
+        yPos = yVal if self.angleInRad else bd.deg2rad(yVal)
+        xPos = zVal * bd.tan(xPos)
+        yPos = zVal * bd.tan(yPos)
+
+        return bd.column_stack((xPos, yPos, zVal))
 
 
 def main():
     
-    t = PointsSource(bd.array([
-        #[0,  0, -10000, 1, 1, 1], 
-        [0, 10, -10000, 1, 0.6, 0.6],
-        [0, 25, -10000, 1, 0.5, 0.2],
-    ]))
-    t.isCartesian = False
+    t = PointsSource()
+    t.GenerateSpots(19.5, 10)
 
     targets = bd.array([
         [1, 2, 25], 

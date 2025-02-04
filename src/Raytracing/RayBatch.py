@@ -92,6 +92,17 @@ class RayBatch:
         self.value = self.value[mask]
 
 
+    def ToString(self):
+        result = "[\n"
+        for row in self.value:
+            # Convert each row's elements to strings and join them with commas
+            row_str = "  [" + ", ".join(str(x) for x in row) + "],\n"
+            result += row_str
+        
+        result += "]"
+        return result
+
+
 def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 
     pos = bd.zeros(6)

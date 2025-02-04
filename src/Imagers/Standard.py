@@ -90,7 +90,7 @@ class StdImager(Surface):
 
     def AccquireEmpty(self):
         """
-        Accquire an empty image array. 
+        Accquire an empty image array. When converted, this will be a black and blank image. 
         """
         # TODO: add more bitdepth support 
         imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=bd.uint8)
@@ -166,7 +166,9 @@ class StdImager(Surface):
         # Monte Carlo addition 
         if(baseImg is not None):
             rgb_image = baseImg + rgb_image
-      
+
+        #maxValue = bd.max(rgb_image)
+        #print("max value: ", maxValue)
 
         return rgb_image
 
