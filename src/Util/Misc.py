@@ -6,7 +6,7 @@ import math
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis
+from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN
 
 
 # ==================================================================
@@ -107,6 +107,56 @@ def Rotate(theta, axis, ibdutVertex):
     ])
  
     return bd.matmul(R, ibdutVertex) 
+
+
+def ArrayRotate(theta, axis, pivot, points):
+    """
+    Rotate 3D points around a specified pivot along a given axis.
+    
+    :param theta: (float) Rotation angle in radians.
+    :param axis: (array-like) 3D unit vector representing the rotation axis.
+    :param pivot: (array-like) 3D point representing the pivot (center of rotation).
+    :param points: (ndarray) Array of shape (n, 3) containing the 3D points to rotate.
+    
+    :return: ndarray: Rotated points of shape (n, 3).
+    """
+    # Ensure axis is a unit vector
+    axis = axis / bd.linalg.norm(axis)
+    
+    # Compute rotation matrix (Rodrigues' Rotation Formula)
+    cos_theta = bd.cos(theta)
+    sin_theta = bd.sin(theta)
+    one_minus_cos = 1 - cos_theta
+    
+    ux, uy, uz = axis  # Extract components of the unit axis
+    
+    R = bd.array([
+        [cos_theta + ux**2 * one_minus_cos, 
+         ux * uy * one_minus_cos - uz * sin_theta, 
+         ux * uz * one_minus_cos + uy * sin_theta],
+        [uy * ux * one_minus_cos + uz * sin_theta, 
+         cos_theta + uy**2 * one_minus_cos, 
+         uy * uz * one_minus_cos - ux * sin_theta],
+        [uz * ux * one_minus_cos - uy * sin_theta, 
+         uz * uy * one_minus_cos + ux * sin_theta, 
+         cos_theta + uz**2 * one_minus_cos]
+    ])
+    
+    # Ensure points are a 2D array
+    points = bd.asarray(points)  # Convert to array in case it's a list
+    if points.ndim == 1:
+        points = points[None, :]  # Reshape to (1, 3) if only one point is given
+    
+    # Translate points to pivot
+    translated_points = points - pivot
+
+    # Apply rotation matrix correctly using matrix multiplication
+    rotated_points = bd.dot(translated_points, R.T)  # Correct matrix multiplication
+
+    # Translate points back
+    final_points = rotated_points + pivot
+
+    return final_points
 
 
 def Translate(ibdutVertex, translation):
@@ -638,7 +688,9 @@ def ImageConversion(ary, bitDepth=8, amplifier=1, rotate=True):
 
 
 def main():
-    print(WavelengthToRGB(550.0))
+    points = bd.array([[1, 0, 0], [1, 2, 3]])
+
+    print(ArrayRotate(bd.pi/4, UP_DIR, ORIGIN, points))
 
 
 

@@ -18,7 +18,7 @@ from Surfaces.PrincipalPlane import PrincipalPlane
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateEmpty
 from Raytracing.Raypath import RayPath
-from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
+from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint, EmitField
 
 
 class Lens:
@@ -121,7 +121,7 @@ class Lens:
         """
 
         # For production use, turn this off to avoid unnecessary memory usage.
-        recordPath = True
+        recordPath = False
 
         self.rayPath = RayPath()
         if(recordPath):
@@ -143,8 +143,22 @@ class Lens:
         """
         Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
         """
+        
+        focusRB = EmitField(0, 0, distance, self.entrancePupil.GetEvenSamplePoints())
 
-        pass 
+        focusRP = RayPath()
+
+        focusRP.Append(focusRB, None, None)
+
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                focusRB, _tir, _vig = self.surfaces[i].Trace(
+                    focusRB, self._FindPreviousRI(i, self.rayBatch))
+                
+                focusRP.Append(self.rayBatch, _tir, _vig)
+
+        
+        bestFocus = focusRP.FindConvergingPoint()
 
 
     def GetInfo(self):

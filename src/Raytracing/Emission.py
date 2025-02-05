@@ -211,7 +211,7 @@ def InitRays(r, sd, posP, wavelength = 550):
 # ==================================================================
 
 
-def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = LambdaLines['D']):
+def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = LambdaLines['d']):
     """
     Emit rays from the center of the stop towards the object and image side.
     The angle of the rays are determined by the edge of previous and next surface.
@@ -275,7 +275,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 # ==================================================================
 
 
-def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=True, halfSide=False, denseEdge=True, density=3):
+def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['d'], planar=True, halfSide=False, denseEdge=True, density=3):
     """
     Emit collimated rays parallel to the optical axis from the object space infinity towards the 1st surface of the lens.
 
@@ -317,7 +317,7 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['D'], planar=Tr
         )
 
 
-def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, wavelength = LambdaLines['D']):
+def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, wavelength = LambdaLines['d']):
     """
     Emit rays defined by field angle and distance, towards a pool of samples.
 
@@ -368,7 +368,7 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
 # ==================================================================
 
 
-def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['D']):
+def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = LambdaLines['d']):
     """
     Emit rays from a point, the range of the rays are determined by two target points, with samples in between.
 

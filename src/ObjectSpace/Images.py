@@ -10,9 +10,9 @@ else:
     from ObjectSpace.Points import PointsSource
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE, Axis
+from Util.Globals import ZERO, ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
-from Util.Misc import Magnitude, Rotate
+from Util.Misc import Magnitude, ArrayRotate
 from Raytracing.RayBatch import RayBatch
 
 
@@ -43,6 +43,9 @@ class Image2D:
         """4 points data in Vec3. The 4 anchor points that pins the image in 3D space """
         self.pointAnchor = None 
         
+
+        self.imageCenter = None 
+
 
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
@@ -90,35 +93,21 @@ class Image2D:
         self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
 
 
-    def SetupTransitionTest(self, zDisplacement, xDisplacement=0, yDisplacement=0, offsetVec=None):
+    def SetupTransitionTest(self, rotateDegree=45, scale=2):
         """
         This method adjusts the anchor points thus tilting the image. The tilted image can then be used to test transition. 
 
-        :param zDisplacement: The near/far distance is pushed foreward/backward for this distance. 
-        :param xDisplacement: The left/right edge is pushed right/left for this distance, by default this value is 0. 
-        :param yDisplacement: The top/bottom edge is pushed upward/downward for this distance, by default this value is 0. 
-        :param offsetDistance: The entire image will be adjusted along the z axis for this amount. 
         """
-        # TODO: change this to rotation? 
-
+        
         # Create the 4 anchor points if they are not defined 
         if(self.pointAnchor is None):
             self._CreateAnchors(self.distance)
 
-        xDispVec = bd.array([bd.array(xDisplacement), ZERO, ZERO])
-        yDispVec = bd.array([ZERO, bd.array(yDisplacement), ZERO])
-        zDispVec = bd.array([ZERO, ZERO, bd.array(zDisplacement)])
+        self.pointAnchor = ArrayRotate(bd.pi/4, 
+                                       UP_DIR, 
+                                       self.imageCenter, 
+                                       self.pointAnchor)
 
-        if(offsetVec is None):
-            offsetVec = bd.array([ZERO, ZERO, ZERO])
-
-        self.pointAnchor[self.pointAnchor[:, Axis.X.value] > 0] += zDispVec - xDispVec
-        self.pointAnchor[self.pointAnchor[:, Axis.X.value] < 0] -= zDispVec + xDispVec
-
-        self.pointAnchor[self.pointAnchor[:, Axis.Y.value] > 0] += yDispVec
-        self.pointAnchor[self.pointAnchor[:, Axis.Y.value] < 0] -= yDispVec
-
-        self.pointAnchor += offsetVec
 
         self._GeneratePointSources()
 
@@ -195,6 +184,8 @@ class Image2D:
             [-halfX,  halfY, zDist], 
             [ halfX,  halfY, zDist], 
         ])
+
+        self.imageCenter = bd.mean(self.pointAnchor, axis=0)
 
 
 def main():

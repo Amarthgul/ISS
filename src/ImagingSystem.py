@@ -77,10 +77,10 @@ def main():
     sourceImage = Image2D()
     #sourceImage.distance = 1500
     sourceImage.horizontalAoV = 40
-    sourceImage.imageDimensionOverride = 1280 
+    sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = 1200
     sourceImage.LoadFrom8bit(r"resources/Grid.png") 
-    sourceImage.SetupTransitionTest(500, 100, 200, bd.array([0, 0, 0]))
+    sourceImage.SetupTransitionTest()
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
     plt.ion()  # Turn on interactive mode

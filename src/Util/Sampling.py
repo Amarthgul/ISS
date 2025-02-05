@@ -12,7 +12,7 @@ from Util.Globals import RNG, RefreshRNG, ONE
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
 # Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 1):
+def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 1, zDepth=0):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -44,8 +44,8 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
         layerTheta = bd.arange(pointsInLayer) * ((bd.pi * 2) / pointsInLayer) 
 
         layerPoints = bd.array([layerH * bd.cos(layerTheta), 
-                                    layerH * bd.sin(layerTheta), 
-                                    bd.zeros(pointsInLayer)])
+                                layerH * bd.sin(layerTheta), 
+                                bd.ones(pointsInLayer)*zDepth])
         points = bd.hstack((points, layerPoints))
         
     return points * radius * shrink

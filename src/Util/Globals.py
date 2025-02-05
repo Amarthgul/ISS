@@ -84,11 +84,17 @@ PER_POINT_MAX_SAMPLE = 100
 """ ========================== Vectors ========================= """
 # ==================================================================
 
+
 # Origin point for the lens system 
 ORIGIN = bd.array([0, 0, 0])
 
+
 # Default object facing direction
 OBJ_FACING = bd.array([0, 0, -1])
+
+
+# Up direction 
+UP_DIR = bd.array([0, 1, 0])
 
 
 # ==================================================================

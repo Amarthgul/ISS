@@ -211,9 +211,7 @@ class PointsSource:
         if(jitterAmount is None):
             return input
         
-        # randArr = bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
-        # print(bd.mean(randArr))
-        # print(bd.std(randArr))
+        
         return input + jitterAmount * bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
 
 

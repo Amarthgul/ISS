@@ -6,7 +6,7 @@ import warnings
 from Util.Globals import ZERO, RNG
 from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB, MovingAverageSmoothing, GaussianSmooth
 from Util.Backend import backend as bd 
-from Util.Sampling import RandomEllipticalDistribution, PoissonDiskDistribution
+from Util.Sampling import RandomEllipticalDistribution, PoissonDiskDistribution, CircularDistribution
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 
 
@@ -132,6 +132,15 @@ class Pupil(VirtualSurface):
         selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
 
         return self._pupilPointSamples[selectedIndices]
+
+
+    def GetEvenSamplePoints(self):
+        pupilZdepth = bd.mean(self._workingDepth)
+
+        return CircularDistribution(
+            radius=self.clearSemiDiameter, 
+            zDepth=pupilZdepth)
+
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
