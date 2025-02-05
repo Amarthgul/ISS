@@ -81,10 +81,11 @@ class PointsSource:
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets)
 
-        # TODO: add something here to make those with less record selected more prone to be selected 
+        # TODO: add select smallest 
+        selectedIndices = self._SelectLeastSampled(sampleCount)
 
         # Create a selection array 
-        selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
+        #selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
 
         # Increase the sample records of the selected 
         self.sampleRecord[selectedIndices] += 1
@@ -237,6 +238,29 @@ class PointsSource:
 
         return bd.column_stack((xPos, yPos, zVal))
 
+
+    def _SelectLeastSampled(self, sampleCount):
+
+        # For first selection, choose randomly 
+        if(bd.all(self.value == 0)):
+            return bd.random.choice(self.value.shape[0], sampleCount, replace=False)
+
+        min_value = bd.min(self.sampleRecord)
+        smlIndex = bd.where(self.sampleRecord == min_value)[0]
+        
+        selectedIndices = bd.copy(smlIndex)
+        recordCopy = bd.copy(self.sampleRecord)
+
+        while(len(selectedIndices) < sampleCount): 
+            recordCopy[selectedIndices] += 1
+
+            min_value = bd.min(recordCopy)
+            smlIndex = bd.where(recordCopy == min_value)[0]
+
+            selectedIndices = bd.concatenate((selectedIndices, smlIndex))
+
+        return bd.random.choice(selectedIndices, sampleCount, replace=False)
+        
 
 def main():
     

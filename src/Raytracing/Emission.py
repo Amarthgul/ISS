@@ -342,8 +342,12 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
         position[:, 2] = -FAR_DISTANCE # Object space is negative
         direction = sampleTargets - position
     else:
+        distance = bd.array(distance) # Avoid cupy device issue 
         position = bd.tile(bd.array([xDist, yDist, -distance]), (numRays, 1))
-        direction = sampleTargets - position[:, bd.newaxis]
+        if(position.shape == sampleTargets.shape):
+            direction = sampleTargets - position
+        else:
+            direction = sampleTargets - position[:, bd.newaxis]
 
 
     temp = bd.zeros(5)

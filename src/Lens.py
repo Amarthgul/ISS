@@ -144,7 +144,7 @@ class Lens:
         Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
         """
         
-        focusRB = EmitField(0, 0, distance, self.entrancePupil.GetEvenSamplePoints())
+        focusRB = EmitField(0, 0, distance, self.entrancePupil.GetSamplePoints())
 
         focusRP = RayPath()
 
@@ -152,13 +152,16 @@ class Lens:
 
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
-                focusRB, _tir, _vig = self.surfaces[i].Trace(
-                    focusRB, self._FindPreviousRI(i, self.rayBatch))
+                focusRB, _tir, _vig = self.surfaces[i].NaiveTrace(
+                    focusRB, self._FindPreviousRI(i, focusRB))
                 
-                focusRP.Append(self.rayBatch, _tir, _vig)
+                focusRP.Append(focusRB, _tir, _vig)
 
-        
-        bestFocus = focusRP.FindConvergingPoint()
+        lastIndex = len(focusRP.position) - 1
+        lastPos = focusRP.position[lastIndex]
+        lastDir = focusRP.direction[lastIndex]
+
+        return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength
 
 
     def GetInfo(self):

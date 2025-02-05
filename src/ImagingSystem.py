@@ -51,36 +51,35 @@ class ImagingSystem:
     
 def main():
 
+    imageDistance = 1200
+
     lens = Biotar50mmf14()
     #lens.SetAperture(22)
 
-    # FD50 seems to be around 32.6
 
     source = PointsSource()
     source.isCartesian = False
     source.GenerateSpots(12, 19)
-    print(source.ToString())
 
-    source.SetPoints(bd.array([
-        [0,     0, -50000, 1, 1, 1],
-        [4.75,     3,  -50000, 1, 1, 1],
-        [9.5,    6,  -50000, 1, 1, 1],
-        [14.25,    9,  -50000, 1, 1, 1],
-        [19.5,    12,  -50000, 1, 1, 1]
-        ]))
+    # source.SetPoints(bd.array([
+    #     [0,     0, -50000, 1, 1, 1],
+    #     [4.75,     3,  -50000, 1, 1, 1],
+    #     [9.5,    6,  -50000, 1, 1, 1],
+    #     [14.25,    9,  -50000, 1, 1, 1],
+    #     [19.5,    12,  -50000, 1, 1, 1]
+    #     ]))
 
-    imager = StdImager(bfd=34.4) #32.4
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2D()
-    #sourceImage.distance = 1500
     sourceImage.horizontalAoV = 40
     sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = 1200
-    sourceImage.LoadFrom8bit(r"resources/Grid.png") 
-    sourceImage.SetupTransitionTest()
+    sourceImage.distance = imageDistance
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    #sourceImage.SetupTransitionTest()
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
     plt.ion()  # Turn on interactive mode
