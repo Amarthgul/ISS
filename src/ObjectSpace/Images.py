@@ -3,15 +3,16 @@
 import PIL.Image
 import matplotlib.pyplot as plt
 
+# For whatever import is not working normally on my machine, had to use this ugly shit 
 if __name__ == "__main__":
     from Points import PointsSource
 else:
     from ObjectSpace.Points import PointsSource
 
 from Util.Backend import backend as bd
-from Util.Globals import ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE
+from Util.Globals import ZERO, ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE, Axis
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
-from Util.Misc import Magnitude
+from Util.Misc import Magnitude, Rotate
 from Raytracing.RayBatch import RayBatch
 
 
@@ -81,8 +82,45 @@ class Image2D:
 
 
     def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
+        """
+        This generate a series of spots from axis to off axis. 
+        The outer-most is defined by x and y field anfle. 
+        """
         self.pointSource = PointsSource()
         self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
+
+
+    def SetupTransitionTest(self, zDisplacement, xDisplacement=0, yDisplacement=0, offsetVec=None):
+        """
+        This method adjusts the anchor points thus tilting the image. The tilted image can then be used to test transition. 
+
+        :param zDisplacement: The near/far distance is pushed foreward/backward for this distance. 
+        :param xDisplacement: The left/right edge is pushed right/left for this distance, by default this value is 0. 
+        :param yDisplacement: The top/bottom edge is pushed upward/downward for this distance, by default this value is 0. 
+        :param offsetDistance: The entire image will be adjusted along the z axis for this amount. 
+        """
+        # TODO: change this to rotation? 
+
+        # Create the 4 anchor points if they are not defined 
+        if(self.pointAnchor is None):
+            self._CreateAnchors(self.distance)
+
+        xDispVec = bd.array([bd.array(xDisplacement), ZERO, ZERO])
+        yDispVec = bd.array([ZERO, bd.array(yDisplacement), ZERO])
+        zDispVec = bd.array([ZERO, ZERO, bd.array(zDisplacement)])
+
+        if(offsetVec is None):
+            offsetVec = bd.array([ZERO, ZERO, ZERO])
+
+        self.pointAnchor[self.pointAnchor[:, Axis.X.value] > 0] += zDispVec - xDispVec
+        self.pointAnchor[self.pointAnchor[:, Axis.X.value] < 0] -= zDispVec + xDispVec
+
+        self.pointAnchor[self.pointAnchor[:, Axis.Y.value] > 0] += yDispVec
+        self.pointAnchor[self.pointAnchor[:, Axis.Y.value] < 0] -= yDispVec
+
+        self.pointAnchor += offsetVec
+
+        self._GeneratePointSources()
 
 
     def DrawImage(self):
@@ -102,26 +140,11 @@ class Image2D:
         Using the RGB and position data, generate a point source object that cooresponds to all the pixel/samples from the image input. 
         """
 
-        # Infinty is not really workable, replace it with an approximation
-        if (self.distance is INFINITY):
-            zDist = -FAR_DISTANCE
-        else:
-            zDist = -bd.array(self.distance)
-
         # Create the 4 anchor points if they are not defined 
         if(self.pointAnchor is None):
-            rad = bd.deg2rad(self.horizontalAoV) / 2
-            halfX = bd.abs(bd.tan(rad) * zDist)
-            halfY = halfX * bd.abs(self._file.height / self._file.width)
+            self._CreateAnchors()
 
-            self.pointAnchor = bd.array([
-                [-halfX, -halfY, zDist], 
-                [ halfX, -halfY, zDist], 
-                [-halfX,  halfY, zDist], 
-                [ halfX,  halfY, zDist], 
-            ])
-
-        # 
+        # This method of updating pixel pitch only works when the image is a spatial rectangle, is it stretches, then this will become uneven 
         self.pixelPitch = Magnitude(self.pointAnchor[1]-self.pointAnchor[0]) / self.imageDimensionOverride
 
         sampleX = self.image.shape[1]
@@ -153,6 +176,25 @@ class Image2D:
 
         self.pointSource = PointsSource(gridPositions)
 
+
+    def _CreateAnchors(self, zDist=None):
+
+        # Infinty is not really workable, replace it with an approximation
+        if (self.distance is INFINITY):
+            zDist = -FAR_DISTANCE
+        else:
+            zDist = -bd.array(self.distance)
+
+        rad = bd.deg2rad(self.horizontalAoV) / 2
+        halfX = bd.abs(bd.tan(rad) * zDist)
+        halfY = halfX * bd.abs(self._file.height / self._file.width)
+
+        self.pointAnchor = bd.array([
+            [-halfX, -halfY, zDist], 
+            [ halfX, -halfY, zDist], 
+            [-halfX,  halfY, zDist], 
+            [ halfX,  halfY, zDist], 
+        ])
 
 
 def main():

@@ -52,7 +52,7 @@ class ImagingSystem:
 def main():
 
     lens = Biotar50mmf14()
-    lens.SetAperture(22)
+    #lens.SetAperture(22)
 
     # FD50 seems to be around 32.6
 
@@ -69,7 +69,7 @@ def main():
         [19.5,    12,  -50000, 1, 1, 1]
         ]))
 
-    imager = StdImager(bfd=32.4) #32.4
+    imager = StdImager(bfd=34.4) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -78,8 +78,10 @@ def main():
     #sourceImage.distance = 1500
     sourceImage.horizontalAoV = 40
     sourceImage.imageDimensionOverride = 1280 
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png
+    sourceImage.distance = 1200
+    sourceImage.LoadFrom8bit(r"resources/Grid.png") 
+    sourceImage.SetupTransitionTest(500, 100, 200, bd.array([0, 0, 0]))
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
     plt.ion()  # Turn on interactive mode
     fig, ax = plt.subplots()
