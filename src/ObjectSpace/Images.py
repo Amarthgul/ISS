@@ -3,7 +3,7 @@
 import PIL.Image
 import matplotlib.pyplot as plt
 
-# For whatever import is not working normally on my machine, had to use this ugly shit 
+# For whatever reasonimport is not working normally on my machine, had to use this ugly if else shit instead 
 if __name__ == "__main__":
     from Points import PointsSource
 else:
@@ -16,6 +16,8 @@ from Util.Misc import Magnitude, ArrayRotate
 from Raytracing.RayBatch import RayBatch
 
 
+# This class is very much an inherited class from PointSource 
+# But for easier implmentation they are still separated. 
 
 class Image2D:
     def __init__(self):
@@ -112,7 +114,7 @@ class Image2D:
         self._GeneratePointSources()
 
 
-    def SampleRatios(self):
+    def GetSampleRatios(self):
         return self.pointSource.GetSampleRatios()
 
 

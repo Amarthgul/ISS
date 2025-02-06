@@ -9,6 +9,7 @@ from Util.Misc import Magnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
+from Raytracing.Reflection import Reflect
 from Raytracing.RayBatch import RayBatch 
 from Material import Material 
 
@@ -282,6 +283,7 @@ class Surface:
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
 
         # TODO: add reflection and vignette
+        # reflected = Reflect(directions[TIR], normals[TIR])
 
         # This _temp is for a different use from the _temp above 
         _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))

@@ -41,6 +41,7 @@ def Refract(incident, normal, n1, n2):
 
     # refracted = n_ratio[:, bd.newaxis] * incident[~TIR] + (n_ratio * cos_theta_i[~TIR] - bd.sqrt(discriminant[~TIR]))[:, bd.newaxis] * normal[~TIR]
 
+    # No rays are supposed to be vignetted in this operation as they should all be on the surface accroding to the method contract. 
     return refracted, TIR, None 
 
 

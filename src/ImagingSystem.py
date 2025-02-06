@@ -51,7 +51,8 @@ class ImagingSystem:
     
 def main():
 
-    imageDistance = 5000
+    imageDistance = 200000
+    imageMinSample = 320
 
     lens = Biotar50mmf14()
     #lens.SetAperture(22)
@@ -92,7 +93,7 @@ def main():
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 81620)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 409600)
         #print(mainRB.ToString())
 
         lens.SetIncidentRaybatch(mainRB)
@@ -111,8 +112,15 @@ def main():
         
         #print(source.sampleRecord)
         elpased = time.time() - start
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased)
+        imMin, imMax, imR = sourceImage.GetSampleRatios()
+
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
         iterationCount += 1
+        
+        if(imMin > imageMinSample):
+            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
+            imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_320Sample.png")
+            break
 
     # lens.DrawLens()
     # imager.DrawSurface()

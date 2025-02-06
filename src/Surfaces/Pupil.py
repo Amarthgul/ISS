@@ -135,12 +135,14 @@ class Pupil(VirtualSurface):
 
 
     def GetEvenSamplePoints(self):
+        """
+        This creates a set of evenly distributed points at the pupil plane.  
+        """
         pupilZdepth = bd.mean(self._workingDepth)
 
         return CircularDistribution(
             radius=self.clearSemiDiameter, 
             zDepth=pupilZdepth)
-
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):
