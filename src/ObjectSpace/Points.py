@@ -81,16 +81,20 @@ class PointsSource:
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets)
 
+        # Select the ones that have been sampled the least to ensure the sample is relatively even 
         selectedIndices = self._SelectLeastSampled(sampleCount)
+
         #print("Min record ", bd.min(self.sampleRecord))
         #print("Max record ", bd.max(self.sampleRecord))
-        # Create a selection array 
         #selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
 
         # Increase the sample records of the selected 
         self.sampleRecord[selectedIndices] += 1
 
+        # Create a new source instance using the selected points 
         sourceDuplicate = PointsSource(self.value[selectedIndices])
+
+        # In case of spot testing, copy the Cartesian setting 
         sourceDuplicate.isCartesian = self.isCartesian
 
         return self._SamplesToTargetsEmission(
@@ -118,6 +122,18 @@ class PointsSource:
         self._ResetSampleRecord()
 
 
+    def GetSampleRatios(self):
+        """
+        This method examines the current sample record and returns the min, the max, and the ratio between min and max. The return van be used as a level of completion estimate or a sample space signal to noise ratio examination. 
+        """
+        minSampleCount = bd.min(self.sampleRecord)
+        maxSampleCount = bd.max(self.sampleRecord)
+
+        return minSampleCount, \
+                maxSampleCount, \
+                minSampleCount/maxSampleCount
+
+
     def ToString(self):
         result = "[\n"
         for row in self.value:
@@ -127,6 +143,7 @@ class PointsSource:
         
         result += "]"
         return result
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -240,6 +257,13 @@ class PointsSource:
 
 
     def _SelectLeastSampled(self, sampleCount):
+        """
+        Select the point sources who has be picked as sample point the least amount.
+
+        :param sampleCount: how many sample is needed. 
+
+        :return: indices of the point sources with the least amount of sample so far. 
+        """
 
         # For first selection, choose randomly 
         if(bd.all(self.sampleRecord == 0)):

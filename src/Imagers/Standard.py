@@ -13,7 +13,7 @@ class StdImager(Surface):
     """
     Standard virtual imager with no optical effect. 
     """
-    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 1280):
+    def __init__(self, bfd = 42, w = 36, h = 24, horiPx = 1920):
 
         # Raduis is infinity, no thickness, clear semi-diameter is infinity
         super().__init__(INFINITY, ZERO, INFINITY)

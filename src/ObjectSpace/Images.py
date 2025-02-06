@@ -112,6 +112,10 @@ class Image2D:
         self._GeneratePointSources()
 
 
+    def SampleRatios(self):
+        return self.pointSource.GetSampleRatios()
+
+
     def DrawImage(self):
         """
         Draw the points sources in 3D space with corresponding colors.

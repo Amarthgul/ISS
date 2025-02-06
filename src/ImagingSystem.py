@@ -51,7 +51,7 @@ class ImagingSystem:
     
 def main():
 
-    imageDistance = 1200
+    imageDistance = 500
 
     lens = Biotar50mmf14()
     #lens.SetAperture(22)
@@ -76,7 +76,7 @@ def main():
 
     sourceImage = Image2D()
     sourceImage.horizontalAoV = 40
-    sourceImage.imageDimensionOverride = 1280 
+    sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
     #sourceImage.SetupTransitionTest()
@@ -92,7 +92,7 @@ def main():
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(64), 40960)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 81620)
         #print(mainRB.ToString())
 
         lens.SetIncidentRaybatch(mainRB)
