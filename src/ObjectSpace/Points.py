@@ -81,9 +81,9 @@ class PointsSource:
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets)
 
-        # TODO: add select smallest 
         selectedIndices = self._SelectLeastSampled(sampleCount)
-
+        #print("Min record ", bd.min(self.sampleRecord))
+        #print("Max record ", bd.max(self.sampleRecord))
         # Create a selection array 
         #selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
 
@@ -242,7 +242,7 @@ class PointsSource:
     def _SelectLeastSampled(self, sampleCount):
 
         # For first selection, choose randomly 
-        if(bd.all(self.value == 0)):
+        if(bd.all(self.sampleRecord == 0)):
             return bd.random.choice(self.value.shape[0], sampleCount, replace=False)
 
         min_value = bd.min(self.sampleRecord)

@@ -76,19 +76,23 @@ def main():
 
     sourceImage = Image2D()
     sourceImage.horizontalAoV = 40
-    sourceImage.imageDimensionOverride = 1920 
+    sourceImage.imageDimensionOverride = 1280 
     sourceImage.distance = imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
     #sourceImage.SetupTransitionTest()
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
+    start = time.time()
+
     plt.ion()  # Turn on interactive mode
     fig, ax = plt.subplots()
     im = ax.imshow(ImageConversion(image))
+    iterationCount = 0
+
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), 20480)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(64), 40960)
         #print(mainRB.ToString())
 
         lens.SetIncidentRaybatch(mainRB)
@@ -104,8 +108,11 @@ def main():
         im.set_data(ImageConversion(image))
         plt.draw()
         plt.pause(0.01)
-        #print("  Finished a new sample iteration")
+        
         #print(source.sampleRecord)
+        elpased = time.time() - start
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased)
+        iterationCount += 1
 
     # lens.DrawLens()
     # imager.DrawSurface()
@@ -114,7 +121,8 @@ def main():
     # SetUnifScale(50)
     # AddXYZ()
     # RemoveBG()
-    # plt.show()
+    plt.draw()
+    plt.imshow(ImageConversion(image))
 
 
 if __name__ == "__main__":
