@@ -51,7 +51,7 @@ class ImagingSystem:
     
 def main():
 
-    imageDistance = 500
+    imageDistance = 5000
 
     lens = Biotar50mmf14()
     #lens.SetAperture(22)
@@ -59,7 +59,7 @@ def main():
 
     source = PointsSource()
     source.isCartesian = False
-    source.GenerateSpots(12, 19)
+    source.GenerateSpots(19, 12)
 
     # source.SetPoints(bd.array([
     #     [0,     0, -50000, 1, 1, 1],
@@ -91,7 +91,7 @@ def main():
 
     while(True):
         #print("- Starting a new sample iteration")
-        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10000), 5)
+        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 81620)
         #print(mainRB.ToString())
 
