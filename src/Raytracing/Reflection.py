@@ -11,6 +11,8 @@ def Reflect(incident, normal):
 
     :param incident: Array of incident vectors (shape: Nx3).
     :param normal: Array of normal vectors (shape: Nx3).
+
+    :return: directions of reflected rays (shape: Nx3). 
     """
     # Make sure both are normalized 
     incident = ArrayNormalized(incident)
@@ -25,5 +27,13 @@ def Reflect(incident, normal):
     return reflected
 
 
-def Lambertian(incident, normal, outputCount=1):
+def LambertianReflect(normal, outputCount=1):
+    """
+    Pure Lambertian reflection evenly reflcts the ray back and no incident infomation is needed. 
+
+    :param normal: normal direction at the point where this reflection happens (shape: Nx3). 
+    :param outputCount: number of output directions per normal. It is suggested to keep this as 1, otherwise the calculation and memory useage could increase dramatically. 
+
+    :return: directions of reflected rays. 
+    """
     pass 
