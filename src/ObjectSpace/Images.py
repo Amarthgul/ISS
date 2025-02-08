@@ -115,6 +115,7 @@ class Image2D:
 
 
     def GetSampleRatios(self):
+        
         return self.pointSource.GetSampleRatios()
 
 

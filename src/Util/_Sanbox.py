@@ -19,6 +19,8 @@ from Raytracing.Emission import EmitField
 
 def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
 
+    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+
     lens = Biotar50mmf14()
     #lens.SetAperture(22)
 
@@ -49,7 +51,7 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
     while(True):
         #print("- Starting a new sample iteration")
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 409600)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 40960)
 
         lens.SetIncidentRaybatch(mainRB)
 
@@ -77,7 +79,7 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
             imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
 
-        return elpased 
+    return elpased 
 
 # =====================================================================
 """ =============================================================== """
