@@ -3,7 +3,8 @@
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.Misc import RGBToWavelengthSameD, Lumi, GridNormalized
+from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
+from Util.Misc import  GridNormalized
 from Util.PltPlot import DrawDirection
 from Util.Globals import ONE, INIT_PHASE_DIFF, FAR_DISTANCE
 from Raytracing.RayBatch import RayBatch
@@ -67,7 +68,7 @@ class PointsSource:
         return self.value[:, 3:]
 
 
-    def EmitSamplesToward(self, targets, sampleCount=64, jitter=None):
+    def EmitSamplesToward(self, targets, sampleCount=64, jitter=None, addSecondary=None):
         """
         Emit rays from some of the point sources towards the target points. 
 
@@ -79,7 +80,7 @@ class PointsSource:
 
         # In the case that there are less sources than demanded sample count, return all 
         if(self.sampleRecord.shape[0] <= sampleCount):
-            return self._SamplesToTargetsEmission(self, targets)
+            return self._SamplesToTargetsEmission(self, targets, addSecondary=addSecondary)
 
         # Select the ones that have been sampled the least to ensure the sample is relatively even 
         selectedIndices = self._SelectLeastSampled(sampleCount)
@@ -100,7 +101,8 @@ class PointsSource:
         return self._SamplesToTargetsEmission(
             sourceDuplicate, 
             targets, 
-            jitter)
+            jitter, 
+            addSecondary)
         
 
     def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
@@ -157,7 +159,7 @@ class PointsSource:
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
 
-    def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None):
+    def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None):
 
         sourcePos = sampleSource.Position()
 
@@ -181,14 +183,25 @@ class PointsSource:
         # After applying the mask, appended is of shape (m*n', 6)
 
         # Convert source color to wavelength 
-        wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
+        if (addSecondary is not None):
+            # Spot sim assumes source to be white, so add more spectrums 
+            wavelengths, radiants = RGBToWavelengthSpotSim(sampleSource.Color(), addCount=addSecondary)
+        else:
+            wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
 
 
         # Expand the wavelength to match the pos/dir 
         wavelengths = wavelengths[:, bd.newaxis, :]
         wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))
+        # At this point the wavelengths should be of size (m, n, n_lambda)
+        # Where m is number of source point, n is number of target points 
+        # and n_lambda is number of different wavelengths 
+
+        # Accquire the number of wavelengths, 
+        wavelengthCount = wavelengths.shape[2]
+
         # Spilt the wavelengths, copy and concatenate them to 
-        wavelengths = bd.split(wavelengths, indices_or_sections=3, axis=2)
+        wavelengths = bd.split(wavelengths, indices_or_sections=wavelengthCount, axis=2)
 
         appended = [bd.concatenate([appended, b], axis=2) for b in wavelengths]
         

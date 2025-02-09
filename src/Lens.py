@@ -11,7 +11,8 @@ from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, 
 from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
-from Util.Misc import AxialDistance, WavelengthToRGB, TransversalDistance
+from Util.ColorWavelength import WavelengthToRGB
+from Util.Misc import AxialDistance, TransversalDistance
 from Surfaces.Stop import Stop
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane

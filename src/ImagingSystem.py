@@ -4,7 +4,7 @@ import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.Misc import ImageConversion
+from Util.ColorWavelength import ImageConversion
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
 from Imagers.Standard import StdImager 
@@ -51,7 +51,7 @@ class ImagingSystem:
     
 def main():
 
-    imageDistance = 200000
+    imageDistance = 1200
     imageMinSample = 320
 
     lens = Biotar50mmf14()
@@ -92,7 +92,7 @@ def main():
 
     while(True):
         #print("- Starting a new sample iteration")
-        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
+        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5, addSecondary=True)
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 409600)
         #print(mainRB.ToString())
 

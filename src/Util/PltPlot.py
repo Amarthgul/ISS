@@ -14,7 +14,7 @@ from numpy.linalg import norm
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE
-from Util.Misc import ColorTuplePLT
+from Util.ColorWavelength import ColorTuplePLT
 
 
 # ==================================================================

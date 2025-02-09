@@ -4,7 +4,8 @@ import warnings
 
 
 from Util.Globals import ZERO, RNG
-from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB, MovingAverageSmoothing, GaussianSmooth
+from Util.ColorWavelength import ColorTuplePLT, WavelengthToRGB
+from Util.Misc import Normalized, ArrayMagnitude, MovingAverageSmoothing, GaussianSmooth
 from Util.Backend import backend as bd 
 from Util.Sampling import RandomEllipticalDistribution, PoissonDiskDistribution, CircularDistribution
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints

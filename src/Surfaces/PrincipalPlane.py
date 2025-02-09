@@ -1,8 +1,8 @@
 
 
 
-
-from Util.Misc import Normalized, ArrayMagnitude, ColorTuplePLT, WavelengthToRGB
+from Util.ColorWavelength import ColorTuplePLT, WavelengthToRGB
+from Util.Misc import Normalized, ArrayMagnitude
 from Util.Backend import backend as bd 
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 

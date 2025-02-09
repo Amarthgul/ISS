@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
-from Util.Misc import WavelengthToRGB
+from Util.ColorWavelength import WavelengthToRGB
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import ZERO, ONE

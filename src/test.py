@@ -1,74 +1,78 @@
 
 
+from PIL import Image
+import time
 import matplotlib.pyplot as plt
 
-from Lens import Lens 
-from Surfaces import Surface 
-from Raytracing import Emission 
-from Raytracing.Raypath import RayPath
 from Util.Backend import backend as bd
-from Util.Backend import GetBackend, constant
-from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
-from Util.Globals import ZERO, ONE, TWO
-
-from ExampleLenses import Biotar50mmf14, Helios58mmf2
-
-
-def SurfaceTest():
-    rp = RayPath()
-
-    r = constant(20)
-    sd = constant(4)
-    testP = bd.array([1, 2, -10])
-
-    rb = Emission.InitRays(r, sd, testP)
-    #print(rb.value)
-
-    rp.Append(rb, None, None)
-
-    testSurface = Surface(r, ZERO, sd, "BAF9")
-    testSurface.SetCumulative(ZERO)
-    refracted, reflected, vig = testSurface.NaiveTrace(rb, ONE)
-    rp.Append(refracted, reflected, vig)
-
-    testSurface = Surface(r, ZERO, sd, "BAF9")
-    testSurface.SetCumulative(constant(3))
-    refracted, reflected, vig = testSurface.NaiveTrace(refracted, ONE)
-    rp.Append(refracted, reflected, vig)
+from Util.ColorWavelength import ImageConversion
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
+from Imagers.Standard import StdImager 
+from ObjectSpace.Points import PointsSource
+from ObjectSpace.Images import Image2D
+from Raytracing.Emission import EmitField
 
 
-    SetUnifScale()
-    #DrawRaybatch(rb, length=11.5)
-    #DrawRaybatch(refracted, length=2)
-    DrawSpherical(r, sd, constant(0))
-    DrawSpherical(r, sd, constant(3))
-    rp.PlotPath()
-    
 
-    plt.show()
+def SpotTesting(saveIterationCount = 50):
 
+    imageDistance = 10000
+
+
+    lens = Biotar50mmf14()
+
+    source = PointsSource()
+    source.isCartesian = False
+    source.GenerateSpots(19, 12)
+
+    imager = StdImager(lens.BestFocusBFD(imageDistance), horiPx=6000) #32.4
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
+
+    start = time.time()
+
+    plt.ion()  # Turn on interactive mode
+    fig, ax = plt.subplots()
+    im = ax.imshow(ImageConversion(image))
+    iterationCount = 0
+
+    while(True):
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=15)
+
+        lens.SetIncidentRaybatch(mainRB)
+
+        mainRB, mainRP = lens.Propagate()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image)
+
+        
+        im.set_data(ImageConversion(image, amplifier=0.25))
+        plt.draw()
+        plt.pause(0.01)
+        
+        #print(source.sampleRecord)
+        elpased = time.time() - start
+
+        print("At ", str(iterationCount), "th iteration after ", str(elpased) )
+
+        if(iterationCount > saveIterationCount):
+            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
+            imgSave.save(r"resources/Results/NoNormalize_dist"+str(imageDistance)+"_spotTestL"+str(elpased)+".png")
+            break
+
+        iterationCount += 1
+
+    plt.draw()
+    plt.imshow(ImageConversion(image))
 
 
 def main():
 
-    SetUnifScale(50)
-    AddXYZ()
-
-    testLens = Biotar50mmf14()
-    testLens.UpdateLens()
-    testLens.SetAperture(2.0)
-
-    
-    testLens.DrawLens()
-    testLens.entrancePupil.DrawSamplePoints()
-    testLens.entrancePupil.DrawSurface()
-    DrawPoints(testLens.entrancePupil.GetSamplePoints(64))
-    #testLens.frontPincipalPlane.DrawSamplePoints()
-    
-
-    RemoveBG()
-    #DrawDisk(19)
-    plt.show()
+    SpotTesting()
     
     
 

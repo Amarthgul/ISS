@@ -7,7 +7,8 @@ from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
 from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis
-from Util.Misc import PointsInTriangle, WavelengthToRGB, NumpyConversion
+from Util.ColorWavelength import WavelengthToRGB
+from Util.Misc import PointsInTriangle, NumpyConversion
 
 class StdImager(Surface):
     """
