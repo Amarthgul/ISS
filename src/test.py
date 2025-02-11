@@ -15,30 +15,27 @@ from Raytracing.Emission import EmitField
 
 
 
-def SpotTesting(saveIterationCount = 50):
-
-    imageDistance = 10000
-
+def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCount = 50):
 
     lens = Biotar50mmf14()
 
     source = PointsSource()
     source.isCartesian = False
-    source.GenerateSpots(19, 12)
+    source.GenerateSpots(19, 12, dist=objectDistance)
 
-    imager = StdImager(lens.BestFocusBFD(imageDistance), horiPx=6000) #32.4
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=9000) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     start = time.time()
 
-    plt.ion()  # Turn on interactive mode
-    fig, ax = plt.subplots()
-    im = ax.imshow(ImageConversion(image))
+    # plt.ion()  # Turn on interactive mode
+    # fig, ax = plt.subplots()
+    # im = ax.imshow(ImageConversion(image))
     iterationCount = 0
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=15)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=9)
 
         lens.SetIncidentRaybatch(mainRB)
 
@@ -50,29 +47,37 @@ def SpotTesting(saveIterationCount = 50):
         image = imager.IntegralRays(mainRB, baseImg=image)
 
         
-        im.set_data(ImageConversion(image, amplifier=0.25))
-        plt.draw()
-        plt.pause(0.01)
+        # im.set_data(ImageConversion(image, amplifier=0.25))
+        # plt.draw()
+        # plt.pause(0.01)
         
         #print(source.sampleRecord)
         elpased = time.time() - start
 
-        print("At ", str(iterationCount), "th iteration after ", str(elpased) )
+        print("- Focusing ", focusDistance, " for obj at ", objectDistance,  
+            "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased) )
 
         if(iterationCount > saveIterationCount):
             imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/NoNormalize_dist"+str(imageDistance)+"_spotTestL"+str(elpased)+".png")
+            imgSave.save(r"resources/Results/SpotTestng/ObjDist"+str(objectDistance)+"_FocusDist"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
             break
 
         iterationCount += 1
 
-    plt.draw()
-    plt.imshow(ImageConversion(image))
 
 
 def main():
 
-    SpotTesting()
+    objectDistance = [
+        350, 500, 800, 1200, 1500, 2000, 3000, 5000, 8000, 15000, 30000, 100000
+    ]
+    focusDistance = [
+        350, 500, 800, 1200, 1500, 2000, 3000, 5000, 8000, 15000, 30000, 100000
+    ]
+
+    for obj in objectDistance:
+        for focus in focusDistance:
+            SpotTesting(obj, focus, 512)
     
     
 
