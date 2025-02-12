@@ -7,6 +7,7 @@ from Util.Globals import ONE
 
 
 
+
 def ModifyEllipse(A, v, add=True):
     """
     Modify an ellipse to expand or contract in the direction of vector `v`.
@@ -47,6 +48,14 @@ def ModifyEllipse(A, v, add=True):
     A_new = M_inv.T @ A @ M_inv
     
     return A_new
+
+
+def Fresnel(incident, normal, refracted):
+    """
+    
+    """
+
+    pass 
 
 
 
