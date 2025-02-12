@@ -5,21 +5,22 @@ from Util.Backend import backend as bd
 from Util.Globals import ONE
 
 
-def modify_ellipse(A, v, add=True):
+
+
+def ModifyEllipse(A, v, add=True):
     """
     Modify an ellipse to expand or contract in the direction of vector `v`.
     
-    Parameters:
-        A (bd.ndarray): 2x2 positive definite matrix defining the original ellipse
-        v (bd.ndarray): 2D vector specifying direction and magnitude
-        operation (str): 'add' to expand or 'subtract' to contract
-        
-    Returns:
-        bd.ndarray: New 2x2 matrix defining the modified ellipse
+    :param A: 2x2 positive definite matrix defining the original ellipse (ndarray).
+    :param v: 2D vector specifying direction and magnitude (ndarray). 
+    :param add: when set to True, ellipse will be expanded, otherwise contracted. 
+
+    :return: bd.ndarray: New 2x2 matrix defining the modified ellipse
     """
+
     v = bd.array(v, dtype=float)
-    assert A.shape == (2, 2), "A must be 2x2 matrix"
-    assert v.shape == (2,), "v must be 2D vector"
+    # assert A.shape == (2, 2), "A must be 2x2 matrix"
+    # assert v.shape == (2,), "v must be 2D vector"
     
     # Compute direction angle
     theta = bd.arctan2(v[1], v[0])
@@ -34,8 +35,8 @@ def modify_ellipse(A, v, add=True):
         L = m / bd.sqrt(v @ A @ v)
         # Calculate new length after subtraction
         L_new = L - m
-        if L_new <= 0:
-            raise ValueError(f"Cannot subtract - vector magnitude {m:.2f} exceeds ellipse extent {L:.2f}")
+        # if L_new <= 0:
+        #     raise ValueError(f"Cannot subtract - vector magnitude {m:.2f} exceeds ellipse extent {L:.2f}")
         s_factor = (L_new / L)  # Scaling factor
 
     # Transformation matrix components
@@ -56,7 +57,7 @@ def main():
     v = bd.array([2, 0])
 
     # Get modified ellipse
-    A_new = modify_ellipse(A, v)
+    A_new = ModifyEllipse(A, v)
 
     # Verify new ellipse properties
     print("New ellipse matrix:")

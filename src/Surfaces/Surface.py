@@ -186,30 +186,9 @@ class Surface:
         pass 
 
 
-    def RayReaction(self, incidentRaybatch):
-        """
-        Deal with all the reactions the rays have upon reaching the surface. This includes: 
-        - Refraction. 
-        - Reflection. 
-        - Vignette.
-        - Scattering. 
-        - Color shift. 
-        """
-
-        
-
-        refreacted = None
-        reflected = None 
-        vignetted = None
-
-
-
-        return refreacted, reflected, vignetted
-
-
     def NaiveTrace(self, incidentRaybatch, previousRI, inverted=False):
         """
-        Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned and not calculated. 
+        Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned but not calculated. 
         """
 
         # First find the intersections 
@@ -255,7 +234,7 @@ class Surface:
         """
         Deal with all the reactions the rays have upon reaching the surface. This includes: 
         - Refraction. 
-        - Reflection. 
+        - Reflection. Including both mirror, specular, and diffuse reflection, also consider the polarization based on the Fresnel equation. 
         - Vignette.
         This is the main method that should be called when tracing rays through the lens to accquire an image.
         """
