@@ -15,10 +15,11 @@ from Raytracing.Emission import EmitField
 
 
 
-def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10):
+def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10, lens=None):
 
+    if (lens is None):
+        lens = Biotar50mmf14()
 
-    lens = Biotar50mmf14()
     #lens.SetAperture(22)
 
     imager = StdImager(lens.BestFocusBFD(focusDistance)) #32.4
@@ -27,10 +28,10 @@ def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10):
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2D()
-    sourceImage.horizontalAoV = 24
-    sourceImage.imageDimensionOverride = 1024 
+    sourceImage.horizontalAoV = 44
+    sourceImage.imageDimensionOverride = 2048 
     sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/YourTaxReturn.png") 
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
     #sourceImage.SetupTransitionTest()
     # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
@@ -139,8 +140,8 @@ def main():
         350, 500, 800, 1500, 2500, 5000
     ]
 
-    for focus in focusDistance:
-        ImageTest(focusDistance=focus)
+    lens = CanonFD50mmf18()
+    ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
 
     # for obj in objectDistance:
     #     for focus in bd.linspace(350, 1500, 20):

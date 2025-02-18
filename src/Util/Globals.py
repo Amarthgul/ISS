@@ -43,8 +43,8 @@ INIT_PHASE_DIFF = 0
 
 
 # The threashold by which a raybatch will no longer propagate 
-RADIANT_KILL = bd.array(0.000015)
-# 16 stops lower than 1, based on 16EV during direct sunlight. 
+RADIANT_KILL = bd.array(0.00003)
+# 15 stops lower than 1, based on 15EV of a bright sunlight scene. 
 
 
 INFINITY = bd.array(bd.inf)
