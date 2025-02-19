@@ -58,7 +58,7 @@ class Pupil(VirtualSurface):
 
     def SetSamplePoints(self, points):
         """
-        Set the sample points, this will override all previous points. Note that this also assumes the points given represents the largest possible pupil size. 
+        Set the sample points of the pupil shape, this will override all previous points. Note that this also assumes the points given represents the largest possible pupil size. 
         """
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)

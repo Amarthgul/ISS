@@ -10,6 +10,7 @@ from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
+from Raytracing.Polarization import SenkrechtUndParallel
 from Raytracing.RayBatch import RayBatch 
 from Material import Material 
 
@@ -244,13 +245,16 @@ class Surface:
         
         # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
         desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
-        
+        # Apply desired direction to the normals 
         normals = self.Normal(intersections)
-
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
         
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]
+
+        # Accquire s and p direction for polarization, reflection and refraction 
+        senkrecht, parallel = SenkrechtUndParallel(directions, normals)
+
         currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         previousRI = previousRI[~boolVig]
 
@@ -264,7 +268,7 @@ class Surface:
         # TODO: add reflection and vignette
         # reflected = Reflect(directions[TIR], normals[TIR])
 
-        # This _temp is for a different use from the _temp above 
+        # This _temp is for a different use from the _temp above, for the sake of saving memory 
         _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         _temp.SetPosition(intersections[~TIR])
         _temp.SetDirection(refracted)

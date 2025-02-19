@@ -293,6 +293,37 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
 
 
+def DrawEllipse(Q, z=0, num_points=64,  ax=AX):
+    """
+    Plots a 3D ellipse along the xy-plane at a given z-depth.
+
+    Parameters:
+        Q (numpy.ndarray): 2x2 quadratic form matrix defining the ellipse.
+        z (float): The z-coordinate where the ellipse is plotted.
+        ax (matplotlib Axes3D): The 3D axis to plot on (optional).
+        num_points (int): Number of points to approximate the ellipse.
+    """
+    # Compute eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = bd.linalg.eigh(Q)
+
+    # Compute semi-axes lengths
+    axes_lengths = 1 / bd.sqrt(eigenvalues)
+
+    # Generate points for a unit circle
+    theta = bd.linspace(0, 2 * bd.pi, num_points)
+    unit_circle = bd.array([bd.cos(theta), bd.sin(theta)])
+
+    # Transform the unit circle to match the ellipse
+    ellipse = (eigenvectors @ bd.diag(axes_lengths) @ unit_circle).T
+
+    # Extract x, y points and set z as constant
+    x, y = ellipse[:, 0], ellipse[:, 1]
+    z_vals = bd.full_like(x, z)
+
+    # Plot the ellipse in 3D space
+    ax.plot(x, y, z_vals, label=f"Ellipse at z={z}")
+
+
 def DrawPlane(points, color = "b", ax=AX):
     CheckAX()
     if(backend_name == "cupy"):

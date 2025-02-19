@@ -7,16 +7,16 @@ class RayBatch:
     """
     Raybatch data are organized in the form of:
     [
-       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, pd, s], 
+       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s], 
        [...], [...], ...
     ]
     """
     # x, y, z:          Root position of the ray    (0, 1, 2)
     # v_x, v_y, v_z:    Direction of the ray        (3, 4, 5)
     # λ:                Wavelength of the ray       (6)
-    # Φ:                Radiant (Sagittal)          (7)
-    # i_Φ:              Radiant (Rangential)        (8)
-    # pd:               Phase difference            (9)
+    # Φ:                Polarization term 1         (7)
+    # i_Φ:              Polarization term 2         (8)
+    # b:                Polarization ellipse tilt   (9)
     # s:                Surface index               (10)
 
     def __init__(self, value):
@@ -43,25 +43,24 @@ class RayBatch:
             return self.value[:, 6]
     
 
-    def Radiant(self):
+    def Radiant(self, direction=None):
         """
         Radiant flux or unitless light intensity 
         """
+        # TODO: consider adding the polarization direction here? 
         return self.value[:, 7]
-    
-
-    def RadiantImaginary(self):
-        """
-        Radiant flux or unitless light intensity 
-        """
-        return self.value[:, 8]
 
 
-    def PhaseDifference(self):
+    def PolarizationMat(self):
         """
-        Radiant flux or unitless light intensity 
+        Return the radiance and polarization term as an ellipse matrix. 
         """
-        return self.value[:, 9]
+        sliced = self.value[:, [7, 9, 8]]  
+
+        part1 = sliced[:, :2]  
+        part2 = sliced[:, 1:]  
+
+        return bd.stack([part1, part2], axis=1)
     
 
     def SurfaceIndex(self):
@@ -83,7 +82,6 @@ class RayBatch:
         self.value[:, 3:6] = directions
 
 
-
     def RandomDrop(self, keeprate = 1):
         pass 
 
@@ -103,6 +101,8 @@ class RayBatch:
         return result
 
 
+
+
 def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 
     pos = bd.zeros(6)
@@ -118,4 +118,11 @@ def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
     ) 
 
 
+def main():
+    A = RayBatch(bd.array([
+        [0, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
+        [0, 0, 0, .1, .1, .9, 550, 4, 1, .5, 0]]))
+    print(A.PolarizationMat())
 
+if __name__ == "__main__":
+    main()

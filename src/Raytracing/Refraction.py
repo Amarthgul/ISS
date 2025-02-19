@@ -15,7 +15,7 @@ def Refract(incident, normal, n1, n2):
     :param n1: Refractive index of the first medium.
     :param n2: Refractive index of the second medium.
 
-    :return: Array of refracted vectors, index of TIR rays, a Null vignette array.
+    :return: Array of refracted vectors (shape: Nx3), index of TIR rays, a Null vignette array.
     """
 
     # Normalize incident and normal vectors

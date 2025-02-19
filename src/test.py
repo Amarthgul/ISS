@@ -141,11 +141,11 @@ def main():
     ]
 
     lens = CanonFD50mmf18()
-    ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
+    #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
 
-    # for obj in objectDistance:
-    #     for focus in bd.linspace(350, 1500, 20):
-    #         SpotTesting(obj, focus, 128)
+    for obj in objectDistance:
+        for focus in bd.linspace(350, 1500, 20):
+            SpotTesting(obj, focus, 128)
     
     
 

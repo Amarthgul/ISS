@@ -3,7 +3,7 @@
 
 from Util.Backend import backend as bd
 from Util.Globals import ONE
-
+from Util.Misc import ArrayNormalized
 
 
 
@@ -58,19 +58,24 @@ def Fresnel(incident, normal, refracted):
     pass 
 
 
+def SenkrechtUndParallel(incident, normal):
+    """
+    Berechnen Sie die p und s Polarisationsrichtung bei der gegebenen Einfalls- und Normalrichtung.
+    """
+    # Oh no this is a deutsch method! 
+    
+    senkrecht = ArrayNormalized(bd.cross(incident, normal))
+
+    # Note that if incident is the reverse of normal, this means a perpendicular ray. Which will not have polarization effects, only partial reflection based on the transmission. For these rays, the senkrecht calculation above will return Nan, so will the the parallel.
+
+    return senkrecht, ArrayNormalized(bd.cross(normal, senkrecht))
+
 
 def main():
-    A = bd.eye(2)
+    inc = ArrayNormalized(bd.array([[0.1, 0.1, 0.9], [0, 0, 1]]))
+    nor = ArrayNormalized(bd.array([[0, 0, -1], [0, 0, -1]]))
 
-    # Vector specifying direction and magnitude
-    v = bd.array([2, 0])
-
-    # Get modified ellipse
-    A_new = ModifyEllipse(A, v)
-
-    # Verify new ellipse properties
-    print("New ellipse matrix:")
-    print(A_new)
+    print(SenkrechtUndParallel(inc, nor))
 
 if __name__ == "__main__":
     main()
