@@ -3,7 +3,7 @@
 
 from Util.Backend import backend as bd
 from Util.Globals import ONE
-from Util.Misc import ArrayNormalized
+from Util.Misc import ArrayNormalized, Magnitude
 
 
 
@@ -19,50 +19,63 @@ def ModifyEllipse(A, v, add=True):
     :return: bd.ndarray: New 2x2 matrix defining the modified ellipse
     """
 
-    v = bd.array(v, dtype=float)
-    # assert A.shape == (2, 2), "A must be 2x2 matrix"
-    # assert v.shape == (2,), "v must be 2D vector"
-    
-    # Compute direction angle
-    theta = bd.arctan2(v[1], v[0])
-    c, s_rot = bd.cos(theta), bd.sin(theta)
-    R = bd.array([[c, -s_rot], [s_rot, c]])  # Rotation matrix
-    
-    m = bd.linalg.norm(v)  # Vector magnitude
-    if (add):
-        s_factor = bd.sqrt(v @ A @ v)
-    else:
-        # Calculate original length in direction v
-        L = m / bd.sqrt(v @ A @ v)
-        # Calculate new length after subtraction
-        L_new = L - m
-        # if L_new <= 0:
-        #     raise ValueError(f"Cannot subtract - vector magnitude {m:.2f} exceeds ellipse extent {L:.2f}")
-        s_factor = (L_new / L)  # Scaling factor
+    # Number of ellipses / vectors
+    n = v.shape[0]
 
-    # Transformation matrix components
-    S = bd.diag([int(s_factor), 1])      # Scaling matrix
-    M_inv = R @ bd.linalg.inv(S) @ R.T  # Combined transformation
+    # Compute direction angles (theta) for each vector in v.
+    theta = bd.arctan2(v[:, 1], v[:, 0])  # shape (n,)
+    c = bd.cos(theta)
+    s = bd.sin(theta)
     
-    # Compute new ellipse matrix
-    A_new = M_inv.T @ A @ M_inv
+    # Construct rotation matrices R for each sample, shape (n, 2, 2)
+    R = bd.stack([bd.stack([c, -s], axis=1),
+                  bd.stack([s,  c], axis=1)], axis=1)
+    
+    # Compute vector magnitudes m for each vector v.
+    m = bd.linalg.norm(v, axis=1)  # shape (n,)
+    
+    # Compute the quadratic form v^T * A * v for each sample.
+    # This yields a 1D array of length n.
+    vAv = bd.einsum('ni,nij,nj->n', v, A, v)
+    
+    # Compute scaling factor s_factor for the modification.
+    if add:
+        # For expansion, s_factor = sqrt(v^T A v)
+        s_factor = bd.sqrt(vAv)
+    else:
+        # For contraction, compute the original length L in direction v:
+        L = m / bd.sqrt(vAv)
+        # New length L_new is reduced by m:
+        L_new = L - m
+        s_factor = L_new / L
+    
+    # Build a diagonal scaling matrix S for each sample.
+    # S[i] = diag(s_factor[i], 1), shape (n, 2, 2)
+    S = bd.tile(bd.eye(2), (n, 1, 1))
+    S[:, 0, 0] = s_factor
+
+    # Compute the inverse of S.
+    S_inv = bd.tile(bd.eye(2), (n, 1, 1))
+    S_inv[:, 0, 0] = 1.0 / s_factor
+
+    # Compute the combined transformation matrix: M_inv = R * S_inv * R^T.
+    R_T = bd.transpose(R, (0, 2, 1))
+    M_inv = bd.matmul(bd.matmul(R, S_inv), R_T)
+    
+    # Finally, compute the new ellipse matrix:
+    # A_new = M_inv^T * A * M_inv for each sample.
+    M_inv_T = bd.transpose(M_inv, (0, 2, 1))
+    A_new = bd.matmul(bd.matmul(M_inv_T, A), M_inv)
     
     return A_new
 
-
-def Fresnel(incident, normal, refracted):
-    """
-    
-    """
-
-    pass 
 
 
 def SenkrechtUndParallel(incident, normal):
     """
     Berechnen Sie die p und s Polarisationsrichtung bei der gegebenen Einfalls- und Normalrichtung.
     """
-    # Oh no this is a deutsch method! 
+    # Oh nein es gibt ein deutsche Verfahren! 
     
     senkrecht = ArrayNormalized(bd.cross(incident, normal))
 
@@ -75,7 +88,20 @@ def main():
     inc = ArrayNormalized(bd.array([[0.1, 0.1, 0.9], [0, 0, 1]]))
     nor = ArrayNormalized(bd.array([[0, 0, -1], [0, 0, -1]]))
 
-    print(SenkrechtUndParallel(inc, nor))
+    #print(SenkrechtUndParallel(inc, nor))
+
+    A = bd.array([[[2, 0.5],
+               [0.5, 1.0]],
+              [[1.5, 0.2],
+               [0.2, 1.2]]])  # shape (2, 2, 2)
+
+    v = bd.array([[1.0, 0.5],
+                [-0.3, 0.8]])  # shape (2, 2)
+
+    # Expand the ellipses in the direction of v.
+    A_modified = ModifyEllipse(A, v, add=True)
+    print("Modified ellipses:\n", A_modified.get())
+
 
 if __name__ == "__main__":
     main()

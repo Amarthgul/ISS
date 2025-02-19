@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
-from Util.Misc import Magnitude, Normalized, ArrayNormalized, PointsInTriangle
+from Util.Sampling import CircularDistribution
+from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
-from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
 from Raytracing.Polarization import SenkrechtUndParallel
 from Raytracing.RayBatch import RayBatch 
+from Raytracing.Emission import EmitField
 from Material import Material 
 
 
@@ -96,6 +98,7 @@ class Surface:
         """
         Given the cumulative thickness, calculate the vertices. This is for when the surface share the same optical axis with the lens. 
         """
+        cumulativeT = bd.array(cumulativeT)
 
         # The local optical axis remains the same as OBJ FACING 
         self.cumulativeThickness = cumulativeT
@@ -254,28 +257,48 @@ class Surface:
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]
 
+        
+
+        # Accquire the index of refractions (resp. wavelength)
+        n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
+        n2 = previousRI[~boolVig]
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            n1, n2 = n2, n1 
+
+        # Only the non vignetted rays goes into refraction 
+        refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+
+
+        # ==============================================================
+        # Polarization 
+ 
+        cosThetaI = bd.sum(normals * directions, axis=1) / (Magnitude(normals) * Magnitude(directions))
+        cosThetaT = bd.sum(normals * refracted, axis=1) / (Magnitude(normals) * Magnitude(refracted))
+
+        # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
+        R_s = bd.abs( (n1*cosThetaI-n2*cosThetaI)/(n1*cosThetaI+n2*cosThetaT) ) ** 2
+        R_p = bd.abs( (n1*cosThetaT-n2*cosThetaI)/(n1*cosThetaT+n2*cosThetaI) ) ** 2
+
         # Accquire s and p direction for polarization, reflection and refraction 
         senkrecht, parallel = SenkrechtUndParallel(directions, normals)
 
-        currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
-        previousRI = previousRI[~boolVig]
+        DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
+        DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
 
-        # If the ray hits from the behind, RI needs to be swapped 
-        if(inverted):
-            currentRI, previousRI = previousRI, currentRI 
+        DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
 
-        # Only the non vignetted rays goes into refraction 
-        refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
+        senkrecht = senkrecht[:, :2] * R_s[:, bd.newaxis]
+        parallel  = parallel[:, :2]  * R_p[:, bd.newaxis]
 
-        # TODO: add reflection and vignette
-        # reflected = Reflect(directions[TIR], normals[TIR])
+        
+        refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        refractedRB.SetPosition(intersections[~TIR])
+        refractedRB.SetDirection(refracted)
 
-        # This _temp is for a different use from the _temp above, for the sake of saving memory 
-        _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        _temp.SetPosition(intersections[~TIR])
-        _temp.SetDirection(refracted)
+        reflected = RayBatch(bd.copy(refractedRB.value))
 
-        return _temp, TIR, boolVig
+        return refractedRB, TIR, boolVig
     
 
     # ==================================================================
@@ -373,8 +396,23 @@ class Surface:
 
 
 def main():
-    testSurface = Surface(20, 1, 4)
-    testSurface.SetCumulative(2)
+
+    sampleTar = CircularDistribution(radius= 88, zDepth=3)
+    testRB = EmitField(0, 0, distance=50, sampleTargets=sampleTar)
+    airMaterial = Material()
+
+    testSurface = Surface(150, 1, 22, "E-KZFH1")
+    testSurface.SetCumulative(3)
+    testSurface.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
+
+
+    testSurface.DrawSurface()
+    #DrawRaybatch(testRB, lLength=53, arrowRatio=0)
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    plt.show()
+
 
 if __name__ == "__main__":
     main()

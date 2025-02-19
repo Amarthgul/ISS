@@ -7,6 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import RNG, RefreshRNG, ONE
 
+
 # =========================== Presets ==========================
 # Light:   layer = 5,    densityScale = 0.02,    powerCoef = 0.8
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
@@ -48,7 +49,7 @@ def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    power
                                 bd.ones(pointsInLayer)*zDepth])
         points = bd.hstack((points, layerPoints))
         
-    return points * radius * shrink
+    return (points * radius * shrink).T
 
 
 def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, zDepth = 0, shrink=1, groupByPoint=False):

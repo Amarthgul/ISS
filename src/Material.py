@@ -154,12 +154,12 @@ class Material:
     def _decodeSellmeier1(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[np.where(df=="K1")[0] + ONE][0],
-            df[np.where(df=="L1")[0] + ONE][0],
-            df[np.where(df=="K2")[0] + ONE][0],
-            df[np.where(df=="L2")[0] + ONE][0],
-            df[np.where(df=="K3")[0] + ONE][0],
-            df[np.where(df=="L3")[0] + ONE][0]
+            df[np.where(df=="K1")[0] + 1][0],
+            df[np.where(df=="L1")[0] + 1][0],
+            df[np.where(df=="K2")[0] + 1][0],
+            df[np.where(df=="L2")[0] + 1][0],
+            df[np.where(df=="K3")[0] + 1][0],
+            df[np.where(df=="L3")[0] + 1][0]
         ]
 
     def _Sellmeier1(self, lam):
@@ -176,14 +176,14 @@ class Material:
     def _decodeExtended_2(self, df):
         df = df.to_numpy()
         self.coef = [
-            df[np.where(df=="A0")[0] + ONE][0],
-            df[np.where(df=="A1")[0] + ONE][0],
-            df[np.where(df=="A2")[0] + ONE][0],
-            df[np.where(df=="A3")[0] + ONE][0],
-            df[np.where(df=="A4")[0] + ONE][0],
-            df[np.where(df=="A5")[0] + ONE][0],
-            df[np.where(df=="A6")[0] + ONE][0],
-            df[np.where(df=="A7")[0] + ONE][0],
+            df[np.where(df=="A0")[0] + 1][0],
+            df[np.where(df=="A1")[0] + 1][0],
+            df[np.where(df=="A2")[0] + 1][0],
+            df[np.where(df=="A3")[0] + 1][0],
+            df[np.where(df=="A4")[0] + 1][0],
+            df[np.where(df=="A5")[0] + 1][0],
+            df[np.where(df=="A6")[0] + 1][0],
+            df[np.where(df=="A7")[0] + 1][0],
         ]
 
     def _Extended_2(self, lam):

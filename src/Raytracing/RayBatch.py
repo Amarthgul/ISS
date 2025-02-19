@@ -82,6 +82,16 @@ class RayBatch:
         self.value[:, 3:6] = directions
 
 
+    def Merge(self, input):
+        """
+        Merge this raybatch with another one. This raybatch will be modifed and also as a return value.
+        """
+
+        self.value = bd.vstack((self.value, input.value))
+
+        return self
+
+
     def RandomDrop(self, keeprate = 1):
         pass 
 
@@ -122,7 +132,13 @@ def main():
     A = RayBatch(bd.array([
         [0, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
         [0, 0, 0, .1, .1, .9, 550, 4, 1, .5, 0]]))
-    print(A.PolarizationMat())
+    B = RayBatch(bd.array([
+        [1, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
+        [0, 1, 0, .1, .1, .9, 550, 4, 1, .5, 0]]))
+    
+    A.Merge(B)
+
+    print(A.ToString())
 
 if __name__ == "__main__":
     main()

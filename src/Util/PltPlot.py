@@ -180,7 +180,7 @@ def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
     DrawLine(ax,    posA,   posB, lineWidth = 1)
     
 
-def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
+def DrawRaybatch(rayBatch, lineColor='blue', lLength = 10, arrowRatio=.1, ax=AX):
     CheckAX()
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
@@ -191,9 +191,9 @@ def DrawRaybatch(rayBatch, lineColor='blue', length = 10, ax=AX):
     u, v, w = data[:, 3], data[:, 4], data[:, 5]
 
     q = ax.quiver(x, y, z, u, v, w,
-              length=length,                # Increase arrow length
+              length=lLength,                # Increase arrow length
               normalize=False,           # Maintain relative vector sizes
-              arrow_length_ratio=0.1,    # Smaller arrowhead
+              arrow_length_ratio=arrowRatio,    # Smaller arrowhead
               pivot='tail',              # Arrows start at [x,y,z]
               linewidths=0.5,            # Thicker arrows
               color=lineColor) 

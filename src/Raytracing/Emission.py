@@ -117,7 +117,7 @@ def GenerateEllipse(posA, posB, posC, posP, sd, r, useDistribution = True):
             temp[0] = a
             temp[1] = b 
             # Move the point along the z axis 
-            points = bd.transpose(CircularDistribution()) + offset
+            points = CircularDistribution() + offset
             # Scale it on the two semi-major axis 
             points = bd.transpose(points * temp)
             
@@ -349,6 +349,7 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
         else:
             direction = sampleTargets - position[:, bd.newaxis]
 
+    direction = ArrayNormalized(direction)
 
     temp = bd.zeros(5)
     temp[0] = wavelength
