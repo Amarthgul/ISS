@@ -234,10 +234,12 @@ class Surface:
     def Trace(self, incidentRaybatch, previousRI, inverted=False):
         """
         Deal with all the reactions the rays have upon reaching the surface. This includes: 
-        - Refraction. 
+        - Refraction. The main contributor to image formation. 
         - Reflection. Including both mirror, specular, and diffuse reflection, also consider the polarization based on the Fresnel equation. 
-        - Vignette.
+        - Vignette. Rays that are vignetted may be refleted later, or absorded and disappears. 
         This is the main method that should be called when tracing rays through the lens to accquire an image.
+
+        :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
         """
 
         # First find the intersections 

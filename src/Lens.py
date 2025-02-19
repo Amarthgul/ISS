@@ -31,7 +31,8 @@ class Lens:
 
         self.surfaces = []
         self.env = Material("AIR") # The environment it is submerged in, air by default 
-        
+        self.groups = [] # Cemented lenses become a group 
+
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
         
@@ -57,7 +58,8 @@ class Lens:
     def UpdateLens(self):
         """
         Iterate throught the elements and update their relative parameters. 
-        Including starting a ray trace and finds the entrance and exit pupil. 
+        Separate the surfaces into groups. 
+        Start a ray trace and finds the entrance pupil. 
         """
         #self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
 
@@ -72,6 +74,8 @@ class Lens:
             if isinstance(self.surfaces[i], Stop):
                 self.stopIndex = i 
             self._lastSurfaceIndex = i
+
+        # TODO: add grouping method 
 
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
