@@ -2,9 +2,9 @@
 
 
 from Util.Backend import backend as bd
-from Util.Globals import ONE
+from Util.Globals import ONE, NEAR_ZERO
 from Util.Misc import ArrayNormalized, Magnitude
-
+from Raytracing.RayBatch import RayBatch
 
 
 
@@ -83,15 +83,48 @@ def SenkrechtUndParallel(incident, normal):
     return senkrecht, ArrayNormalized(bd.cross(normal, senkrecht))
 
 
+def FresnelReflectance(normals, incident, refracted, n1, n2):
+    cosThetaI = bd.sum(normals * incident, axis=1) / (Magnitude(normals) * Magnitude(incident))
+    cosThetaT = bd.sum(normals * refracted, axis=1) / (Magnitude(normals) * Magnitude(refracted))
+
+    # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
+    R_s = bd.abs( (n1*cosThetaI-n2*cosThetaI)/(n1*cosThetaI+n2*cosThetaT) ) ** 2
+    R_p = bd.abs( (n1*cosThetaT-n2*cosThetaI)/(n1*cosThetaT+n2*cosThetaI) ) ** 2
+
+    return R_s, R_p
+
+
 def PolarizeRB(rb, v_s, v_p, add=False):
+    """
+    Given a raybatch, modify it on senkrecht and parallel direction. 
+
+    :return: modified raybatch. 
+    """
     ellipseM = rb.PolarizationMat()
 
-    ellipseM = ModifyEllipse(ellipseM, v_s)
-    ellipseM = ModifyEllipse(ellipseM, v_p)
+    ellipseM = ModifyEllipse(ellipseM, v_s, add)
+    ellipseM = ModifyEllipse(ellipseM, v_p, add)
 
     rb.SetPolarization(ellipseM)
 
     return rb
+
+
+def ResidueRB(rb, v_s, v_p):
+    """
+    Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. 
+    """
+    residue = RayBatch(bd.copy(rb.value))
+    
+    len = residue.value.shape[0]
+    residue.SetPolarizationPerTerm(
+        diag1 = bd.ones(len) * NEAR_ZERO, 
+        diag2 = bd.ones(len) * NEAR_ZERO, 
+        tilt  = bd.zeros(len)
+    )
+    residue = PolarizeRB(residue, v_s, v_p, add=True)
+
+    return residue
 
 
 def main():
@@ -101,10 +134,15 @@ def main():
     #print(SenkrechtUndParallel(inc, nor))
 
     A = bd.array([[[2, 0.5],
-               [0.5, 1.0]],
-              [[1.5, 0.2],
-               [0.2, 1.2]]])  # shape (2, 2, 2)
-
+                   [0.5, 1.0]],
+                  [[1.5, 0.2],
+                   [0.2, 1.2]]])  # shape (2, 2, 2)
+    
+    A = bd.array([[[1e-9, 0],
+                   [0, 1e-9]],
+                  [[1e-9, 0],
+                   [0, 1e-9]]])  # shape (2, 2, 2)
+    
     v = bd.array([[1.0, 0.5],
                 [-0.3, 0.8]])  # shape (2, 2)
 

@@ -4,6 +4,7 @@ from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, LambdaLines
 
+
 class RayBatch:
     """
     Raybatch data are organized in the form of:
@@ -57,6 +58,7 @@ class RayBatch:
         Radiance as area of the polarization ellipse. 
         """
 
+        # Accquire eigen value and eigen vector 
         if(backend_name == "cupy"):
             val, vec = bd.linalg.eigh(self.PolarizationMat())
         else:
@@ -65,8 +67,8 @@ class RayBatch:
         # Semi axis of the polariztion ellipse 
         semi = ONE / bd.sqrt(val)
 
-        # This defaults the full radiance as a circle with r=1, thus the area is pi. Removing the pi and the 1 resulted in just the product between the 2 axis. 
-        return semi[:, 0] * semi[:, 1]
+        # To ensure radiance conservation, a simple addition and normalization is used here
+        return (semi[:, 0] + semi[:, 1]) / 2
 
 
     def PolarizationMat(self):
@@ -100,6 +102,11 @@ class RayBatch:
         self.value[:, 3:6] = directions
 
 
+    def SetIndex(self, indices):
+
+        self.value[:, 10] = indices
+
+
     def SetPolarization(self, polarM):
         """
         Given the polarization matrices, decompose them and assign them to the raybatch.
@@ -111,7 +118,20 @@ class RayBatch:
         temp = bd.stack((a, b, c), axis=0).T
 
         self.value[:, 7:10] = temp
-         
+
+
+    def SetPolarizationPerTerm(self, diag1=None, diag2=None, tilt=None):
+        """
+        Force override the polarization terms. 
+        """
+
+        if(diag1 is not None):
+            self.value[:, 7] = diag1
+        if(diag2 is not None):
+            self.value[:, 8] = diag2
+        if(tilt is not None):
+            self.value[:, 9] = tilt
+
 
     def Merge(self, input):
         """
@@ -140,7 +160,6 @@ class RayBatch:
         
         result += "]"
         return result
-
 
 
 
@@ -173,6 +192,7 @@ def main():
                   [[2, .5], [.5, 1]]]))
 
     print(A.ToString())
+
 
 if __name__ == "__main__":
     main()

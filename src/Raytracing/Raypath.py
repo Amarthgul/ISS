@@ -1,6 +1,6 @@
 
 """
-This module records the path of the rays so that some debugging and inpection features are eaiser to perform. It also helps in establishing the parameters of the lens. 
+This module records the path of the rays so that some debugging and inpection features are eaiser to perform. It is also used in establishing the parameters of the lens, such as tracing the focal point, principle point, and entrance pupil. 
 
 It is not recommended to use this module in the ray tracing process of production imagings as it may signicantly increase the computational cost and memory usage.
 

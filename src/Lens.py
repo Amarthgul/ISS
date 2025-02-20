@@ -14,6 +14,7 @@ from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance
 from Surfaces.Stop import Stop
+from Surfaces.Surface import Surface
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
 from Material import Material
@@ -133,9 +134,10 @@ class Lens:
             self.rayPath.Append(self.rayBatch, None, None)
 
         for i in range(len(self.surfaces)):
-            if not isinstance(self.surfaces[i], Stop):
+            if isinstance(self.surfaces[i], Surface):
                 self.rayBatch, _tir, _vig = self.surfaces[i].Trace(
                     self.rayBatch, self._FindPreviousRI(i, self.rayBatch))
+                self.rayBatch.SetIndex(i)
                 
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
@@ -333,6 +335,7 @@ class Lens:
 
 
 def main():
+    
     singlet = Lens() 
 
 
