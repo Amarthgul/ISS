@@ -8,10 +8,10 @@ from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
-from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
-from Raytracing.Polarization import SenkrechtUndParallel
+from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB
 from Raytracing.RayBatch import RayBatch 
 from Raytracing.Emission import EmitField
 from Material import Material 
@@ -269,6 +269,12 @@ class Surface:
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
 
+        refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        refractedRB.SetPosition(intersections[~TIR])
+        refractedRB.SetDirection(refracted)
+
+        reflected = RayBatch(bd.copy(refractedRB.value))
+
 
         # ==============================================================
         # Polarization 
@@ -291,12 +297,16 @@ class Surface:
         senkrecht = senkrecht[:, :2] * R_s[:, bd.newaxis]
         parallel  = parallel[:, :2]  * R_p[:, bd.newaxis]
 
+        for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
+            DrawEllipse(mat, pos)
         
-        refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        refractedRB.SetPosition(intersections[~TIR])
-        refractedRB.SetDirection(refracted)
+        refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
 
-        reflected = RayBatch(bd.copy(refractedRB.value))
+        for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
+            DrawEllipse(mat, pos)
+
+        print(refractedRB.PolarizedRadiance())
+        
 
         return refractedRB, TIR, boolVig
     
@@ -397,16 +407,16 @@ class Surface:
 
 def main():
 
-    sampleTar = CircularDistribution(radius= 88, zDepth=3)
+    sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
     testRB = EmitField(0, 0, distance=50, sampleTargets=sampleTar)
     airMaterial = Material()
 
-    testSurface = Surface(150, 1, 22, "E-KZFH1")
-    testSurface.SetCumulative(3)
-    testSurface.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
+    testSurface1 = Surface(77, 1, 22, "E-KZFH1")
+    testSurface1.SetCumulative(3)
+    testSurface1.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
 
 
-    testSurface.DrawSurface()
+    testSurface1.DrawSurface()
     #DrawRaybatch(testRB, lLength=53, arrowRatio=0)
     SetUnifScale(50)
     AddXYZ()

@@ -13,7 +13,7 @@ from numpy.linalg import norm
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE
+from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE, Axis
 from Util.ColorWavelength import ColorTuplePLT
 
 
@@ -293,7 +293,7 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
 
 
-def DrawEllipse(Q, z=0, num_points=64,  ax=AX):
+def DrawEllipse(Q, center, num_points=64, lColor="c", lWidth=.35, ax=AX):
     """
     Plots a 3D ellipse along the xy-plane at a given z-depth.
 
@@ -303,9 +303,12 @@ def DrawEllipse(Q, z=0, num_points=64,  ax=AX):
         ax (matplotlib Axes3D): The 3D axis to plot on (optional).
         num_points (int): Number of points to approximate the ellipse.
     """
-    # Compute eigenvalues and eigenvectors
-    eigenvalues, eigenvectors = bd.linalg.eigh(Q)
-
+    CheckAX()
+    if(backend_name == "cupy"):
+        eigenvalues, eigenvectors = bd.linalg.eigh(Q)
+    else:
+        eigenvalues, eigenvectors = bd.linalg.eig(Q)
+    
     # Compute semi-axes lengths
     axes_lengths = 1 / bd.sqrt(eigenvalues)
 
@@ -317,11 +320,14 @@ def DrawEllipse(Q, z=0, num_points=64,  ax=AX):
     ellipse = (eigenvectors @ bd.diag(axes_lengths) @ unit_circle).T
 
     # Extract x, y points and set z as constant
-    x, y = ellipse[:, 0], ellipse[:, 1]
-    z_vals = bd.full_like(x, z)
+    x, y = ellipse[:, 0]+center[Axis.X.value], ellipse[:, 1]+center[Axis.Y.value]
+    z_vals = bd.full_like(x, center[Axis.Z.value])
+
+    if(backend_name == "cupy"):
+        x, y, z_vals = bd.asnumpy(x), bd.asnumpy(y), bd.asnumpy(z_vals)
 
     # Plot the ellipse in 3D space
-    ax.plot(x, y, z_vals, label=f"Ellipse at z={z}")
+    ax.plot(x, y, z_vals, color=lColor, linewidth=lWidth)
 
 
 def DrawPlane(points, color = "b", ax=AX):

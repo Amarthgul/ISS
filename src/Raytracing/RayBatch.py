@@ -1,6 +1,7 @@
 
 
 from Util.Backend import backend as bd 
+from Util.Backend import backend_name
 from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, LambdaLines
 
 class RayBatch:
@@ -43,12 +44,29 @@ class RayBatch:
             return self.value[:, 6]
     
 
-    def Radiant(self, direction=None):
+    def Radiant(self):
         """
         Radiant flux or unitless light intensity 
         """
         # TODO: consider adding the polarization direction here? 
         return self.value[:, 7]
+    
+
+    def PolarizedRadiance(self):
+        """
+        Radiance as area of the polarization ellipse. 
+        """
+
+        if(backend_name == "cupy"):
+            val, vec = bd.linalg.eigh(self.PolarizationMat())
+        else:
+            val, vec = bd.linalg.eig(self.PolarizationMat())
+
+        # Semi axis of the polariztion ellipse 
+        semi = ONE / bd.sqrt(val)
+
+        # This defaults the full radiance as a circle with r=1, thus the area is pi. Removing the pi and the 1 resulted in just the product between the 2 axis. 
+        return semi[:, 0] * semi[:, 1]
 
 
     def PolarizationMat(self):
@@ -81,6 +99,19 @@ class RayBatch:
             raise ValueError("Expect directions to have a dimension of (#, 3)")
         self.value[:, 3:6] = directions
 
+
+    def SetPolarization(self, polarM):
+        """
+        Given the polarization matrices, decompose them and assign them to the raybatch.
+        """
+        a = polarM[:, 0, 0]
+        c = polarM[:, 0, 1] # The tilt term 
+        b = polarM[:, 1, 1]
+
+        temp = bd.stack((a, b, c), axis=0).T
+
+        self.value[:, 7:10] = temp
+         
 
     def Merge(self, input):
         """
@@ -131,12 +162,15 @@ def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 def main():
     A = RayBatch(bd.array([
         [0, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
-        [0, 0, 0, .1, .1, .9, 550, 4, 1, .5, 0]]))
+        [0, 0, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0]]))
     B = RayBatch(bd.array([
         [1, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
-        [0, 1, 0, .1, .1, .9, 550, 4, 1, .5, 0]]))
+        [0, 1, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0]]))
     
-    A.Merge(B)
+    #A.Merge(B)
+    A.SetPolarization(
+        bd.array([[[1, 0], [0, 1]], 
+                  [[2, .5], [.5, 1]]]))
 
     print(A.ToString())
 

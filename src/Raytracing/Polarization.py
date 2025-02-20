@@ -8,7 +8,7 @@ from Util.Misc import ArrayNormalized, Magnitude
 
 
 
-def ModifyEllipse(A, v, add=True):
+def ModifyEllipse(A, v, add=False):
     """
     Modify an ellipse to expand or contract in the direction of vector `v`.
     
@@ -70,7 +70,6 @@ def ModifyEllipse(A, v, add=True):
     return A_new
 
 
-
 def SenkrechtUndParallel(incident, normal):
     """
     Berechnen Sie die p und s Polarisationsrichtung bei der gegebenen Einfalls- und Normalrichtung.
@@ -82,6 +81,17 @@ def SenkrechtUndParallel(incident, normal):
     # Note that if incident is the reverse of normal, this means a perpendicular ray. Which will not have polarization effects, only partial reflection based on the transmission. For these rays, the senkrecht calculation above will return Nan, so will the the parallel.
 
     return senkrecht, ArrayNormalized(bd.cross(normal, senkrecht))
+
+
+def PolarizeRB(rb, v_s, v_p, add=False):
+    ellipseM = rb.PolarizationMat()
+
+    ellipseM = ModifyEllipse(ellipseM, v_s)
+    ellipseM = ModifyEllipse(ellipseM, v_p)
+
+    rb.SetPolarization(ellipseM)
+
+    return rb
 
 
 def main():
