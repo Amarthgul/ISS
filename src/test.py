@@ -16,6 +16,71 @@ from Raytracing.Emission import EmitField
 from Raytracing.Raypath import RayPath
 
 
+def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
+
+    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+
+    lens = Biotar50mmf14()
+    #lens.SetAperture(22)
+
+    source = PointsSource()
+    source.isCartesian = False
+    source.GenerateSpots(19, 12)
+
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
+    # Assemble the imaging system 
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
+
+    sourceImage = Image2D()
+    sourceImage.horizontalAoV = 40
+    sourceImage.imageDimensionOverride = 1920 
+    sourceImage.distance = imageDistance
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    #sourceImage.SetupTransitionTest()
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
+
+    start = time.time()
+
+    # plt.ion()  # Turn on interactive mode
+    # fig, ax = plt.subplots()
+    # im = ax.imshow(ImageConversion(image))
+    iterationCount = 0
+
+    while(True):
+        #print("- Starting a new sample iteration")
+        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 40960)
+
+        lens.SetIncidentRaybatch(mainRB)
+
+        mainRB, mainRP = lens.Propagate()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image)
+
+        
+        # im.set_data(ImageConversion(image))
+        # plt.draw()
+        # plt.pause(0.01)
+        
+        #print(source.sampleRecord)
+        elpased = time.time() - start
+        imMin, imMax, imR = sourceImage.GetSampleRatios()
+
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
+        iterationCount += 1
+        
+        if(imMin > imageMinSample):
+            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
+            imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
+            break
+
+    return elpased 
+
+
 def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10, lens=None):
 
     if (lens is None):
@@ -154,11 +219,12 @@ def main():
     testRP = RayPath()
 
     sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
-    testRB = EmitField(0, 0, distance=50, sampleTargets=sampleTar)
+    testRB = EmitField(5, 0, distance=50, sampleTargets=sampleTar)
     testRP.Append(testRB, None, None)
 
     lens.SetIncidentRaybatch(testRB)
     lens.Propagate()
+    lens.DrawLens()
 
     SetUnifScale(50)
     #AddXYZ()

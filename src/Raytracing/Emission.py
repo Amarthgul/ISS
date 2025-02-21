@@ -343,6 +343,8 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
         direction = sampleTargets - position
     else:
         distance = bd.array(distance) # Avoid cupy device issue 
+        xDist = distance * bd.tan(bd.radians(fieldAngleX))
+        yDist = distance * bd.tan(bd.radians(fieldAngleY))
         position = bd.tile(bd.array([xDist, yDist, -distance]), (numRays, 1))
         if(position.shape == sampleTargets.shape):
             direction = sampleTargets - position

@@ -151,7 +151,11 @@ class RayBatch:
 
 
     def Mask(self, mask):
+        """
+        Mask and remove exposed entries. 
+        """
         self.value = self.value[mask]
+        return self 
 
 
     def ToString(self):

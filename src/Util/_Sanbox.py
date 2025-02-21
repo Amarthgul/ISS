@@ -1,129 +1,447 @@
 
-# For unused functions and tests 
 
-import time
+from enum import Enum
 import matplotlib.pyplot as plt
-from PIL import Image
 
-
-from Util.Backend import backend as bd
-from Util.ColorWavelength import ImageConversion
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
-from Imagers.Standard import StdImager 
-from ObjectSpace.Points import PointsSource
-from ObjectSpace.Images import Image2D
+from Util.Backend import backend as bd 
+from Util.Backend import constant
+from Util.Sampling import CircularDistribution
+from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
+from Raytracing.Refraction import Refract
+from Raytracing.Reflection import Reflect
+from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance
+from Raytracing.RayBatch import RayBatch 
+from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitField
+from Material import Material 
 
 
 
-def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
 
-    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+# ==================================================================
+""" ============================================================ """
+# ==================================================================
 
-    lens = Biotar50mmf14()
-    #lens.SetAperture(22)
 
-    source = PointsSource()
-    source.isCartesian = False
-    source.GenerateSpots(19, 12)
+"""
+All the methods that calculate raybatch related results should return 3 parts:
+-  Refraction rays (or direct resul). 
+-  Reflection rays (or secondary result). 
+-  Vignetted rays. 
+"""
 
-    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
-    # Assemble the imaging system 
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
 
-    sourceImage = Image2D()
-    sourceImage.horizontalAoV = 40
-    sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-    #sourceImage.SetupTransitionTest()
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
 
-    start = time.time()
+class Surface1:
+    """
+    Standard spherical surface. 
+    """
+    def __init__(self, r, t, sd, m = "AIR"):
+        self.radius = constant(r)
+        self.thickness = constant(t)
+        self.clearSemiDiameter = constant(sd)
+        self.material = Material(m)
 
-    # plt.ion()  # Turn on interactive mode
-    # fig, ax = plt.subplots()
-    # im = ax.imshow(ImageConversion(image))
-    iterationCount = 0
+        """Whether this surface share the same optical axis as the lens"""
+        self.IsOnAxis = True
+        # By default the surface is treated to have the same optical axis as the lens 
 
-    while(True):
-        #print("- Starting a new sample iteration")
-        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 40960)
+        """Position of the center of the surface in world space, vector (x, y, z)"""
+        self.frontVertex = None 
 
-        lens.SetIncidentRaybatch(mainRB)
+        """Distance from front vertex to the origin, scaler t_z""" 
+        self.cumulativeThickness = None 
 
-        mainRB, mainRP = lens.Propagate()
+        """Position of the center of radius, vector (x, y, z)"""
+        self.radiusCenter = None 
+        
+        """Thickness or z location of the clear semi diameter edge, scaler t_sd"""
+        self.sdCumulative = None
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
+        """Local optical axis of the surface, normalized vector (x, y, z)"""
+        self._axis = OBJ_FACING
+        # By default it is parallel to Z and facing object side
 
-        image = imager.IntegralRays(mainRB, baseImg=image)
+        """Vector poinring from radius center to the front vertex"""
+        self._radiusDirection = None
+
+        """Inverse transform matrix to offset the incident when the surface is off axis"""
+        self._inverseTransform = bd.identity(4)
+        # If the surface is on axis, then use the identity matrix
+
+
 
         
-        # im.set_data(ImageConversion(image))
-        # plt.draw()
-        # plt.pause(0.01)
+    # ==============================================================
+    """ ====================== Setting up ====================== """
+    # ==============================================================
+
+
+    def SetCumulative(self, cumulativeT):
+        """
+        Given the cumulative thickness, calculate the vertices. This is for when the surface share the same optical axis with the lens. 
+        """
+        cumulativeT = bd.array(cumulativeT)
+
+        # The local optical axis remains the same as OBJ FACING 
+        self.cumulativeThickness = cumulativeT
+        self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
+        self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
+        self._radiusDirection = self.frontVertex - self.radiusCenter
+
+        self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+
+
+    def SetVertices(self, frontVtx, radiusVtx):
+        """
+        Given the front vertex and center of radius, calculate the cumulative thickness and the local optical axis. This is for when the surface is not on the optical axis of the lens. 
+        """
+
+        # If this is called, it is sufficient to believe that 
+        # the surface is not on the same optical axis with the lens. 
+        self.IsOnAxis = False 
+
+        self.frontVertex = frontVtx
+        self.radiusCenter = radiusVtx
+        self._radiusDirection = self.frontVertex - self.radiusCenter
+
+        self.cumulativeThickness = Magnitude(self.frontVertex - ORIGIN)
+        self._axis = Normalized(self.frontVertex - self.radiusCenter)
+
+        # This semi diameter thickness might be inaccurate, due to potnetial transformation of the surface.
+        self.sdThickness = self.cumulativeThickness + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
         
-        #print(source.sampleRecord)
-        elpased = time.time() - start
-        imMin, imMax, imR = sourceImage.GetSampleRatios()
+        # TODO: add inverse transformation matrix calculation 
 
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
-        iterationCount += 1
+
+    # ==============================================================
+    """ ===================== Calculations ===================== """
+    # ==============================================================
+
+
+    def RI(self, wavelength):
+        return self.material.RI(wavelength)
+
+
+    def DrawSurface(self):
+
+        DrawSpherical(
+            self.radius,
+            self.clearSemiDiameter,
+            self.cumulativeThickness
+            )
+
+
+    def Intersection(self, incomingRaybatch):
+        """
+        Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
+
+        :param incomingRaybatch: RayBatch that will be tested for intersection. 
+
+        :return: An array of intersections, a bull secondary array, the bool array of vingetted. 
+        """
+
+        if(self.radius == INFINITY):
+            return self._PlaneIntersection(incomingRaybatch)
+        else:
+            return self._SphericalIntersection(incomingRaybatch)
         
-        if(imMin > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
-            break
 
-    return elpased 
+    def Normal(self, intersections):
+        """
+        Given the intersections, calculate the normal direction on these intersection points. 
+        The intersections must be on the surface, otherwise the result may be undefined. 
 
-# =====================================================================
-""" =============================================================== """
+        :param intersections: points on the surface. 
+
+        :return: Normalized normals of the intersection points on this surface. 
+        """
+        # TODO: consider adding the raybatch as an argument and use it to calculate the right normal direction 
+        if(self.radius == INFINITY):
+            copied = bd.array([ZERO, ZERO, -ONE])
+            return bd.tile(copied, (intersections.shape[0], 1))
+        else:
+            return ArrayNormalized(intersections - self.radiusCenter)
+
+
+    def CrossSection(self, planeOrientation):
+        """
+        Given a plane, return the expression of the surface on this plane.
+        Mostly for initial setup of the lens. 
+        """
+
+        pass 
+
+
+    def NaiveTrace(self, incidentRaybatch, previousRI, inverted=False):
+        """
+        Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned but not calculated. 
+        """
+
+        # First find the intersections 
+        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+
+        #DrawPoints(intersections)
+        #self.DrawSurface() # Draw call=========
+        #DrawDirection(position, direction) # Draw call=========
+
+        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
+        
+        normals = self.Normal(intersections)
+
+        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+
+        # DrawRaybatch(incidentRaybatch) # Draw call=========
+        # DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
+        # plt.draw() # Draw call=========
+        # plt.pause(10) # Draw call=========
+        
+        # Truncate the rays that are vignetted 
+        directions = incidentRaybatch.Direction()[~boolVig]
+        currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
+        previousRI = previousRI[~boolVig]
+
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            currentRI, previousRI = previousRI, currentRI 
+
+        # Only the non vignetted rays goes into refraction 
+        refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
+
+        # This _temp is for a different use from the _temp above 
+        _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        _temp.SetPosition(intersections[~TIR])
+        _temp.SetDirection(refracted)
+
+        return _temp, TIR, boolVig
+
+
+    def Trace(self, incidentRaybatch, previousRI, inverted=False):
+        """
+        Deal with all the reactions the rays have upon reaching the surface. This includes: 
+        - Refraction. The main contributor to image formation. 
+        - Reflection. Including both mirror, specular, and diffuse reflection, also consider the polarization based on the Fresnel equation. 
+        - Vignette. Rays that are vignetted may be refleted later, or absorded and disappears. 
+        This is the main method that should be called when tracing rays through the lens to accquire an image.
+
+        :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
+        """
+
+        # First find the intersections 
+        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+        
+        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
+        # Apply desired direction to the normals 
+        normals = self.Normal(intersections)
+        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+        
+        # Truncate the rays that are vignetted 
+        directions = incidentRaybatch.Direction()[~boolVig]
+
+        # Accquire the index of refractions (resp. wavelength)
+        n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
+        n2 = previousRI[~boolVig]
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            n1, n2 = n2, n1 
+
+        # Only the non vignetted rays goes into refraction 
+        refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+        # These reflected are the reflected componenet form the refracted due to fresnel  
+        reflected = Reflect(directions, normals)
+
+        refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        refractedRB.SetPosition(intersections[~TIR])
+        refractedRB.SetDirection(refracted)
+
+        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig]))
+        reflectedRB.SetPosition(intersections)
+        reflectedRB.SetDirection(reflected)
+
+        tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
+        tirRB.SetPosition(intersections[TIR])
+        tirRB.SetDirection(reflected[TIR])
+
+        #print(tirRB.PolarizedRadiance())
+
+        # ==============================================================
+        # Polarization 
+
+        # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
+        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
+
+        # Accquire s and p direction for polarization, reflection and refraction 
+        senkrecht, parallel = SenkrechtUndParallel(directions, normals)
+
+        # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
+        # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
+
+        # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
+        DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
+
+        senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
+        parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
+
+        # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
+        #     DrawEllipse(mat, pos)# ============ Draw call
+        
+        refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
+
+
+        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+            DrawEllipse(mat, pos, lColor="m")# ============ Draw call
+
+        #print(reflectedRB.PolarizationMat())
+        reflectedRB.Mask(~TIR)
+        reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
+        #print(reflectedRB.PolarizationMat(), "\n\n\n\n\n")
+
+        # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos)# ============ Draw call
+
+        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+            DrawEllipse(mat, pos, lColor="c")# ============ Draw call
+
+        # print(refractedRB.PolarizedRadiance())
+        # print(reflectedRB.PolarizedRadiance())
+        # print("\n\n")
+
+        return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
+    
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
+    def _PlaneIntersection(self, incomingRaybatch):
+        """
+        Given a plane, calculate the intersection of the rays on the plane.
+        """
+
+        position = incomingRaybatch.Position()
+        direction = incomingRaybatch.Direction()
+
+        denom = bd.dot(direction, self._axis)
+        
+        # Avoid division by zero for parallel vectors
+        parallel_mask = bd.isclose(denom, 0)
+        
+        # Compute t for each vector
+        t = bd.dot((self.frontVertex - position), self._axis) / denom
+        t[parallel_mask] = bd.nan  # Assign NaN for parallel vectors
+        
+        # Compute the intersection points
+        intersections = position + t[:, bd.newaxis] * direction
+
+        # Calculate the bool mask for valid intersections within the region 
+        fsMask = self._FieldStopMask(intersections)
+
+        # Note that just like the spherical case, the returned intersection contains only the ones that actually falls onto the surface, those outside of the clear semi-diameter are excluded
+        return intersections[fsMask], \
+            bd.zeros(intersections.shape[0]).astype(bd.bool_),\
+            parallel_mask | (~fsMask)
+
+
+    def _SphericalIntersection(self, incomingRaybatch):
+        """
+        Given a spherical surface, calculate the intersection of the rays on the surface.
+        """
+        position = incomingRaybatch.Position()
+        direction = incomingRaybatch.Direction()
+
+        if(not self.IsOnAxis):
+            # TODO: Add inverse transfrom here to compensate the off axis element position, if any.
+            pass 
+
+        # Translate to sphere's local space
+        oc = position - self.radiusCenter
+        
+        # Coefficients for quadratic equation
+        a = bd.sum(direction**TWO, axis=1) 
+        b = 2.0 * bd.sum(oc * direction, axis=1)
+        c = bd.sum(oc**TWO, axis=1) - self.radius**TWO
+
+        # Discriminant
+        discriminant = b ** TWO - constant(4) * a * c
+        
+        # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
+        intersetIndices = discriminant > 0
+
+        # Calculate t values
+        t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
+        t2 = (-b + bd.sqrt(discriminant)) / (TWO * a)
+
+        # This t value is to determine which side of the spherical surface is the right intersection 
+        t = t1 
+        mask = bd.sign(self.radius) != bd.sign(direction[:, 2])
+        t[mask] = t2[mask]
+
+        # Intersection points
+        p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
+
+        # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
+        clear = self._FieldStopMask(p)
+        #clear = bd.sqrt(p[:, 0]**TWO + p[:, 1]**TWO) < self.clearSemiDiameter
+
+        # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
+        clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
+
+        intersetIndices[intersetIndices] = clear
+
+        return p[clear], \
+            bd.zeros(p.shape[0]).astype(bd.bool_), \
+            ~intersetIndices
+
+
+    def _FieldStopMask(self, intersections):
+        """
+        Given the intersections, filter out the ones that are outside of the field stop. 
+        """
+        # TODO: add tilt shift handling here
+        return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+
 
 
 def main():
 
-    distList = {
-        400     :   40,   # 2241.4725670814514
-        450     :   40,   # 2212.005831003189
-        500     :   40,   # 2203.070353746414
-        550     :   40,   # 2200.6272621154785
-        600     :   41,   # 2224.8741416931152
-        700     :   42,   # 2265.45525097847
-        800     :   43,   # 2348.831357240677
-        950     :   44,   # 2382.217203617096
-        1200    :   45,   # 2403.0952944755554
-        1350    :   46 ,  # 2450.764587163925
-        1500    :   47,   # 2532.759054660797
-        1750    :   48,   # 2566.923010826111
-        2000    :   49,   # 2597.173784971237
-        2500    :   50,   # 2637.548036813736
-        3000    :   53,   # 2789.4950058460236
-        4000    :   56,   # 2970.900398015976
-        5000    :   60,   # 3127.5452451705933
-        7500    :   70,   # 3614.9423286914825
-        10000   :   80,   # 4095.878294467926
-        20000   :   90,   # 4481.288671731949
-        50000   :   100,  # 4329.990266561508
-        100000  :   110,  # 3498.272744655609
-        200000  :   320   # 5435.468377590179
-    }
-    distList = {
-        100000  :   220,  # 3498.272744655609
-        200000  :   420   # 5435.468377590179
-    }
+    testRP = RayPath()
 
-    timeConsumed = []
+    sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
+    testRB = EmitField(30, 0, distance=50, sampleTargets=sampleTar)
+    testRP.Append(testRB, None, None)
+    airMaterial = Material()
 
-    for key, value in distList.items():
-        timeConsumed.append(ISO12233Test(key, value))
+    testSurface1 = Surface1(45, 1, 22, "E-KZFH1")
+    testSurface1.SetCumulative(3)
+    testSurface2 = Surface1(-50, 1, 22)
+    testSurface2.SetCumulative(17)
 
-    print(timeConsumed)
+    testRB, _tir, _vig, reflectedRB = testSurface1.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
+    # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor="purple", lineLength=2)# ============ Draw call
+    # print(reflectedRB.PolarizedRadiance())
+    testRB.SetIndex(0)
+    testRP.Append(testRB, _tir, _vig)
+
+    # testRB, _tir, _vig, reflectedRB = testSurface2.Trace(testRB, testSurface1.RI(testRB.Wavelength()))
+    # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor="purple", lineLength=2)# ============ Draw call
+    # print(reflectedRB.PolarizedRadiance())
+    # testRB.SetIndex(1)
+    # testRP.Append(testRB, _tir, _vig)
+
+    testSurface1.DrawSurface()
+    testSurface2.DrawSurface()
+    #testRP.DrawPath(omitIncident=False)
+    #DrawRaybatch(testRB, lLength=53, arrowRatio=0)
+    SetUnifScale(50)
+    #AddXYZ()
+    RemoveBG()
+    plt.show()
 
 
 if __name__ == "__main__":
-    main() 
+    main()

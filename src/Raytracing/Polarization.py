@@ -107,6 +107,7 @@ def PolarizeRB(rb, v_s, v_p, add=False):
 
     :return: modified raybatch. 
     """
+
     ellipseM = rb.PolarizationMat()
 
     ellipseM = ModifyEllipse(ellipseM, v_s, add)
@@ -117,21 +118,55 @@ def PolarizeRB(rb, v_s, v_p, add=False):
     return rb
 
 
+def CreateEllipseFromFectors(u, v):
+    """
+    Creates ellipse matrices for multiple pairs of perpendicular vectors.
+    
+    :param u: (N, 2) array of 2D vectors
+    :param v: (N, 2) array of 2D vectors (each pair must be perpendicular)
+        
+    Returns:
+        bd.ndarray: (N, 2, 2) array of ellipse matrices
+    """
+
+    batch_size = u.shape[0]
+    
+    # Compute magnitudes
+    norms_u = bd.linalg.norm(u, axis=1, keepdims=True)
+    norms_v = bd.linalg.norm(v, axis=1, keepdims=True)
+    
+    # Handle zero vectors gracefully
+    norms_u = bd.where(norms_u == 0, 1, norms_u)  # Prevent division by zero
+    norms_v = bd.where(norms_v == 0, 1, norms_v)
+    
+    # Create orthonormal basis
+    e1 = u / norms_u
+    e2 = v / norms_v
+    
+    # Construct rotation matrices (batch_size, 2, 2)
+    R = bd.stack([e1, e2], axis=2)
+    
+    # Create scaling matrices (batch_size, 2, 2)
+    D = bd.zeros((batch_size, 2, 2))
+    D[:, 0, 0] = bd.where(norms_u.ravel() == 0, 0, 1/(norms_u**2).ravel())
+    D[:, 1, 1] = bd.where(norms_v.ravel() == 0, 0, 1/(norms_v**2).ravel())
+    
+    # Compute transformed matrices using Einstein summation
+    A = bd.einsum('nij,njk,nlk->nil', R, D, R)
+    
+    return A
+
+
 def ResidueRB(rb, v_s, v_p):
     """
     Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. 
     """
-    residue = RayBatch(bd.copy(rb.value))
-    
-    len = residue.value.shape[0]
-    residue.SetPolarizationPerTerm(
-        diag1 = bd.ones(len) * NEAR_ZERO, 
-        diag2 = bd.ones(len) * NEAR_ZERO, 
-        tilt  = bd.zeros(len)
-    )
-    residue = PolarizeRB(residue, v_s, v_p, add=True)
 
-    return residue
+    ms = CreateEllipseFromFectors(v_s, v_p)
+
+    rb.SetPolarization(ms)
+
+    return rb
 
 
 def main():

@@ -267,51 +267,69 @@ class Surface:
 
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+        # These reflected are the reflected componenet form the refracted due to fresnel  
         reflected = Reflect(directions, normals)
 
         refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         refractedRB.SetPosition(intersections[~TIR])
         refractedRB.SetDirection(refracted)
 
-        reflectedRB = RayBatch(bd.copy(refractedRB.value))
-        reflectedRB.SetPosition(intersections[~TIR])
+        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig]))
+        reflectedRB.SetPosition(intersections)
         reflectedRB.SetDirection(reflected)
+        reflectedRB.Mask(~TIR)
+
+        tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
+        tirRB.SetPosition(intersections[TIR])
+        tirRB.SetDirection(reflected[TIR])
+
+        #print(tirRB.PolarizedRadiance())
 
         # ==============================================================
         # Polarization 
 
         # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-        R_s, R_p = FresnelReflectance(normals, directions, refracted, n1, n2)
+        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
+        
 
         # Accquire s and p direction for polarization, reflection and refraction 
         senkrecht, parallel = SenkrechtUndParallel(directions, normals)
+        
 
         # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
         # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
 
         # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-        # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
+        DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
 
-        senkrecht = senkrecht[:, :2] * R_s[:, bd.newaxis]
-        parallel  = parallel[:, :2]  * R_p[:, bd.newaxis]
+        senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
+        parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
 
         # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
         #     DrawEllipse(mat, pos)# ============ Draw call
         
         refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
+
+
+        # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
+
+        #print(reflectedRB.PolarizationMat())
+        
         reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
+        #print(reflectedRB.PolarizationMat(), "\n\n\n\n\n")
 
         # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
         #     DrawEllipse(mat, pos)# ============ Draw call
 
-        # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
+        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+            DrawEllipse(mat, pos, lColor="c")# ============ Draw call
 
         # print(refractedRB.PolarizedRadiance())
         # print(reflectedRB.PolarizedRadiance())
         # print("\n\n")
 
-        return refractedRB, TIR, boolVig, reflectedRB
+        return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
     
 
     # ==================================================================
@@ -413,25 +431,30 @@ def main():
     testRP = RayPath()
 
     sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
-    testRB = EmitField(0, 0, distance=50, sampleTargets=sampleTar)
+    testRB = EmitField(1, 0, distance=50, sampleTargets=sampleTar)
     testRP.Append(testRB, None, None)
     airMaterial = Material()
 
     testSurface1 = Surface(45, 1, 22, "E-KZFH1")
     testSurface1.SetCumulative(3)
-    testSurface2 = Surface(-120, 1, 22)
-    testSurface2.SetCumulative(12)
+    testSurface2 = Surface(-50, 1, 22)
+    testSurface2.SetCumulative(17)
 
     testRB, _tir, _vig, reflectedRB = testSurface1.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
+    # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor="purple", lineLength=2)# ============ Draw call
+    # print(reflectedRB.PolarizedRadiance())
     testRB.SetIndex(0)
     testRP.Append(testRB, _tir, _vig)
+
     testRB, _tir, _vig, reflectedRB = testSurface2.Trace(testRB, testSurface1.RI(testRB.Wavelength()))
+    # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor="purple", lineLength=2)# ============ Draw call
+    # print(reflectedRB.PolarizedRadiance())
     testRB.SetIndex(1)
-    testRP.Append(testRB, _tir, _vig)
+    # testRP.Append(testRB, _tir, _vig)
 
     testSurface1.DrawSurface()
     testSurface2.DrawSurface()
-    testRP.DrawPath(omitIncident=False)
+    #testRP.DrawPath(omitIncident=False)
     #DrawRaybatch(testRB, lLength=53, arrowRatio=0)
     SetUnifScale(50)
     #AddXYZ()

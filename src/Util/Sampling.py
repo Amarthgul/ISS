@@ -9,11 +9,12 @@ from Util.Globals import RNG, RefreshRNG, ONE
 
 
 # =========================== Presets ==========================
+# Brief:   layer = 3,    densityScale = 0.1,     powerCoef = 0.8
 # Light:   layer = 5,    densityScale = 0.02,    powerCoef = 0.8
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
 # Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 5,    densityScale = 0.02,    powerCoef = 0.8, shrink = 1, zDepth=0):
+def CircularDistribution(radius = 1, layer = 3,    densityScale = 0.1,    powerCoef = 0.8, shrink = 1, zDepth=0):
     """
     Accquire a distribution based on polar coordinate. 
 
@@ -91,9 +92,10 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z
 
 
 def PoissonDiskDistribution(semiDiameter=1, zDepth = 0, samplePoints=128):
-
-
-    
+    """
+    Create a Poission disk distribution but filling a space with points. 
+    Note that, while the distribution is very even, this method tend to take a long time and does not guarantee the sample point count.
+    """
     import numpy as np 
 
     theoreticalSampleCount = int(samplePoints * (4.0 / bd.pi))
