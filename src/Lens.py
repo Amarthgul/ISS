@@ -133,10 +133,14 @@ class Lens:
         if(recordPath):
             self.rayPath.Append(self.rayBatch, None, None)
 
+        reflectedRB = RayBatch()
+
         for i in range(len(self.surfaces)):
-            if isinstance(self.surfaces[i], Surface):
-                self.rayBatch, _tir, _vig = self.surfaces[i].Trace(
-                    self.rayBatch, self._FindPreviousRI(i, self.rayBatch))
+            if not isinstance(self.surfaces[i], Stop):
+                self.rayBatch, _tir, _vig, reflectedRB = self.surfaces[i].Trace(
+                    self.rayBatch, 
+                    self._FindPreviousRI(i, self.rayBatch))
+                
                 self.rayBatch.SetIndex(i)
                 
                 if(recordPath):
@@ -335,7 +339,7 @@ class Lens:
 
 
 def main():
-    
+
     singlet = Lens() 
 
 

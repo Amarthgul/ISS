@@ -6,13 +6,14 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.ColorWavelength import ImageConversion
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
+from Util.Sampling import CircularDistribution
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2D
 from Raytracing.Emission import EmitField
-
+from Raytracing.Raypath import RayPath
 
 
 def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10, lens=None):
@@ -122,6 +123,9 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
         iterationCount += 1
 
 
+def ReflectionTesting():
+    pass 
+
 
 def main():
 
@@ -143,9 +147,23 @@ def main():
     lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
 
-    for obj in objectDistance:
-        for focus in bd.linspace(350, 1500, 20):
-            SpotTesting(obj, focus, 128)
+    # for obj in objectDistance:
+    #     for focus in bd.linspace(350, 1500, 20):
+    #         SpotTesting(obj, focus, 128)
+
+    testRP = RayPath()
+
+    sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
+    testRB = EmitField(0, 0, distance=50, sampleTargets=sampleTar)
+    testRP.Append(testRB, None, None)
+
+    lens.SetIncidentRaybatch(testRB)
+    lens.Propagate()
+
+    SetUnifScale(50)
+    #AddXYZ()
+    RemoveBG()
+    plt.show()
     
     
 

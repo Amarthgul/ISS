@@ -258,8 +258,6 @@ class Surface:
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]
 
-        
-
         # Accquire the index of refractions (resp. wavelength)
         n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         n2 = previousRI[~boolVig]
@@ -288,30 +286,30 @@ class Surface:
         # Accquire s and p direction for polarization, reflection and refraction 
         senkrecht, parallel = SenkrechtUndParallel(directions, normals)
 
-        DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
-        DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
+        # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
+        # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
 
-        DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-        DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
+        # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
+        # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
 
         senkrecht = senkrecht[:, :2] * R_s[:, bd.newaxis]
         parallel  = parallel[:, :2]  * R_p[:, bd.newaxis]
 
-        for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
-            DrawEllipse(mat, pos)# ============ Draw call
+        # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
+        #     DrawEllipse(mat, pos)# ============ Draw call
         
         refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
         reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
 
-        for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
-            DrawEllipse(mat, pos)# ============ Draw call
+        # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos)# ============ Draw call
 
-        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-            DrawEllipse(mat, pos, lColor="m")# ============ Draw call
+        # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
 
-        print(refractedRB.PolarizedRadiance())
-        print(reflectedRB.PolarizedRadiance())
-        print("\n\n")
+        # print(refractedRB.PolarizedRadiance())
+        # print(reflectedRB.PolarizedRadiance())
+        # print("\n\n")
 
         return refractedRB, TIR, boolVig, reflectedRB
     
@@ -425,8 +423,10 @@ def main():
     testSurface2.SetCumulative(12)
 
     testRB, _tir, _vig, reflectedRB = testSurface1.Trace(testRB, airMaterial.RI(testRB.Wavelength()))
+    testRB.SetIndex(0)
     testRP.Append(testRB, _tir, _vig)
     testRB, _tir, _vig, reflectedRB = testSurface2.Trace(testRB, testSurface1.RI(testRB.Wavelength()))
+    testRB.SetIndex(1)
     testRP.Append(testRB, _tir, _vig)
 
     testSurface1.DrawSurface()

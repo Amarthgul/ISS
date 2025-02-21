@@ -78,12 +78,19 @@ def SenkrechtUndParallel(incident, normal):
     
     senkrecht = ArrayNormalized(bd.cross(incident, normal))
 
+    # Manuelles Zuweisen des senkrechten Vektors
+    senkrecht[bd.all(bd.isnan(senkrecht), axis=1)] = bd.array([1, 0, 0])
+
     # Note that if incident is the reverse of normal, this means a perpendicular ray. Which will not have polarization effects, only partial reflection based on the transmission. For these rays, the senkrecht calculation above will return Nan, so will the the parallel.
 
     return senkrecht, ArrayNormalized(bd.cross(normal, senkrecht))
 
 
 def FresnelReflectance(normals, incident, refracted, n1, n2):
+    """
+    
+    """
+
     cosThetaI = bd.sum(normals * incident, axis=1) / (Magnitude(normals) * Magnitude(incident))
     cosThetaT = bd.sum(normals * refracted, axis=1) / (Magnitude(normals) * Magnitude(refracted))
 

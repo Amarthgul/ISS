@@ -21,7 +21,7 @@ class RayBatch:
     # b:                Polarization ellipse tilt   (9)
     # s:                Surface index               (10)
 
-    def __init__(self, value):
+    def __init__(self, value=None):
         self.value = value
     
 
@@ -138,7 +138,10 @@ class RayBatch:
         Merge this raybatch with another one. This raybatch will be modifed and also as a return value.
         """
 
-        self.value = bd.vstack((self.value, input.value))
+        if(self.value is None):
+            self.value = input
+        else:
+            self.value = bd.vstack((self.value, input.value))
 
         return self
 
