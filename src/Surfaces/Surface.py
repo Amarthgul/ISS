@@ -274,10 +274,10 @@ class Surface:
         refractedRB.SetPosition(intersections[~TIR])
         refractedRB.SetDirection(refracted)
 
-        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig]))
-        reflectedRB.SetPosition(intersections)
-        reflectedRB.SetDirection(reflected)
-        reflectedRB.Mask(~TIR)
+        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        reflectedRB.SetPosition(intersections[~TIR])
+        reflectedRB.SetDirection(reflected[~TIR])
+        #reflectedRB.Mask(~TIR)
 
         tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
         tirRB.SetPosition(intersections[TIR])
@@ -322,12 +322,16 @@ class Surface:
         # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
         #     DrawEllipse(mat, pos)# ============ Draw call
 
-        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+        for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
             DrawEllipse(mat, pos, lColor="c")# ============ Draw call
 
-        # print(refractedRB.PolarizedRadiance())
-        # print(reflectedRB.PolarizedRadiance())
-        # print("\n\n")
+        for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
+            DrawEllipse(mat, pos, lColor="b")# ============ Draw call
+
+        
+        print(reflectedRB.value.shape)
+        print(tirRB.value.shape)
+        print("\n")
 
         return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
     
@@ -431,7 +435,7 @@ def main():
     testRP = RayPath()
 
     sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
-    testRB = EmitField(1, 0, distance=50, sampleTargets=sampleTar)
+    testRB = EmitField(30, 0, distance=50, sampleTargets=sampleTar)
     testRP.Append(testRB, None, None)
     airMaterial = Material()
 
@@ -450,11 +454,11 @@ def main():
     # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor="purple", lineLength=2)# ============ Draw call
     # print(reflectedRB.PolarizedRadiance())
     testRB.SetIndex(1)
-    # testRP.Append(testRB, _tir, _vig)
+    testRP.Append(testRB, _tir, _vig)
 
     testSurface1.DrawSurface()
     testSurface2.DrawSurface()
-    #testRP.DrawPath(omitIncident=False)
+    testRP.DrawPath(omitIncident=False)
     #DrawRaybatch(testRB, lLength=53, arrowRatio=0)
     SetUnifScale(50)
     #AddXYZ()

@@ -125,8 +125,7 @@ def CreateEllipseFromFectors(u, v):
     :param u: (N, 2) array of 2D vectors
     :param v: (N, 2) array of 2D vectors (each pair must be perpendicular)
         
-    Returns:
-        bd.ndarray: (N, 2, 2) array of ellipse matrices
+    :return: bd.ndarray: (N, 2, 2) array of ellipse matrices
     """
 
     batch_size = u.shape[0]
