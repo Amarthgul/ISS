@@ -300,7 +300,7 @@ class Surface:
         # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
 
         # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-        DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
+        # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
 
         senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
         parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
@@ -322,16 +322,16 @@ class Surface:
         # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
         #     DrawEllipse(mat, pos)# ============ Draw call
 
-        for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
-            DrawEllipse(mat, pos, lColor="c")# ============ Draw call
+        # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos, lColor="c")# ============ Draw call
 
-        for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
-            DrawEllipse(mat, pos, lColor="b")# ============ Draw call
+        # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
         
-        print(reflectedRB.value.shape)
-        print(tirRB.value.shape)
-        print("\n")
+        # print(reflectedRB.value.shape)
+        # print(tirRB.value.shape)
+        # print("\n")
 
         return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
     

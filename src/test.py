@@ -218,13 +218,15 @@ def main():
 
     testRP = RayPath()
 
-    sampleTar = CircularDistribution(zDepth=3) * bd.array([22, 22, 1])
+    sampleTar = CircularDistribution(zDepth=3) * bd.array([15, 15, 1])
     testRB = EmitField(5, 0, distance=50, sampleTargets=sampleTar)
     testRP.Append(testRB, None, None)
 
     lens.SetIncidentRaybatch(testRB)
-    lens.Propagate()
+    testRB, testRP, reflectedRB = lens.Propagate(True)
     lens.DrawLens()
+
+    testRP.DrawPath()
 
     SetUnifScale(50)
     #AddXYZ()

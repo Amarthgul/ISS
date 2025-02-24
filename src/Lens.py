@@ -121,13 +121,15 @@ class Lens:
         self.rayBatch = raybatch
 
 
-    def Propagate(self):
+    def Propagate(self, recordPath = False):
         """
         Propagate the raybatch through the lens. 
+
+        :param recordPath: when enabled, all paths of rays will be recorded. For production use, turn this off to avoid unnecessary memory usage. 
+
+
         """
 
-        # For production use, turn this off to avoid unnecessary memory usage.
-        recordPath = False
 
         self.rayPath = RayPath()
         if(recordPath):
@@ -135,19 +137,35 @@ class Lens:
 
         reflectedRB = RayBatch()
 
+        # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging. But reflected rays are creted, recorded, and returned during the process. 
+        
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
-                self.rayBatch, _tir, _vig, reflectedRB = self.surfaces[i].Trace(
+                self.rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     self.rayBatch, 
                     self._FindPreviousRI(i, self.rayBatch))
                 
+                reflectedRB.Merge(_reflectedRB)
+
                 self.rayBatch.SetIndex(i)
                 
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
+        DrawRaybatch(reflectedRB, lLength=2)
+
+
         # self.rayPath.DrawPath(40)
-        return self.rayBatch, self.rayPath
+        return self.rayBatch, self.rayPath, reflectedRB
+
+
+    def NonSequentialIterate(self, reflectedRB, recordPath = False):
+        """
+        Trace over the reflected rays. 
+        
+        """
+
+        pass 
 
 
     def BestFocusBFD(self, distance):

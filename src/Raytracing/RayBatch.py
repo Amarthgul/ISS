@@ -139,7 +139,7 @@ class RayBatch:
         """
 
         if(self.value is None):
-            self.value = input
+            self.value = input.value
         else:
             self.value = bd.vstack((self.value, input.value))
 
