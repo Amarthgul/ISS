@@ -11,7 +11,7 @@ from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance
+from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
 from Raytracing.RayBatch import RayBatch 
 from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitField
@@ -302,8 +302,16 @@ class Surface:
         # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
         # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
 
-        senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
-        parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
+        senkrecht, parallel = QuantitativePolarize(
+            incidentRaybatch.PolarizationMat()[~boolVig][~TIR],
+            senkrecht[~TIR][:, :2], 
+            parallel[~TIR][:, :2], 
+            R_s, 
+            R_p
+        )
+
+        # senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
+        # parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
 
         # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
         #     DrawEllipse(mat, pos)# ============ Draw call

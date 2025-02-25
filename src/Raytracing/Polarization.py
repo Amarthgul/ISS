@@ -101,6 +101,43 @@ def FresnelReflectance(normals, incident, refracted, n1, n2):
     return R_s, R_p
 
 
+def EllipseHeights(A, u, v):
+    """
+    Compute heights for two perpendicular vectors simultaneously.
+    
+    :param A: (n, 2, 2) ellipse matrices
+    :param u: (n, 2) first vectors
+    :param v: (n, 2) second vectors (⊥ to u)
+        
+    :return: (h_u, h_v) heights in u and v directions
+    """
+
+    # Combined computation
+    M = bd.stack([u, v], axis=-1)  # Shape: (..., 2, 2)
+    quad_terms = bd.einsum('...ki,...kj,...ij->...k', M, M, A)
+
+    norms = bd.linalg.norm(M, axis=-2)  # Shape: (..., 2)
+    h_u = norms[..., 0] / bd.sqrt(quad_terms[..., 0])
+    h_v = norms[..., 1] / bd.sqrt(quad_terms[..., 1])
+    
+    return h_u, h_v
+
+
+def QuantitativePolarize(A, s, p, R_s, R_p):
+    """
+    Given the incident polarized radiance ellipse, the local s and p direction, and the corresponding s and p direction reflectance ratio, calculate the quantitative reflectance on the local s and p direction. 
+    """
+
+    # s and p should have already been normalized since SenkrechtUndParallel() contains a normalization process 
+    # s = ArrayNormalized(s)
+    # p = ArrayNormalized(p)
+
+    baseHeightS, baseHeightP = EllipseHeights(A, s, p)
+
+    return s * (baseHeightS * R_s)[:, bd.newaxis], p * (baseHeightP * R_p)[:, bd.newaxis]
+
+
+
 def PolarizeRB(rb, v_s, v_p, add=False):
     """
     Given a raybatch, modify it on senkrecht and parallel direction. 
