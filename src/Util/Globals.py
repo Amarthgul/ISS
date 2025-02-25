@@ -62,8 +62,8 @@ NEAR_ZERO = 1e-10
 AXIAL_ZERO = 1e-3
 
 
-# Far distance is treated as 200m away from the lens
-FAR_DISTANCE = bd.array(200000.0)
+# Far distance is treated as 500m away from the lens
+FAR_DISTANCE = bd.array(500000.0)
 # This is treated as a pesudo infinity for the lens system.
 
 

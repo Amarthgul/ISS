@@ -325,7 +325,7 @@ class Surface:
         #print(reflectedRB.PolarizationMat())
         
         reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
-        #print(reflectedRB.PolarizationMat(), "\n\n\n\n\n")
+        # print(reflectedRB.PolarizationMat(), "\n\n")
 
         # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
         #     DrawEllipse(mat, pos)# ============ Draw call
@@ -336,7 +336,7 @@ class Surface:
         # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
         #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
-        
+        print(reflectedRB.PolarizedRadiance())
         # print(reflectedRB.value.shape)
         # print(tirRB.value.shape)
         # print("\n")

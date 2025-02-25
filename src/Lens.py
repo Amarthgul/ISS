@@ -156,16 +156,11 @@ class Lens:
 
 
         # self.rayPath.DrawPath(40)
+
+        # Return the sequential and non-sequential rays. Note that since this is the first pass of non-sequential propagation, most non-sequential rays are pointing at object space, there needs to be further calculations for them to arrive at the imager. 
         return self.rayBatch, self.rayPath, reflectedRB
 
 
-    def NonSequentialIterate(self, reflectedRB, recordPath = False):
-        """
-        Trace over the reflected rays. 
-        
-        """
-
-        pass 
 
 
     def BestFocusBFD(self, distance):

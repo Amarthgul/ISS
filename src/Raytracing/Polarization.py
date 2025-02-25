@@ -125,7 +125,15 @@ def EllipseHeights(A, u, v):
 
 def QuantitativePolarize(A, s, p, R_s, R_p):
     """
-    Given the incident polarized radiance ellipse, the local s and p direction, and the corresponding s and p direction reflectance ratio, calculate the quantitative reflectance on the local s and p direction. 
+    Given the incident polarized radiance ellipse, the local s and p direction, and the corresponding s and p direction reflectance ratio, calculate the quantitative reflectance on the local s and p direction.
+
+    :param A: (n, 2, 2) quadratic form of the polarized radiance ellipse. 
+    :param s: (n, 2) array for local senkrecht direction. 
+    :param p: (n, 2) array for local parallel direction. 
+    :param R_s: (n,) reflectance ratio for senkrecht direction. 
+    :param R_p: (n,) reflectance ratio for parallel direction.
+
+    :return: quantitative reflectance on the local s and p direction.
     """
 
     # s and p should have already been normalized since SenkrechtUndParallel() contains a normalization process 
@@ -135,7 +143,6 @@ def QuantitativePolarize(A, s, p, R_s, R_p):
     baseHeightS, baseHeightP = EllipseHeights(A, s, p)
 
     return s * (baseHeightS * R_s)[:, bd.newaxis], p * (baseHeightP * R_p)[:, bd.newaxis]
-
 
 
 def PolarizeRB(rb, v_s, v_p, add=False):
