@@ -279,6 +279,7 @@ class Surface:
         reflectedRB.SetDirection(reflected[~TIR])
         #reflectedRB.Mask(~TIR)
 
+        # TIR are the reverted selection 
         tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
         tirRB.SetPosition(intersections[TIR])
         tirRB.SetDirection(reflected[TIR])
@@ -336,7 +337,7 @@ class Surface:
         # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
         #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
-        print(reflectedRB.PolarizedRadiance())
+        # print(reflectedRB.PolarizedRadiance())
         # print(reflectedRB.value.shape)
         # print(tirRB.value.shape)
         # print("\n")

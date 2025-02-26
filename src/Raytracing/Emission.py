@@ -211,7 +211,7 @@ def InitRays(r, sd, posP, wavelength = 550):
 # ==================================================================
 
 
-def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = LambdaLines['d']):
+def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT, numRays=30, wavelength = LambdaLines['d'], fullFrontal=False):
     """
     Emit rays from the center of the stop towards the object and image side.
     The angle of the rays are determined by the edge of previous and next surface.
@@ -228,17 +228,23 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
     :return: two RayBatch objects, one for the object side and the other for the image side.
     """
     
-    stopCT = stopVertex[2]
+    if(fullFrontal):
+        angularSteps = bd.linspace(-bd.pi / 2, bd.pi / 2, numRays)
 
-    objectSideTheta = bd.arctan(previousSD / bd.abs(previousSDT-stopCT))
-    imageSideTheta = bd.arctan(nextSD / bd.abs(nextSDT-stopCT))
+        # Generate directional vectors in the YZ plane pointing towards -Z
+        vectors = bd.array([(0, bd.sin(a), -bd.cos(a)) for a in angularSteps])
+    else:
+        stopCT = stopVertex[2]
 
-    # Determine the max angle of the rays
-    theta = objectSideTheta if (objectSideTheta < imageSideTheta) else imageSideTheta
+        objectSideTheta = bd.arctan(previousSD / bd.abs(previousSDT-stopCT))
+        imageSideTheta = bd.arctan(nextSD / bd.abs(nextSDT-stopCT))
 
-    angularSteps = bd.linspace(-theta, theta, numRays)
-    
-    vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
+        # Determine the max angle of the rays
+        theta = objectSideTheta if (objectSideTheta < imageSideTheta) else imageSideTheta
+
+        angularSteps = bd.linspace(-theta, theta, numRays)
+        
+        vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
 
     vertices = bd.tile(stopVertex, (vectors.shape[0], 1))
     temp = bd.zeros(3)
@@ -386,8 +392,6 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
     :param wavelength: wavelength of the rays in nm.
     """
 
-    # TODO: add angular spilt 
-
     source_yz = emissionPoint[1:]
     target1_yz = target1[1:]
     target2_yz = target2[1:]
@@ -432,7 +436,26 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
         )
 
 
+def EmitFromPointFullFrontal(emissionPoint, numRays=20, wavelength = LambdaLines['d']):
 
+    source_yz = emissionPoint[1:]
+    angularSteps = bd.linspace(-bd.pi / 2, bd.pi / 2, numRays)
+
+    # Generate directional vectors in the YZ plane pointing towards -Z
+    vectors = bd.array([(ZERO, bd.sin(a), -bd.cos(a)) for a in angularSteps])
+
+    vectors = ArrayNormalized(vectors)
+
+    emissionPoint = bd.tile(emissionPoint, (numRays, 1))
+    temp = bd.zeros(5)
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    
+    return RayBatch(
+        bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)
+        )
 
 
 def main():

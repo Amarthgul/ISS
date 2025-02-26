@@ -20,7 +20,7 @@ from Surfaces.PrincipalPlane import PrincipalPlane
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateEmpty
 from Raytracing.Raypath import RayPath
-from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint, EmitField
+from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint, EmitField, EmitFromPointFullFrontal
 
 
 class Lens:
@@ -161,8 +161,6 @@ class Lens:
         return self.rayBatch, self.rayPath, reflectedRB
 
 
-
-
     def BestFocusBFD(self, distance):
         """
         Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
@@ -244,22 +242,22 @@ class Lens:
             self.surfaces[self.stopIndex-1].sdCumulative
         ])
 
-        # TODO: if the stop is constant and is the same with one of the surfaces, this might be undefined. Add support for 0-d stop. 
         # Generate raybatch and add them into the path record
         objectSideRBs = [
-            EmitFromPoint(
-            self.surfaces[self.stopIndex].frontVertex+bd.array([ZERO, p, ZERO]),
-            targetOne, targetTwo, wavelength = wavelength)
+            self._CastFromStop(
+                self.surfaces[self.stopIndex].frontVertex+bd.array([ZERO, p, ZERO]),
+                targetOne, targetTwo, wavelength = wavelength)
             for p in bd.linspace(ZERO, stopSD, sampleCount)
         ]
-        for j in range(sampleCount):
-            objectSideRPs[j].Append(objectSideRBs[j], None, None)
+        # for j in range(sampleCount):
+        #     objectSideRPs[j].Append(objectSideRBs[j], None, None)
+        #     DrawRaybatch(objectSideRBs[j])  # Draw call=========
         
         # Propogate through the surfaces 
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                print("At surface ", forwardIndex)
+                #print("At surface ", forwardIndex)
                 #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
@@ -267,7 +265,7 @@ class Lens:
                         self._FindPreviousRI(forwardIndex, objectSideRBs[j]), True
                         ) 
                     objectSideRPs[j].Append(objectSideRBs[j], _tirs[j], _vigs[j])
-                #DrawRaybatch(objectSideRB)  # Draw call=========
+                #DrawRaybatch(objectSideRBs[i])  # Draw call=========
                 #plt.draw()
                 #plt.pause(4)
 
@@ -293,6 +291,17 @@ class Lens:
         self.entrancePupil.SetSamplePoints(bd.array(intersections))
 
 
+    def _CastFromStop(self, emissionPoint, targetOne, targetTwo, numRays=20, wavelength = LambdaLines['d']):
+
+        if bd.isclose(self.surfaces[self.stopIndex].cumulativeThickness, self.surfaces[self.stopIndex-1].cumulativeThickness):
+            return EmitFromPointFullFrontal(
+            emissionPoint, numRays, wavelength = wavelength)
+        else:
+            return EmitFromPoint(
+            emissionPoint,
+            targetOne, targetTwo, numRays, wavelength = wavelength)
+
+
     def _TraceFocalPrincipal(self, wavelength = LambdaLines['D']):
         """
         Trace the front focal point and principal plane. These two will then be used to calculate the focal length. 
@@ -310,10 +319,12 @@ class Lens:
                 frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
                     frontRB, self._FindPreviousRI(i, frontRB))   
                 frontRP.Append(frontRB, _tir, _vig)  
+                # self.surfaces[i].DrawSurface() # Draw call =======
 
-        #frontRP.DrawPath(40) # Draw call =======
-        #plt.draw() # Draw call =======
-        #plt.pause(10) # Draw call =======
+        # frontRP.DrawPath(40) # Draw call =======
+        # plt.draw() # Draw call =======
+        # plt.pause(30) # Draw call =======
+
         frontRP = frontRP.PruneAll()
         #frontRP.DrawPath(40) # Draw call =======
         

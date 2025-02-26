@@ -195,30 +195,85 @@ def CanonFD50mmf18():
     return canon
 
 
+# ==================================================================
+""" ==================== Zeiss Hologon 15mm f/8 ================ """
+# ==================================================================
+
+
+def _ZeissHologon15mmf8Data():
+    """
+    Data from patent JP 1988-081312, Example ML. 
+    Note that the original patent contains a teleconverter at the rear, the data below has removed it.
+    """
+    lens = Lens()
+
+    lens.AddSurface(Surface(11.64,	    7.9785,     11,     "FD60"))
+    lens.AddSurface(Surface(3.843,	    2.703,      3.5))
+    lens.AddSurface(Surface(5.6685,	    4.1685,     3.5,     "H-LAK7"))
+    lens.AddSurface(Surface(INFINITY,	0,          0.75))
+    lens.AddSurface(Stop(               0))
+    lens.AddSurface(Surface(INFINITY,	3.48,       0.75,     "H-LAK7"))
+    lens.AddSurface(Surface(-5.508,	    2.4045,     3.5))
+    lens.AddSurface(Surface(-3.6285,	5.2365,     3.5,      "FD60"))
+    lens.AddSurface(Surface(-8.9835,	4.2686,     8))
+
+    return lens
+
+
+def ZeissHologon15mmf8():
+    """
+    Zeiss Hologon 15mm f/8 
+    
+    :return: initlized lens object.
+    """
+
+    fileName = "ZeissHologon15mmf8"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    LensExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        LensExample.LoadExample()
+        canon = LensExample.data
+    else: 
+        canon = _ZeissHologon15mmf8Data()
+        canon.UpdateLens()
+        LensExample.data = canon
+        LensExample.SaveExample()
+
+    return canon
+
+
+# ==================================================================
+
 
 def main():
     
-    # SetUnifScale(50)
-    # AddXYZ()
-    # RemoveBG()
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
 
     start = time.time()
 
-    # TODO: this lens needs correction for the axial pupil position.
-    exampleLens = CanonFD50mmf18()
+    exampleLens = ZeissHologon15mmf8()
     exampleLens.UpdateLens()
+    exampleLens.fNumber = 8
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
 
     print(exampleLens.GetInfo())
 
-    #exampleLens.DrawLens()
-    #exampleLens.entrancePupil.DrawSamplePoints()
-    #exampleLens.entrancePupil.DrawSurface()
-    #exampleLens.frontPincipalPlane.DrawSamplePoints()
+    exampleLens.DrawLens()
+    # exampleLens.entrancePupil.DrawSamplePoints()
+    exampleLens.entrancePupil.DrawSurface()
+    # exampleLens.frontPincipalPlane.DrawSamplePoints()
     
-    #plt.show()
+    plt.show()
 
     
 
