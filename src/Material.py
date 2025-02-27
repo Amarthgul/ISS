@@ -25,6 +25,20 @@ def MaterialClear():
     del GlassTable
 
 
+def FormulaLimit(formulas):
+    pass 
+
+
+def MaterialLookup_d(n_d, V_d):
+
+    pass 
+
+
+
+def MaterialLookup_e():
+    pass
+
+
 
 class Material:
 
@@ -121,6 +135,8 @@ class Material:
     # ========================================================================
     """ ============================ Private ============================== """
     # ========================================================================
+
+
     def _RI(self, wavelength = 550):
         if(self.Formula == "Schott"):
             return self._Schott(wavelength)

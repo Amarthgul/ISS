@@ -75,6 +75,9 @@ class Surface:
         """Thickness or z location of the clear semi diameter edge, scaler t_sd"""
         self.sdCumulative = None
 
+        """Whether this surface is the starting or ending surface of a group"""
+        self.isGroupEnd = False
+
         """Local optical axis of the surface, normalized vector (x, y, z)"""
         self._axis = OBJ_FACING
         # By default it is parallel to Z and facing object side
@@ -337,7 +340,7 @@ class Surface:
         # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
         #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
-        # print(reflectedRB.PolarizedRadiance())
+        # print(refractedRB.PolarizedRadiance())
         # print(reflectedRB.value.shape)
         # print(tirRB.value.shape)
         # print("\n")

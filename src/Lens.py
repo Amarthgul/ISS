@@ -46,6 +46,10 @@ class Lens:
         """Axial direction length of all the surfaces. From front vertex of the first surface to the last surface"""
         self.totalAxialLength = None 
 
+        """Minimum object distance, i.e., min focus distance"""
+        self.MOD = None 
+        # This property is useful when there are floating lens element involved and the position of lens groups are dependent on interpolation between inf and MOD focus. 
+
         self._lastSurfaceIndex = 0
 
         self._temp = None # Variable for developing and not to be taken serieously 
