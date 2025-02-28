@@ -16,8 +16,8 @@ class RayBatch:
     # x, y, z:          Root position of the ray    (0, 1, 2)
     # v_x, v_y, v_z:    Direction of the ray        (3, 4, 5)
     # λ:                Wavelength of the ray       (6)
-    # Φ:                Polarization term 1         (7)
-    # i_Φ:              Polarization term 2         (8)
+    # Φ:                Polarized Radiance term 1   (7)
+    # i_Φ:              Polarized Radiance term 2   (8)
     # b:                Polarization ellipse tilt   (9)
     # s:                Surface index               (10)
 
@@ -45,11 +45,11 @@ class RayBatch:
             return self.value[:, 6]
     
 
-    def Radiant(self):
+    def Radiannce(self):
         """
-        Radiant flux or unitless light intensity 
+        The 1st radiance term regardless of polarization. 
         """
-        # TODO: consider adding the polarization direction here? 
+        # Technically this is not really radiance since it does not integral over a solid angle 
         return self.value[:, 7]
     
 
