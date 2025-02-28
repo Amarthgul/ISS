@@ -235,7 +235,7 @@ def DrawDirection(position, direction, lineColor='green', lineLength=5, arrowRat
               color=lineColor) 
 
         
-def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20, surfaceColor = "k", ax=AX):
+def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20, surfaceColor = "k", opacity=0.1,  ax=AX):
     """
     Draw a spherical surface along the z axis. 
     
@@ -268,7 +268,7 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20
         y = bd.asnumpy(y)
         z = bd.asnumpy(z)
 
-    ax.plot_surface(x, y, z, color = surfaceColor, alpha = 0.1)
+    ax.plot_surface(x, y, z, color = surfaceColor, alpha =opacity)
 
 
 def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX):
@@ -291,6 +291,82 @@ def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX)
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
+
+
+def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):
+    """
+    Draw the clear boundary of a lens element given its 2 ellipses
+    """
+    CheckAX()
+
+    # TODO: this method has not been tested with off axis ellipses 
+
+    def _SlerpVectors(v1, v2, t):
+        """Spherical linear interpolation between two unit vectors."""
+        dot = bd.dot(v1, v2)
+        # Handle the case where v1 and v2 are nearly identical
+        if bd.abs(dot) > 0.9999:
+            return v1  # Skip interpolation and return v1 directly
+        omega = bd.arccos(dot)
+        return (bd.sin((1 - t) * omega) / bd.sin(omega)) * v1 + (bd.sin(t * omega) / bd.sin(omega)) * v2
+    
+    def _FrustumBetweenEllipses(C1, u1, v1, a1, b1, C2, u2, v2, a2, b2, theta_res=20, t_res=5):
+        # Interpolate centers
+        t_values = bd.linspace(0, 1, t_res)
+        centers = (1 - t_values[:, None]) * C1 + t_values[:, None] * C2
+
+        # Interpolate semi-axes
+        a_values = (1 - t_values) * a1 + t_values * a2
+        b_values = (1 - t_values) * b1 + t_values * b2
+
+        # Interpolate orientations using slerp
+        u_interp = bd.array([_SlerpVectors(u1, u2, t) for t in t_values])
+        v_interp = bd.array([_SlerpVectors(v1, v2, t) for t in t_values])
+
+        # Ensure orthonormality
+        for i in range(t_res):
+            u = u_interp[i]
+            v = v_interp[i] - bd.dot(v_interp[i], u) * u
+            v_interp[i] = v / bd.linalg.norm(v)
+
+        # Generate points
+        theta = bd.linspace(0, 2*bd.pi, theta_res)
+        points = bd.zeros((t_res, theta_res, 3))
+        for i in range(t_res):
+            # Reshape centers[i] to (3,) for broadcasting
+            center = centers[i]
+            # Compute the points for the current ellipse
+            points[i] = (
+                center[None, :] +  # Shape (1, 3)
+                a_values[i] * bd.outer(bd.cos(theta), u_interp[i]) +  # Shape (theta_res, 3)
+                b_values[i] * bd.outer(bd.sin(theta), v_interp[i])  # Shape (theta_res, 3)
+            )
+
+        return points.reshape(t_res, theta_res, 3)
+    
+    points = _FrustumBetweenEllipses(E1.center, 
+                                    E1.semiAxisDirU, 
+                                    E1.semiAxisDirV, 
+                                    E1.semiAxisMagA, 
+                                    E1.semiAxisMagB,
+                                    E2.center, 
+                                    E2.semiAxisDirU, 
+                                    E2.semiAxisDirV, 
+                                    E2.semiAxisMagA, 
+                                    E2.semiAxisMagB  ) 
+    
+    
+
+    X = points[:, :, 0]
+    Y = points[:, :, 1]
+    Z = points[:, :, 2]
+
+    if(backend_name == "cupy"):
+        X = bd.asnumpy(X)
+        Y = bd.asnumpy(Y)
+        Z = bd.asnumpy(Z)
+
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
 
 
 def DrawEllipse(Q, center, num_points=64, lColor="c", lWidth=.35, ax=AX):
@@ -361,6 +437,8 @@ def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2, edgecolor=surfaceColor)
+
+
 
 
 

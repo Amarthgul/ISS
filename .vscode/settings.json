@@ -3,5 +3,6 @@
     "editor.inlineSuggest.enabled": true,
     "files.exclude": {
         "**/__pycache__": true
-    }
+    }, 
+    "debug.inlineValues":"off"
 }
