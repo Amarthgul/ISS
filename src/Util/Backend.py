@@ -79,3 +79,13 @@ def GetBackend():
     print(backend)
 
     
+
+
+
+def main():
+    import cupy as cp
+    print(cp.sum(cp.array([True, False, False])))
+
+
+if __name__ == "__main__":
+    main()
