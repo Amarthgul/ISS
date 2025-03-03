@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
-from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
@@ -35,6 +35,10 @@ class FieldStopType(Enum):
 
 
 
+
+
+
+
 # ==================================================================
 """ ============================================================ """
 # ==================================================================
@@ -59,6 +63,15 @@ class Surface:
         self.clearSemiDiameter = constant(sd)
         self.material = Material(m)
 
+        """Longitudinal-direction clear boundary"""
+        self.clearBoundaryL = None 
+        # This could be assigned during lens update, if needed 
+
+        """Tangential-direction clear boundary"""
+        self.clearBoundaryT = None 
+        # This could be assigned during lens update, if needed 
+
+
         """Whether this surface share the same optical axis as the lens"""
         self.IsOnAxis = True
         # By default the surface is treated to have the same optical axis as the lens 
@@ -76,7 +89,7 @@ class Surface:
         self.sdCumulative = None
 
         """Whether this surface is the starting or ending surface of a group"""
-        self.isGroupEnd = False
+        self.isGroupTerminal = False
 
         """Local optical axis of the surface, normalized vector (x, y, z)"""
         self._axis = OBJ_FACING
@@ -151,8 +164,44 @@ class Surface:
             self.clearSemiDiameter,
             self.cumulativeThickness
             )
+        
+        if(self.clearBoundaryL is not None):
+            pass 
+
+        if(self.clearBoundaryT is not None):
+            pass 
 
 
+    def zRange(self):
+        """
+        Return the range of the surface on the optical axis, presume the surface is on the optical axis. If the surface is off axis, the return result may be undefined. 
+
+        :return: the vertex z and the edge z value of the surface. 
+        """
+
+        vertexZ = self.frontVertex[Axis.Z.value]
+
+        if(self.radius is INFINITY):
+            return vertexZ, vertexZ # edge z will be the same as vertex z when r is infinity 
+
+        # Only calculate edge z when r is not inf
+        edgeZ = bd.sqrt(self.radius**2 - self.clearSemiDiameter**2)
+
+        if(self.radius > 0):
+            edgeZ = vertexZ - edgeZ
+        elif(self.radius < 0):
+            edgeZ = vertexZ + edgeZ
+
+        return vertexZ, edgeZ
+        
+
+    def IsAirMaterial(self):
+        """
+        If this surface is followed by air as material
+        """
+        return self.material.name is "AIR"
+
+        
     def Intersection(self, incomingRaybatch):
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
@@ -347,6 +396,7 @@ class Surface:
 
         return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
     
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

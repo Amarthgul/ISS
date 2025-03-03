@@ -1,6 +1,8 @@
 
 
+from enum import Enum
 import matplotlib.pyplot as plt
+
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
@@ -8,6 +10,14 @@ from Util.MathFunctions import NewtonSolver
 from Util.Misc import ArrayNormalized
 from Util.SpatialEllipse import SpatialEllipse
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
+
+
+class RayBehavior(Enum):
+    """ While it's called Refractive, it simply means the surface behaves like a normal glass, with refraction and reflection both at play. """
+    Refrative = 0
+
+    """ Those marked as Kill will remove all the rays that intersect with them. """
+    Kill = 1
 
 
 
@@ -23,8 +33,9 @@ class ClearBoundary():
         self.E2 = E2
 
 
+        """When the 2 ends are both on aixs circle with the same radius, this clear bounardy becomes a cylinder, which could simplify calculation significantly. """
         self.isCylindrical = False
-        
+
 
         """Describes the material at the other side. When set to None, treat it as Air; it can also be set to a constant float that represents IOR; alternatively it could be a material class."""
         self.exteriorCoating = None 
@@ -340,15 +351,15 @@ def main():
                         bd.array([0, 1, 0]), 
                         15, 15)
     
-    E2 = SpatialEllipse(bd.array([0, 0, 30]), 
+    E2 = SpatialEllipse(bd.array([0, 0, 5]), 
                         bd.array([1, 0, 0]), 
                         bd.array([0, 1, 0]), 
-                        15, 15)
+                        30, 30)
 
     testCB = ClearBoundary(E1, E2)
 
     testCB.DrawSurface()
-    testCB.Trace(None)
+    #testCB.Trace(None)
 
     
     SetUnifScale(50)

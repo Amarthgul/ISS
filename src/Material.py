@@ -259,9 +259,21 @@ class Material:
 
     # TODO: add more decoder and formula here if needed 
 
-    # ========================================================================
-    """ ============================ Archive ============================== """
-    # ========================================================================
+
+
+
+class MonochromaticMaterial(Material):
+    def __init__(self, RI=1.5, name="MONO"):
+        super().__init__(name)
+        self.monoRI = RI
+
+
+    def RI(self, lam):
+        """
+        For mono material, the RI is a constant regardless of wavelength. 
+        """
+        return bd.ones_like(lam) * self.monoRI
+    
 
 
 def main():

@@ -23,6 +23,7 @@ from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint, EmitField, EmitFromPointFullFrontal
 
 
+
 class Lens:
     def __init__(self):
         self.fNumber = constant(2.0)
@@ -31,8 +32,11 @@ class Lens:
         self.focalPoint = None 
 
         self.surfaces = []
-        self.env = Material("AIR") # The environment it is submerged in, air by default 
+        self.env = Material("AIR") # The environment it is submerged in, air by default
+
+        self.lenses = [] # Every pair of surfaces that form a lens
         self.groups = [] # Cemented lenses become a group 
+        self.groupMaxSemi = {}
 
         self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
@@ -63,7 +67,8 @@ class Lens:
     def UpdateLens(self):
         """
         Iterate throught the elements and update their relative parameters. 
-        Separate the surfaces into groups. 
+        Separate the surfaces into lenses and groups.
+        Create clear boundaries for each surfaces. 
         Start a ray trace and finds the entrance pupil. 
         """
         #self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
@@ -86,6 +91,9 @@ class Lens:
         self.totalAxialLength = currentT
 
         self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter) 
+
+        self._PartitionGroups()
+        self._CreateClearBoundary()
 
         self._TraceEntrancePupil()
         self._TraceFocalPrincipal() 
@@ -194,6 +202,7 @@ class Lens:
 
     def GetInfo(self):
         info = "- Lens Info: \n" +\
+            str(len(self.lenses)) + " lenses arranged in " + str(len(self.groups)) + " groups \n" +\
             "Focal Length:   \t" + str(self.focalLength) + "\n" +\
             "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize()) + "\n" +\
             "Max pupil dia:  \t" + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
@@ -207,6 +216,89 @@ class Lens:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+
+    def _PartitionGroups(self):
+        """
+        Iterate through the surfaces, part them into lenses and groups. 
+        """
+
+        # Clear the previous record, if any 
+        self.lenses = []
+        self.groups = []
+
+        # ===================== Count the lenses =======================
+        lens = []
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                if(not self.surfaces[i].IsAirMaterial()):
+                    lens.append(i)
+                    lens.append(i+1)
+                    self.lenses.append(lens)
+                    lens = []
+
+
+        # ===================== Count the groups =======================
+        currentInGroup = False
+        currentGroup = []
+
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                if( not currentInGroup and not self.surfaces[i].IsAirMaterial()):
+                    # The first surface of a group 
+                    currentInGroup = True
+                    currentGroup.append(i)
+                    self.surfaces[i].isGroupTerminal = True
+
+                elif(currentInGroup and self.surfaces[i].IsAirMaterial()):
+                    # The last surface of a group 
+                    currentInGroup = False
+                    currentGroup.append(i)
+                    self.surfaces[i].isGroupTerminal = True
+                    self.groups.append(currentGroup)
+                    currentGroup = []
+
+                else:
+                    currentGroup.append(i)
+                
+        largestR = 0 
+
+        # ======= Find the largest semi diameter in each group ========
+        for g in range(len(self.groups)):
+            for s in self.groups[g]:
+                if (largestR < self.surfaces[s].clearSemiDiameter):
+                    largestR = self.surfaces[s].clearSemiDiameter
+            self.groupMaxSemi.update({g: largestR})
+            largestR = 0 
+
+        # print(self.groupMaxSemi)
+
+                
+    def _CreateClearBoundary(self):
+        for key, value in self.groupMaxSemi.items():
+            # The key here is group index, and value is the max clear semi diameter of the group 
+
+            for s in self.groups[key]:
+                # Iterate through the surfaces in the group 
+
+                # Deal with starting surface 
+                if(self.surfaces[s].isGroupTerminal and not self.surfaces[s].IsAirMaterial()):
+                    pass 
+
+
+                # Deal with ending surface 
+                if(self.surfaces[s].isGroupTerminal and self.surfaces[s].IsAirMaterial()):
+                    pass
+
+                # Deal with middle surface, if any 
+                else: 
+                    pass 
+
+                print("Surface ", s, " max csd ", value)
+                if(self.surfaces[s].clearSemiDiameter < value):
+                    pass 
+                    
+
 
 
     def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
@@ -368,7 +460,9 @@ class Lens:
 
 def main():
 
-    singlet = Lens() 
+    test = Lens() 
+
+
 
 
     
