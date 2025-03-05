@@ -8,7 +8,7 @@ from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis
-from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
 from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
@@ -67,7 +67,7 @@ class Surface:
         self.clearBoundaryL = None 
         # This could be assigned during lens update, if needed 
 
-        """Tangential-direction clear boundary"""
+        """Tangential-direction clear boundary. While it is called tangential, it may not be entirly perpendicular to the optical axis, it could also be chamfered."""
         self.clearBoundaryT = None 
         # This could be assigned during lens update, if needed 
 
@@ -166,10 +166,10 @@ class Surface:
             )
         
         if(self.clearBoundaryL is not None):
-            pass 
+            DrawClearBoundary(self.clearBoundaryL.E1, self.clearBoundaryL.E2)
 
         if(self.clearBoundaryT is not None):
-            pass 
+            DrawClearBoundary(self.clearBoundaryT.E1, self.clearBoundaryT.E2) 
 
 
     def zRange(self):
@@ -287,7 +287,7 @@ class Surface:
         return _temp, TIR, boolVig
 
 
-    def Trace(self, incidentRaybatch, previousRI, inverted=False):
+    def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False):
         """
         Deal with all the reactions the rays have upon reaching the surface. This includes: 
         - Refraction. The main contributor to image formation. 
@@ -327,74 +327,76 @@ class Surface:
         refractedRB.SetDirection(refracted)
 
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        reflectedRB.SetPosition(intersections[~TIR])
-        reflectedRB.SetDirection(reflected[~TIR])
-        #reflectedRB.Mask(~TIR)
+        if(reflection):
+            reflectedRB.SetPosition(intersections[~TIR])
+            reflectedRB.SetDirection(reflected[~TIR])
+            #reflectedRB.Mask(~TIR)
 
-        # TIR are the reverted selection 
-        tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
-        tirRB.SetPosition(intersections[TIR])
-        tirRB.SetDirection(reflected[TIR])
+            # TIR are the reverted selection 
+            tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
+            tirRB.SetPosition(intersections[TIR])
+            tirRB.SetDirection(reflected[TIR])
 
-        #print(tirRB.PolarizedRadiance())
+            #print(tirRB.PolarizedRadiance())
 
-        # ==============================================================
-        # Polarization 
+            # ==============================================================
+            # Polarization 
 
-        # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
-        
+            # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
+            R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
+            
 
-        # Accquire s and p direction for polarization, reflection and refraction 
-        senkrecht, parallel = SenkrechtUndParallel(directions, normals)
-        
+            # Accquire s and p direction for polarization, reflection and refraction 
+            senkrecht, parallel = SenkrechtUndParallel(directions, normals)
+            
 
-        # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
-        # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
+            # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
+            # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
 
-        # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-        # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
+            # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
+            # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
 
-        senkrecht, parallel = QuantitativePolarize(
-            incidentRaybatch.PolarizationMat()[~boolVig][~TIR],
-            senkrecht[~TIR][:, :2], 
-            parallel[~TIR][:, :2], 
-            R_s, 
-            R_p
-        )
+            senkrecht, parallel = QuantitativePolarize(
+                incidentRaybatch.PolarizationMat()[~boolVig][~TIR],
+                senkrecht[~TIR][:, :2], 
+                parallel[~TIR][:, :2], 
+                R_s, 
+                R_p
+            )
 
-        # senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
-        # parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
+            # senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
+            # parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
 
-        # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
-        #     DrawEllipse(mat, pos)# ============ Draw call
-        
-        refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
+            # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
+            #     DrawEllipse(mat, pos)# ============ Draw call
+            
+            refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
 
 
-        # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
+            # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
+            #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
 
-        #print(reflectedRB.PolarizationMat())
-        
-        reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
-        # print(reflectedRB.PolarizationMat(), "\n\n")
+            #print(reflectedRB.PolarizationMat())
+            
+            reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
+            # print(reflectedRB.PolarizationMat(), "\n\n")
 
-        # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos)# ============ Draw call
+            # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
+            #     DrawEllipse(mat, pos)# ============ Draw call
 
-        # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos, lColor="c")# ============ Draw call
+            # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
+            #     DrawEllipse(mat, pos, lColor="c")# ============ Draw call
 
-        # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
+            # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
+            #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
-        # print(refractedRB.PolarizedRadiance())
-        # print(reflectedRB.value.shape)
-        # print(tirRB.value.shape)
-        # print("\n")
+            # print(refractedRB.PolarizedRadiance())
+            # print(reflectedRB.value.shape)
+            # print(tirRB.value.shape)
+            # print("\n")
+            reflectedRB = reflectedRB.Merge(tirRB)
 
-        return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
+        return refractedRB, TIR, boolVig, reflectedRB
     
 
 

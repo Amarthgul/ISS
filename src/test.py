@@ -42,39 +42,51 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
 
     start = time.time()
 
-    # plt.ion()  # Turn on interactive mode
-    # fig, ax = plt.subplots()
-    # im = ax.imshow(ImageConversion(image))
     iterationCount = 0
+    REAL_TIME_UPDATE = True
+
+    perIterRays = 204800 
+    theroyIterNeededToCover = ((1920*1080) / (perIterRays * 3))
+    # print("Expect to cover in ", theroyIterNeededToCover, " iterations")
+    normalizer = iterationCount / theroyIterNeededToCover
+
+    if(REAL_TIME_UPDATE):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, normalizer=normalizer))
+
+    
 
     while(True):
-        #print("- Starting a new sample iteration")
+        normalizer = 1- iterationCount / theroyIterNeededToCover
+
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 40960)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), perIterRays)
 
         lens.SetIncidentRaybatch(mainRB)
 
-        mainRB, mainRP = lens.Propagate()
+        mainRB, mainRP, refractedRB = lens.Propagate()
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image)
 
-        
-        # im.set_data(ImageConversion(image))
-        # plt.draw()
-        # plt.pause(0.01)
+        if(REAL_TIME_UPDATE):
+            im.set_data(ImageConversion(image, normalizer=normalizer))
+            plt.draw()
+            plt.pause(0.01)
         
         #print(source.sampleRecord)
         elpased = time.time() - start
         imMin, imMax, imR = sourceImage.GetSampleRatios()
 
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
+        if(REAL_TIME_UPDATE):
+            print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR, "\t Normalizer: ", normalizer)
         iterationCount += 1
         
         if(imMin > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
+            imgSave = Image.fromarray(ImageConversion(image, normalizer=normalizer), 'RGB')
             imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
 
@@ -209,29 +221,31 @@ def main():
         350, 500, 800, 1500, 2500, 5000
     ]
 
-    lens = CanonFD50mmf18()
+    ISO12233Test()
+
+    #lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
 
     # for obj in objectDistance:
     #     for focus in bd.linspace(350, 1500, 20):
     #         SpotTesting(obj, focus, 128)
 
-    testRP = RayPath()
+    # testRP = RayPath()
 
-    sampleTar = CircularDistribution(zDepth=3) * bd.array([15, 15, 1])
-    testRB = EmitField(5, 0, distance=50, sampleTargets=sampleTar)
-    testRP.Append(testRB, None, None)
+    # sampleTar = CircularDistribution(zDepth=3) * bd.array([15, 15, 1])
+    # testRB = EmitField(5, 0, distance=50, sampleTargets=sampleTar)
+    # testRP.Append(testRB, None, None)
 
-    lens.SetIncidentRaybatch(testRB)
-    testRB, testRP, reflectedRB = lens.Propagate(True)
-    lens.DrawLens()
+    # lens.SetIncidentRaybatch(testRB)
+    # testRB, testRP, reflectedRB = lens.Propagate(True)
+    # lens.DrawLens()
 
-    testRP.DrawPath()
+    # testRP.DrawPath()
 
-    SetUnifScale(50)
-    #AddXYZ()
-    RemoveBG()
-    plt.show()
+    # SetUnifScale(50)
+    # #AddXYZ()
+    # RemoveBG()
+    # plt.show()
     
     
 

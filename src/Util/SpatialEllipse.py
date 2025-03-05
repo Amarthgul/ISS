@@ -1,8 +1,14 @@
 
 
+import matplotlib.pyplot as plt
+
 
 from Util.Backend import backend as bd 
-from Util.Globals import Axis
+from Util.Globals import Axis, ZERO, UP_DIR, HORI_DIR
+from Util.PltPlot import DrawClearBoundary
+
+
+
 
 
 
@@ -49,6 +55,22 @@ class SpatialEllipse():
         return self.center[Axis.Z.value]
 
 
+class SpatialCircle(SpatialEllipse):
+    """
+    Simplified version of the spatial ellipse.
+    """
+    def __init__(self, z, r):
+        self.ZCoord = bd.array(z)
+        self.radius = bd.array(r)
+
+        self.center = bd.array([ZERO, ZERO, self.ZCoord])
+        self.semiAxisDirU = bd.copy(UP_DIR)
+        self.semiAxisDirV = bd.copy(HORI_DIR)
+        self.semiAxisMagA = self.radius
+        self.semiAxisMagB = self.radius
+        
+
+
 
 def main():
 
@@ -61,6 +83,12 @@ def main():
                         bd.array([1, 0, 0]), 
                         bd.array([0, 1, 0]), 
                         15, 15)
+
+    C1 = SpatialCircle(0, 10)
+    C2 = SpatialCircle(10, 10)
+
+    DrawClearBoundary(C1, C2)
+    plt.show()
 
     print(E1.FacingDirection())
 

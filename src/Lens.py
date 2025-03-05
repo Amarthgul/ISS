@@ -7,16 +7,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance
+from Util.SpatialEllipse import SpatialCircle
+
 from Surfaces.Stop import Stop
 from Surfaces.Surface import Surface
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
+from Surfaces.ClearBoundary import ClearBoundary
+
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateEmpty
 from Raytracing.Raypath import RayPath
@@ -164,7 +169,7 @@ class Lens:
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
-        DrawRaybatch(reflectedRB, lLength=2)
+        # DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
 
 
         # self.rayPath.DrawPath(40)
@@ -283,6 +288,13 @@ class Lens:
 
                 # Deal with starting surface 
                 if(self.surfaces[s].isGroupTerminal and not self.surfaces[s].IsAirMaterial()):
+                    # C1 must be connected to the clear semi diameter of the surface 
+                    C1 = SpatialCircle(self.surfaces[s].frontVertex[Axis.Z.value], 
+                                       self.surfaces[s].clearSemiDiameter)
+
+                    if (self.surfaces[s].clearSemiDiameter < value):
+                        pass 
+
                     pass 
 
 

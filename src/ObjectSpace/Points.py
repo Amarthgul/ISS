@@ -219,10 +219,11 @@ class PointsSource:
         # This yields a (w*m*n', 7) array, prime sign means it's smaller than w*m*n since some of them are just dropped out 
         appended = bd.concatenate(appended, axis=0) 
         
-        temp = bd.ones(3)
+        temp = bd.ones(4)
         temp[0] = ONE    # Sagittal radiant
         temp[1] = ONE    # Tangential radiant
         temp[2] = INIT_PHASE_DIFF   # Phase difference 
+        temp[3] = bd.zeros_like(temp[3])  # Surface index 
 
         return RayBatch(
             bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)

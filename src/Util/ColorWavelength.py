@@ -12,7 +12,7 @@ import math
 from Util.Misc import NumpyConversion
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN
+from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN, NEAR_ZERO
 
 
 
@@ -250,11 +250,12 @@ def ColorTuplePLT(arrayRGB):
     return tuple(arrayRGB)
 
 
-def ImageConversion(ary, bitDepth=8, amplifier=1, rotate=True):
+def ImageConversion(ary, bitDepth=8, amplifier=1, normalizer=None, rotate=True):
     """
-    
+    Convert the float reprensentation of an image to a uint8 image.
     """
-    maxValue = bd.max(ary) * amplifier
+    maxValue = (bd.max(ary) if (normalizer is None) else normalizer) * amplifier + NEAR_ZERO
+
     #maxValue = 256
     bits = 2.0**bitDepth-1
     scaleRatio = (bits / maxValue) 
