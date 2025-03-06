@@ -127,6 +127,7 @@ class Surface:
         self._radiusDirection = self.frontVertex - self.radiusCenter
 
         if(self.radius == INFINITY):
+            # When r=inf, the cumulative thickness at the edge is the same as the cumulative thickness of the vertex. 
             self.sdCumulative = cumulativeT
         else:
             self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
@@ -204,12 +205,12 @@ class Surface:
 
     def IsAirMaterial(self):
         """
-        If this surface is followed by air as material
+        If this surface is followed by air as material. 
         """
         return self.material.name == "AIR"
 
         
-    def Intersection(self, incomingRaybatch):
+    def Intersection(self, incidentRaybatch):
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
 
@@ -219,9 +220,9 @@ class Surface:
         """
 
         if(self.radius == INFINITY):
-            return self._PlaneIntersection(incomingRaybatch)
+            return self._PlaneIntersection(incidentRaybatch)
         else:
-            return self._SphericalIntersection(incomingRaybatch)
+            return self._SphericalIntersection(incidentRaybatch)
         
 
     def Normal(self, intersections):

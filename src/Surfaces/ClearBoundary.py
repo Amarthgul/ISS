@@ -4,11 +4,15 @@ from enum import Enum
 import matplotlib.pyplot as plt
 
 
+from Raytracing.RayBatch import GenerateBeam
+from Raytracing.Reflection import Reflect
+from Raytracing.Refraction import Refract
 from Util.Backend import backend as bd 
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
-from Util.Misc import ArrayNormalized
-from Util.SpatialEllipse import SpatialEllipse
+from Util.Misc import ArrayNormalized, TransversalDistance
+from Util.Globals import OBJ_FACING, Axis
+from Util.SpatialEllipse import SpatialEllipse, SpatialCircle
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 
 
@@ -41,6 +45,10 @@ class ClearBoundary():
         self.exteriorCoating = None 
 
 
+        """When exterior coating are absent, this attributes are used to calculate the lose of radiance after reflection."""
+        self.absorption = 0.5 
+
+
         """Weight of [0, 1] that controls total diffuse and total mirror reflection. When set to 0, surface reflects as lambertian, when set to 1, reflects like mirror"""
         self.specularReflection = 0.5
 
@@ -50,44 +58,135 @@ class ClearBoundary():
         
 
 
-    def Intersection(self, incomingRaybatch):
-        pass 
+    def Intersection(self, incidentRaybatch):
+        """
+        Calculate the intersection points of all the rays in a raybatch, if any. 
 
+        :return: intersection points (n_, 3) and a boolean mask (n, ) indicating the rays that did intersect. 
+        """
 
-    def Normal(self, intersections):
-        pass 
-
-
-    def Trace(self, incidentRaybatch):
-        tempO = bd.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-        tempD = ArrayNormalized(bd.array([[0, 1, 1], [0, 1, 0.75], [0, 2, 0.8]]))
-        DrawDirection(tempO, tempD, lineLength=25)
-
-        print("Datas: ", "\nE1 z ", self.E1.ZCoord(), 
-            "\nE2 z ", self.E2.ZCoord(), 
-            "\nE1 r ", self.E1.SemiAxisMagnititude(), 
-            "\nE2 r ", self.E2.SemiAxisMagnititude())
+        origin = incidentRaybatch.Position() 
+        direction = incidentRaybatch.Direction()
         
-        # points, _bool = self._RayCircularFrustumIntersection(tempO, tempD, 
-        #                                           self.E1.ZCoord(), 
-        #                                           self.E2.ZCoord(), 
-        #                                           self.E1.SemiAxisMagnititude(), 
-        #                                           self.E2.SemiAxisMagnititude())
+        # Extract the parameters for easier access 
+        E1Z = self.E1.ZCoord()
+        E2Z = self.E2.ZCoord()
+        E1R = self.E1.SemiAxisMagnititude()
+        E2R = self.E2.SemiAxisMagnititude()
         
-        points, _bool = self._RayCylinderIntersection(tempO, tempD, 
+        if(E1Z == E2Z):
+            # When both circle have same Z, they are on the same plane, use the plane intersection.
+            # This method includes the outer raidus check  
+            points, _bool = self._PlaneIntersection(origin, direction, self.E1, self.E2)
+
+        elif(E1R == E2R):
+            # When both circle have same radius, they are a cylinder
+            points, _bool = self._RayCylinderIntersection(origin, direction, 
                                                   self.E1.ZCoord(), 
                                                   self.E2.ZCoord(),
                                                   self.E1.SemiAxisMagnititude())
-        
-        print(points, "\n", _bool)
+        else:
+            # If both check failed, then it's a circular frustum 
+            points, _bool = self._RayCircularFrustumIntersecCert(origin, direction,
+                                                  self.E1.ZCoord(), 
+                                                  self.E2.ZCoord(), 
+                                                  self.E1.SemiAxisMagnititude(), 
+                                                  self.E2.SemiAxisMagnititude())
 
-        DrawPoints(points)
+
+        return points, _bool
+
+
+    def Normal(self, intersections):
+
+
+        E1Z = self.E1.ZCoord()
+        E2Z = self.E2.ZCoord()
+        E1R = self.E1.SemiAxisMagnititude()
+        E2R = self.E2.SemiAxisMagnititude()
+
+
+        if (E1Z == E2Z):
+            # When the CB is in the plane perpendicular to the z axis.
+            return bd.tile(OBJ_FACING, (intersections.shape[0], 1))
+        elif (E1R == E2R):
+            # When the CB is a cylinder
+            pointingDir = ArrayNormalized(self.E1.center - intersections)
+            pointingDir[:, Axis.Z.value] = 0
+            return pointingDir
+        else:
+            if(E1Z > E2Z):
+                E1Z, E2Z = E2Z, E1Z
+            return self._ComputeFrustumNormals(intersections, E1R, E2R,  E2Z, E1Z)
+
+        
+
+
+    def Trace(self, incidentRaybatch):
+
+        intersections, _mask = self.Intersection(incidentRaybatch)
+
+        normals = self.Normal(intersections)
+
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])
+
+        print(normals)
+
+        DrawDirection(intersections, normals)
+        DrawPoints(intersections)
+
         
 
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _ComputeFrustumNormals(self, points, r1, r2, z1, z2, epsilon=1e-6):
+        """
+        Compute normals for points on a circular frustum (GPU-accelerated).
+        
+        :param points: (N, 3) intersection points on the frustum. 
+        :param r1
+        :param r2: 
+        :param z1:
+        :param z2:
+            
+        :return: (N, 3) array of unit normals
+        """
+
+        x, y, z = points[:, 0], points[:, 1], points[:, 2]
+        r_actual = bd.sqrt(x**2 + y**2)
+        normals = bd.zeros_like(points)
+        
+        # Bottom cap
+        bottom_mask = bd.abs(z - z2) < epsilon
+        bottom_mask &= (r_actual <= r1 + epsilon)
+        normals[bottom_mask] = [0, 0, -1]
+        
+        # Top cap
+        top_mask = bd.abs(z - z1) < epsilon
+        top_mask &= (r_actual <= r2 + epsilon)
+        normals[top_mask] = [0, 0, 1]
+        
+        # Lateral surface
+        lateral_mask = ~(bottom_mask | top_mask)
+        h = z1 - z2
+        m = (r2 - r1) / h  # Slope of the lateral surface
+        
+        # Compute radius at each z-height
+        z_rel = z[lateral_mask] - z2
+        r_z = r1 + m * z_rel
+        
+        # Compute unnormalized normals (derived from surface gradient)
+        x_lat, y_lat = x[lateral_mask], y[lateral_mask]
+        N_unnorm = bd.column_stack([x_lat, y_lat, -m * r_z])
+        
+        # Normalize vectors
+        norms = bd.linalg.norm(N_unnorm, axis=1, keepdims=True)
+        normals[lateral_mask] = N_unnorm / norms
+        
+        return normals
 
 
     def _RayFrustumIntersection(self, ray_origin, ray_dir, z1, z2, xc, yc, a1, b1, a2, b2):
@@ -96,6 +195,8 @@ class ClearBoundary():
         Depreciated. 
         This is for truely elliptical frustum. While technically possible, this is a very rare case of clear boundary. This method is also incredibly costly due to the useage of Newton method. For these reasons, try not to ever invoke it. 
         """
+        # What the fuck
+
         from scipy.optimize import newton
 
         # Check if ray intersects the z-range [z1, z2]
@@ -131,7 +232,7 @@ class ClearBoundary():
             return False, []
 
 
-    def _RayCircularFrustumIntersection(self, rayPos, rayDir, z1, z2, r1, r2, eps=1e-8):
+    def _RayCircularFrustumIntersectionStrict(self, rayPos, rayDir, z1, z2, r1, r2, eps=1e-8):
         """
         Compute the intersection coordinates between rays and a conical frustum.
         
@@ -272,7 +373,7 @@ class ClearBoundary():
 
     def _RayCylinderIntersection(self, rayPos, rayDir, z1, z2, r):
         """
-        This method assumes the clear boundary is a cylinder on the z axis with radius r. 
+        This method assumes the clear boundary is a cylinder on the longitudinal z axis direction with radius r. 
         """
         # Component decomposition
         ox, oy, oz = rayPos[:, 0], rayPos[:, 1], rayPos[:, 2]
@@ -343,23 +444,68 @@ class ClearBoundary():
         return all_coords, intersectMask
         
 
+    def _PlaneIntersection(self, rayPos, rayDir, E1, E2, axis=OBJ_FACING):
+        """
+        This method is for when the clear boundary is in a plane perpendicular to the z axis.
+        """
+
+        frontVertex = E1.center if (E1.center[Axis.Z.value] < E2.center[Axis.Z.value]) else E2.center
+
+        E1R = E1.SemiAxisMagnititude()
+        E2R = E2.SemiAxisMagnititude()
+        outerRadius = E1R if (E1R > E2R) else E2R
+
+        # innerRadius = E1R if (E1R < E2R) else E2R
+
+        denom = bd.dot(rayDir, axis)
+        
+        # Avoid division by zero for parallel vectors
+        mainMask = bd.isclose(denom, 0)
+        
+        # Compute t for each vector
+        t = bd.dot((frontVertex - rayPos), axis) / denom
+        t[mainMask] = bd.nan  # Assign NaN for parallel vectors
+        
+        # Compute the intersection points
+        intersections = rayPos + t[:, bd.newaxis] * rayDir
+
+        # Calculate the bool mask for valid intersections within the clear bounday. 
+        # Note that the inner raidus should already be used during propagation, no ray should be arriving at the inner radius region. 
+        fsMask = (TransversalDistance(intersections) < outerRadius).reshape(-1)
+
+        mainMask[~mainMask] = fsMask
+
+        return intersections[fsMask], mainMask
+    
+
+
 
 def main():
 
-    E1 = SpatialEllipse(bd.array([0, 0, 5]), 
-                        bd.array([1, 0, 0]),
-                        bd.array([0, 1, 0]), 
-                        15, 15)
-    
-    E2 = SpatialEllipse(bd.array([0, 0, 5]), 
-                        bd.array([1, 0, 0]), 
-                        bd.array([0, 1, 0]), 
-                        30, 30)
+    temp = bd.array([0, 0, 0])
 
-    testCB = ClearBoundary(E1, E2)
+    testRB = GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.75, 1]))
+    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.55, 1])))
+    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.25, 1])))
 
-    testCB.DrawSurface()
-    #testCB.Trace(None)
+    E0 = SpatialCircle(0,   20)
+    E1 = SpatialCircle(10,  20)
+    E2 = SpatialCircle(20,  10)
+    E3 = SpatialCircle(20,  3)
+
+    testCBLL = ClearBoundary(E0, E1) # cylinder 
+    testCBL = ClearBoundary(E1, E2)  # Frustum 
+    testCBT = ClearBoundary(E2, E3)  # Plane 
+
+    pointsLL = testCBLL.Trace(testRB)
+    pointsL = testCBL.Trace(testRB)
+    pointsT = testCBT.Trace(testRB)
+
+    testCBLL.DrawSurface()
+    testCBL.DrawSurface()
+    testCBT.DrawSurface()
+
+    DrawRaybatch(testRB)
 
     
     SetUnifScale(50)

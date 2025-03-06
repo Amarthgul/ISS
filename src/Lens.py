@@ -138,13 +138,13 @@ class Lens:
         self.rayBatch = raybatch
 
 
-    def Propagate(self, recordPath = False):
+    def Propagate(self, recordPath = False, reflection = False):
         """
         Propagate the raybatch through the lens. 
 
         :param recordPath: when enabled, all paths of rays will be recorded. For production use, turn this off to avoid unnecessary memory usage. 
 
-
+        :return: primary imaging RB, ray path if recorded, and the reflected RB. 
         """
 
         
@@ -161,7 +161,7 @@ class Lens:
                 self.rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     self.rayBatch, 
                     self._FindPreviousRI(i, self.rayBatch), 
-                    reflection = False)
+                    reflection = reflection)
                 
                 reflectedRB.Merge(_reflectedRB)
 
@@ -377,7 +377,6 @@ class Lens:
                     C1 = SpatialCircle(self.surfaces[i-1].sdCumulative, self.surfaces[i-1].clearSemiDiameter)
                     C2 = SpatialCircle(self.surfaces[i].sdCumulative, self.surfaces[i].clearSemiDiameter)
                     self.surfaces[i].clearBoundaryT = ClearBoundary(C1, C2)
-
 
 
     def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):

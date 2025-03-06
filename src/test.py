@@ -58,7 +58,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
 
         lens.SetIncidentRaybatch(mainRB)
 
-        mainRB, mainRP, refractedRB = lens.Propagate()
+        mainRB, mainRP, reflectedRB = lens.Propagate()
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)

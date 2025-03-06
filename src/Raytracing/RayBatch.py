@@ -1,9 +1,11 @@
 
 
+
+
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, LambdaLines
-
+from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines
+from Util.Misc import Normalized
 
 class RayBatch:
     """
@@ -178,7 +180,28 @@ def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    # 4th term in temp is the durface index 
+    
+    return RayBatch(
+        bd.concatenate([pos, bd.tile(temp, (size, 1))], axis=1)
+    ) 
+
+
+def GenerateBeam(position, direction, size=16, wavelength=LambdaLines['D']):
+    """
+    Generate a light beam, i.e., a group of rays with the same position and direction.
+    """
+    direction = Normalized(direction)
+    pos = bd.concatenate([position, direction], axis=0)
+    pos = bd.tile(pos, (size, 1))
+    temp = bd.zeros(5)
+
+    temp[0] = wavelength
+    temp[1] = NORMAL_RADIANT    # Sagittal radiant
+    temp[2] = NORMAL_RADIANT    # Tangential radiant
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    # 4th term in temp is the durface index 
     
     return RayBatch(
         bd.concatenate([pos, bd.tile(temp, (size, 1))], axis=1)

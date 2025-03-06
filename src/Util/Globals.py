@@ -39,7 +39,7 @@ NORMAL_RADIANT = bd.sqrt(.5)
 
 
 # initial phase difference for the two directions of radiant 
-INIT_PHASE_DIFF = 0
+INIT_ELLIPSE_TILT = 0
 
 
 # The threashold by which a raybatch will no longer propagate 

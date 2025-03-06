@@ -6,7 +6,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
 from Util.PltPlot import DrawDirection
-from Util.Globals import ONE, INIT_PHASE_DIFF, FAR_DISTANCE
+from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE
 from Raytracing.RayBatch import RayBatch
 
 
@@ -222,7 +222,7 @@ class PointsSource:
         temp = bd.ones(4)
         temp[0] = ONE    # Sagittal radiant
         temp[1] = ONE    # Tangential radiant
-        temp[2] = INIT_PHASE_DIFF   # Phase difference 
+        temp[2] = INIT_ELLIPSE_TILT   # Phase difference 
         temp[3] = bd.zeros_like(temp[3])  # Surface index 
 
         return RayBatch(

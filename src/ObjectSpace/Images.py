@@ -10,7 +10,7 @@ else:
     from ObjectSpace.Points import PointsSource
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO, INIT_PHASE_DIFF, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
+from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
 from Util.Misc import Magnitude, ArrayRotate
 from Raytracing.RayBatch import RayBatch

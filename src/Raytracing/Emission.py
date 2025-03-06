@@ -19,7 +19,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Sampling import RandomEllipticalDistribution, CircularDistribution
 from Util.Misc import Normalized, ArrayNormalized, angleBetweenVectors, Rotate, Translate, CartesianToPolar
-from Util.Globals import NORMAL_RADIANT, INIT_PHASE_DIFF, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY
+from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY
 
 from Util.PltPlot import DrawRaybatch
 
@@ -186,7 +186,7 @@ def InitRays(r, sd, posP, wavelength = 550):
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
     mat2 = bd.tile(temp, (vecs.shape[0], 1))
     mat = bd.hstack((bd.hstack((mat1, vecs)), mat2))
 
@@ -316,7 +316,7 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['d'], planar=Tr
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
     
     return RayBatch(
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
@@ -363,7 +363,7 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
     temp[0] = wavelength
     temp[1] = ONE    # Sagittal radiant
     temp[2] = ONE    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
     
     return RayBatch(
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
@@ -429,7 +429,7 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
     
     return RayBatch(
         bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)
@@ -451,7 +451,7 @@ def EmitFromPointFullFrontal(emissionPoint, numRays=20, wavelength = LambdaLines
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT    # Sagittal radiant
     temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_PHASE_DIFF   # Phase difference 
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
     
     return RayBatch(
         bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)

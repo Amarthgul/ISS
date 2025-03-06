@@ -55,20 +55,20 @@ class SpatialEllipse():
         return self.center[Axis.Z.value]
 
 
+
 class SpatialCircle(SpatialEllipse):
     """
     Simplified version of the spatial ellipse.
     """
     def __init__(self, z, r):
-        self.ZCoord = bd.array(z)
         self.radius = bd.array(r)
-
-        self.center = bd.array([ZERO, ZERO, self.ZCoord])
+        self.center = bd.array([ZERO, ZERO, bd.array(z)])
         self.semiAxisDirU = bd.copy(UP_DIR)
         self.semiAxisDirV = bd.copy(HORI_DIR)
         self.semiAxisMagA = self.radius
         self.semiAxisMagB = self.radius
         
+        self.isCircular = True
 
 
 
