@@ -16,16 +16,13 @@ from Raytracing.Emission import EmitField
 from Raytracing.Raypath import RayPath
 
 
-def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
+def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
 
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
-    lens = Biotar50mmf14()
-    #lens.SetAperture(22)
-
-    source = PointsSource()
-    source.isCartesian = False
-    source.GenerateSpots(19, 12)
+    # source = PointsSource()
+    # source.isCartesian = False
+    # source.GenerateSpots(19, 12)
 
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
     # Assemble the imaging system 
@@ -43,14 +40,10 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
     start = time.time()
 
     iterationCount = 0
-    REAL_TIME_UPDATE = True
 
-    perIterRays = 204800 
-    theroyIterNeededToCover = ((1920*1080) / (perIterRays * 3))
-    # print("Expect to cover in ", theroyIterNeededToCover, " iterations")
-    normalizer = iterationCount / theroyIterNeededToCover
+    perIterRays = 60000
 
-    if(REAL_TIME_UPDATE):
+    if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
         fig, ax = plt.subplots()
         im = ax.imshow(ImageConversion(image, normalizer=normalizer))
@@ -58,7 +51,7 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
     
 
     while(True):
-        normalizer = 1- iterationCount / theroyIterNeededToCover
+        normalizer = iterationCount + 10
 
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), perIterRays)
@@ -72,7 +65,7 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
 
         image = imager.IntegralRays(mainRB, baseImg=image)
 
-        if(REAL_TIME_UPDATE):
+        if(realTimeUpdate):
             im.set_data(ImageConversion(image, normalizer=normalizer))
             plt.draw()
             plt.pause(0.01)
@@ -81,13 +74,13 @@ def ISO12233Test(imageDistance = 200000, imageMinSample = 320):
         elpased = time.time() - start
         imMin, imMax, imR = sourceImage.GetSampleRatios()
 
-        if(REAL_TIME_UPDATE):
-            print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR, "\t Normalizer: ", normalizer)
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR, "\t Normalizer: ", normalizer)
+
         iterationCount += 1
         
-        if(imMin > imageMinSample):
+        if(iterationCount > imageMinSample):
             imgSave = Image.fromarray(ImageConversion(image, normalizer=normalizer), 'RGB')
-            imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
+            imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
 
     return elpased 
@@ -214,14 +207,12 @@ def main():
     ]
 
     objectDistance = [
-        500, 800, 1200, 1500, 5000, 100000
+        450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
 
-    focusDistance = [
-        350, 500, 800, 1500, 2500, 5000
-    ]
-
-    ISO12233Test()
+    lens = Biotar50mmf14()
+    for o in objectDistance:
+        ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
 
     #lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)

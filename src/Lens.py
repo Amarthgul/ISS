@@ -147,9 +147,9 @@ class Lens:
 
         """
 
-
-        self.rayPath = RayPath()
+        
         if(recordPath):
+            self.rayPath = RayPath()
             self.rayPath.Append(self.rayBatch, None, None)
 
         reflectedRB = RayBatch()
@@ -160,7 +160,8 @@ class Lens:
             if not isinstance(self.surfaces[i], Stop):
                 self.rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     self.rayBatch, 
-                    self._FindPreviousRI(i, self.rayBatch))
+                    self._FindPreviousRI(i, self.rayBatch), 
+                    reflection = False)
                 
                 reflectedRB.Merge(_reflectedRB)
 
@@ -286,23 +287,80 @@ class Lens:
             for s in self.groups[key]:
                 # Iterate through the surfaces in the group 
 
-                # Deal with starting surface 
-                if(self.surfaces[s].isGroupTerminal and not self.surfaces[s].IsAirMaterial()):
-                    # C1 must be connected to the clear semi diameter of the surface 
-                    C1 = SpatialCircle(self.surfaces[s].frontVertex[Axis.Z.value], 
+                # ============ Deal with the first surface (of a group) ============
+                if(s == self.groups[key][0]):
+                    # C1 must be connected to the clear semi diameter of this surface 
+                    C1 = SpatialCircle(self.surfaces[s].sdCumulative, 
                                        self.surfaces[s].clearSemiDiameter)
 
+                    # For lens groups, the first surface typically have SD smaller than the group max SD, such as the first group after the stop in a Planar setup 
                     if (self.surfaces[s].clearSemiDiameter < value):
-                        pass 
 
-                    pass 
+                        # Check if there are surfaces after 
+                        if(len(self.groups[key]) >= 2):
+                            # There must be a border at the next surface's SD z position 
+                            C3 = SpatialCircle(self.surfaces[s+1].sdCumulative, value)
+                            
+                            sdDifference = value - self.surfaces[s].clearSemiDiameter
+                            sdzDifference = self.surfaces[s+1].sdCumulative - self.surfaces[s].sdCumulative
+
+                            if(sdzDifference > sdDifference):
+                                C2 = SpatialCircle(
+                                    self.surfaces[s].sdCumulative + sdDifference, value)
+                            else:
+                                C2 = SpatialCircle(
+                                    self.surfaces[s].sdCumulative,
+                                    self.surfaces[s+1].clearSemiDiameter-sdzDifference
+                                )
+                            self.surfaces[s+1].clearBoundaryT = ClearBoundary(C1, C2)
+                            self.surfaces[s+1].clearBoundaryL = ClearBoundary(C2, C3)
+
+                    else:
+                        # This else is only possible when the SD of this surface is equal to the group max SD. So check if next surface exist and use its SD z position.
+                        if(len(self.groups[key]) >= 2):
+                            C2 = SpatialCircle(self.surfaces[s+1].sdCumulative, value) 
+                            self.surfaces[s+1].clearBoundaryL = ClearBoundary(C1, C2)
 
 
-                # Deal with ending surface 
-                if(self.surfaces[s].isGroupTerminal and self.surfaces[s].IsAirMaterial()):
-                    pass
+                # ============ Deal with the last surface (of a group) =============
+                if(s == self.groups[key][-1]):
+                    # C3 must be connected to the clear semi diameter of this surface
+                    C3 = SpatialCircle(self.surfaces[s].sdCumulative, 
+                                       self.surfaces[s].clearSemiDiameter)
+                    
+                    if (self.surfaces[s].clearSemiDiameter < value):
 
-                # Deal with middle surface, if any 
+                        # Check if there are surfaces before  
+                        if(len(self.groups[key]) >= 2):
+                            C1 = SpatialCircle(self.surfaces[s-1].sdCumulative, value)
+
+                            sdDifference = value - self.surfaces[s].clearSemiDiameter
+                            sdzDifference = self.surfaces[s].sdCumulative - self.surfaces[s-1].sdCumulative
+
+                            if(sdzDifference > sdDifference):
+                                C2 = SpatialCircle(
+                                    self.surfaces[s].sdCumulative - sdDifference, value)
+                            else:
+                                C2 = SpatialCircle(
+                                    self.surfaces[s].sdCumulative,
+                                    self.surfaces[s-1].clearSemiDiameter-sdzDifference
+                                )
+
+                            # Last surface might already have boundaries created when processing previous surfaces, but the coverage may not be correct. 
+                            if(self.surfaces[s].clearBoundaryT == None or self.surfaces[s].clearBoundaryL == None):
+                                self.surfaces[s].clearBoundaryL = ClearBoundary(C1, C2)
+                                self.surfaces[s].clearBoundaryT = ClearBoundary(C2, C3)
+
+                    else:
+                        # This else is only possible when the SD of this surface is equal to the group max SD. But being the last surface, it might also happen that the previous surface already created a boundary for it. 
+
+                        if (self.surfaces[s].clearBoundaryL == None):
+                            C2 = SpatialCircle(self.surfaces[s-1].sdCumulative, value)
+
+                            self.surfaces[s].clearBoundaryL = ClearBoundary(C2, C3) 
+
+
+                # ================ Deal with middle surface, if any ================
                 else: 
                     pass 
 
@@ -310,6 +368,15 @@ class Lens:
                 if(self.surfaces[s].clearSemiDiameter < value):
                     pass 
                     
+        # Second pass enforce the surface with disableBoundaryL set 
+        for i in range(len(self.surfaces)):
+            if not isinstance(self.surfaces[i], Stop):
+                if(self.surfaces[i].disableBoundaryL):
+                    # Remove the Longitudinal clear boundary 
+                    self.surfaces[i].clearBoundaryL = None
+                    C1 = SpatialCircle(self.surfaces[i-1].sdCumulative, self.surfaces[i-1].clearSemiDiameter)
+                    C2 = SpatialCircle(self.surfaces[i].sdCumulative, self.surfaces[i].clearSemiDiameter)
+                    self.surfaces[i].clearBoundaryT = ClearBoundary(C1, C2)
 
 
 

@@ -13,7 +13,7 @@ from numpy.linalg import norm
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE, Axis
+from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE, Axis, THETA_DIV
 from Util.ColorWavelength import ColorTuplePLT
 
 
@@ -235,7 +235,7 @@ def DrawDirection(position, direction, lineColor='green', lineLength=5, arrowRat
               color=lineColor) 
 
         
-def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20, surfaceColor = "k", opacity=0.1,  ax=AX):
+def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = THETA_DIV, surfaceColor = "k", opacity=0.1,  ax=AX):
     """
     Draw a spherical surface along the z axis. 
     
@@ -271,7 +271,7 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = 20
     ax.plot_surface(x, y, z, color = surfaceColor, alpha =opacity)
 
 
-def DrawDisk(radius, z_height = 2, num_points = 100 ,surfaceColor = "b",  ax=AX):
+def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=AX):
     CheckAX()
 
     # Parametric equation for the disk
@@ -310,7 +310,7 @@ def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):
         omega = bd.arccos(dot)
         return (bd.sin((1 - t) * omega) / bd.sin(omega)) * v1 + (bd.sin(t * omega) / bd.sin(omega)) * v2
     
-    def _FrustumBetweenEllipses(C1, u1, v1, a1, b1, C2, u2, v2, a2, b2, theta_res=20, t_res=5):
+    def _FrustumBetweenEllipses(C1, u1, v1, a1, b1, C2, u2, v2, a2, b2, theta_res=THETA_DIV, t_res=5):
         # Interpolate centers
         t_values = bd.linspace(0, 1, t_res)
         centers = (1 - t_values[:, None]) * C1 + t_values[:, None] * C2
@@ -369,7 +369,7 @@ def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
 
 
-def DrawEllipse(Q, center, num_points=64, lColor="c", lWidth=.35, ax=AX):
+def DrawEllipse(Q, center, num_points=THETA_DIV, lColor="c", lWidth=.35, ax=AX):
     """
     Plots a 3D ellipse along the xy-plane at a given z-depth.
 

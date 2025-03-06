@@ -157,3 +157,18 @@ def RefreshRNG():
     """Refresh the RNG with a new seed generated using itself"""
     newSeed = int(bd.random.random_integers(1))
     RNG = bd.random.default_rng(seed = newSeed)
+
+
+
+# ==================================================================
+""" ========================== Displays ======================== """
+# ==================================================================
+
+SURFACE_COLOR = (0.149, 0.388, 0.722)
+
+
+BOUNDARY_COLOR = (0.459, 0.459, 0.459)
+
+
+THETA_DIV = 16
+

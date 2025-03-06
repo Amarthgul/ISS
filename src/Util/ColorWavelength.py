@@ -254,15 +254,16 @@ def ImageConversion(ary, bitDepth=8, amplifier=1, normalizer=None, rotate=True):
     """
     Convert the float reprensentation of an image to a uint8 image.
     """
-    maxValue = (bd.max(ary) if (normalizer is None) else normalizer) * amplifier + NEAR_ZERO
+    # print(bd.max(ary))
+    maxValue = bd.max(ary) * amplifier 
 
     #maxValue = 256
     bits = 2.0**bitDepth-1
-    scaleRatio = (bits / maxValue) 
+    scaleRatio = bits / (maxValue if (normalizer is None) else normalizer + NEAR_ZERO)
     ary = bd.clip(ary*scaleRatio, 0, bits) 
 
     if(rotate):
-        ary  =bd.rot90(ary)
+        ary = bd.rot90(ary)
 
     return NumpyConversion(ary).astype(bd.uint8)
 

@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False 
 
 
 class Example():
@@ -210,10 +210,14 @@ def _ZeissHologon15mmf8Data():
     lens.AddSurface(Surface(11.64,	    7.9785,     11,     "FD60"))
     lens.AddSurface(Surface(3.843,	    2.703,      3.5))
     lens.AddSurface(Surface(5.6685,	    4.1685,     3.5,     "H-LAK7"))
-    lens.AddSurface(Surface(INFINITY,	0,          0.75))
+    _temp =         Surface(INFINITY,	0,          0.75)
+    _temp.disableBoundaryL = True
+    lens.AddSurface(_temp)
     lens.AddSurface(Stop(               0))
     lens.AddSurface(Surface(INFINITY,	3.48,       0.75,     "H-LAK7"))
-    lens.AddSurface(Surface(-5.508,	    2.4045,     3.5))
+    _temp =         Surface(-5.508,	    2.4045,     3.5)
+    _temp.disableBoundaryL = True
+    lens.AddSurface(_temp)
     lens.AddSurface(Surface(-3.6285,	5.2365,     3.5,      "FD60"))
     lens.AddSurface(Surface(-8.9835,	4.2686,     8))
 
@@ -259,8 +263,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = Helios58mmf2()
-    exampleLens.fNumber = 8
+    exampleLens = Biotar50mmf14()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
@@ -269,7 +272,7 @@ def main():
 
     exampleLens.DrawLens()
     # exampleLens.entrancePupil.DrawSamplePoints()
-    #exampleLens.entrancePupil.DrawSurface()
+    # exampleLens.entrancePupil.DrawSurface()
     # exampleLens.frontPincipalPlane.DrawSamplePoints()
     
     plt.show()

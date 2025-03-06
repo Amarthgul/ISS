@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
-from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
@@ -71,6 +71,9 @@ class Surface:
         self.clearBoundaryT = None 
         # This could be assigned during lens update, if needed 
 
+        """This flag makes the surface clear boundary to directly connects to the previsous one's semi diameter edge. Effectively removing Longitudinal CB abd leaving only the Tangential one"""
+        self.disableBoundaryL = False
+
 
         """Whether this surface share the same optical axis as the lens"""
         self.IsOnAxis = True
@@ -123,7 +126,10 @@ class Surface:
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])  
         self._radiusDirection = self.frontVertex - self.radiusCenter
 
-        self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+        if(self.radius == INFINITY):
+            self.sdCumulative = cumulativeT
+        else:
+            self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
 
 
     def SetVertices(self, frontVtx, radiusVtx):
@@ -162,14 +168,15 @@ class Surface:
         DrawSpherical(
             self.radius,
             self.clearSemiDiameter,
-            self.cumulativeThickness
+            self.cumulativeThickness, 
+            surfaceColor=SURFACE_COLOR,
             )
         
         if(self.clearBoundaryL is not None):
-            DrawClearBoundary(self.clearBoundaryL.E1, self.clearBoundaryL.E2)
+            DrawClearBoundary(self.clearBoundaryL.E1, self.clearBoundaryL.E2, surfaceColor=BOUNDARY_COLOR, opacity=0.05)
 
         if(self.clearBoundaryT is not None):
-            DrawClearBoundary(self.clearBoundaryT.E1, self.clearBoundaryT.E2) 
+            DrawClearBoundary(self.clearBoundaryT.E1, self.clearBoundaryT.E2, surfaceColor=BOUNDARY_COLOR, opacity=0.05) 
 
 
     def zRange(self):
@@ -199,7 +206,7 @@ class Surface:
         """
         If this surface is followed by air as material
         """
-        return self.material.name is "AIR"
+        return self.material.name == "AIR"
 
         
     def Intersection(self, incomingRaybatch):
