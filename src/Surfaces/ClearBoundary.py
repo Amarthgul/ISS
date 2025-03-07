@@ -4,6 +4,7 @@ from enum import Enum
 import matplotlib.pyplot as plt
 
 
+from Material import Material
 from Raytracing.RayBatch import GenerateBeam
 from Raytracing.Reflection import Reflect
 from Raytracing.Refraction import Refract
@@ -37,12 +38,8 @@ class ClearBoundary():
         self.E2 = E2
 
 
-        """When the 2 ends are both on aixs circle with the same radius, this clear bounardy becomes a cylinder, which could simplify calculation significantly. """
-        self.isCylindrical = False
-
-
         """Describes the material at the other side. When set to None, treat it as Air; it can also be set to a constant float that represents IOR; alternatively it could be a material class."""
-        self.exteriorCoating = None 
+        self.exteriorCoating = Material() 
 
 
         """When exterior coating are absent, this attributes are used to calculate the lose of radiance after reflection."""
@@ -56,6 +53,12 @@ class ClearBoundary():
     def DrawSurface(self):
         DrawClearBoundary(self.E1, self.E2)
         
+
+    def isCylindrical(self):
+        """
+        When the 2 ends are both on aixs circle with the same radius, this clear bounardy becomes a cylinder, which could simplify calculation significantly. 
+        """
+        return self.E1.SemiAxisMagnititude() == self.E2.SemiAxisMagnititude
 
 
     def Intersection(self, incidentRaybatch):
@@ -87,7 +90,7 @@ class ClearBoundary():
                                                   self.E1.SemiAxisMagnititude())
         else:
             # If both check failed, then it's a circular frustum 
-            points, _bool = self._RayCircularFrustumIntersecCert(origin, direction,
+            points, _bool = self._RayCircularFrustumIntersect(origin, direction,
                                                   self.E1.ZCoord(), 
                                                   self.E2.ZCoord(), 
                                                   self.E1.SemiAxisMagnititude(), 
@@ -98,7 +101,9 @@ class ClearBoundary():
 
 
     def Normal(self, intersections):
-
+        """
+        Given intersection points, calculate the normal vectors at those points, assuming the points are on the surface. 
+        """
 
         E1Z = self.E1.ZCoord()
         E2Z = self.E2.ZCoord()
@@ -120,18 +125,40 @@ class ClearBoundary():
             return self._ComputeFrustumNormals(intersections, E1R, E2R,  E2Z, E1Z)
 
         
+    def Trace(self, incidentRaybatch, previousRI, inverted=False):
+        """
+        A clear boundary still calculates refraction, but it is only for Frensnel reflectance and not for ray propagation.
+        """
 
-
-    def Trace(self, incidentRaybatch):
+        E1R = self.E1.SemiAxisMagnititude()
+        E2R = self.E2.SemiAxisMagnititude()
 
         intersections, _mask = self.Intersection(incidentRaybatch)
 
         normals = self.Normal(intersections)
+        directions = incidentRaybatch.Direction()[_mask]
 
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])
+        # Correct normal direction if needed 
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[_mask]
+        if (E1R != E2R):
+            normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+
+        # Accquire the index of refractions (resp. wavelength)
+        n1 = self.exteriorCoating.RI(incidentRaybatch.Wavelength()[_mask])
+        n2 = previousRI[_mask]
+        # If the ray hits from the behind, RI needs to be swapped 
+        if(inverted):
+            n1, n2 = n2, n1 
+
+        refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+
+
+
+        mirrorReflection = Reflect(incidentRaybatch.Direction()[_mask], normals)
 
         print(normals)
 
+        DrawDirection(intersections, mirrorReflection, lineColor='r')
         DrawDirection(intersections, normals)
         DrawPoints(intersections)
 
@@ -141,6 +168,7 @@ class ClearBoundary():
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
 
     def _ComputeFrustumNormals(self, points, r1, r2, z1, z2, epsilon=1e-6):
         """
@@ -186,7 +214,7 @@ class ClearBoundary():
         norms = bd.linalg.norm(N_unnorm, axis=1, keepdims=True)
         normals[lateral_mask] = N_unnorm / norms
         
-        return normals
+        return -normals
 
 
     def _RayFrustumIntersection(self, ray_origin, ray_dir, z1, z2, xc, yc, a1, b1, a2, b2):
@@ -319,7 +347,7 @@ class ClearBoundary():
         return intersections, intersects
     
 
-    def _RayCircularFrustumIntersecCert(self, rayPos, rayDir, z1, z2, r1, r2):
+    def _RayCircularFrustumIntersect(self, rayPos, rayDir, z1, z2, r1, r2):
         """
         Compute the intersection coordinates between rays and a conical frustum, assuming that every incident ray will intersect the frustum.
         
@@ -327,8 +355,8 @@ class ClearBoundary():
         :param rayDir (ndarray): (N,3) array of ray directions.
         :param z1: (float) z-coordinates of the 1st circle.
         :param z2: (float) z-coordinates of the 2nd circle.
-        :param r1: (float) Radii at z1.
-        :param r2: (float) Radii at z2.
+        :param r1: (float) Radius at z1.
+        :param r2: (float) Radius at z2.
         
         :return: an intersections (ndarray): (N,3) array of intersection coordinates and intersects (ndarray): (N,) boolean array (all True).
         """
@@ -336,38 +364,50 @@ class ClearBoundary():
         # For each ray, compute the t-values where the ray crosses the z boundaries.
         oz = rayPos[:, 2]
         dz = rayDir[:, 2]
-        # Compute t-values at z=z1 and z=z2.
+        
+        # Compute t-values for z boundaries
         t_min = (z1 - oz) / dz
         t_max = (z2 - oz) / dz
-        # Ensure t_min is the smaller value.
         swap = t_min > t_max
         t_min[swap], t_max[swap] = t_max[swap], t_min[swap]
         
-        # Slope of the frustum's lateral surface.
         k = (r2 - r1) / (z2 - z1)
         
-        # Formulate the quadratic equation for the ray's XY projection:
-        #   A t^2 + B t + C = 0,
+        # Quadratic coefficients
         A = rayDir[:, 0]**2 + rayDir[:, 1]**2 - (k * rayDir[:, 2])**2
-        B = 2 * (rayPos[:, 0] * rayDir[:, 0] + rayPos[:, 1] * rayDir[:, 1]) - \
-            2 * k * rayDir[:, 2] * (r1 + k * (oz - z1))
+        B = 2 * (rayPos[:, 0] * rayDir[:, 0] + rayPos[:, 1] * rayDir[:, 1]) - 2 * k * rayDir[:, 2] * (r1 + k * (oz - z1))
         C = rayPos[:, 0]**2 + rayPos[:, 1]**2 - (r1 + k * (oz - z1))**2
         
-        # Compute the discriminant (assumed nonnegative)
-        disc = bd.sqrt(B**2 - 4 * A * C)
+        # Define masks
+        epsilon = 1e-12
+        linear_mask = bd.abs(A) < epsilon  # Mask for linear case (A ≈ 0)
+        quad_mask = ~linear_mask            # Mask for quadratic case (A ≠ 0)
         
-        # Compute the two solutions t1 and t2.
-        t1 = (-B - disc) / (2 * A)
-        t2 = (-B + disc) / (2 * A)
+        # Initialize t_candidate with infinity
+        t_candidate = bd.full(A.shape, bd.inf)
         
-        # Select the smallest positive t-value.
-        t_candidate = bd.minimum(bd.where(t1 >= 0, t1, bd.inf),
-                                bd.where(t2 >= 0, t2, bd.inf))
+        # --- Solve for linear case (A ≈ 0) ---
+        B_linear = B[linear_mask]
+        C_linear = C[linear_mask]
+        t_linear = -C_linear / B_linear  # Solve Bt + C = 0
+        t_candidate[linear_mask] = t_linear
         
-        # Compute intersection coordinates.
+        # --- Solve for quadratic case (A ≠ 0) ---
+        A_quad = A[quad_mask]
+        B_quad = B[quad_mask]
+        C_quad = C[quad_mask]
+        
+        disc = bd.sqrt(B_quad**2 - 4 * A_quad * C_quad)
+        t1 = (-B_quad - disc) / (2 * A_quad)
+        t2 = (-B_quad + disc) / (2 * A_quad)
+        
+        t1_valid = bd.where(t1 >= 0, t1, bd.inf)
+        t2_valid = bd.where(t2 >= 0, t2, bd.inf)
+        t_quad = bd.minimum(t1_valid, t2_valid)
+        t_candidate[quad_mask] = t_quad
+        
+        # Compute intersection coordinates
         intersections = rayPos + t_candidate[:, None] * rayDir
-        
-        # Since every ray is supposed to intersect, return an all-True boolean mask.
         return intersections, bd.ones(rayPos.shape[0], dtype=bool)
 
 
@@ -384,6 +424,7 @@ class ClearBoundary():
 
         # Process non-vertical rays ------------------------------------------
         non_vert_mask = dz != 0
+
         if bd.any(non_vert_mask):
             # Batch compute quadratic solutions
             A = dx[non_vert_mask]**2 + dy[non_vert_mask]**2
@@ -420,6 +461,8 @@ class ClearBoundary():
             # Concatenate valid coordinates
             all_coords = bd.concatenate([all_coords, coords_t1, coords_t2], axis=0)
 
+            intersectMask &= valid_z
+
         # Process vertical rays ----------------------------------------------
         vert_mask = (dz == 0)
         if bd.any(vert_mask):
@@ -440,6 +483,8 @@ class ClearBoundary():
             vert_coords[1::2, 2] = z2  # Second point at upper Z
             
             all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
+
+        
 
         return all_coords, intersectMask
         
@@ -482,11 +527,14 @@ class ClearBoundary():
 
 def main():
 
+    placeholderM = Material("BK1")
+
     temp = bd.array([0, 0, 0])
 
-    testRB = GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.75, 1]))
-    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.55, 1])))
-    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.25, 1])))
+    testRB = GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 2.1, 1]), size=4)
+    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 1, 1]), size=4))
+    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.55, 1]), size=4))
+    testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.25, 1]), size=4))
 
     E0 = SpatialCircle(0,   20)
     E1 = SpatialCircle(10,  20)
@@ -497,9 +545,10 @@ def main():
     testCBL = ClearBoundary(E1, E2)  # Frustum 
     testCBT = ClearBoundary(E2, E3)  # Plane 
 
-    pointsLL = testCBLL.Trace(testRB)
-    pointsL = testCBL.Trace(testRB)
-    pointsT = testCBT.Trace(testRB)
+    RI = placeholderM.RI(testRB.Wavelength())
+    pointsLL = testCBLL.Trace(testRB, RI)
+    pointsL = testCBL.Trace(testRB, RI)
+    pointsT = testCBT.Trace(testRB, RI)
 
     testCBLL.DrawSurface()
     testCBL.DrawSurface()

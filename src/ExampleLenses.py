@@ -263,7 +263,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = Biotar50mmf14()
+    exampleLens = CanonFD50mmf18()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

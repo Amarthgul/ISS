@@ -193,8 +193,24 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
         iterationCount += 1
 
 
-def ReflectionTesting():
-    pass 
+def ReflectionTesting(lens):
+
+    targetR = 15
+    mainRB = EmitField(5, 0, 
+                       distance=50, 
+                       sampleTargets=CircularDistribution(zDepth=3) * bd.array([targetR, targetR, 1]))
+
+    lens.SetIncidentRaybatch(mainRB)
+    mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True, reflection=True)
+
+    mainRP.DrawPath()
+
+    lens.DrawLens()
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    plt.show()
+    
 
 
 def main():
@@ -210,9 +226,11 @@ def main():
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
 
-    lens = Biotar50mmf14()
-    for o in objectDistance:
-        ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
+    # lens = Biotar50mmf14()
+    # for o in objectDistance:
+    #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
+
+    ReflectionTesting(CanonFD50mmf18())
 
     #lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
