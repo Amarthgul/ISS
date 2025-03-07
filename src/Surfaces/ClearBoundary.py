@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 from Material import Material
-from Raytracing.RayBatch import GenerateBeam
+from Raytracing.RayBatch import RayBatch, GenerateBeam
 from Raytracing.Reflection import Reflect
 from Raytracing.Refraction import Refract
 from Util.Backend import backend as bd 
@@ -152,9 +152,14 @@ class ClearBoundary():
 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
 
-
+        
 
         mirrorReflection = Reflect(incidentRaybatch.Direction()[_mask], normals)
+
+
+        # Create a new RayBatch and add the newly calculated values  
+        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[_mask]))
+
 
         print(normals)
 
