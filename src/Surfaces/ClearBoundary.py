@@ -8,6 +8,7 @@ from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateBeam
 from Raytracing.Reflection import Reflect
 from Raytracing.Refraction import Refract
+from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
 from Util.Backend import backend as bd 
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
@@ -47,7 +48,8 @@ class ClearBoundary():
 
 
         """Weight of [0, 1] that controls total diffuse and total mirror reflection. When set to 0, surface reflects as lambertian, when set to 1, reflects like mirror"""
-        self.specularReflection = 0.5
+        self.specularReflection = 0.9
+        # This should be altered very carefully, too high of a change may resulting in relfected rays going beyonnd the surface 
 
 
     def DrawSurface(self):
@@ -128,44 +130,80 @@ class ClearBoundary():
     def Trace(self, incidentRaybatch, previousRI, inverted=False):
         """
         A clear boundary still calculates refraction, but it is only for Frensnel reflectance and not for ray propagation.
-        """
 
-        E1R = self.E1.SemiAxisMagnititude()
-        E2R = self.E2.SemiAxisMagnititude()
+        :return: reflected raybatch and a boolean mask indicating the rays that did intersect.
+        """
 
         intersections, _mask = self.Intersection(incidentRaybatch)
 
-        normals = self.Normal(intersections)
-        directions = incidentRaybatch.Direction()[_mask]
+        # Reflected RB is created here first with the mask applied, this means it should not contain any rays that are not intersecting with the surface. 
+        reflectedRB = RayBatch(incidentRaybatch.value[_mask])
+        reflectedRB.SetPosition(intersections)
 
-        # Correct normal direction if needed 
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[_mask]
-        if (E1R != E2R):
+        # Becasue reflected 
+        directions = reflectedRB.Direction()
+
+        # Calculate the normal direction
+        normals = self.Normal(intersections)
+        # Accquire a desired normal vector direction as they should be pointing against the incident rays 
+        desiredDirection = -bd.sign(reflectedRB.Direction()[:, 2])
+        # Only flip the normals if the clear boundary is not a cylinder 
+        if (self.E1.SemiAxisMagnititude() != self.E2.SemiAxisMagnititude()):
             normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
+        # Add some jittering to the normal direction to approximate diffuse reflection
+        randomDirection = self._RandomInHemisphere(normals)
+        normals = ArrayNormalized(normals * self.specularReflection + \
+                  randomDirection * (1 - self.specularReflection))
+
+        # Calculate the reflection directions and directly update the reflected RB 
+        reflected = Reflect(reflectedRB.Direction(), normals)
+        reflectedRB.SetDirection(reflected)
+        
+        
         # Accquire the index of refractions (resp. wavelength)
-        n1 = self.exteriorCoating.RI(incidentRaybatch.Wavelength()[_mask])
-        n2 = previousRI[_mask]
+        n1 = previousRI[_mask]
+        n2 = self.exteriorCoating.RI(reflectedRB.Wavelength())
         # If the ray hits from the behind, RI needs to be swapped 
         if(inverted):
             n1, n2 = n2, n1 
 
-        refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+        # Calculate the refraction for the polaried radiance ellipses 
+        # Refracted rays themselves are not used since they no longer contribute to the imaging process. 
+        refracted, TIR, _temp = Refract(directions, normals, n1, n2)
+        # Accquire the reflectance ratio for the polarized radiance ellipses
+        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n2[~TIR], n1[~TIR])
+        # Accquire s and p directional vector 
+        senkrecht, parallel = SenkrechtUndParallel(directions[~TIR], normals[~TIR])
+        # nonTIRRB is a temporary RayBatch that only contains the non-TIR rays
+        nonTIRRB = RayBatch(reflectedRB.value[~TIR])
+        # Calculate the quantitative reflectance on the local s and p direction.
+        senkrecht, parallel = QuantitativePolarize(
+                nonTIRRB.PolarizationMat(),
+                senkrecht[:, :2], 
+                parallel[:, :2], 
+                R_s, 
+                R_p
+            )
+        # Modify the polarization ellipse of the nonTIR rays based on the quantitative reflectance just calculated. 
+        nonTIRRB = ResidueRB(nonTIRRB, senkrecht, parallel)
+
+        # The direction of the reflected, including TIR, are already set previously. 
+        # So here only need to merge the nonTIR, whose raidance ellipse just got modified, with the TIR rays of the original raybatch.
+        reflectedRB = nonTIRRB.Merge(RayBatch(reflectedRB.value[TIR]))
+
+
+        # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
+        #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
         
-
-        mirrorReflection = Reflect(incidentRaybatch.Direction()[_mask], normals)
-
-
-        # Create a new RayBatch and add the newly calculated values  
-        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[_mask]))
+        DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor='m') # ============ Draw call
+        # DrawDirection(intersections[~TIR], refracted, lineColor='b') # ============ Draw call
+        DrawDirection(intersections, normals, lineLength=2) # ============ Draw call
+        # DrawPoints(intersections) # ============ Draw call
 
 
-        print(normals)
-
-        DrawDirection(intersections, mirrorReflection, lineColor='r')
-        DrawDirection(intersections, normals)
-        DrawPoints(intersections)
+        return reflectedRB, _mask
 
         
 
@@ -173,6 +211,34 @@ class ClearBoundary():
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _RandomInHemisphere(self, normals):
+        """
+        Generate random unit vectors that lie in the hemisphere defined by each normal vector.
+        
+        Parameters:
+            normals (ndarray): Array of shape (N, 3) where each row is a unit normal vector.
+        
+        Returns:
+            ndarray: Array of shape (N, 3) with random unit vectors in the hemisphere of the corresponding normal.
+        """
+        normals = bd.asarray(normals)
+        N = normals.shape[0]
+        
+        # Generate N random vectors (not necessarily unit length) from a normal distribution
+        v = bd.random.randn(N, 3)
+        
+        # Normalize each vector
+        v = v / bd.linalg.norm(v, axis=1, keepdims=True)
+        
+        # Compute dot products for each pair (row-wise)
+        dots = bd.sum(v * normals, axis=1)
+        
+        # For each vector that is in the opposite hemisphere, flip its direction
+        flip_mask = dots < 0
+        v[flip_mask] = -v[flip_mask]
+        
+        return v
 
 
     def _ComputeFrustumNormals(self, points, r1, r2, z1, z2, epsilon=1e-6):
@@ -536,7 +602,8 @@ def main():
 
     temp = bd.array([0, 0, 0])
 
-    testRB = GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 2.1, 1]), size=4)
+    testRB = GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 2.5, 1]), size=4)
+    testRB.Merge(GenerateBeam(bd.array([0, 19.5, 0]), bd.array([0, -0.4, 1]), size=4))
     testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 1, 1]), size=4))
     testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.55, 1]), size=4))
     testRB.Merge(GenerateBeam(bd.array([0, 0, 0]), bd.array([0, 0.25, 1]), size=4))
@@ -546,20 +613,20 @@ def main():
     E2 = SpatialCircle(20,  10)
     E3 = SpatialCircle(20,  3)
 
-    testCBLL = ClearBoundary(E0, E1) # cylinder 
+    # testCBLL = ClearBoundary(E0, E1) # cylinder 
     testCBL = ClearBoundary(E1, E2)  # Frustum 
-    testCBT = ClearBoundary(E2, E3)  # Plane 
+    # testCBT = ClearBoundary(E2, E3)  # Plane 
 
     RI = placeholderM.RI(testRB.Wavelength())
-    pointsLL = testCBLL.Trace(testRB, RI)
+    # pointsLL = testCBLL.Trace(testRB, RI)
     pointsL = testCBL.Trace(testRB, RI)
-    pointsT = testCBT.Trace(testRB, RI)
+    # pointsT = testCBT.Trace(testRB, RI)
 
-    testCBLL.DrawSurface()
+    # testCBLL.DrawSurface()
     testCBL.DrawSurface()
-    testCBT.DrawSurface()
+    # testCBT.DrawSurface()
 
-    DrawRaybatch(testRB)
+    DrawRaybatch(testRB, lLength=20)
 
     
     SetUnifScale(50)

@@ -34,7 +34,7 @@ KNOB_DISTANCE = 1500
 
 
 # The default radiant value for the raybatch
-NORMAL_RADIANT = bd.sqrt(.5)
+NORMAL_RADIANT = 1
 # This is set so that the 2 directions of the radiant have a normalized value of 1.
 
 

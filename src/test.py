@@ -203,6 +203,8 @@ def ReflectionTesting(lens):
     lens.SetIncidentRaybatch(mainRB)
     mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True, reflection=True)
 
+    print(mainRB.PolarizedRadiance())
+
     mainRP.DrawPath()
 
     lens.DrawLens()

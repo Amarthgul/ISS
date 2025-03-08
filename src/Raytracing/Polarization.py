@@ -3,7 +3,7 @@
 
 from Util.Backend import backend as bd
 from Util.Globals import ONE, NEAR_ZERO
-from Util.Misc import ArrayNormalized, Magnitude
+from Util.Misc import ArrayNormalized, Magnitude, ArrayMagnitude
 from Raytracing.RayBatch import RayBatch
 
 
@@ -88,14 +88,15 @@ def SenkrechtUndParallel(incident, normal):
 
 def FresnelReflectance(normals, incident, refracted, n1, n2):
     """
-    
+    Given the normal, incident, and refracted vectors, calculate the reflectance ratio along the senkrecht and parallel direction (Fresnel equation).
     """
 
-    cosThetaI = bd.sum(normals * incident, axis=1) / (Magnitude(normals) * Magnitude(incident))
-    cosThetaT = bd.sum(normals * refracted, axis=1) / (Magnitude(normals) * Magnitude(refracted))
+    # Normal direction should always be pointing at the same side as whatever is being calculated, thus the abs is needed. Without abs, the R_s and R_p can become bigger than 1 and the raidance will go totally out of hand. 
+    cosThetaI = bd.abs(bd.sum(normals * incident, axis=1)) / (ArrayMagnitude(normals) * ArrayMagnitude(incident))
+    cosThetaT = bd.abs(bd.sum(normals * refracted, axis=1)) / (ArrayMagnitude(normals) * ArrayMagnitude(refracted))
 
     # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-    R_s = bd.abs( (n1*cosThetaI-n2*cosThetaI)/(n1*cosThetaI+n2*cosThetaT) ) ** 2
+    R_s = bd.abs( (n1*cosThetaI-n2*cosThetaT)/(n1*cosThetaI+n2*cosThetaT) ) ** 2
     R_p = bd.abs( (n1*cosThetaT-n2*cosThetaI)/(n1*cosThetaT+n2*cosThetaI) ) ** 2
 
     return R_s, R_p
@@ -147,7 +148,7 @@ def QuantitativePolarize(A, s, p, R_s, R_p):
 
 def PolarizeRB(rb, v_s, v_p, add=False):
     """
-    Given a raybatch, modify it on senkrecht and parallel direction. 
+    Given a raybatch, modify it on senkrecht and parallel direction. This is best used on refracted rays as they have their polarized radiance ellipse already defined. 
 
     :return: modified raybatch. 
     """
@@ -202,7 +203,7 @@ def CreateEllipseFromFectors(u, v):
 
 def ResidueRB(rb, v_s, v_p):
     """
-    Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. 
+    Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. This is better used for non-TIR reflections. 
     """
 
     ms = CreateEllipseFromFectors(v_s, v_p)

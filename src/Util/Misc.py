@@ -27,7 +27,7 @@ def Magnitude(inputVec):
 
 
 def ArrayMagnitude(inputVec):
-    return bd.linalg.norm(inputVec, axis=1, keepdims=True)
+    return bd.linalg.norm(inputVec, axis=1)
 
 
 def Normalized(inputVec):

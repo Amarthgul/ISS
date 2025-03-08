@@ -251,10 +251,10 @@ class RayPath():
         bP2 = bd.isclose(TransversalDistance(P2), ZERO, AXIAL_ZERO) 
         bD2 = bd.isclose(TransversalDistance(D2), ZERO, AXIAL_ZERO) 
         onAxis = (bP1 & bD1 & bP2 & bD2)    
-        P1 = P1[~onAxis[:, 0]]
-        D1 = D1[~onAxis[:, 0]]
-        P2 = P2[~onAxis[:, 0]]
-        D2 = D2[~onAxis[:, 0]]
+        P1 = P1[~onAxis]
+        D1 = D1[~onAxis]
+        P2 = P2[~onAxis]
+        D2 = D2[~onAxis]
 
         # Clip them to use only the YZ coordinates 
         A = bd.stack([D1[:, 1:], -D2[:, 1:]], axis=2) 
