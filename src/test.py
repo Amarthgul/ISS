@@ -24,13 +24,13 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     # source.isCartesian = False
     # source.GenerateSpots(19, 12)
 
-    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
+    imager = StdImager(lens.BestFocusBFD(imageDistance), w=13.2, h=8.8) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2D()
-    sourceImage.horizontalAoV = 40
+    sourceImage.horizontalAoV = 15 #40
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
@@ -40,13 +40,13 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     start = time.time()
 
     iterationCount = 0
-
-    perIterRays = 60000
+    normalizer = iterationCount + 10
+    perIterRays = 10000
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
         fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, normalizer=normalizer))
+        im = ax.imshow(ImageConversion(image))
 
     
 
@@ -66,7 +66,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         image = imager.IntegralRays(mainRB, baseImg=image)
 
         if(realTimeUpdate):
-            im.set_data(ImageConversion(image, normalizer=normalizer))
+            im.set_data(ImageConversion(image))
             plt.draw()
             plt.pause(0.01)
         
@@ -79,7 +79,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         iterationCount += 1
         
         if(iterationCount > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image, normalizer=normalizer), 'RGB')
+            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
             imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
 
@@ -228,11 +228,12 @@ def main():
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
 
-    # lens = Biotar50mmf14()
+    lens = Biotar50mmf14()
+    ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
     # for o in objectDistance:
     #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
 
-    ReflectionTesting(CanonFD50mmf18())
+    # ReflectionTesting(CanonFD50mmf18())
 
     #lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
