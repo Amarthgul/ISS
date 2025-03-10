@@ -138,7 +138,7 @@ class Lens:
         self.rayBatch = raybatch
 
 
-    def Propagate(self, recordPath = False, reflection = False):
+    def Propagate(self, recordPath = False, reflection = False, iteCount=2):
         """
         Propagate the raybatch through the lens. 
 
@@ -154,7 +154,8 @@ class Lens:
 
         reflectedRB = RayBatch()
 
-        # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging. But reflected rays are creted, recorded, and returned during the process. 
+        # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging. 
+        # If enabled, the reflected rays will be creted, recorded, and returned during the process. 
         
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
@@ -163,15 +164,43 @@ class Lens:
                     self._FindPreviousRI(i, self.rayBatch), 
                     reflection = reflection)
                 
-                reflectedRB.Merge(_reflectedRB)
-
+                # The index of main RB is where they are after a surface
                 self.rayBatch.SetIndex(i)
+
+                if(reflection):
+                    # For the reflected rays, the surface index means where they are before a surface
+                    _reflectedRB.RadiantKill()
+                    _reflectedRB.SetIndex(i)
+                    reflectedRB.Merge(_reflectedRB)
+
                 
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
         # DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
 
+        if (reflection):
+            # DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
+            # print(reflectedRB.PolarizedRadiance())
+
+            for _c in range(iteCount):
+                print("In ", _c, " th reflection iteration")
+                reflectedRB = self._BounceReflection(reflectedRB)
+
+                
+                # DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
+                #plt.draw()
+                #plt.pause(10)
+
+            # After 3 times of reflection, these still facing negative Z might as well be dropped to save space 
+            reflectedRB = reflectedRB.GetRaysFacing()
+            reflectedRB = self._PropagateReflectedThrough(reflectedRB)
+
+            #DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
+
+            #self.rayBatch.Merge(reflectedRB)
+
+        # print(self.rayBatch.SurfaceIndex())
 
         # self.rayPath.DrawPath(40)
 
@@ -533,7 +562,73 @@ class Lens:
             return self.surfaces[index -1].RI(raybatch.Wavelength())
         
 
+    def _BounceReflection(self, reflectedRB):
+        """
+        Iterate through each surface, calculate the reflection inside the surface. 
+        """
+        returnRB = RayBatch(None)
 
+        # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at 1
+        for i in range(1, len(self.surfaces)):
+
+            # Find the rays that are in the current surface
+            inSurfaceRB = reflectedRB.GetRaysAt(i)
+
+            if(not isinstance(self.surfaces[i-1], Stop)):
+                # Try to find the ones that will intersect with previous surface 
+                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i-1].Trace(
+                    inSurfaceRB, 
+                    self._FindPreviousRI(i-1, inSurfaceRB), 
+                    inverted = True,
+                    reflection = True)
+                # _surfaceRB are rays that propagate through the previous surface, thus not very important for reflections
+                
+                # Keep only the rays that did not intersect with the previous surface 
+                inSurfaceRB.Mask(~_vig)
+                # Add the reflected rays from previous surfaces 
+                inSurfaceRB.Merge(_reflectedRB)
+                # These _reflectedRB rays should either intersect with the clear boundaries or become sequential again 
+            
+            if(not isinstance(self.surfaces[i], Stop)):
+                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                    inSurfaceRB, 
+                    self._FindPreviousRI(i, inSurfaceRB), 
+                    reflection = True)
+
+                inSurfaceRB.Merge(_surfaceRB)
+                inSurfaceRB.Merge(_reflectedRB)
+
+            # The ones that still faces back might as well be droped 
+            returnRB.Merge(inSurfaceRB)
+            returnRB.RadiantKill()
+
+        returnRB.SurfaceKill(0)
+
+        return returnRB
+
+
+    def _PropagateReflectedThrough(self, reflectedRB):
+        """
+        Propogate the rays in reflectedRB in each surface through the lens. 
+        """
+        returnRB = RayBatch(None)
+
+        for i in range(1, len(self.surfaces)):
+
+            if(not isinstance(self.surfaces[i], Stop)):
+
+                # Find the rays that are in the current surface
+                inSurfaceRB = reflectedRB.GetRaysAt(i)
+                returnRB.Merge(inSurfaceRB)
+
+                # Explicitly disable the reflection 
+                returnRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                        returnRB, 
+                        self._FindPreviousRI(i, returnRB), 
+                        reflection = False)
+                
+
+        return returnRB
 
 
 def main():

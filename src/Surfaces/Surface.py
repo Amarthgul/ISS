@@ -300,8 +300,13 @@ class Surface:
         Deal with all the reactions the rays have upon reaching the surface. This includes: 
         - Refraction. The main contributor to image formation. 
         - Reflection. Including both mirror, specular, and diffuse reflection, also consider the polarization based on the Fresnel equation. 
-        - Vignette. Rays that are vignetted may be refleted later, or absorded and disappears. 
+        - Vignette. Rays that are vignetted from the main imaging surface may enter the lens barrel and absorbed, or reflected again by the clear boundaries. 
         This is the main method that should be called when tracing rays through the lens to accquire an image.
+
+        :param incidentRaybatch: main raybatch at question. 
+        :param previousRI: array representing the RI of the surface before that, i.e., the RI of the medium the rays are currently in. 
+        :param inverted: bool for whether or not the rays are aiming from behind.
+        :param reflection: bool for whether or not to calculate refections. 
 
         :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
         """
@@ -321,6 +326,7 @@ class Surface:
         # Accquire the index of refractions (resp. wavelength)
         n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         n2 = previousRI[~boolVig]
+
         # If the ray hits from the behind, RI needs to be swapped 
         if(inverted):
             n1, n2 = n2, n1 
@@ -345,10 +351,11 @@ class Surface:
             tirRB.SetPosition(intersections[TIR])
             tirRB.SetDirection(reflected[TIR])
 
+        
             #print(tirRB.PolarizedRadiance())
 
             # ==============================================================
-            # Polarization 
+            # ========================= Polarization =======================
 
             # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
             R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
@@ -402,6 +409,24 @@ class Surface:
             # print(reflectedRB.value.shape)
             # print(tirRB.value.shape)
             # print("\n")
+
+            # Copy the vignetted rays to prepare for clear boundary check 
+            vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
+
+
+            if( (self.clearBoundaryL is not None) and bd.any(boolVig) and (not inverted) ):
+
+                vigReflRBL, _NonInterMask = self.clearBoundaryL.Trace(vigRB, previousRI[boolVig])
+                if(self.clearBoundaryT is not None and bd.any(_NonInterMask)):
+                    # Theoeretically, if there is a tansverse boundary, then the vignetted rays that are not intersected with the longitudinal boundary should intersect with the transverse boundary. 
+                    # Create an RB using the rays that did not intersect L boundary
+                    vigReflRBT = vigRB.Mask(~_NonInterMask)
+                    vigReflRBT, _ = self.clearBoundaryT.Trace(vigReflRBT, previousRI[boolVig][~_NonInterMask])
+
+                    vigReflRBL = vigReflRBL.Merge(vigReflRBT)
+
+                reflectedRB = reflectedRB.Merge(vigReflRBL)
+
             reflectedRB = reflectedRB.Merge(tirRB)
 
         return refractedRB, TIR, boolVig, reflectedRB

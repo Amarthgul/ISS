@@ -14,7 +14,7 @@ from Util.Globals import RNG, RefreshRNG, ONE
 # Medium:  layer = 10,   densityScale = 0.0095,  powerCoef = 0.9
 # Heavy:   layer = 60,   densityScale = 0.0004,  powerCoef = 0.7
 # Prodc:   layer = 100,  densityScale = 0.0002,  powerCoef = 0.7
-def CircularDistribution(radius = 1, layer = 3,    densityScale = 0.1,    powerCoef = 0.8, shrink = 1, zDepth=0):
+def CircularDistribution(radius = 1, layer = 4,    densityScale = 0.05,    powerCoef = 0.8, shrink = 1, zDepth=0):
     """
     Accquire a distribution based on polar coordinate. 
 

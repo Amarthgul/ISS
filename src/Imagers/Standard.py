@@ -154,7 +154,7 @@ class StdImager(Surface):
             wavelengthIsolate = bd.isclose(self.rayBatch.value[:, 6], wavelength)
             rayPosChannel = bd.floor(
                 self.rayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)[:, :2]
-            radiantsChannel = self.rayBatch.Radiannce()[bd.where(rayHitIsolate & wavelengthIsolate)]
+            radiantsChannel = self.rayBatch.PolarizedRadiance()[bd.where(rayHitIsolate & wavelengthIsolate)]
             rChannel = radiantsChannel * RGB[0]
             gChannel = radiantsChannel * RGB[1]
             bChannel = radiantsChannel * RGB[2]

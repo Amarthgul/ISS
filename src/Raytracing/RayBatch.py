@@ -4,8 +4,9 @@
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines
+from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines, RADIANT_KILL, Axis
 from Util.Misc import Normalized
+
 
 class RayBatch:
     """
@@ -49,7 +50,7 @@ class RayBatch:
 
     def Radiannce(self):
         """
-        The 1st radiance term regardless of polarization. 
+        DO NOT USE
         """
         # Technically this is not really radiance since it does not integral over a solid angle 
         return self.value[:, 7]
@@ -91,6 +92,36 @@ class RayBatch:
         """
         return self.value[:, 10]
 
+
+    def GetRaysAt(self, index, asRB=True):
+        """
+        Accquire the rays whose index is at the given value. 
+
+        :param index: surface index. 
+        :param asRB: when enabled, return as a RayBatch object.
+
+        :return: array of rays or RayBatch object.
+        """
+
+        val = self.value[self.value[:, 10] == index]
+
+        if(asRB):
+            return RayBatch(val)
+        
+        return val
+
+
+    def GetRaysFacing(self, facingPosZ=True):
+        """
+        Select the rays that are facing the positive or negative z direction. 
+        """
+        mask = self.Direction()[:, Axis.Z.value] < 0
+
+        if(facingPosZ):
+            mask = ~mask
+
+        return RayBatch(self.value[mask])
+            
 
     def SetPosition(self, positions):
         if(positions.shape[1] != 3): 
@@ -152,12 +183,35 @@ class RayBatch:
         pass 
 
 
-    def Mask(self, mask):
+    def Mask(self, validMask):
         """
-        Mask and remove exposed entries. 
+        Mask and remove rest of the entries. 
+
+        :param validMask: true for entries that should be kept.
+
+        :return: this RayBatch object itself, which has been masked. 
         """
-        self.value = self.value[mask]
+        self.value = self.value[validMask]
         return self 
+
+
+    def RadiantKill(self):
+        """
+        Remove all the rays whose polarized radiance is below the threshold.
+
+        :return: this RayBatch object itself, which has been modidified.
+        """
+        
+        validMask = self.PolarizedRadiance() >= RADIANT_KILL
+        self.Mask(validMask)
+
+        return self
+
+
+    def SurfaceKill(self, index):
+
+        removeMask = self.SurfaceIndex() == index
+        self.Mask(~removeMask)
 
 
     def ToString(self):

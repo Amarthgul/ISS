@@ -252,6 +252,60 @@ def ZeissHologon15mmf8():
     return canon
 
 
+
+# ==================================================================
+""" ========================== Industar ======================== """
+# ==================================================================
+
+
+def _Industar50_50mmf35Data():
+    """
+    Soviet lens. 
+    """
+    lens = Lens()
+
+    lens.AddSurface(Surface(17.100,	    2.700,     8,       "LZ_TK14"))
+    lens.AddSurface(Surface(INFINITY,   4.160,     8))
+    lens.AddSurface(Surface(-33.570,	1.050,     7,       "LZ_LF5"))
+    lens.AddSurface(Surface(14.560,	    2.500,     7))
+
+    lens.AddSurface(Stop(               2.550))
+
+    lens.AddSurface(Surface(346.700,    1.200,     7,      "LZ_OF1"))
+    lens.AddSurface(Surface(15.000,	    4.700,     7,      "LZ_TK14"))
+    lens.AddSurface(Surface(-23.600,	44.560,    7))
+
+    return lens
+
+
+def Industar50_50mmf35():
+    """
+    Industar-50 50mm f/3.5
+    
+    :return: initlized lens object.
+    """
+
+    fileName = "Industar-50-50mmf3.5"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    LensExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        LensExample.LoadExample()
+        industar = LensExample.data
+    else: 
+        industar = _Industar50_50mmf35Data()
+        industar.UpdateLens()
+        LensExample.data = industar
+        LensExample.SaveExample()
+
+    return industar
+
+
 # ==================================================================
 
 
@@ -263,7 +317,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = CanonFD50mmf18()
+    exampleLens = Industar50_50mmf35()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

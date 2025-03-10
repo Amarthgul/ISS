@@ -136,6 +136,10 @@ class ClearBoundary():
 
         intersections, _mask = self.Intersection(incidentRaybatch)
 
+        if(intersections.shape[0] != _mask.sum()):
+            print("True in sum ", _mask.sum())
+            print("Accident")
+
         # Reflected RB is created here first with the mask applied, this means it should not contain any rays that are not intersecting with the surface. 
         reflectedRB = RayBatch(incidentRaybatch.value[_mask])
         reflectedRB.SetPosition(intersections)
@@ -197,9 +201,9 @@ class ClearBoundary():
         #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
 
         
-        DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor='m') # ============ Draw call
+        # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor='m') # ============ Draw call
         # DrawDirection(intersections[~TIR], refracted, lineColor='b') # ============ Draw call
-        DrawDirection(intersections, normals, lineLength=2) # ============ Draw call
+        # DrawDirection(intersections, normals, lineLength=2) # ============ Draw call
         # DrawPoints(intersections) # ============ Draw call
 
 
@@ -510,6 +514,7 @@ class ClearBoundary():
             t2 = (-B[intersectMask] + sqrt_d) / (2*A[intersectMask])
 
             # Calculate coordinates for both solutions
+            # Although somehow these turned out to be useless 
             coords_t1 = bd.stack([
                 ox[non_vert_mask][intersectMask] + t1*dx[non_vert_mask][intersectMask],
                 oy[non_vert_mask][intersectMask] + t1*dy[non_vert_mask][intersectMask],
@@ -530,13 +535,15 @@ class ClearBoundary():
             coords_t2 = coords_t2[valid_z]
 
             # Concatenate valid coordinates
-            all_coords = bd.concatenate([all_coords, coords_t1, coords_t2], axis=0)
+            #all_coords = bd.concatenate([all_coords, coords_t1, coords_t2], axis=0)
+            all_coords = bd.concatenate([all_coords, coords_t2], axis=0)
 
             intersectMask &= valid_z
 
         # Process vertical rays ----------------------------------------------
         vert_mask = (dz == 0)
         if bd.any(vert_mask):
+            print("This line is being triggered")
             # Find vertical rays inside cylinder
             in_z = (oz[vert_mask] >= z1) & (oz[vert_mask] <= z2)
             in_radius = (ox[vert_mask]**2 + oy[vert_mask]**2) <= r**2
@@ -555,7 +562,9 @@ class ClearBoundary():
             
             all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
 
-        
+        if(all_coords.shape[0] != intersectMask.sum()):
+            print("sum of mask ", intersectMask.sum())
+            print("Accident")
 
         return all_coords, intersectMask
         

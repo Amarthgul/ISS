@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.ColorWavelength import ImageConversion
+from Util.ColorWavelength import ImageConversion, ImageConversionAverage
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
@@ -157,9 +157,9 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
 
     start = time.time()
 
-    # plt.ion()  # Turn on interactive mode
-    # fig, ax = plt.subplots()
-    # im = ax.imshow(ImageConversion(image))
+    plt.ion()  # Turn on interactive mode
+    fig, ax = plt.subplots()
+    im = ax.imshow(ImageConversion(image))
     iterationCount = 0
 
     while(True):
@@ -167,7 +167,7 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
 
         lens.SetIncidentRaybatch(mainRB)
 
-        mainRB, mainRP = lens.Propagate()
+        mainRB, mainRP, _ = lens.Propagate()
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -175,9 +175,9 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
         image = imager.IntegralRays(mainRB, baseImg=image)
 
         
-        # im.set_data(ImageConversion(image, amplifier=0.25))
-        # plt.draw()
-        # plt.pause(0.01)
+        im.set_data(ImageConversion(image, amplifier=0.25))
+        plt.draw()
+        plt.pause(0.01)
         
         #print(source.sampleRecord)
         elpased = time.time() - start
@@ -193,24 +193,85 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
         iterationCount += 1
 
 
+
+def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
+
+
+    source = PointsSource()
+    source.isCartesian = False
+    source.GenerateSpots(19, 12, dist=objectDistance)
+
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
+
+    start = time.time()
+
+    if(realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
+
+    iterationCount = 0
+
+    while(True):
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(sampleSize), 5, addSecondary=5)
+
+        lens.SetIncidentRaybatch(mainRB)
+
+        _mainRB, mainRP, mainRB = lens.Propagate(reflection=True)
+        # mainRB.Merge(_mainRB)
+        print("highest r: ", bd.max(mainRB.PolarizedRadiance()))
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image)
+
+        if(realTimeUpdate):
+            im.set_data(ImageConversion(image, maxModifier=0.002))
+            plt.draw()
+            plt.pause(0.01)
+        
+        #print(source.sampleRecord)
+        elpased = time.time() - start
+
+        print("\n- Focusing ", focusDistance, " for obj at ", objectDistance,  
+            "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
+        print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
+
+        if(iterationCount > saveIterationCount):
+            imgSave = Image.fromarray(ImageConversion(image, maxModifier=0.002), 'RGB')
+            imgSave.save(r"resources/Results/SpotTestng/Spot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
+            break
+
+        iterationCount += 1
+
+
 def ReflectionTesting(lens):
 
+    lens.DrawLens() # ======= Draw call
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
+
     targetR = 15
-    mainRB = EmitField(5, 0, 
+    mainRB = EmitField(10, 0, 
                        distance=50, 
                        sampleTargets=CircularDistribution(zDepth=3) * bd.array([targetR, targetR, 1]))
 
     lens.SetIncidentRaybatch(mainRB)
     mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True, reflection=True)
 
-    print(mainRB.PolarizedRadiance())
+    print(bd.max(reflectedRB.PolarizedRadiance()))
 
-    mainRP.DrawPath()
+    #print(mainRB.PolarizedRadiance())
 
-    lens.DrawLens()
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
+    mainRP.DrawPath() # ======= Draw call
+
+    
+    
     plt.show()
     
 
@@ -229,9 +290,12 @@ def main():
     ]
 
     lens = Biotar50mmf14()
-    ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
+    # ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
     # for o in objectDistance:
     #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
+
+    # SpotTesting()
+    ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256)
 
     # ReflectionTesting(CanonFD50mmf18())
 
