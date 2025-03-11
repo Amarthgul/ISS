@@ -317,7 +317,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = Industar50_50mmf35()
+    exampleLens = ZeissHologon15mmf8()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

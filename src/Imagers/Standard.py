@@ -119,14 +119,14 @@ class StdImager(Surface):
         return ~(heightMask | widthMask)
 
     
-    def _integralRays(self, bitDepth=8, baseImg=None, valueClamp=None):
+    def _integralRays(self, bitDepth=8, baseImg=None, overExpNoiseRemoval=12):
         """
         Taking integral over the rays arriving at the image plane. 
 
         :param bitDepth: image bitdepth.
         :param plotResult: whether to show the resulting plot or not. 
         :param baseImg: if not null, the generated image will be added onto this base image. 
-        :param valueClamp: for spot simulation, normalization based on max can be inaccurate. This value is for manually override the max value for clamping. The higher it is, the darker the spot. 
+        :param overExpNoiseRemoval: sometimes there are single pixel of value that is way overexposed due to random errors. When overExpNoiseRemoval is set to a number, it will prune the values depending on the std of the values. 
         """
 
         pxPitch = self.width / self.horizontalPx 
@@ -146,18 +146,33 @@ class StdImager(Surface):
         radiantGridG = bd.zeros( (self.horizontalPx, self.verticalPx) )
         radiantGridB = bd.zeros( (self.horizontalPx, self.verticalPx) )
 
+        # Isolate the rays that arrived at the imager plane 
+        rayHitIsolate = bd.isclose(self.rayBatch.value[:, 2], self._zPos)
+
         # Find all wavelengths 
         wavelengths = bd.unique(rayWavelength)
-        rayHitIsolate = bd.isclose(self.rayBatch.value[:, 2], self._zPos)
         for wavelength in wavelengths:
             RGB = WavelengthToRGB(wavelength)
-            wavelengthIsolate = bd.isclose(self.rayBatch.value[:, 6], wavelength)
+
+            # Isolate the wavelength currently dealing with 
+            wavelengthIsolate = bd.isclose(self.rayBatch.Wavelength(), wavelength)
+
+            # Convert the position of the ray hits into an int grid by flooring them 
             rayPosChannel = bd.floor(
                 self.rayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)[:, :2]
+            
+
             radiantsChannel = self.rayBatch.PolarizedRadiance()[bd.where(rayHitIsolate & wavelengthIsolate)]
+            #print("radiantsChannel max: ", bd.max(radiantsChannel), "\t\t mean", bd.mean(radiantsChannel), "\t\t std ", bd.std(radiantsChannel))
+
+            # Try to remove the outlier over-exposured pixels (maybe caused by float error?)
+            if(overExpNoiseRemoval is not None):
+                radiantsChannel = self._PruneHighOutliers(radiantsChannel, overExpNoiseRemoval)
+
             rChannel = radiantsChannel * RGB[0]
             gChannel = radiantsChannel * RGB[1]
             bChannel = radiantsChannel * RGB[2]
+
             bd.add.at(radiantGridR, (rayPosChannel[:, 0], rayPosChannel[:, 1]), rChannel)
             bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)
             bd.add.at(radiantGridB, (rayPosChannel[:, 0], rayPosChannel[:, 1]), bChannel)
@@ -175,7 +190,22 @@ class StdImager(Surface):
         return rgb_image
 
 
-
+    def _PruneHighOutliers(self, arr, k=4.0):
+        """
+        Replace values from an array that are greater than mean + k * std.
+        
+        :param arr: Input array.
+        :param k: Number of standard deviations above the mean to use as threshold.
+            
+        :return: Array whose outliers are replaced with 0.
+        """
+        arr = bd.asarray(arr)
+        mean = bd.mean(arr)
+        std = bd.std(arr)
+        threshold = mean + k * std
+        arr[arr >= threshold] = 0
+        
+        return arr
 
 
 

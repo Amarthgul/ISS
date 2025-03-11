@@ -8,7 +8,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import ImageConversion, ImageConversionAverage
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2D
@@ -199,8 +199,8 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
     source = PointsSource()
     source.isCartesian = False
-    source.GenerateSpots(19, 12, dist=objectDistance)
-
+    #source.GenerateSpots(19, 12, dist=objectDistance)
+    source.GenerateSpots(19*2.5, 12*2.5, dist=objectDistance)
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -221,7 +221,7 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
         _mainRB, mainRP, mainRB = lens.Propagate(reflection=True)
         # mainRB.Merge(_mainRB)
-        print("highest r: ", bd.max(mainRB.PolarizedRadiance()))
+        # print("highest r: ", bd.max(mainRB.PolarizedRadiance()))
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -238,7 +238,7 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
         print("\n- Focusing ", focusDistance, " for obj at ", objectDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
-        print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
+        #print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
 
         if(iterationCount > saveIterationCount):
             imgSave = Image.fromarray(ImageConversion(image, maxModifier=0.002), 'RGB')
@@ -295,7 +295,7 @@ def main():
     #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
 
     # SpotTesting()
-    ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256)
+    ReflectionSpotTesting(ZeissHologon15mmf8(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     # ReflectionTesting(CanonFD50mmf18())
 

@@ -184,7 +184,7 @@ class Lens:
             # print(reflectedRB.PolarizedRadiance())
 
             for _c in range(iteCount):
-                print("In ", _c, " th reflection iteration")
+                # print("In ", _c, " th reflection iteration")
                 reflectedRB = self._BounceReflection(reflectedRB)
 
                 
