@@ -8,7 +8,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import ImageConversion, ImageConversionAverage
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2D
@@ -200,7 +200,7 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
     source = PointsSource()
     source.isCartesian = False
     #source.GenerateSpots(19, 12, dist=objectDistance)
-    source.GenerateSpots(19*2.5, 12*2.5, dist=objectDistance)
+    source.GenerateSpots(19, 12, dist=objectDistance)
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -221,15 +221,17 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
         _mainRB, mainRP, mainRB = lens.Propagate(reflection=True)
         # mainRB.Merge(_mainRB)
-        # print("highest r: ", bd.max(mainRB.PolarizedRadiance()))
+        print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
+        
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
 
-        image = imager.IntegralRays(mainRB, baseImg=image)
+        image = imager.IntegralRays(mainRB, baseImg=image, overExpNoiseRemoval=None)
 
         if(realTimeUpdate):
-            im.set_data(ImageConversion(image, maxModifier=0.002))
+            print("Max ", bd.max(image))
+            im.set_data(ImageConversion(image, maxModifier=0.002)) #0.002
             plt.draw()
             plt.pause(0.01)
         
@@ -268,7 +270,8 @@ def ReflectionTesting(lens):
 
     #print(mainRB.PolarizedRadiance())
 
-    mainRP.DrawPath() # ======= Draw call
+    # DrawRaybatch(reflectedRB) # ======= Draw call
+    # mainRP.DrawPath() # ======= Draw call
 
     
     
@@ -295,9 +298,9 @@ def main():
     #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
 
     # SpotTesting()
-    ReflectionSpotTesting(ZeissHologon15mmf8(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
+    ReflectionSpotTesting(Mug(), sampleSize=1280, saveIterationCount=128, realTimeUpdate=True)
 
-    # ReflectionTesting(CanonFD50mmf18())
+    # ReflectionTesting(Biotar50mmf14())
 
     #lens = CanonFD50mmf18()
     #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)

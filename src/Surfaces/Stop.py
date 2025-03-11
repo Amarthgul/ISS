@@ -31,6 +31,10 @@ class Stop(Surface):
         # The front vertex and the radius center are the same for a stop. 
 
 
+    def EnforceSemiDiameter(self, sd):
+        self.clearSemiDiameter = sd 
+
+
     def DrawSurface(self):
         """
         Stop does not have a surface to draw.

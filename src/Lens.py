@@ -59,6 +59,9 @@ class Lens:
         self.MOD = None 
         # This property is useful when there are floating lens element involved and the position of lens groups are dependent on interpolation between inf and MOD focus. 
 
+        self.isAfocal = False 
+
+
         self._lastSurfaceIndex = 0
 
         self._temp = None # Variable for developing and not to be taken serieously 
@@ -76,8 +79,6 @@ class Lens:
         Create clear boundaries for each surfaces. 
         Start a ray trace and finds the entrance pupil. 
         """
-        #self.entrancePupil.clearSemiDiameter = self.entrancePupilDia/TWO
-
 
         currentT = constant(0.0)
 
@@ -90,15 +91,17 @@ class Lens:
                 self.stopIndex = i 
             self._lastSurfaceIndex = i
 
-        # TODO: add grouping method 
-
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
-
-        self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter) 
-
         self._PartitionGroups()
         self._CreateClearBoundary()
+
+        # Afocal system does not have a principal plane and the entrance pupil is the first stop 
+        if(self.isAfocal):
+            self._UpdateAfocal()
+            return 
+        
+        self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter) 
 
         self._TraceEntrancePupil()
         self._TraceFocalPrincipal() 
@@ -177,7 +180,7 @@ class Lens:
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
-        # DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
+        #DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
 
         if (reflection):
             # DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
@@ -194,6 +197,7 @@ class Lens:
 
             # After 3 times of reflection, these still facing negative Z might as well be dropped to save space 
             reflectedRB = reflectedRB.GetRaysFacing()
+            # DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
             reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
             #DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
@@ -236,12 +240,20 @@ class Lens:
 
 
     def GetInfo(self):
+
         info = "- Lens Info: \n" +\
-            str(len(self.lenses)) + " lenses arranged in " + str(len(self.groups)) + " groups \n" +\
-            "Focal Length:   \t" + str(self.focalLength) + "\n" +\
-            "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize()) + "\n" +\
+            str(len(self.lenses)) + " lenses arranged in " + str(len(self.groups)) + " groups"
+        
+        if(not self.isAfocal):
+            info +=  "\nFocal Length:   \t" + str(self.focalLength) +"\n" +\
+            "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize())
+
+        info += "\n" +\
             "Max pupil dia:  \t" + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
-            "Axial length:   \t" + str(self.totalAxialLength) + "\n" +\
+            "Axial length:   \t" + str(self.totalAxialLength)
+        
+        if(not self.isAfocal):
+            info += "\n" +\
             "Principal plane:\t" + str(self.frontPincipalPlane.GetInnerZ()) + "\n" +\
             "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
             
@@ -251,6 +263,27 @@ class Lens:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _UpdateAfocal(self):
+        """
+        This method is for updating an afocal lens, which does not have a focal length. 
+        """
+        firstSD = 0
+
+        for i in range(len(self.surfaces)):
+            if (not isinstance(self.surfaces[i], Stop)):
+                firstSD = self.surfaces[i].clearSemiDiameter
+                break 
+
+        self.surfaces[self.stopIndex].EnforceSemiDiameter(firstSD)
+        self.entrancePupil.SetFirstElementSD(firstSD)
+
+        pupilPoint = bd.array([
+            [ZERO,      ZERO,          self.surfaces[0].cumulativeThickness], 
+            [firstSD,   ZERO,          self.surfaces[0].cumulativeThickness]
+        ])
+
+        self.entrancePupil.SetSamplePoints(pupilPoint)
 
 
     def _PartitionGroups(self):
@@ -585,7 +618,7 @@ class Lens:
                 
                 # Keep only the rays that did not intersect with the previous surface 
                 inSurfaceRB.Mask(~_vig)
-                # Add the reflected rays from previous surfaces 
+                # Add the reflected rays from previous surfaces. Given the implementation, TIR should already be included in the _reflectedRB
                 inSurfaceRB.Merge(_reflectedRB)
                 # These _reflectedRB rays should either intersect with the clear boundaries or become sequential again 
             

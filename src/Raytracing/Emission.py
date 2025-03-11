@@ -370,6 +370,55 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
         )
 
 
+def EmitFieldMultispectral(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, wavelengthCount=7):
+    """
+    Emit rays defined by field angle and distance, towards a pool of samples.
+
+    :param fieldAngleX: field angle in the x direction, unit in degrees.
+    :param fieldAngleY: field angle in the y direction, unit in degrees.
+    :param distance: distance of the rays from the origin.
+    :param sampleTargets: a pool of sample points to emit rays towards.
+    :param wavelength: wavelength of the rays in nm.
+
+    :return: a RayBatch object pointing from the object space to the sample points.
+    """
+    numRays = len(sampleTargets)
+
+    xDist = FAR_DISTANCE * bd.tan(bd.radians(fieldAngleX))
+    yDist = FAR_DISTANCE * bd.tan(bd.radians(fieldAngleY))
+
+    if(distance == INFINITY):
+        # Apprently it is not possible to have a ray from infinity while being off-axis, there is no way to represent the position of that ray. Far distance is used as an intercept on the infinity direction. 
+        position = sampleTargets.copy()
+        position[:, 0] += xDist
+        position[:, 1] += yDist
+        position[:, 2] = -FAR_DISTANCE # Object space is negative
+        direction = sampleTargets - position
+    else:
+        distance = bd.array(distance) # Avoid cupy device issue 
+        xDist = distance * bd.tan(bd.radians(fieldAngleX))
+        yDist = distance * bd.tan(bd.radians(fieldAngleY))
+        position = bd.tile(bd.array([xDist, yDist, -distance]), (numRays, 1))
+        if(position.shape == sampleTargets.shape):
+            direction = sampleTargets - position
+        else:
+            direction = sampleTargets - position[:, bd.newaxis]
+
+    direction = ArrayNormalized(direction)
+
+    temp = bd.zeros(5)
+    temp[0] = LambdaLines['d']
+    temp[1] = ONE    # Sagittal radiant
+    temp[2] = ONE    # Tangential radiant
+    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    
+    mainRB =  RayBatch(
+        bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
+        )
+    
+    return mainRB
+
+
 # ==================================================================
 """ ==================== Emit From Image Space ================= """
 # ==================================================================

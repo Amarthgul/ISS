@@ -340,11 +340,11 @@ class Surface:
         refractedRB.SetPosition(intersections[~TIR])
         refractedRB.SetDirection(refracted)
 
+
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         if(reflection):
             reflectedRB.SetPosition(intersections[~TIR])
             reflectedRB.SetDirection(reflected[~TIR])
-            #reflectedRB.Mask(~TIR)
 
             # TIR are the reverted selection 
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
@@ -425,8 +425,10 @@ class Surface:
 
                     vigReflRBL = vigReflRBL.Merge(vigReflRBT)
 
+                # These clear boundary reflections may also contain their own TIR
                 reflectedRB = reflectedRB.Merge(vigReflRBL)
 
+            # TIR could have high intensity rays 
             reflectedRB = reflectedRB.Merge(tirRB)
 
         return refractedRB, TIR, boolVig, reflectedRB

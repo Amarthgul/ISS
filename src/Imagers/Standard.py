@@ -79,11 +79,11 @@ class StdImager(Surface):
         return self.rayBatch, _tir, _vig
 
 
-    def IntegralRays(self, raybatch, baseImg=None,):
+    def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12):
 
         self.rayBatch = raybatch
 
-        return self._integralRays(baseImg=baseImg)
+        return self._integralRays(baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval)
 
 
     def DrawSurface(self):

@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False 
 
 
 class Example():
@@ -26,6 +26,37 @@ class Example():
 
     def LoadExample(self):
         self.data = Load(self.fileName)
+
+
+def Mug():
+
+    def _MugData():
+        mug = Lens() 
+        mug.AddSurface(Stop(                 0.1))
+        mug.AddSurface(Surface(INFINITY,     20,      18,     "BAF9"))
+        mug.AddSurface(Surface(INFINITY,     20,      18))
+        mug.isAfocal = True 
+        return mug 
+
+    fileName = "aNormalMug"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    biotarExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        biotarExample.LoadExample()
+        biotar = biotarExample.data
+    else: 
+        biotar = _MugData()
+        biotar.UpdateLens()
+        biotarExample.data = biotar
+        biotarExample.SaveExample()
+
+    return biotar
 
 
 # ==================================================================
@@ -317,7 +348,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = ZeissHologon15mmf8()
+    exampleLens = Mug()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
