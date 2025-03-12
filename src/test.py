@@ -246,7 +246,7 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
         if(iterationCount > saveIterationCount):
             imgSave = Image.fromarray(ImageConversion(image, maxModifier=0.5), 'RGB')
-            imgSave.save(r"resources/Results/SpotTestng/Spot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
+            imgSave.save(r"resources/Results/SpotTestng/_FDSpot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
             break
 
         iterationCount += 1
@@ -350,12 +350,12 @@ def main():
 
     lens = Biotar50mmf14()
     # ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
-    # for o in objectDistance:
-    #     ISO12233Test(lens, imageDistance=o, imageMinSample=800, realTimeUpdate=False)
+    for o in objectDistance:
+        ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
 
     # SpotTesting()
     # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=256, realTimeUpdate=True)
-    ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
+    # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     #ReflectionTesting(Mug())
 
