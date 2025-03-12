@@ -173,36 +173,32 @@ class Lens:
                 if(reflection):
                     # For the reflected rays, the surface index means where they are before a surface
                     _reflectedRB.RadiantKill()
-                    _reflectedRB.SetIndex(i)
+                    # _reflectedRB.SetIndex(i)
                     reflectedRB.Merge(_reflectedRB)
 
                 
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
-        #DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
+        reflectedRB.SurfaceKill(0)
+
+        # DrawRaybatch(reflectedRB, lLength=2, lineColor="r") # =========== Draw call
+        
 
         if (reflection):
-            # DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
-            # print(reflectedRB.PolarizedRadiance())
-
+            color = ["r", "b"]
+            exitRB = RayBatch(None)
             for _c in range(iteCount):
-                # print("In ", _c, " th reflection iteration")
+                #print("In ", _c, " th reflection iteration")
                 reflectedRB = self._BounceReflection(reflectedRB)
+                exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex)) 
 
-                
-                # DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
-                #plt.draw()
-                #plt.pause(10)
 
             # After 3 times of reflection, these still facing negative Z might as well be dropped to save space 
+            reflectedRB.Merge(exitRB)
             reflectedRB = reflectedRB.GetRaysFacing()
-            # DrawRaybatch(reflectedRB, lLength=2) # =========== Draw call 
+            
             reflectedRB = self._PropagateReflectedThrough(reflectedRB)
-
-            #DrawRaybatch(reflectedRB, lLength=2) # ======= Draw call
-
-            #self.rayBatch.Merge(reflectedRB)
 
         # print(self.rayBatch.SurfaceIndex())
 
@@ -217,6 +213,10 @@ class Lens:
         Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
         """
         
+        if(self.isAfocal):
+            return self.totalAxialLength + .1
+
+
         focusRB = EmitField(0, 0, distance, self.entrancePupil.GetSamplePoints())
 
         focusRP = RayPath()
@@ -426,7 +426,7 @@ class Lens:
                 else: 
                     pass 
 
-                print("Surface ", s, " max csd ", value)
+                # print("Surface ", s, " max csd ", value)
                 if(self.surfaces[s].clearSemiDiameter < value):
                     pass 
                     
@@ -600,6 +600,7 @@ class Lens:
         Iterate through each surface, calculate the reflection inside the surface. 
         """
         returnRB = RayBatch(None)
+        
 
         # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at 1
         for i in range(1, len(self.surfaces)):
@@ -607,31 +608,38 @@ class Lens:
             # Find the rays that are in the current surface
             inSurfaceRB = reflectedRB.GetRaysAt(i)
 
-            if(not isinstance(self.surfaces[i-1], Stop)):
-                # Try to find the ones that will intersect with previous surface 
-                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i-1].Trace(
-                    inSurfaceRB, 
-                    self._FindPreviousRI(i-1, inSurfaceRB), 
-                    inverted = True,
-                    reflection = True)
-                # _surfaceRB are rays that propagate through the previous surface, thus not very important for reflections
-                
-                # Keep only the rays that did not intersect with the previous surface 
-                inSurfaceRB.Mask(~_vig)
-                # Add the reflected rays from previous surfaces. Given the implementation, TIR should already be included in the _reflectedRB
-                inSurfaceRB.Merge(_reflectedRB)
-                # These _reflectedRB rays should either intersect with the clear boundaries or become sequential again 
-            
             if(not isinstance(self.surfaces[i], Stop)):
                 _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     inSurfaceRB, 
                     self._FindPreviousRI(i, inSurfaceRB), 
                     reflection = True)
-
+                
+                # _surfaceRB are rays that are refracted into the previous space 
+                _surfaceRB.SetIndex(i-1)
+                # Keep only the rays that did not intersect with the previous surface 
                 inSurfaceRB.Merge(_surfaceRB)
                 inSurfaceRB.Merge(_reflectedRB)
 
+                # DrawRaybatch(_surfaceRB, lLength=2, lineColor="b") # =========== Draw call
+                # DrawRaybatch(_reflectedRB, lLength=2, lineColor="g") # =========== Draw call
             # The ones that still faces back might as well be droped 
+
+            if((i+1 < len(self.surfaces)) and 
+               (not isinstance(self.surfaces[i+1], Stop))):
+                # Try to find the ones that will interact with the next surface  
+                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i+1].Trace(
+                    inSurfaceRB, 
+                    self._FindPreviousRI(i+1, inSurfaceRB), 
+                    inverted = True,
+                    reflection = True)
+                
+                # _surfaceRB are rays that are refracted into the next space 
+                _surfaceRB.SetIndex(i+1)
+                inSurfaceRB.Merge(_surfaceRB)
+                # Add the reflected rays from previous surfaces. Given the implementation, TIR should already be included in the _reflectedRB
+                inSurfaceRB.Merge(_reflectedRB)
+                # These _reflectedRB rays should either intersect with the clear boundaries or become sequential again 
+            
             returnRB.Merge(inSurfaceRB)
             returnRB.RadiantKill()
 

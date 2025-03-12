@@ -141,7 +141,7 @@ class ClearBoundary():
             print("Accident")
 
         # Reflected RB is created here first with the mask applied, this means it should not contain any rays that are not intersecting with the surface. 
-        reflectedRB = RayBatch(incidentRaybatch.value[_mask])
+        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[_mask]))
         reflectedRB.SetPosition(intersections)
 
         # Becasue reflected 
@@ -172,9 +172,17 @@ class ClearBoundary():
         if(inverted):
             n1, n2 = n2, n1 
 
+        # if(bd.any(bd.sum(directions * normals, axis=1) > 0 )):
+        #     print("Invalid! ")
+        # DrawRaybatch(incidentRaybatch, lLength=4, lineColor="r") # =========== Draw call
+        # DrawDirection(intersections, reflected, lineColor="b")
+        # DrawDirection(intersections, normals[_mask], lineColor="g") # ======= Draw call
+
         # Calculate the refraction for the polaried radiance ellipses 
         # Refracted rays themselves are not used since they no longer contribute to the imaging process. 
         refracted, TIR, _temp = Refract(directions, normals, n1, n2)
+        # DrawDirection(intersections[~TIR], refracted, lineColor="b") # ======= Draw call
+
         # Accquire the reflectance ratio for the polarized radiance ellipses
         R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n2[~TIR], n1[~TIR])
         # Accquire s and p directional vector 
@@ -494,60 +502,70 @@ class ClearBoundary():
         ox, oy, oz = rayPos[:, 0], rayPos[:, 1], rayPos[:, 2]
         dx, dy, dz = rayDir[:, 0], rayDir[:, 1], rayDir[:, 2]
         
-        # Initialize empty array for coordinates
+        # Initialize empty array for coordinates and global mask
         all_coords = bd.empty((0, 3), dtype=bd.float32)
+        global_valid_mask = bd.zeros(rayPos.shape[0], dtype=bool)
 
         # Process non-vertical rays ------------------------------------------
         non_vert_mask = dz != 0
-
         if bd.any(non_vert_mask):
+            # Get indices of non-vertical rays
+            non_vert_indices = bd.where(non_vert_mask)[0]
+            
             # Batch compute quadratic solutions
             A = dx[non_vert_mask]**2 + dy[non_vert_mask]**2
             B = 2 * (ox[non_vert_mask]*dx[non_vert_mask] + oy[non_vert_mask]*dy[non_vert_mask])
             C = ox[non_vert_mask]**2 + oy[non_vert_mask]**2 - r**2
             
             discriminant = B**2 - 4*A*C
-            intersectMask = discriminant >= 0
+            intersect_mask_local = discriminant >= 0
             
-            sqrt_d = bd.sqrt(discriminant[intersectMask])
-            t1 = (-B[intersectMask] - sqrt_d) / (2*A[intersectMask])
-            t2 = (-B[intersectMask] + sqrt_d) / (2*A[intersectMask])
+            # Get global indices for rays with valid discriminant
+            valid_disc_indices = non_vert_indices[intersect_mask_local]
+            
+            sqrt_d = bd.sqrt(discriminant[intersect_mask_local])
+            t1 = (-B[intersect_mask_local] - sqrt_d) / (2*A[intersect_mask_local])
+            t2 = (-B[intersect_mask_local] + sqrt_d) / (2*A[intersect_mask_local])
 
             # Calculate coordinates for both solutions
-            # Although somehow these turned out to be useless 
             coords_t1 = bd.stack([
-                ox[non_vert_mask][intersectMask] + t1*dx[non_vert_mask][intersectMask],
-                oy[non_vert_mask][intersectMask] + t1*dy[non_vert_mask][intersectMask],
-                oz[non_vert_mask][intersectMask] + t1*dz[non_vert_mask][intersectMask]
+                ox[non_vert_mask][intersect_mask_local] + t1*dx[non_vert_mask][intersect_mask_local],
+                oy[non_vert_mask][intersect_mask_local] + t1*dy[non_vert_mask][intersect_mask_local],
+                oz[non_vert_mask][intersect_mask_local] + t1*dz[non_vert_mask][intersect_mask_local]
             ], axis=1)
 
             coords_t2 = bd.stack([
-                ox[non_vert_mask][intersectMask] + t2*dx[non_vert_mask][intersectMask],
-                oy[non_vert_mask][intersectMask] + t2*dy[non_vert_mask][intersectMask],
-                oz[non_vert_mask][intersectMask] + t2*dz[non_vert_mask][intersectMask]
+                ox[non_vert_mask][intersect_mask_local] + t2*dx[non_vert_mask][intersect_mask_local],
+                oy[non_vert_mask][intersect_mask_local] + t2*dy[non_vert_mask][intersect_mask_local],
+                oz[non_vert_mask][intersect_mask_local] + t2*dz[non_vert_mask][intersect_mask_local]
             ], axis=1)
 
-            # Filter valid z-ranges
-            valid_z = (coords_t1[:, 2] >= z1) & (coords_t1[:, 2] <= z2) & (t1 >= 0)
-            coords_t1 = coords_t1[valid_z]
+            # Filter valid z-ranges and update global mask
+            valid_z_t1 = (coords_t1[:, 2] >= z1) & (coords_t1[:, 2] <= z2) & (t1 >= 0)
+            valid_z_t2 = (coords_t2[:, 2] >= z1) & (coords_t2[:, 2] <= z2) & (t2 >= 0)
             
-            valid_z = (coords_t2[:, 2] >= z1) & (coords_t2[:, 2] <= z2) & (t2 >= 0)
-            coords_t2 = coords_t2[valid_z]
+            # Update global mask using original indices
+            global_valid_mask[valid_disc_indices[valid_z_t1]] = True
+            global_valid_mask[valid_disc_indices[valid_z_t2]] = True
 
-            # Concatenate valid coordinates
-            #all_coords = bd.concatenate([all_coords, coords_t1, coords_t2], axis=0)
-            all_coords = bd.concatenate([all_coords, coords_t2], axis=0)
-
-            intersectMask &= valid_z
+            # Collect valid coordinates
+            all_coords = bd.concatenate([
+                all_coords, 
+                coords_t1[valid_z_t1], 
+                coords_t2[valid_z_t2]
+            ], axis=0)
 
         # Process vertical rays ----------------------------------------------
         vert_mask = (dz == 0)
         if bd.any(vert_mask):
-            print("This line is being triggered")
             # Find vertical rays inside cylinder
+            vert_indices = bd.where(vert_mask)[0]
             in_z = (oz[vert_mask] >= z1) & (oz[vert_mask] <= z2)
             in_radius = (ox[vert_mask]**2 + oy[vert_mask]**2) <= r**2
             valid_vert = in_z & in_radius
+
+            # Update global mask for vertical rays
+            global_valid_mask[vert_indices[valid_vert]] = True
 
             # Generate coordinates for valid vertical rays
             vert_coords = bd.stack([
@@ -562,11 +580,7 @@ class ClearBoundary():
             
             all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
 
-        if(all_coords.shape[0] != intersectMask.sum()):
-            print("sum of mask ", intersectMask.sum())
-            print("Accident")
-
-        return all_coords, intersectMask
+        return all_coords, global_valid_mask
         
 
     def _PlaneIntersection(self, rayPos, rayDir, E1, E2, axis=OBJ_FACING):

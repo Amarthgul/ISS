@@ -166,7 +166,9 @@ class StdImager(Surface):
             #print("radiantsChannel max: ", bd.max(radiantsChannel), "\t\t mean", bd.mean(radiantsChannel), "\t\t std ", bd.std(radiantsChannel))
 
             # Try to remove the outlier over-exposured pixels (maybe caused by float error?)
-            if(overExpNoiseRemoval is not None):
+            if((overExpNoiseRemoval is not None) and 
+               (bd.max(radiantsChannel) > bd.mean(radiantsChannel))):
+                # TODO: add a second condition for automatic check if both mean and max are the same
                 radiantsChannel = self._PruneHighOutliers(radiantsChannel, overExpNoiseRemoval)
 
             rChannel = radiantsChannel * RGB[0]

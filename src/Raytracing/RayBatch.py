@@ -29,11 +29,11 @@ class RayBatch:
     
 
     def Position(self):
-        return self.value[:, :3]
+        return bd.copy(self.value[:, :3])
     
 
     def Direction(self):
-        return self.value[:, 3:6]
+        return bd.copy(self.value[:, 3:6])
     
 
     def Wavelength(self, singleValue = False):
@@ -45,7 +45,7 @@ class RayBatch:
         if (singleValue):
             return self.value[:, 6][0]
         else:
-            return self.value[:, 6]
+            return bd.copy(self.value[:, 6])
     
 
     def Radiannce(self):
@@ -212,6 +212,17 @@ class RayBatch:
 
         removeMask = self.SurfaceIndex() == index
         self.Mask(~removeMask)
+
+
+    def TrimExitRays(self, index):
+
+        validMask = (self.value[:, 10] == index) & (self.value[:, 5] > 0)
+
+        exitRB = RayBatch(bd.copy(self.value[validMask]))
+        self.Mask(~validMask)
+
+        return exitRB
+
 
 
     def ToString(self):

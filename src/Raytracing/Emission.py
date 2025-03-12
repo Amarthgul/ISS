@@ -416,6 +416,10 @@ def EmitFieldMultispectral(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTa
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
         )
     
+    low, high = 430, 700
+    wavelengthColumn = bd.random.uniform(low=low, high=high, size=(position.shape[0], ))
+    mainRB.value[:, 6] = wavelengthColumn
+
     return mainRB
 
 

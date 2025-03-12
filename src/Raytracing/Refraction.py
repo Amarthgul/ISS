@@ -22,6 +22,8 @@ def Refract(incident, normal, n1, n2):
     incident = incident / bd.linalg.norm(incident, axis=1, keepdims=True)
     normal = normal / bd.linalg.norm(normal, axis=1, keepdims=True)
 
+    #print(incident[bd.sum(incident * normal, axis=1) > 0] )
+    
     # Compute the ratio of refractive indices
     n_ratio = n1 / n2
     

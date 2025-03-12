@@ -2,7 +2,7 @@
 
 from Util.Backend import backend as bd 
 from Util.Misc import ArrayNormalized
-
+from Util.PltPlot import DrawDirection
 
 
 def Reflect(incident, normal):
@@ -18,12 +18,14 @@ def Reflect(incident, normal):
     incident = ArrayNormalized(incident)
     normal = ArrayNormalized(normal)
     
+    # print(incident[bd.sum(incident * normal, axis=1) > 0] )
+
     # Compute dot product of incident vectors with surface normals
     dotProduct = bd.sum(incident * normal, axis=1, keepdims=True)
     
     # Apply reflection formula: R = I - 2 * (I ⋅ N) * N
     reflected = incident - 2 * dotProduct * normal
-    
+
     return reflected
 
 

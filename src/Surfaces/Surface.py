@@ -333,8 +333,11 @@ class Surface:
 
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
+
         # These reflected are the reflected componenet form the refracted due to fresnel  
         reflected = Reflect(directions, normals)
+
+        # DrawDirection(intersections, reflected, lineColor="b") # ======= Draw call
 
         refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         refractedRB.SetPosition(intersections[~TIR])
@@ -345,7 +348,7 @@ class Surface:
         if(reflection):
             reflectedRB.SetPosition(intersections[~TIR])
             reflectedRB.SetDirection(reflected[~TIR])
-
+            # DrawRaybatch(reflectedRB, lineColor="g") # ======= Draw call
             # TIR are the reverted selection 
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
             tirRB.SetPosition(intersections[TIR])
@@ -427,8 +430,7 @@ class Surface:
 
                 # These clear boundary reflections may also contain their own TIR
                 reflectedRB = reflectedRB.Merge(vigReflRBL)
-
-            # TIR could have high intensity rays 
+                
             reflectedRB = reflectedRB.Merge(tirRB)
 
         return refractedRB, TIR, boolVig, reflectedRB
