@@ -127,6 +127,8 @@ class StdImager(Surface):
         :param plotResult: whether to show the resulting plot or not. 
         :param baseImg: if not null, the generated image will be added onto this base image. 
         :param overExpNoiseRemoval: sometimes there are single pixel of value that is way overexposed due to random errors. When overExpNoiseRemoval is set to a number, it will prune the values depending on the std of the values. 
+        
+        :return: a float array representing an RGB image.  
         """
 
         pxPitch = self.width / self.horizontalPx 
@@ -185,9 +187,6 @@ class StdImager(Surface):
         # Monte Carlo addition 
         if(baseImg is not None):
             rgb_image = baseImg + rgb_image
-
-        #maxValue = bd.max(rgb_image)
-        #print("max value: ", maxValue)
 
         return rgb_image
 
