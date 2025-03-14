@@ -146,7 +146,9 @@ class Lens:
         Propagate the raybatch through the lens. 
 
         :param recordPath: when enabled, all paths of rays will be recorded. For production use, turn this off to avoid unnecessary memory usage. 
-
+        :param reflection: when enabled, rays will reflect based on the Fresnel reflectance, non-sequential rays propagation will also be calculated. This defaults to False to reduce time and memory consumption. 
+        :param iteCount: number of iterations for calculating non-sequential propagation. Due to reflected rays will also have both refraction and reflection, the number of rays will increase geometrically. Ite Count larger than 3 could potentially stagger the computer. 
+        
         :return: primary imaging RB, ray path if recorded, and the reflected RB. 
         """
 
@@ -180,12 +182,12 @@ class Lens:
                 if(recordPath):
                     self.rayPath.Append(self.rayBatch, _tir, _vig)
 
-        reflectedRB.SurfaceKill(0)
 
         # DrawRaybatch(reflectedRB, lLength=2, lineColor="r") # =========== Draw call
         
 
         if (reflection):
+            reflectedRB.SurfaceKill(0)
             color = ["r", "b"]
             exitRB = RayBatch(None)
             for _c in range(iteCount):

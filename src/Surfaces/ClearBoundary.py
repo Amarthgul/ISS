@@ -159,6 +159,7 @@ class ClearBoundary():
         randomDirection = self._RandomInHemisphere(normals)
         normals = ArrayNormalized(normals * self.specularReflection + \
                   randomDirection * (1 - self.specularReflection))
+        # Note that this is not the Lambertian reflected radiant intensity as viewing angle is not considered 
 
         # Calculate the reflection directions and directly update the reflected RB 
         reflected = Reflect(reflectedRB.Direction(), normals)
@@ -172,16 +173,9 @@ class ClearBoundary():
         if(inverted):
             n1, n2 = n2, n1 
 
-        # if(bd.any(bd.sum(directions * normals, axis=1) > 0 )):
-        #     print("Invalid! ")
-        # DrawRaybatch(incidentRaybatch, lLength=4, lineColor="r") # =========== Draw call
-        # DrawDirection(intersections, reflected, lineColor="b")
-        # DrawDirection(intersections, normals[_mask], lineColor="g") # ======= Draw call
-
         # Calculate the refraction for the polaried radiance ellipses 
         # Refracted rays themselves are not used since they no longer contribute to the imaging process. 
         refracted, TIR, _temp = Refract(directions, normals, n1, n2)
-        # DrawDirection(intersections[~TIR], refracted, lineColor="b") # ======= Draw call
 
         # Accquire the reflectance ratio for the polarized radiance ellipses
         R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n2[~TIR], n1[~TIR])
@@ -203,17 +197,6 @@ class ClearBoundary():
         # The direction of the reflected, including TIR, are already set previously. 
         # So here only need to merge the nonTIR, whose raidance ellipse just got modified, with the TIR rays of the original raybatch.
         reflectedRB = nonTIRRB.Merge(RayBatch(reflectedRB.value[TIR]))
-
-
-        # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
-
-        
-        # DrawDirection(reflectedRB.Position(), reflectedRB.Direction(), lineColor='m') # ============ Draw call
-        # DrawDirection(intersections[~TIR], refracted, lineColor='b') # ============ Draw call
-        # DrawDirection(intersections, normals, lineLength=2) # ============ Draw call
-        # DrawPoints(intersections) # ============ Draw call
-
 
         return reflectedRB, _mask
 

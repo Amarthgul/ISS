@@ -225,9 +225,10 @@ class RayBatch:
 
 
 
-    def ToString(self):
+    def ToString(self, maxCount=50):
+
         result = "[\n"
-        for row in self.value:
+        for row in self.value[:maxCount]:
             # Convert each row's elements to strings and join them with commas
             row_str = "  [" + ", ".join(str(x) for x in row) + "],\n"
             result += row_str

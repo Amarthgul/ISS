@@ -1,8 +1,6 @@
 
 
 import OpenEXR
-
-
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Misc import NumpyConversion
@@ -69,5 +67,7 @@ def SaveAsEXR(ary, folder, fileName):
 
     with OpenEXR.File(header, channels) as outfile:
         outfile.write(nameStr)
+
+
 
 

@@ -21,7 +21,7 @@ class StdImager(Surface):
 
         self.fType = FieldStopType.Rectangular
 
-        self.rayBatch = None 
+        #self.rayBatch = None 
         self.BFD = bfd  # Back focal distance. Sensor distance from last element's vertex 
         
         self.width = bd.array(w)          # Physical size in mm
@@ -70,20 +70,20 @@ class StdImager(Surface):
 
 
     def IntersectRays(self, raybatch):
-        self.rayBatch = raybatch
-        intersections, _tir, _vig = self.Intersection(self.rayBatch)
-        self.rayBatch.Mask(~_vig)
-        self.rayBatch.SetPosition(intersections)
+        #self.rayBatch = raybatch
+        intersections, _tir, _vig = self.Intersection(raybatch)
+        raybatch.Mask(~_vig)
+        raybatch.SetPosition(intersections)
         
 
-        return self.rayBatch, _tir, _vig
+        return raybatch, _tir, _vig
 
 
     def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12):
 
-        self.rayBatch = raybatch
+        #self.rayBatch = raybatch
 
-        return self._integralRays(baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval)
+        return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval)
 
 
     def DrawSurface(self):
@@ -119,7 +119,7 @@ class StdImager(Surface):
         return ~(heightMask | widthMask)
 
     
-    def _integralRays(self, bitDepth=8, baseImg=None, overExpNoiseRemoval=12):
+    def _integralRays(self, intersectRayBatch, bitDepth=8, baseImg=None, overExpNoiseRemoval=12):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -135,11 +135,11 @@ class StdImager(Surface):
         pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])
 
         # Find the rays that arrived at the the image plane 
-        rayHitIndex = bd.where(bd.isclose(self.rayBatch.value[:, 2], self._zPos))
+        rayHitIndex = bd.where(bd.isclose(intersectRayBatch.value[:, 2], self._zPos))
 
         # Translate the intersections from 3D image space to 2D pixel-based space
-        rayPos = self.rayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
-        rayWavelength = self.rayBatch.Wavelength()[rayHitIndex] 
+        rayPos = intersectRayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
+        rayWavelength = intersectRayBatch.Wavelength()[rayHitIndex] 
 
         # Convert ray position into pixel position 
         rayPos = bd.floor(rayPos).astype(int)
@@ -149,7 +149,7 @@ class StdImager(Surface):
         radiantGridB = bd.zeros( (self.horizontalPx, self.verticalPx) )
 
         # Isolate the rays that arrived at the imager plane 
-        rayHitIsolate = bd.isclose(self.rayBatch.value[:, 2], self._zPos)
+        rayHitIsolate = bd.isclose(intersectRayBatch.value[:, 2], self._zPos)
 
         # Find all wavelengths 
         wavelengths = bd.unique(rayWavelength)
@@ -157,14 +157,14 @@ class StdImager(Surface):
             RGB = WavelengthToRGB(wavelength)
 
             # Isolate the wavelength currently dealing with 
-            wavelengthIsolate = bd.isclose(self.rayBatch.Wavelength(), wavelength)
+            wavelengthIsolate = bd.isclose(intersectRayBatch.Wavelength(), wavelength)
 
             # Convert the position of the ray hits into an int grid by flooring them 
             rayPosChannel = bd.floor(
-                self.rayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)[:, :2]
+                intersectRayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)[:, :2]
             
 
-            radiantsChannel = self.rayBatch.PolarizedRadiance()[bd.where(rayHitIsolate & wavelengthIsolate)]
+            radiantsChannel = intersectRayBatch.PolarizedRadiance()[bd.where(rayHitIsolate & wavelengthIsolate)]
             #print("radiantsChannel max: ", bd.max(radiantsChannel), "\t\t mean", bd.mean(radiantsChannel), "\t\t std ", bd.std(radiantsChannel))
 
             # Try to remove the outlier over-exposured pixels (maybe caused by float error?)

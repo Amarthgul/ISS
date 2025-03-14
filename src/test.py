@@ -17,21 +17,20 @@ from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
 
 
-def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+FrameCount = 0 
 
+
+def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+    
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
-    # source = PointsSource()
-    # source.isCartesian = False
-    # source.GenerateSpots(19, 12)
-
-    imager = StdImager(lens.BestFocusBFD(imageDistance), w=13.2, h=8.8) #32.4
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2D()
-    sourceImage.horizontalAoV = 15 #40
+    sourceImage.horizontalAoV = 40 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
@@ -55,7 +54,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         normalizer = iterationCount + 10
 
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), perIterRays)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), perIterRays)
 
         lens.SetIncidentRaybatch(mainRB)
 
@@ -80,9 +79,13 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         iterationCount += 1
         
         if(iterationCount > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
+            fn = r"ISO12233Test"+FrameCount
+            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
+            # imgSave = Image.fromarray(ImageConversion(image), 'RGB')
+            # imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
+
+    FrameCount += 1
 
     return elpased 
 
@@ -298,8 +301,6 @@ def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000,
         #print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
 
         if(iterationCount > saveIterationCount):
-            # imgSave = Image.fromarray(ImageConversion(image, maxModifier=1), 'RGB')
-            # imgSave.save(r"resources/Results/SpotTestng/Spot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
             SaveAsEXR(image, r"resources/Results/SpotTestng", "exrTest")
             break
 
@@ -351,12 +352,14 @@ def main():
     ]
 
     lens = Biotar50mmf14()
-    # ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
+    for o in objectDistance:
+        ISO12233Test(lens, imageDistance=o, imageMinSample=32, realTimeUpdate=False)
+
     # for o in objectDistance:
     #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
 
     # SpotTesting()
-    MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
+    # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
     # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     #ReflectionTesting(Mug())

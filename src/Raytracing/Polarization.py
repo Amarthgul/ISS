@@ -232,9 +232,13 @@ def main():
     v = bd.array([[1.0, 0.5],
                 [-0.3, 0.8]])  # shape (2, 2)
 
+
+    id = bd.array([[1., 0.], 
+                    [0., 1.]])
+
     # Expand the ellipses in the direction of v.
-    A_modified = ModifyEllipse(A, v, add=True)
-    print("Modified ellipses:\n", A_modified.get())
+    # A_modified = ModifyEllipse(A, v, add=True)
+    print("Eigen:\n", bd.linalg.eigh(id))
 
 
 if __name__ == "__main__":
