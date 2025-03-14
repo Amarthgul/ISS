@@ -3,9 +3,10 @@
 from PIL import Image
 import time
 import matplotlib.pyplot as plt
+import OpenEXR
 
 from Util.Backend import backend as bd
-from Util.ColorWavelength import ImageConversion, ImageConversionAverage
+from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
@@ -297,8 +298,9 @@ def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000,
         #print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
 
         if(iterationCount > saveIterationCount):
-            imgSave = Image.fromarray(ImageConversion(image, maxModifier=1), 'RGB')
-            imgSave.save(r"resources/Results/SpotTestng/Spot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
+            # imgSave = Image.fromarray(ImageConversion(image, maxModifier=1), 'RGB')
+            # imgSave.save(r"resources/Results/SpotTestng/Spot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
+            SaveAsEXR(image, r"resources/Results/SpotTestng", "exrTest")
             break
 
         iterationCount += 1
@@ -350,11 +352,11 @@ def main():
 
     lens = Biotar50mmf14()
     # ISO12233Test(lens, imageMinSample=8192, realTimeUpdate=True)
-    for o in objectDistance:
-        ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
+    # for o in objectDistance:
+    #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
 
     # SpotTesting()
-    # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=256, realTimeUpdate=True)
+    MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
     # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     #ReflectionTesting(Mug())

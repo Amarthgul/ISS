@@ -7,7 +7,7 @@ This is for all the color and wavelength calculations and conversions.
 
 
 import math
-
+import OpenEXR
 
 from Util.Misc import NumpyConversion
 from Util.Backend import backend as bd 
@@ -248,41 +248,6 @@ def ColorTuplePLT(arrayRGB):
         arrayRGB = bd.asnumpy(arrayRGB)
 
     return tuple(arrayRGB)
-
-
-def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True):
-    """
-    Convert the float reprensentation of an image to a uint8 image.
-    """
-    # print(bd.max(ary))
-    maxValue = bd.max(ary) * maxModifier 
-
-
-    #maxValue = 256
-    bits = 2.0**bitDepth-1
-    scaleRatio = bits / (maxValue if (normalizer is None) else normalizer + NEAR_ZERO)
-    ary = bd.clip(ary*scaleRatio, 0, bits) 
-
-    if(rotate):
-        ary = bd.rot90(ary)
-
-    return NumpyConversion(ary).astype(bd.uint8)
-
-
-def ImageConversionAverage(ary, bitDepth=8, modifier=2, rotate=True):
-    """
-    Convert the float reprensentation of an image to a uint8 image.
-    """
-    emanVal = bd.median(ary)
-
-    bits = 2.0**bitDepth-1
-    scaleRatio = bits / (emanVal * modifier)
-    ary = bd.clip(ary*scaleRatio, 0, bits) 
-
-    if(rotate):
-        ary = bd.rot90(ary)
-
-    return NumpyConversion(ary).astype(bd.uint8)
 
 
 def AddSecondary(wavelength, radiant, addCount=2):
