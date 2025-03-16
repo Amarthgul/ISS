@@ -56,10 +56,16 @@ class RayBatch:
         return self.value[:, 7]
     
 
-    def PolarizedRadiance(self):
+    def PolarizedRadiance(self, polarized=True):
         """
         Radiance as area of the polarization ellipse. 
+
+        :param polarized: defaults to true and will calculate the radiance based on the polarizaton ellipse. Disable this could signifacntly increase memory and speed. 
         """
+
+        # For generalized purpose, this method is used for almost all radiance inquiries. However, calculating the polarized radiance brings a huge memory and speed loss, as such, an additional option is coded here to directly skip the ellipse calculation. 
+        if(not polarized):
+            return self.Radiannce()
 
         # Accquire eigen value and eigen vector 
         if(backend_name == "cupy"):

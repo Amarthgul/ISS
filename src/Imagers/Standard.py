@@ -79,11 +79,11 @@ class StdImager(Surface):
         return raybatch, _tir, _vig
 
 
-    def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12):
+    def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
 
         #self.rayBatch = raybatch
 
-        return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval)
+        return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval, polarized=polarized)
 
 
     def DrawSurface(self):
@@ -119,7 +119,7 @@ class StdImager(Surface):
         return ~(heightMask | widthMask)
 
     
-    def _integralRays(self, intersectRayBatch, bitDepth=8, baseImg=None, overExpNoiseRemoval=12):
+    def _integralRays(self, intersectRayBatch, bitDepth=8, baseImg=None, overExpNoiseRemoval=12, polarized=True):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -135,11 +135,11 @@ class StdImager(Surface):
         pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])
 
         # Find the rays that arrived at the the image plane 
-        rayHitIndex = bd.where(bd.isclose(intersectRayBatch.value[:, 2], self._zPos))
+        rayHitMask = bd.isclose(intersectRayBatch.value[:, 2], self._zPos)
 
         # Translate the intersections from 3D image space to 2D pixel-based space
-        rayPos = intersectRayBatch.Position()[rayHitIndex] / pxPitch + pxOffset
-        rayWavelength = intersectRayBatch.Wavelength()[rayHitIndex] 
+        rayPos = intersectRayBatch.Position()[rayHitMask] / pxPitch + pxOffset
+        rayWavelength = intersectRayBatch.Wavelength()[rayHitMask] 
 
         # Convert ray position into pixel position 
         rayPos = bd.floor(rayPos).astype(int)
@@ -161,10 +161,10 @@ class StdImager(Surface):
 
             # Convert the position of the ray hits into an int grid by flooring them 
             rayPosChannel = bd.floor(
-                intersectRayBatch.Position()[bd.where(rayHitIsolate & wavelengthIsolate)] / pxPitch + pxOffset).astype(int)[:, :2]
+                intersectRayBatch.Position()[rayHitIsolate & wavelengthIsolate] / pxPitch + pxOffset).astype(int)[:, :2]
             
 
-            radiantsChannel = intersectRayBatch.PolarizedRadiance()[bd.where(rayHitIsolate & wavelengthIsolate)]
+            radiantsChannel = intersectRayBatch.PolarizedRadiance(polarized)[rayHitIsolate & wavelengthIsolate]
             #print("radiantsChannel max: ", bd.max(radiantsChannel), "\t\t mean", bd.mean(radiantsChannel), "\t\t std ", bd.std(radiantsChannel))
 
             # Try to remove the outlier over-exposured pixels (maybe caused by float error?)
