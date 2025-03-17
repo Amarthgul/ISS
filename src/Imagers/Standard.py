@@ -131,6 +131,9 @@ class StdImager(Surface):
         :return: a float array representing an RGB image.  
         """
 
+
+        print("Total intersect rays ", intersectRayBatch.value.shape)
+
         pxPitch = self.width / self.horizontalPx 
         pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])
 

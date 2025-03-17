@@ -141,7 +141,7 @@ class Lens:
         self.rayBatch = raybatch
 
 
-    def Propagate(self, recordPath = False, reflection = False, iteCount=2):
+    def Propagate(self, recordPath=False, reflection=False, iteCount=2):
         """
         Propagate the raybatch through the lens. 
 
@@ -169,6 +169,8 @@ class Lens:
                     self._FindPreviousRI(i, self.rayBatch), 
                     reflection = reflection)
                 
+                print(i, "th surface intersect ", self.rayBatch.value.shape)
+
                 # The index of main RB is where they are after a surface
                 self.rayBatch.SetIndex(i)
 

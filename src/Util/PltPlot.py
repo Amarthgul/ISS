@@ -105,7 +105,7 @@ def DrawPoint(point, color='red', ax=AX):
     ax.scatter3D(point[0], point[1], point[2], color=color)
 
 
-def DrawPoints(points, color='red', ax=AX):
+def DrawPoints(points, ptSize=0.5, color='red', ax=AX):
     CheckAX()
 
     if(backend_name == "cupy"):
@@ -113,7 +113,7 @@ def DrawPoints(points, color='red', ax=AX):
 
     
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    ax.scatter3D(x, y, z, color=color)
+    ax.scatter3D(x, y, z, color=color, s=ptSize)
 
 
 def DrawPointsPerColor(points, color, ax=AX):

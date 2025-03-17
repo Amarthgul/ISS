@@ -41,7 +41,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
 
     iterationCount = 0
     normalizer = iterationCount + 10
-    perIterRays = 10000
+    perIterRays = 4096
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -63,7 +63,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
 
-        image = imager.IntegralRays(mainRB, baseImg=image)
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
         if(realTimeUpdate):
             im.set_data(ImageConversion(image))
@@ -79,7 +79,9 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         iterationCount += 1
         
         if(iterationCount > imageMinSample):
-            fn = r"ISO12233Test"+FrameCount
+            image /= 100 
+            global FrameCount
+            fn = r"ISO12233Test"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             # imgSave = Image.fromarray(ImageConversion(image), 'RGB')
             # imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
@@ -88,63 +90,6 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     FrameCount += 1
 
     return elpased 
-
-
-def ImageTest(imageDistance = 5000, focusDistance = 500, imageMinSample = 10, lens=None):
-
-    if (lens is None):
-        lens = Biotar50mmf14()
-
-    #lens.SetAperture(22)
-
-    imager = StdImager(lens.BestFocusBFD(focusDistance)) #32.4
-    # Assemble the imaging system 
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
-
-    sourceImage = Image2D()
-    sourceImage.horizontalAoV = 44
-    sourceImage.imageDimensionOverride = 2048 
-    sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-    #sourceImage.SetupTransitionTest()
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
-
-    start = time.time()
-
-    # plt.ion()  # Turn on interactive mode
-    # fig, ax = plt.subplots()
-    # im = ax.imshow(ImageConversion(image))
-
-    iterationCount = 0
-
-    while(True):
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 409600)
-
-        lens.SetIncidentRaybatch(mainRB)
-
-        mainRB, mainRP = lens.Propagate()
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
-        image = imager.IntegralRays(mainRB, baseImg=image)
-
-        # im.set_data(ImageConversion(image))
-        # plt.draw()
-        # plt.pause(0.01)
-        
-        #print(source.sampleRecord)
-        elpased = time.time() - start
-        imMin, imMax, imR = sourceImage.GetSampleRatios()
-
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
-        iterationCount += 1
-        
-        if(imMin > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/Meme_dist"+str(imageDistance)+"_focus"+str(focusDistance)+".png")
-            break
 
 
 def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCount = 50):
@@ -195,7 +140,6 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
             break
 
         iterationCount += 1
-
 
 
 def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
@@ -337,6 +281,57 @@ def ReflectionTesting(lens):
     plt.show()
     
 
+def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+    
+    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
+    # Assemble the imaging system 
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
+
+    sourceImage = Image2D()
+    sourceImage.horizontalAoV = 40 
+    sourceImage.imageDimensionOverride = 1920 
+    sourceImage.distance = imageDistance
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    #sourceImage.SetupTransitionTest()
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
+
+    start = time.time()
+
+    iterationCount = 0
+    normalizer = iterationCount + 10
+    perIterRays = 16
+
+    normalizer = iterationCount + 10
+
+    #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
+    mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10), perIterRays)
+    print("Inititally generated ", mainRB.value.shape)
+
+    lens.SetIncidentRaybatch(mainRB)
+
+    mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True)
+
+    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+    # mainRP.Append(mainRB, _tir, _vig)
+
+    image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+    #mainRP.DrawPath(expendEnd=40)
+    lens.entrancePupil.DrawSurface()
+    lens.DrawLens()
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    plt.show()
+
+
+    elpased = time.time() - start
+    imMin, imMax, imR = sourceImage.GetSampleRatios()
+
+    return elpased 
 
 def main():
 
@@ -352,9 +347,11 @@ def main():
     ]
 
     lens = Biotar50mmf14()
-    for o in objectDistance:
-        ISO12233Test(lens, imageDistance=o, imageMinSample=32, realTimeUpdate=False)
-
+    lens.SetAperture(4)
+    # for o in objectDistance:
+    #     ISO12233Test(lens, imageDistance=o, imageMinSample=2048, realTimeUpdate=False)
+    
+    RayPathTesting(lens, imageDistance=100000)
     # for o in objectDistance:
     #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
 
