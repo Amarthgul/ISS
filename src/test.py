@@ -9,6 +9,7 @@ from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
+from Util.Misc import ProgressBar
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
@@ -73,6 +74,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         imMin, imMax, imR = sourceImage.GetSampleRatios()
 
         print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
+        ProgressBar(iterationCount / imageMinSample)
 
         iterationCount += 1
         
@@ -81,8 +83,6 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
             global FrameCount
             fn = r"ISO12233Test"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
-            # imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            # imgSave.save(r"resources/Results/nTest"+str(imageDistance)+"_" + str(imageMinSample) + "Sample.png")
             break
 
     FrameCount += 1
@@ -350,14 +350,14 @@ def main():
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
     objectDistance = [
-        30000, 50000, 75000, 100000
+        450, 1500, 7500, 30000, 100000
     ]
 
     lens = Biotar50mmf14()
     # lens.SetAperture(4)
     for o in objectDistance:
     #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
-        ISO12233Test(lens, imageDistance=o, imageMinSample=2048, realTimeUpdate=False)
+        ISO12233Test(lens, imageDistance=o, imageMinSample=1024, realTimeUpdate=False)
     
     # RayPathTesting(lens, imageDistance=100000)
     # for o in objectDistance:

@@ -1,7 +1,7 @@
 
 
 import math
-
+import sys
 
 
 from Util.Backend import backend as bd 
@@ -17,6 +17,31 @@ def NumpyConversion(ary):
         return ary
     
     
+def ProgressBar(progress, bar_length=50):
+    """
+    Prints a progress bar in the console.
+
+    Parameters:
+        progress (float): Value between 0 and 1 indicating progress.
+        bar_length (int): Length of the progress bar (default=40).
+    """
+    # Ensure progress is within bounds
+    progress = max(0, min(1, progress))
+
+    # Compute number of filled and empty slots
+    filled_length = int(bar_length * progress)
+    empty_length = bar_length - filled_length
+
+    # Create progress bar string
+    bar = "█" * filled_length + "-" * empty_length  # Unicode block for smooth bar
+    percent = int(progress * 100)
+
+    # Print the bar dynamically (without newlines)
+    print(f"\r[{bar}] {percent}%")
+    #sys.stdout.write(f"\r[{bar}] {percent}%")
+    #sys.stdout.flush()
+
+
 # ==================================================================
 """ ===================== 3D transformations =================== """
 # ==================================================================
