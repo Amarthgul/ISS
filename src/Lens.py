@@ -152,7 +152,6 @@ class Lens:
         :return: primary imaging RB, ray path if recorded, and the reflected RB. 
         """
 
-        
         if(recordPath):
             self.rayPath = RayPath()
             self.rayPath.Append(self.rayBatch, None, None)
@@ -169,7 +168,7 @@ class Lens:
                     self._FindPreviousRI(i, self.rayBatch), 
                     reflection = reflection)
                 
-                print(i, "th surface intersect ", self.rayBatch.value.shape)
+                #print(i, "th surface intersect ", self.rayBatch.value.shape)
 
                 # The index of main RB is where they are after a surface
                 self.rayBatch.SetIndex(i)

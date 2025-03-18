@@ -40,8 +40,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     start = time.time()
 
     iterationCount = 0
-    normalizer = iterationCount + 10
-    perIterRays = 4096
+    perIterRays = 40960
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -51,7 +50,6 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     
 
     while(True):
-        normalizer = iterationCount + 10
 
         #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(128), perIterRays)
@@ -74,7 +72,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         elpased = time.time() - start
         imMin, imMax, imR = sourceImage.GetSampleRatios()
 
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR, "\t Normalizer: ", normalizer)
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
 
         iterationCount += 1
         
@@ -190,14 +188,17 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
 
         print("\n- Focusing ", focusDistance, " for obj at ", objectDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
-        #print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
-
-        if(iterationCount > saveIterationCount):
-            imgSave = Image.fromarray(ImageConversion(image, maxModifier=0.5), 'RGB')
-            imgSave.save(r"resources/Results/SpotTestng/_FDSpot"+str(objectDistance)+"_RefTest"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
-            break
 
         iterationCount += 1
+        if(iterationCount > saveIterationCount):
+            image /= 100 
+            global FrameCount
+            fn = r"flareTest"+str(FrameCount)
+            SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
+            break
+
+    FrameCount += 1
+     
 
 
 def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
@@ -302,12 +303,14 @@ def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeU
 
     iterationCount = 0
     normalizer = iterationCount + 10
-    perIterRays = 16
+    perIterRays = 4
 
     normalizer = iterationCount + 10
 
     #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-    mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10), perIterRays)
+    #DrawPoints(lens.entrancePupil.GetSamplePoints(10))
+    
+    mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(64), perIterRays)
     print("Inititally generated ", mainRB.value.shape)
 
     lens.SetIncidentRaybatch(mainRB)
@@ -320,7 +323,7 @@ def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeU
     image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
     #mainRP.DrawPath(expendEnd=40)
-    lens.entrancePupil.DrawSurface()
+    #lens.entrancePupil.DrawSurface()
     lens.DrawLens()
     SetUnifScale(50)
     AddXYZ()
@@ -332,6 +335,7 @@ def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeU
     imMin, imMax, imR = sourceImage.GetSampleRatios()
 
     return elpased 
+
 
 def main():
 
@@ -345,13 +349,17 @@ def main():
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
+    objectDistance = [
+        30000, 50000, 75000, 100000
+    ]
 
     lens = Biotar50mmf14()
-    lens.SetAperture(4)
-    # for o in objectDistance:
-    #     ISO12233Test(lens, imageDistance=o, imageMinSample=2048, realTimeUpdate=False)
+    # lens.SetAperture(4)
+    for o in objectDistance:
+    #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
+        ISO12233Test(lens, imageDistance=o, imageMinSample=2048, realTimeUpdate=False)
     
-    RayPathTesting(lens, imageDistance=100000)
+    # RayPathTesting(lens, imageDistance=100000)
     # for o in objectDistance:
     #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
 

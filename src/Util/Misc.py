@@ -55,8 +55,8 @@ def GridNormalized(inputVec):
     """
     norms = bd.linalg.norm(inputVec, axis=2, keepdims=True)
 
-    # To avoid division by zero, you can add a small epsilon.
-    epsilon = 1e-8
+    # To avoid division by zero, add a small epsilon.
+    epsilon = 1e-9
     norms = bd.maximum(norms, epsilon)
 
     # Normalize the vectors: each vector is divided by its norm.

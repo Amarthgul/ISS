@@ -18,13 +18,18 @@ from .Backend import backend as bd
 DEVELOPER_MODE = True 
 
 
+# When flagged, all draw functions will be skipped to avoid accidental draw calls left from debugging
+RENDER_MODE=False
+
+
+
 # Gloabl flag if the ray path feature is enabled
 ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
 
 
 # Data type for the operation 
-PRECISION_TYPE = bd.float32
+PRECISION_TYPE = bd.float64
 
 
 # Placeholder focus/object distance 

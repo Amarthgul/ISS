@@ -132,7 +132,7 @@ class StdImager(Surface):
         """
 
 
-        print("Total intersect rays ", intersectRayBatch.value.shape)
+        #print("Total intersect rays ", intersectRayBatch.value.shape)
 
         pxPitch = self.width / self.horizontalPx 
         pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])

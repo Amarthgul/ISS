@@ -492,11 +492,11 @@ class Surface:
 
         # Discriminant
         discriminant = b ** TWO - constant(4) * a * c
-        
+    
         # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
         intersetIndices = discriminant > 0
 
-        print("theoretical inter: ", bd.sum(intersetIndices))
+        #print("theoretical inter: ", bd.sum(intersetIndices))
 
         # Calculate t values
         t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
@@ -510,7 +510,7 @@ class Surface:
         # Intersection points
         p = position[intersetIndices] + t[intersetIndices][:, bd.newaxis] * direction[intersetIndices]
 
-        DrawPoints(p)
+        #DrawPoints(p)
 
         # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
         clear = self._FieldStopMask(p)
@@ -520,6 +520,7 @@ class Surface:
 
         intersetIndices[intersetIndices] = clear
 
+        # print("Actual intersection ", bd.sum(intersetIndices))
 
         return p[clear], \
             bd.zeros(p.shape[0]).astype(bd.bool_), \

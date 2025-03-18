@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
-from Util.PltPlot import DrawDirection
+from Util.PltPlot import DrawDirection, DrawPoints
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE
 from Raytracing.RayBatch import RayBatch
 
@@ -78,16 +78,14 @@ class PointsSource:
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
 
+        DrawPoints(targets)
+
         # In the case that there are less sources than demanded sample count, return all 
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets, addSecondary=addSecondary)
 
         # Select the ones that have been sampled the least to ensure the sample is relatively even 
         selectedIndices = self._SelectLeastSampled(sampleCount)
-
-        #print("Min record ", bd.min(self.sampleRecord))
-        #print("Max record ", bd.max(self.sampleRecord))
-        #selectedIndices = bd.random.choice(self.value.shape[0], sampleCount, replace=False)
 
         # Increase the sample records of the selected 
         self.sampleRecord[selectedIndices] += 1
@@ -162,6 +160,7 @@ class PointsSource:
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None):
 
         sourcePos = sampleSource.Position()
+        sourcePos = self._AddJitter(sourcePos, jitter)
 
         # Expand the points to prepare crossing them 
         sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
@@ -171,13 +170,15 @@ class PointsSource:
         dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
         dirCross = GridNormalized(dirCross)
 
+
         # Expand and append the position into pos/dir pairs 
         sourcePos = sourcePos[:, bd.newaxis, :]
         # Introduce jitter to the position if needed 
-        sourcePos = self._AddJitter(
-            bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
-            jitter
-            )
+        sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
+        # sourcePos = self._AddJitter(
+        #     bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
+        #     jitter
+        #     )
 
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
@@ -312,7 +313,7 @@ def main():
         [1, -2, 25]
     ])
 
-    RB = t.EmitTowards(targets)
+    RB = t.EmitSamplesToward(targets, sampleCount=16)
 
     print(RB.value)
 

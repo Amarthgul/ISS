@@ -13,7 +13,7 @@ from numpy.linalg import norm
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE, Axis, THETA_DIV
+from Util.Globals import ORIGIN, INFINITY, DEVELOPER_MODE, Axis, THETA_DIV, RENDER_MODE
 from Util.ColorWavelength import ColorTuplePLT
 
 
@@ -32,6 +32,9 @@ if(DEVELOPER_MODE):
     fig = plt.figure()
 
 def Setup3Dplot():
+    if(RENDER_MODE):
+        return 
+    
     global fig 
     ax = fig.add_subplot(111, projection='3d')
     return ax 
@@ -42,6 +45,9 @@ if(DEVELOPER_MODE):
 
 
 def Reset2D():
+    if(RENDER_MODE):
+        return 
+
     global fig 
     fig = plt.figure()
 
@@ -51,6 +57,9 @@ def CheckAX():
     This function checks if the axis is initialized.
     Such that the user does not have to call Setup3Dplot() manually and could add plot through the entire program. 
     """
+    if(RENDER_MODE):
+        return 
+
     global AX
     if (AX == None):
         AX = Setup3Dplot()
@@ -61,6 +70,9 @@ def CheckAX():
 # ==================================================================
 
 def RemoveBG(ax=AX):
+    if(RENDER_MODE):
+        return 
+
     fig.patch.set_alpha(0)
     ax.grid(False)  # Remove grid
     ax.set_xticks([])  # Remove x ticks
@@ -83,6 +95,9 @@ def RemoveBG(ax=AX):
 
 
 def AddXYZ(unitLength = 10, lineWidth = 1, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     ax.plot([0, unitLength], [0, 0], [0, 0], label = '3D Line', color = 'r', linewidth = lineWidth)
     ax.plot([0, 0], [0, unitLength], [0, 0], label = '3D Line', color = 'g', linewidth = lineWidth)
@@ -90,6 +105,9 @@ def AddXYZ(unitLength = 10, lineWidth = 1, ax=AX):
     
 
 def SetUnifScale(lim = 10, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     offsetScalar = zAxisCompensationFactor * lim
     ax.set_xlim(offsetScalar/2.0, -offsetScalar/2.0)
@@ -98,6 +116,12 @@ def SetUnifScale(lim = 10, ax=AX):
 
 
 def DrawPoint(point, color='red', ax=AX):
+    """
+    Draw a single point. 
+    """
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     if(backend_name == "cupy"):
         point = bd.asnumpy(point)
@@ -106,6 +130,13 @@ def DrawPoint(point, color='red', ax=AX):
 
 
 def DrawPoints(points, ptSize=0.5, color='red', ax=AX):
+    """
+    Draw an array of points. 
+    """
+
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
 
     if(backend_name == "cupy"):
@@ -120,7 +151,9 @@ def DrawPointsPerColor(points, color, ax=AX):
     """
     This is basically the same as DrawPoints(), but the color parameter is treated as an array of same dimension as points. 
     """
-
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
 
     if(backend_name == "cupy"):
@@ -132,17 +165,26 @@ def DrawPointsPerColor(points, color, ax=AX):
 
 
 def Draw3D(x, y, z, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     ax.plot(x, y, z)
 
 
 def DrawLine(point1, point2, lineColor = "k", lineWidth = 2, zorder=10, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     ax.plot([point1[0], point2[0]], [point1[1], point2[1]], [point1[2], point2[2]], 
             label = '3D Line', color = lineColor, linewidth = lineWidth, zorder=zorder)
 
 
 def DrawLines(pointSetOne, pointSetTwo, lineColor = "k", lineWidth = 0.5, zorder=10, ax=AX):
+    if(RENDER_MODE):
+        return 
+
     import numpy as np
     from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
@@ -164,6 +206,9 @@ def DrawLines(pointSetOne, pointSetTwo, lineColor = "k", lineWidth = 0.5, zorder
 
 
 def DrawCircle(radius, offset = 0, num_points=100, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     theta = bd.linspace(0, 2 * bd.pi, num_points)
     circle_points = bd.array([radius * bd.cos(theta), radius * bd.sin(theta), bd.zeros_like(theta) + offset])
@@ -171,6 +216,9 @@ def DrawCircle(radius, offset = 0, num_points=100, ax=AX):
     
 
 def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     originOffset = bd.array([ORIGIN[0], ORIGIN[1], posA[2]])
     DrawLine(ax, originOffset, posA, lineWidth = 1)
@@ -181,6 +229,9 @@ def DrawIncidentPlane(posA, posB, posC, posP, d, ax=AX):
     
 
 def DrawRaybatch(rayBatch, lineColor='blue', lLength = 10, arrowRatio=.1, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     if(backend_name == "cupy"):
         data = bd.asnumpy(rayBatch.value)
@@ -200,6 +251,9 @@ def DrawRaybatch(rayBatch, lineColor='blue', lLength = 10, arrowRatio=.1, ax=AX)
 
 
 def DrawNormal(intersections, normals, lineColor='green', lineLength=1, lineWidths = 0.5, arrowRatio=0.1, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     if(backend_name == "cupy"):
         intersections = bd.asnumpy(intersections)
@@ -218,6 +272,9 @@ def DrawNormal(intersections, normals, lineColor='green', lineLength=1, lineWidt
 
 
 def DrawDirection(position, direction, lineColor='green', lineLength=5, arrowRatio=0.1, ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     if(backend_name == "cupy"):
         position = bd.asnumpy(position)
@@ -246,6 +303,10 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
     :param numPoints: number of points, controls the subdivision of the surface. 
     :surfaceColor: color of the surface. 
     """
+    if(RENDER_MODE):
+        return 
+    
+
     if(radius == INFINITY):
         DrawDisk(clearSemiDiameter, cumulativeThickness, numPoints, surfaceColor)
 
@@ -272,6 +333,9 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
 
 
 def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
 
     # Parametric equation for the disk
@@ -297,6 +361,9 @@ def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):
     """
     Draw the clear boundary of a lens element given its 2 ellipses
     """
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
 
     # TODO: this method has not been tested with off axis ellipses 
@@ -379,6 +446,10 @@ def DrawEllipse(Q, center, num_points=THETA_DIV, lColor="c", lWidth=.35, ax=AX):
         ax (matplotlib Axes3D): The 3D axis to plot on (optional).
         num_points (int): Number of points to approximate the ellipse.
     """
+    if(RENDER_MODE):
+        return 
+    
+
     CheckAX()
     if(backend_name == "cupy"):
         eigenvalues, eigenvectors = bd.linalg.eigh(Q)
@@ -407,6 +478,10 @@ def DrawEllipse(Q, center, num_points=THETA_DIV, lColor="c", lWidth=.35, ax=AX):
 
 
 def DrawPlane(points, color = "b", ax=AX):
+
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
     if(backend_name == "cupy"):
         points = bd.asnumpy(points)
@@ -418,6 +493,9 @@ def DrawPlane(points, color = "b", ax=AX):
 
 
 def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):
+    if(RENDER_MODE):
+        return 
+    
     CheckAX()
 
     # Parametric equation for the disk
