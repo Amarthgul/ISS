@@ -41,7 +41,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     start = time.time()
 
     iterationCount = 0
-    perIterRays = 40960
+    perIterRays = 81920
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -81,7 +81,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         if(iterationCount > imageMinSample):
             image /= 100 
             global FrameCount
-            fn = r"ISO12233Test"+str(FrameCount)
+            fn = r"ISO12233Test"+str(imageDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
 
@@ -349,15 +349,17 @@ def main():
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
-    objectDistance = [
-        450, 1500, 7500, 30000, 100000
-    ]
+    # objectDistance = [
+    #     450, 1500, 7500, 30000, 100000
+    # ]
 
     lens = Biotar50mmf14()
     # lens.SetAperture(4)
-    for o in objectDistance:
-    #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
-        ISO12233Test(lens, imageDistance=o, imageMinSample=1024, realTimeUpdate=False)
+    ISO12233Test(lens, imageDistance=100000, imageMinSample=4096, realTimeUpdate=False)
+
+    # for o in objectDistance:
+        # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
+        # ISO12233Test(lens, imageDistance=o, imageMinSample=256, realTimeUpdate=False)
     
     # RayPathTesting(lens, imageDistance=100000)
     # for o in objectDistance:
