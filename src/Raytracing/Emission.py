@@ -19,7 +19,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Sampling import RandomEllipticalDistribution, CircularDistribution
 from Util.Misc import Normalized, ArrayNormalized, angleBetweenVectors, Rotate, Translate, CartesianToPolar
-from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY
+from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, FAR_DISTANCE, Axis, LambdaLines, INFINITY, RNG
 
 from Util.PltPlot import DrawRaybatch
 
@@ -417,7 +417,7 @@ def EmitFieldMultispectral(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTa
         )
     
     low, high = 430, 700
-    wavelengthColumn = bd.random.uniform(low=low, high=high, size=(position.shape[0], ))
+    wavelengthColumn = RNG.uniform(low=low, high=high, size=(position.shape[0], ))
     mainRB.value[:, 6] = wavelengthColumn
 
     return mainRB

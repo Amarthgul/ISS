@@ -6,7 +6,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
 from Util.PltPlot import DrawDirection, DrawPoints
-from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE
+from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG
 from Raytracing.RayBatch import RayBatch
 
 
@@ -175,10 +175,6 @@ class PointsSource:
         sourcePos = sourcePos[:, bd.newaxis, :]
         # Introduce jitter to the position if needed 
         sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
-        # sourcePos = self._AddJitter(
-        #     bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
-        #     jitter
-        #     )
 
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
@@ -245,7 +241,8 @@ class PointsSource:
             return input
         
         
-        return input + jitterAmount * bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
+        return input + jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape)
+        # bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
 
 
     def _PolarToCart(self, input=None):
@@ -282,7 +279,7 @@ class PointsSource:
 
         # For first selection, choose randomly 
         if(bd.all(self.sampleRecord == 0)):
-            return bd.random.choice(self.value.shape[0], sampleCount, replace=False)
+            return RNG.choice(self.value.shape[0], sampleCount, replace=False)
 
         min_value = bd.min(self.sampleRecord)
         smlIndex = bd.where(self.sampleRecord == min_value)[0]
@@ -298,7 +295,7 @@ class PointsSource:
 
             selectedIndices = bd.concatenate((selectedIndices, smlIndex))
 
-        return bd.random.choice(selectedIndices, sampleCount, replace=False)
+        return RNG.choice(selectedIndices, sampleCount, replace=False)
         
 
 def main():

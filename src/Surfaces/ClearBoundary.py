@@ -13,7 +13,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
 from Util.Misc import ArrayNormalized, TransversalDistance
-from Util.Globals import OBJ_FACING, Axis
+from Util.Globals import OBJ_FACING, Axis, RNG
 from Util.SpatialEllipse import SpatialEllipse, SpatialCircle
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 
@@ -221,7 +221,7 @@ class ClearBoundary():
         N = normals.shape[0]
         
         # Generate N random vectors (not necessarily unit length) from a normal distribution
-        v = bd.random.randn(N, 3)
+        v = RNG.randn(N, 3)
         
         # Normalize each vector
         v = v / bd.linalg.norm(v, axis=1, keepdims=True)
