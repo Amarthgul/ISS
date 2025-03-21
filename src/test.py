@@ -357,7 +357,7 @@ def main():
 
     lens = Biotar50mmf14()
     # lens.SetAperture(4)
-    ISO12233Test(lens, imageDistance=100000, imageMinSample=64, realTimeUpdate=False) #4096: 10 hours 
+    ISO12233Test(lens, imageDistance=100000, imageMinSample=16, realTimeUpdate=False) #4096: 10 hours 
 
     # for o in objectDistance:
         # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)

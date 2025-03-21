@@ -6,7 +6,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor
-from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG
+from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
 from Raytracing.RayBatch import RayBatch
 
 
@@ -166,39 +166,39 @@ class PointsSource:
 
 
 
-
-        sourcePos = bd.copy(sampleSource.Position())
-        sourcePos = self._AddJitter(
-            bd.tile(sourcePos, (1, (sourcePos.shape[0], targets.shape[0], 3), 1)), 
-            jitter
-            )
-        
-        # Expand the points to prepare crossing them 
-        targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
-
-        # Compute the direction of acrossing the source and target 
-        dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
-        dirCross = GridNormalized(dirCross)
-
-
-        # # =========================== Test ===========================
         # sourcePos = bd.copy(sampleSource.Position())
-
+        # sourcePos = sourcePos[:, bd.newaxis, :]
+        # sourcePos = self._AddJitter(
+        #     bd.tile(sourcePos, (1,  targets.shape[0], 1)), 
+        #     jitter
+        #     )
+        
         # # Expand the points to prepare crossing them 
-        # sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         # targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
         # # Compute the direction of acrossing the source and target 
-        # dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
+        # dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
         # dirCross = GridNormalized(dirCross)
 
-        # # Expand and append the position into pos/dir pairs 
-        # sourcePos = sourcePos[:, bd.newaxis, :]
-        # # # Introduce jitter to the position if needed 
-        # sourcePos = self._AddJitter(
-        #     bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
-        #     jitter
-        #     )
+
+        # # =========================== Test ===========================
+        sourcePos = sampleSource.Position()
+
+        # Expand the points to prepare crossing them 
+        sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
+        targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
+
+        # Compute the direction of acrossing the source and target 
+        dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
+        dirCross = GridNormalized(dirCross)
+
+        # Expand and append the position into pos/dir pairs 
+        sourcePos = sourcePos[:, bd.newaxis, :]
+        # Introduce jitter to the position if needed 
+        sourcePos = self._AddJitter(
+            bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
+            jitter
+            )
         
         # =========================== Test ===========================
 
@@ -266,14 +266,12 @@ class PointsSource:
         if(jitterAmount is None):
             return input
         
-        jitter = jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape)
-    
-        # Create a factor that only allows jitter in x and y (first two channels) while leaving z unchanged.
-        factor = bd.array([1, 1, 0])  # shape (3,)
-        # This will be broadcast to shape (m, n, 3).
-
+        #temp = RNG.uniform(low=-0.5, high=0.5, size=input.shape)
+        RefreshRNG()
         # Add the scaled jitter to the original input.
-        return input + jitter * factor
+        return input + \
+            jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape) * \
+                bd.array([1, 1, 0])
 
 
     def _PolarToCart(self, input=None):
