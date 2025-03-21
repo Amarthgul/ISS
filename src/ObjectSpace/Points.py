@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
-from Util.PltPlot import DrawDirection, DrawPoints
+from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG
 from Raytracing.RayBatch import RayBatch
 
@@ -78,8 +78,6 @@ class PointsSource:
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
 
-        DrawPoints(targets)
-
         # In the case that there are less sources than demanded sample count, return all 
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets, addSecondary=addSecondary)
@@ -134,6 +132,13 @@ class PointsSource:
                 minSampleCount/maxSampleCount
 
 
+    def DrawPoints(self):
+        """
+        Draw the points sources in 3D space with corresponding colors.
+        """
+        DrawPointsPerColor(self.Position(), self.Color())
+
+
     def ToString(self):
         result = "[\n"
         for row in self.value:
@@ -159,22 +164,43 @@ class PointsSource:
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None):
 
-        sourcePos = sampleSource.Position()
-        sourcePos = self._AddJitter(sourcePos, jitter)
 
+
+
+        sourcePos = bd.copy(sampleSource.Position())
+        sourcePos = self._AddJitter(
+            bd.tile(sourcePos, (1, (sourcePos.shape[0], targets.shape[0], 3), 1)), 
+            jitter
+            )
+        
         # Expand the points to prepare crossing them 
-        sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
         # Compute the direction of acrossing the source and target 
-        dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
+        dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
         dirCross = GridNormalized(dirCross)
 
 
-        # Expand and append the position into pos/dir pairs 
-        sourcePos = sourcePos[:, bd.newaxis, :]
-        # Introduce jitter to the position if needed 
-        sourcePos = bd.tile(sourcePos, (1, dirCross.shape[1], 1))
+        # # =========================== Test ===========================
+        # sourcePos = bd.copy(sampleSource.Position())
+
+        # # Expand the points to prepare crossing them 
+        # sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
+        # targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
+
+        # # Compute the direction of acrossing the source and target 
+        # dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
+        # dirCross = GridNormalized(dirCross)
+
+        # # Expand and append the position into pos/dir pairs 
+        # sourcePos = sourcePos[:, bd.newaxis, :]
+        # # # Introduce jitter to the position if needed 
+        # sourcePos = self._AddJitter(
+        #     bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
+        #     jitter
+        #     )
+        
+        # =========================== Test ===========================
 
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
@@ -240,9 +266,14 @@ class PointsSource:
         if(jitterAmount is None):
             return input
         
-        
-        return input + jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape)
-        # bd.random.uniform(low=-0.5, high=0.5, size=input.shape)
+        jitter = jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape)
+    
+        # Create a factor that only allows jitter in x and y (first two channels) while leaving z unchanged.
+        factor = bd.array([1, 1, 0])  # shape (3,)
+        # This will be broadcast to shape (m, n, 3).
+
+        # Add the scaled jitter to the original input.
+        return input + jitter * factor
 
 
     def _PolarToCart(self, input=None):

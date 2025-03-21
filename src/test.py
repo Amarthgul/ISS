@@ -34,14 +34,15 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     sourceImage.horizontalAoV = 40 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    sourceImage.LoadFrom8bit(r"resources/CustomSheet.png") 
+
     #sourceImage.SetupTransitionTest()
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
 
     start = time.time()
 
     iterationCount = 0
-    perIterRays = 81920
+    perIterRays = 204800 #40960 
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -57,7 +58,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
 
         lens.SetIncidentRaybatch(mainRB)
 
-        mainRB, mainRP, reflectedRB = lens.Propagate()
+        mainRB, mainRP, reflectedRB = lens.Propagate(reflection=False)
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -90,7 +91,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     return elpased 
 
 
-def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCount = 50):
+def SpotTesting(objectDistance = 20000, focusDistance = 500, saveIterationCount = 50, realTimeUpdate = False):
 
     lens = Biotar50mmf14()
 
@@ -98,16 +99,17 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
     source.isCartesian = False
     source.GenerateSpots(19, 12, dist=objectDistance)
 
-    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=9000) #32.4
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     start = time.time()
 
-    plt.ion()  # Turn on interactive mode
-    fig, ax = plt.subplots()
-    im = ax.imshow(ImageConversion(image))
-    iterationCount = 0
+    if(realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
+        iterationCount = 0
 
     while(True):
         mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=9)
@@ -121,10 +123,10 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
 
         image = imager.IntegralRays(mainRB, baseImg=image)
 
-        
-        im.set_data(ImageConversion(image, amplifier=0.25))
-        plt.draw()
-        plt.pause(0.01)
+        if(realTimeUpdate):
+            im.set_data(ImageConversion(image))
+            plt.draw()
+            plt.pause(0.01)
         
         #print(source.sampleRecord)
         elpased = time.time() - start
@@ -133,8 +135,8 @@ def SpotTesting(objectDistance = 10000, focusDistance = 20000, saveIterationCoun
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased) )
 
         if(iterationCount > saveIterationCount):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/SpotTestng/P_Dist"+str(objectDistance)+"_FocusDist"+str(focusDistance)+ "_RID"+str(elpased) + ".png")
+            fn = r"SpotTest"+str(objectDistance)+"_"+str(FrameCount)
+            SaveAsEXR(image, r"resources/Results", fn)
             break
 
         iterationCount += 1
@@ -355,38 +357,18 @@ def main():
 
     lens = Biotar50mmf14()
     # lens.SetAperture(4)
-    ISO12233Test(lens, imageDistance=100000, imageMinSample=1024, realTimeUpdate=False) #4096: 10 hours 
+    ISO12233Test(lens, imageDistance=100000, imageMinSample=64, realTimeUpdate=False) #4096: 10 hours 
 
     # for o in objectDistance:
         # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
         # ISO12233Test(lens, imageDistance=o, imageMinSample=256, realTimeUpdate=False)
     
-    # RayPathTesting(lens, imageDistance=100000)
-    # for o in objectDistance:
-    #     ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
+    #SpotTesting(realTimeUpdate=True)
 
-    # SpotTesting()
     # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
     # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     #ReflectionTesting(Mug())
-
-    #lens = CanonFD50mmf18()
-    #ImageTest(imageDistance=5000, focusDistance=5000, imageMinSample=30, lens=lens)
-
-    # for obj in objectDistance:
-    #     for focus in bd.linspace(350, 1500, 20):
-    #         SpotTesting(obj, focus, 128)
-
-    # testRP = RayPath()
-
-    # sampleTar = CircularDistribution(zDepth=3) * bd.array([15, 15, 1])
-    # testRB = EmitField(5, 0, distance=50, sampleTargets=sampleTar)
-    # testRP.Append(testRB, None, None)
-
-    # lens.SetIncidentRaybatch(testRB)
-    # testRB, testRP, reflectedRB = lens.Propagate(True)
-    # lens.DrawLens()
 
     # testRP.DrawPath()
 

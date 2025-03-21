@@ -292,7 +292,7 @@ class Surface:
         _temp.SetPosition(intersections[~TIR])
         _temp.SetDirection(refracted)
 
-        return _temp, TIR, boolVig
+        return _temp, TIR, boolVig 
 
 
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False):
@@ -334,8 +334,7 @@ class Surface:
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
 
-        # These reflected are the reflected componenet form the refracted due to fresnel  
-        reflected = Reflect(directions, normals)
+        
 
         # DrawDirection(intersections, reflected, lineColor="b") # ======= Draw call
 
@@ -346,6 +345,9 @@ class Surface:
 
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         if(reflection):
+            # These reflected are the reflected componenet form the refracted due to fresnel  
+            reflected = Reflect(directions, normals)
+
             reflectedRB.SetPosition(intersections[~TIR])
             reflectedRB.SetDirection(reflected[~TIR])
             # DrawRaybatch(reflectedRB, lineColor="g") # ======= Draw call

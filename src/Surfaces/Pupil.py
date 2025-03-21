@@ -130,7 +130,7 @@ class Pupil(VirtualSurface):
                 groupByPoint=True)
 
 
-        selectedIndices = bd.random.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
+        selectedIndices = RNG.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
 
         return self._pupilPointSamples[selectedIndices]
 
@@ -230,7 +230,7 @@ class Pupil(VirtualSurface):
         self._workingDepth = bd.concatenate([self._zDepth[:insert_index], bd.array([self._workingDepth])])
         
 
-    def _ResetSamplePool(self, poolSize=128):
+    def _ResetSamplePool(self, poolSize=64):
         """
         Regenerate the sample pool of points for the pupil based on the current pupil shape and size.
         """

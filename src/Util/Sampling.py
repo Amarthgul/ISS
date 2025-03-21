@@ -119,7 +119,7 @@ def PoissonDiskDistribution(semiDiameter=1, zDepth = 0, samplePoints=128):
                 engine.reset()
                 sample = engine.fill_space() - centerOffset
 
-    selectedIndices = bd.random.choice(sample.shape[0], samplePoints, replace=False)
+    selectedIndices = RNG.choice(sample.shape[0], samplePoints, replace=False)
     planarPoints = sample[selectedIndices]
     return bd.vstack((planarPoints.T, bd.ones(samplePoints) * zDepth)).T * semiDiameter
 
