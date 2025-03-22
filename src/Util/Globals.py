@@ -159,10 +159,12 @@ RANDOM_SEED = 42
 RNG = bd.random.RandomState(seed=RANDOM_SEED)
 #RNG = bd.random.default_rng(seed=42)
 
+_rng_counter = 0  # Track the number of refreshes
+
 def RefreshRNG():
-    """Refresh the RNG with a new seed generated using itself"""
-    newSeed = int(bd.random.random_integers(1))
-    RNG = bd.random.default_rng(seed = newSeed)
+    global RNG, _rng_counter
+    _rng_counter += 1
+    RNG = bd.random.RandomState(seed=RANDOM_SEED + _rng_counter)
 
 
 # ==================================================================

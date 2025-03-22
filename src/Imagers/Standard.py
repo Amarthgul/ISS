@@ -10,6 +10,7 @@ from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import PointsInTriangle, NumpyConversion
 
+
 class StdImager(Surface):
     """
     Standard virtual imager with no optical effect. 

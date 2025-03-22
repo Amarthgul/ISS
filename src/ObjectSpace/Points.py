@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized
-from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor
+from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
 from Raytracing.RayBatch import RayBatch
 
@@ -80,7 +80,7 @@ class PointsSource:
 
         # In the case that there are less sources than demanded sample count, return all 
         if(self.sampleRecord.shape[0] <= sampleCount):
-            return self._SamplesToTargetsEmission(self, targets, addSecondary=addSecondary)
+            return self._SamplesToTargetsEmission(self, targets, jitter=jitter, addSecondary=addSecondary)
 
         # Select the ones that have been sampled the least to ensure the sample is relatively even 
         selectedIndices = self._SelectLeastSampled(sampleCount)
@@ -164,43 +164,23 @@ class PointsSource:
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None):
 
-
-
-        # sourcePos = bd.copy(sampleSource.Position())
-        # sourcePos = sourcePos[:, bd.newaxis, :]
-        # sourcePos = self._AddJitter(
-        #     bd.tile(sourcePos, (1,  targets.shape[0], 1)), 
-        #     jitter
-        #     )
+        # =================== Version 1
+        sourcePos = bd.copy(sampleSource.Position())
+        sourcePos = sourcePos[:, bd.newaxis, :]
+        sourcePos = bd.tile(sourcePos, (1, targets.shape[0], 1))
+        if(jitter is not None):
+            RefreshRNG()
+            jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
+            sourcePos += jitter
+            #print("Updated position: ", sourcePos)
         
-        # # Expand the points to prepare crossing them 
-        # targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
-
-        # # Compute the direction of acrossing the source and target 
-        # dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
-        # dirCross = GridNormalized(dirCross)
-
-
-        # # =========================== Test ===========================
-        sourcePos = sampleSource.Position()
-
         # Expand the points to prepare crossing them 
-        sourceExpanded = sourcePos[:, bd.newaxis, :]  # Shape (n, 1, 3)
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
         # Compute the direction of acrossing the source and target 
-        dirCross = targetsExpanded - sourceExpanded # Shape (n, m, 3)
+        dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
         dirCross = GridNormalized(dirCross)
 
-        # Expand and append the position into pos/dir pairs 
-        sourcePos = sourcePos[:, bd.newaxis, :]
-        # Introduce jitter to the position if needed 
-        sourcePos = self._AddJitter(
-            bd.tile(sourcePos, (1, dirCross.shape[1], 1)), 
-            jitter
-            )
-        
-        # =========================== Test ===========================
 
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
@@ -253,27 +233,6 @@ class PointsSource:
         )
 
 
-    def _AddJitter(self, input, jitterAmount):
-        """
-        This method adds a jittering onto the input, with the range limited to a certain amount. When applied on point positions, this makes them more like sampling a continuous signal rather than a bunch of idealized discrete points in space. This also has anti-aliasing effect in many occasions. 
-
-        :param input: array of whatever size. 
-        :param jitterAmount: scalar of abs value range of the jitter efect. 
-
-        :return: a new array of same size as input but with value jittered. 
-        """
-
-        if(jitterAmount is None):
-            return input
-        
-        #temp = RNG.uniform(low=-0.5, high=0.5, size=input.shape)
-        RefreshRNG()
-        # Add the scaled jitter to the original input.
-        return input + \
-            jitterAmount * RNG.uniform(low=-0.5, high=0.5, size=input.shape) * \
-                bd.array([1, 1, 0])
-
-
     def _PolarToCart(self, input=None):
         """
         Convert polar coordinates to Cartesian, if no input is passed, convert the self value. Note that this assumes x and y to be in polar cooridnate while z is still Cartesian. 
@@ -296,52 +255,63 @@ class PointsSource:
 
         return bd.column_stack((xPos, yPos, zVal))
 
-
+        
     def _SelectLeastSampled(self, sampleCount):
-        """
-        Select the point sources who has be picked as sample point the least amount.
-
-        :param sampleCount: how many sample is needed. 
-
-        :return: indices of the point sources with the least amount of sample so far. 
-        """
-
-        # For first selection, choose randomly 
-        if(bd.all(self.sampleRecord == 0)):
-            return RNG.choice(self.value.shape[0], sampleCount, replace=False)
-
-        min_value = bd.min(self.sampleRecord)
-        smlIndex = bd.where(self.sampleRecord == min_value)[0]
+        # Find all indices with minimum sample count
+        min_count = bd.min(self.sampleRecord)
+        candidates = bd.where(self.sampleRecord == min_count)[0]
         
-        selectedIndices = bd.copy(smlIndex)
-        recordCopy = bd.copy(self.sampleRecord)
-
-        while(len(selectedIndices) < sampleCount): 
-            recordCopy[selectedIndices] += 1
-
-            min_value = bd.min(recordCopy)
-            smlIndex = bd.where(recordCopy == min_value)[0]
-
-            selectedIndices = bd.concatenate((selectedIndices, smlIndex))
-
-        return RNG.choice(selectedIndices, sampleCount, replace=False)
+        # Shuffle candidates to break ties randomly
+        RNG.shuffle(candidates)
         
+        if len(candidates) >= sampleCount:
+            return candidates[:sampleCount]
+        
+        # Get remaining points sorted by sample count
+        sorted_indices = bd.argsort(self.sampleRecord)
+        remaining_indices = sorted_indices[len(candidates):]
+        
+        # Shuffle remaining indices before selection
+        RNG.shuffle(remaining_indices)
+        
+        selected = bd.concatenate([candidates, remaining_indices[:sampleCount - len(candidates)]])
+        return selected[:sampleCount]
+    
+
+
 
 def main():
     
-    t = PointsSource()
-    t.GenerateSpots(19.5, 10)
 
-    targets = bd.array([
-        [1, 2, 25], 
-        [2, 4,25],
-        [-2, 3, 25], 
-        [1, -2, 25]
-    ])
+    t = PointsSource(bd.array(
+        [[1., 1., 0, 1, 1, 1], 
+         [-1, 1., 0, 1, 1, 1], 
+         [-1, -1, 0, 1, 1, 1], 
+         [1., -1, 0, 1, 1, 1]]
+    ))
 
-    RB = t.EmitSamplesToward(targets, sampleCount=16)
+    targets = bd.array(
+        [[1., 1., 4], 
+         [-1, 1., 4], 
+         [-1, -1, 4], 
+         [1., -1, 4]]
+    )
+    print(t.Position())
+    #DrawPoints(t.Position(), ptSize=1)
+    DrawPoints(targets, ptSize=1)
 
-    print(RB.value)
+    for i in range(10):
+        pos = []
+        RB = t.EmitSamplesToward(targets, sampleCount=16, jitter=1)
+        DrawRaybatch(RB, arrowRatio=0, lLength=4.75)
+        pos.append(RB.Position())
+        DrawPoints(RB.Position(), ptSize=4)
+
+    
+    SetUnifScale(5)
+    plt.show()
+    
+    
 
 
 

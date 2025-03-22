@@ -182,6 +182,7 @@ class Image2D:
             zDist = -bd.array(self.distance)
 
         rad = bd.deg2rad(self.horizontalAoV) / 2
+
         halfX = bd.abs(bd.tan(rad) * zDist)
         halfY = halfX * bd.abs(self._file.height / self._file.width)
 

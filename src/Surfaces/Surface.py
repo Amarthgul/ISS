@@ -498,7 +498,7 @@ class Surface:
         # Some rays are not going to interset with the sphere at all, select only the ones that will have an intersection with the sphere  
         intersetIndices = discriminant > 0
 
-        #print("theoretical inter: ", bd.sum(intersetIndices))
+        # print("theoretical inter: ", bd.sum(intersetIndices))
 
         # Calculate t values
         t1 = (-b - bd.sqrt(discriminant)) / (TWO * a)
