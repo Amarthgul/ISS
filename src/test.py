@@ -25,7 +25,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
-    imager = StdImager(lens.BestFocusBFD(750)) #32.4 lens.BestFocusBFD(imageDistance)
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4 lens.BestFocusBFD(imageDistance)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -33,7 +33,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     sourceImage = Image2D()
     sourceImage.horizontalAoV = 40 
     sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = imageDistance
+    sourceImage.distance = 750 # imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
 
     #sourceImage.SetupTransitionTest()
@@ -75,7 +75,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         elpased = time.time() - start
         imMin, imMax, imR = sourceImage.GetSampleRatios()
 
-        print("End RB size: ", mainRB.value.shape)
+        #print("End RB size: ", mainRB.value.shape)
         print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
         ProgressBar(iterationCount / imageMinSample)
 
@@ -85,7 +85,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
             image /= 100 
             global FrameCount
             fn = r"ISO12233Test"+str(imageDistance)+"_"+str(FrameCount)
-            SaveAsEXR(image, r"resources/Results/", fn)
+            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
 
     FrameCount += 1
