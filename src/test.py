@@ -98,6 +98,7 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
     source = PointsSource()
     source.isCartesian = False
     source.GenerateSpots(19, 12, dist=objectDistance)
+    
 
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
@@ -144,13 +145,11 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
         iterationCount += 1
 
 
-def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
+def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, realTimeUpdate = True):
 
 
     source = PointsSource()
-    source.isCartesian = False
-    #source.GenerateSpots(19, 12, dist=objectDistance)
-    source.GenerateSpots(19, 12, dist=objectDistance)
+    source.GenerateFixPoint(position)
 
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) 
     #32.4
@@ -167,13 +166,11 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
     iterationCount = 0
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(sampleSize), 5, addSecondary=5)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(1024), 5, addSecondary=5)
 
-        lens.SetIncidentRaybatch(mainRB)
-
-        _mainRB, mainRP, mainRB = lens.Propagate(reflection=True)
+        _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
         # mainRB.Merge(_mainRB)
-        print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
+        #print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
         
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
@@ -190,19 +187,19 @@ def ReflectionSpotTesting(lens, sampleSize=512, objectDistance = 20000, focusDis
         #print(source.sampleRecord)
         elpased = time.time() - start
 
-        print("\n- Focusing ", focusDistance, " for obj at ", objectDistance,  
+        print("\n- Focusing ", focusDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
 
         iterationCount += 1
-        if(iterationCount > saveIterationCount):
+        if(iterationCount > imageMinSample):
             image /= 100 
             global FrameCount
-            fn = r"flareTest"+str(FrameCount)
+            fn = r"SingleFlareTest"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
             break
 
     FrameCount += 1
-     
+   
 
 
 def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
@@ -363,7 +360,11 @@ def main():
 
     for o in objectDistance:
         # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
-        ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
+        
+        #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
+
+        position = bd.array([1000, 600, -o])
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=512, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 

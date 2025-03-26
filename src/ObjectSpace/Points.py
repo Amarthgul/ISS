@@ -120,6 +120,17 @@ class PointsSource:
         self._ResetSampleRecord()
 
 
+    def GenerateFixPoint(self, position=None, color=bd.array([1, 1, 1])):
+
+        if(position is None):
+            position = bd.array([0, 0, FAR_DISTANCE])
+
+        assemb = bd.concatenate([position, color])
+        self.value = bd.stack([assemb, assemb], axis=0)
+        self._ResetSampleRecord()
+        
+
+
     def GetSampleRatios(self):
         """
         This method examines the current sample record and returns the min, the max, and the ratio between min and max. The return van be used as a level of completion estimate or a sample space signal to noise ratio examination. 
@@ -289,6 +300,8 @@ def main():
          [-1, -1, 0, 1, 1, 1], 
          [1., -1, 0, 1, 1, 1]]
     ))
+    t = PointsSource()
+    t.GenerateFixPoint(bd.array([0, 0, -12]))
 
     targets = bd.array(
         [[1., 1., 4], 

@@ -43,7 +43,6 @@ class Lens:
         self.groups = [] # Cemented lenses become a group 
         self.groupMaxSemi = {}
 
-        self.rayBatch = RayBatch([])
         self.rayPath = [] # Rays with only position info on each surface 
         
         self.entrancePupil = Pupil() 
@@ -132,16 +131,7 @@ class Lens:
         self.entrancePupil.SetPupilSize(calculatedPupilSize / TWO)
         
 
-    def SetIncidentRaybatch(self, raybatch):
-        """
-        Set the incident raybatch for the lens. 
-
-        :param raybatch: the raybatch to be used to propagate through the lens.
-        """
-        self.rayBatch = raybatch
-
-
-    def Propagate(self, recordPath=False, reflection=False, iteCount=2):
+    def Propagate(self, rayBatch, recordPath=False, reflection=False, iteCount=2):
         """
         Propagate the raybatch through the lens. 
 
@@ -154,7 +144,7 @@ class Lens:
 
         if(recordPath):
             self.rayPath = RayPath()
-            self.rayPath.Append(self.rayBatch, None, None)
+            self.rayPath.Append(rayBatch, None, None)
 
         reflectedRB = RayBatch()
 
@@ -163,15 +153,15 @@ class Lens:
         
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
-                self.rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
-                    self.rayBatch, 
-                    self._FindPreviousRI(i, self.rayBatch), 
+                rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                    rayBatch, 
+                    self._FindPreviousRI(i, rayBatch), 
                     reflection = reflection)
                 
-                #print(i, "th surface intersect ", self.rayBatch.value.shape)
+                #print(i, "th surface intersect ", rayBatch.value.shape)
 
                 # The index of main RB is where they are after a surface
-                self.rayBatch.SetIndex(i)
+                rayBatch.SetIndex(i)
 
                 if(reflection):
                     # For the reflected rays, the surface index means where they are before a surface
@@ -181,7 +171,7 @@ class Lens:
 
                 
                 if(recordPath):
-                    self.rayPath.Append(self.rayBatch, _tir, _vig)
+                    self.rayPath.Append(rayBatch, _tir, _vig)
 
 
         # DrawRaybatch(reflectedRB, lLength=2, lineColor="r") # =========== Draw call
@@ -203,12 +193,12 @@ class Lens:
             
             reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
-        # print(self.rayBatch.SurfaceIndex())
+        # print(rayBatch.SurfaceIndex())
 
         # self.rayPath.DrawPath(40)
 
         # Return the sequential and non-sequential rays. Note that since this is the first pass of non-sequential propagation, most non-sequential rays are pointing at object space, there needs to be further calculations for them to arrive at the imager. 
-        return self.rayBatch, self.rayPath, reflectedRB
+        return rayBatch, self.rayPath, reflectedRB
 
 
     def BestFocusBFD(self, distance):
