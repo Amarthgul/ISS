@@ -69,7 +69,8 @@ class RayBatch:
 
         # Accquire eigen value and eigen vector 
         if(backend_name == "cupy"):
-            val, vec = bd.linalg.eigh(self.PolarizationMat())
+            pol = self.PolarizationMat()
+            val, vec = bd.linalg.eigh(pol)
         else:
             val, vec = bd.linalg.eig(self.PolarizationMat())
 

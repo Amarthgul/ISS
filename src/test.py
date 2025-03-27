@@ -166,7 +166,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
     iterationCount = 0
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(1024), 5, addSecondary=5)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10240), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
         # mainRB.Merge(_mainRB)
@@ -189,6 +189,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
         print("\n- Focusing ", focusDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
+        ProgressBar(iterationCount / imageMinSample, 100)
 
         iterationCount += 1
         if(iterationCount > imageMinSample):
@@ -364,7 +365,7 @@ def main():
         #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
 
         position = bd.array([1000, 600, -o])
-        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=512, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=64, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 

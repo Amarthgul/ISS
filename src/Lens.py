@@ -232,6 +232,10 @@ class Lens:
         return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength
 
 
+    def GetFirstElementSamples(self):
+        pass 
+
+
     def GetInfo(self):
 
         info = "- Lens Info: \n" +\
