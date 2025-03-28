@@ -13,7 +13,7 @@ from Util.Misc import ProgressBar
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
-from ObjectSpace.Images import Image2D
+from ObjectSpace.Images import Image2DFlat
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
 
@@ -30,7 +30,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
-    sourceImage = Image2D()
+    sourceImage = Image2DFlat()
     sourceImage.horizontalAoV = 40 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = 750 # imageDistance
@@ -166,7 +166,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
     iterationCount = 0
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(10240), 5, addSecondary=5)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
         # mainRB.Merge(_mainRB)
@@ -293,7 +293,7 @@ def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeU
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
-    sourceImage = Image2D()
+    sourceImage = Image2DFlat()
     sourceImage.horizontalAoV = 40 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
@@ -365,7 +365,7 @@ def main():
         #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
 
         position = bd.array([1000, 600, -o])
-        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=64, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=32, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 

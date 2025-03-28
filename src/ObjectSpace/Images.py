@@ -19,18 +19,54 @@ from Raytracing.RayBatch import RayBatch
 # This class is very much an inherited class from PointSource 
 # But for easier implmentation they are still separated. 
 
+
 class Image2D:
     def __init__(self):
         """RGB array directly decoded from the file represneting the image"""
-        self.image = None 
+        self.rgbArray = None 
 
 
         """Original image file"""
-        self._file = None 
+        self._fileMaster = None 
 
 
         """Point source object built from the image"""
         self.pointSource = None
+
+        """When set to an int, the image object will be resampled with image width replaced with this attribute"""
+        self.imageDimensionOverride = None 
+
+
+    def EmitSamplesToward(self, targets, sampleCount=64):
+
+        return self.pointSource.EmitSamplesToward(targets, sampleCount, self.pixelPitch)
+
+
+    def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
+        """
+        This generate a series of spots from axis to off axis. 
+        The outer-most is defined by x and y field anfle. 
+        """
+        self.pointSource = PointsSource()
+        self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
+
+
+    def GetSampleRatios(self):
+        
+        return self.pointSource.GetSampleRatios()
+
+
+    def DrawImage(self):
+        """
+        Draw the points sources in 3D space with corresponding colors.
+        """
+        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
+
+
+
+class Image2DFlat(Image2D):
+    def __init__(self):
+        super().__init__()
 
 
         """Unsigned unit in mm. If anchors are not explicitly stated, assume image at infinity"""
@@ -47,11 +83,7 @@ class Image2D:
         
 
         self.imageCenter = None 
-
-
-        """When set to an int, the image object will be resampled with image width replaced with this attribute"""
-        self.imageDimensionOverride = None 
-
+        
 
         """Height/width of each pixel, assuming square pixels"""
         self.pixelPitch = None 
@@ -63,36 +95,22 @@ class Image2D:
         """
 
         # Read and save the original 
-        self._file = PIL.Image.open(imgPath).convert("RGB")
+        self._fileMaster = PIL.Image.open(imgPath).convert("RGB")
 
         # Resize the input if needed 
         if(self.imageDimensionOverride is not None):
-            newHeight = int(self._file.height * (self.imageDimensionOverride / self._file.width))
-            imageFile = self._file.resize((self.imageDimensionOverride, newHeight))
+            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
+            imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
         else:
-            imageFile = self._file
+            imageFile = self._fileMaster
 
         # Convert into array format 
-        self.image = bd.array(imageFile)
+        self.rgbArray = bd.array(imageFile)
 
-        # Normalize into [0, 1 range], this is where 8 bit kicks in 
-        self.image = self.image.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
+        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
 
         self._GeneratePointSources()
-
-
-    def EmitSamplesToward(self, targets, sampleCount=64):
-
-        return self.pointSource.EmitSamplesToward(targets, sampleCount, self.pixelPitch)
-
-
-    def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
-        """
-        This generate a series of spots from axis to off axis. 
-        The outer-most is defined by x and y field anfle. 
-        """
-        self.pointSource = PointsSource()
-        self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
 
 
     def SetupTransitionTest(self, rotateDegree=45, scale=2):
@@ -112,18 +130,6 @@ class Image2D:
 
 
         self._GeneratePointSources()
-
-
-    def GetSampleRatios(self):
-        
-        return self.pointSource.GetSampleRatios()
-
-
-    def DrawImage(self):
-        """
-        Draw the points sources in 3D space with corresponding colors.
-        """
-        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
 
 
     # ==================================================================

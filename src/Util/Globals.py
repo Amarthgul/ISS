@@ -28,7 +28,7 @@ ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
 
 
-# Data type for the operation 
+# Default data type for array calculation  
 PRECISION_TYPE = bd.float64
 
 

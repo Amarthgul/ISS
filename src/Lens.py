@@ -233,6 +233,9 @@ class Lens:
 
 
     def GetFirstElementSamples(self):
+        """
+        Randomly sample points from the 1st surface of the lens. The z position of the samples are determined by the z position of the first surface edge. 
+        """
         pass 
 
 
