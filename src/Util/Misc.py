@@ -193,6 +193,26 @@ def CartesianToPolar(point, origin):
         return angle, radius
 
 
+def AngleFieldToCartesian(xAngle, yAngle, distance, angleInRadian=False):
+    """
+    Convert an angle field to a Cartesian coordinate.
+    :param xAngle: angle in x direction.
+    :param yAngle: angle in y direction.
+    :param distance: distance from the origin.
+    :param angleInRadian: whether the angles are in radians or degrees.
+    """
+
+    if (not angleInRadian):
+        xAngle = bd.radians(xAngle)
+        yAngle = bd.radians(yAngle)
+
+    x = bd.tan(xAngle) * distance
+    y = bd.tan(yAngle) * distance
+    distance = bd.array(distance)
+
+    return bd.array([x, y, distance])
+
+
 def MovingAverageSmoothing(values):
     """
     Smooth the data with end points preservation. 

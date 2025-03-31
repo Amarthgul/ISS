@@ -9,7 +9,7 @@ from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
-from Util.Misc import ProgressBar
+from Util.Misc import ProgressBar, AngleFieldToCartesian
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
@@ -166,7 +166,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
     iterationCount = 0
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), 5, addSecondary=5)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(2048), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
         # mainRB.Merge(_mainRB)
@@ -193,9 +193,68 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
         iterationCount += 1
         if(iterationCount > imageMinSample):
-            image /= 100 
+            image /= 10 
             global FrameCount
             fn = r"SingleFlareTest"+str(FrameCount)
+            SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
+            break
+
+    FrameCount += 1
+   
+
+def ReflectionSpotPositionOrig(lens, position, focusDistance = 5000, imageMinSample = 100, realTimeUpdate = True):
+    """
+    Actual position of the spot. 
+    """
+
+    source = PointsSource()
+    source.GenerateFixPoint(position)
+
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) 
+    #32.4
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty() 
+
+    start = time.time()
+
+    if(realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
+
+    iterationCount = 0
+
+    while(True):
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5, addSecondary=5)
+
+        mainRB, mainRP, _mainRB = lens.Propagate(mainRB, reflection=False)
+        # mainRB.Merge(_mainRB)
+        #print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
+        
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image, overExpNoiseRemoval=12)
+
+        if(realTimeUpdate):
+            print("Max ", bd.max(image))
+            im.set_data(ImageConversion(image, maxModifier=0.5)) #0.002
+            plt.draw()
+            plt.pause(0.01)
+        
+        #print(source.sampleRecord)
+        elpased = time.time() - start
+
+        print("\n- Focusing ", focusDistance,  
+            "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
+        ProgressBar(iterationCount / imageMinSample, 100)
+
+        iterationCount += 1
+        if(iterationCount > imageMinSample):
+            image /= 100 
+            global FrameCount
+            fn = r"SingleFlareTestOriginalSpot"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
             break
 
@@ -351,26 +410,30 @@ def main():
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
-    # objectDistance = [
-    #     450, 1500, 7500, 30000, 100000
-    # ]
+    objectDistance = [ 
+        850, 875, 900, 925, 950, 975, 1000, 1050, 1100, 1150, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 
+        5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
+    ]
+    
+    angleFieldX = bd.linspace(-20, 20, len(objectDistance))
+    angleFieldY = bd.linspace(-13, 13, len(objectDistance))
 
     lens = Biotar50mmf14()
     # lens.SetAperture(4)
     #ISO12233Test(lens, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours 
 
-    for o in objectDistance:
-        # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=512, realTimeUpdate=False, objectDistance=o)
-        
+    for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
         #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
 
-        position = bd.array([1000, 600, -o])
-        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=32, realTimeUpdate=False)
+        #position = bd.array([1000, 600, -o])
+        position = AngleFieldToCartesian(ax, ay, d)
+        print("Current origin position: ", position)
+        ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=256, realTimeUpdate=True)
+        #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 
     # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
-    # ReflectionSpotTesting(CanonFD50mmf18(), sampleSize=256, saveIterationCount=128, realTimeUpdate=True)
 
     #ReflectionTesting(Mug())
 
