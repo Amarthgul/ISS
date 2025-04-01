@@ -429,7 +429,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
         print("Current origin position: ", position)
         #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=256, realTimeUpdate=False)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 
