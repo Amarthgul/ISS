@@ -91,12 +91,12 @@ class StdImager(Surface):
         DrawPlane(self.gatePoints, color='black')
 
 
-    def AccquireEmpty(self):
+    def AccquireEmpty(self, dataType=bd.uint8):
         """
         Accquire an empty image array. When converted, this will be a black and blank image. 
         """
         # TODO: add more bitdepth support 
-        imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=bd.uint8)
+        imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=dataType)
         
         # if(backend_name == 'cupy'):       
         #     imgAry = bd.asnumpy(imgAry)

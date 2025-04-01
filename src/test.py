@@ -10,6 +10,7 @@ from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian
+from Util.Globals import PRECISION_TYPE
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager 
 from ObjectSpace.Points import PointsSource
@@ -154,7 +155,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) 
     #32.4
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AccquireEmpty(dataType=PRECISION_TYPE) 
 
     start = time.time()
 
@@ -165,13 +166,13 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
     iterationCount = 0
 
-    while(True):
+    while(iterationCount < imageMinSample):
         mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(2048), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
-        # mainRB.Merge(_mainRB)
-        #print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
-        
+  
+        if(mainRB.value.shape[0] == 0):
+            continue
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -192,12 +193,11 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
         ProgressBar(iterationCount / imageMinSample, 100)
 
         iterationCount += 1
-        if(iterationCount > imageMinSample):
-            image /= 10 
-            global FrameCount
-            fn = r"SingleFlareTest"+str(FrameCount)
-            SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
-            break
+
+    image /= 10.0
+    global FrameCount
+    fn = r"SingleFlareTestTransverse"+str(FrameCount)
+    SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
    
@@ -426,10 +426,10 @@ def main():
         #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
 
         #position = bd.array([1000, 600, -o])
-        position = AngleFieldToCartesian(ax, ay, d)
+        position = AngleFieldToCartesian(ax, ay, -d)
         print("Current origin position: ", position)
-        ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=256, realTimeUpdate=True)
-        #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
+        #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=256, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 
