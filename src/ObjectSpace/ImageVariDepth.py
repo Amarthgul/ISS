@@ -43,7 +43,7 @@ class Image2DVariDepth(Image2D):
 
 
 
-    def LoadFrom8bit(self, rgbImgPath, zImgPath):
+    def LoadFrom8bit(self, rgbImgPath, zImgPath=None):
         """
         For common 8 bit image formats like jpg, bmp, and png. Since these images tppically only contain the RGB information, the z depth information have to be read from a separate file. 
 
@@ -51,8 +51,34 @@ class Image2DVariDepth(Image2D):
         :param zImgPath: Path to the Z depth image file
         """
 
+        self.LoadFrom8bitRGB(rgbImgPath)
+
+        if(zImgPath is not None):
+            self.LoadFrom8bitZ(zImgPath)
+
+
+    def LoadFrom8bitRGB(self, rgbImgPath):
+        """
+        Load an RGB image from the given path. 
+        """
+
         # Read and save the master file  
         self._fileMaster = PIL.Image.open(rgbImgPath).convert("RGB")
+         # Resize the input if needed 
+        if(self.imageDimensionOverride is not None):
+            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
+            RGBImageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
+        else:
+            RGBImageFile = self._fileMaster
+
+        # Convert into array format 
+        self.rgbArray = bd.array(RGBImageFile)
+
+        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
+        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+
+
+    def LoadFrom8bitZ(self, zImgPath):
 
         # Read and save the z depth file 
         self._fileZ = PIL.Image.open(zImgPath).convert("L")
@@ -60,18 +86,17 @@ class Image2DVariDepth(Image2D):
         # Resize the input if needed 
         if(self.imageDimensionOverride is not None):
             newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            RGBImageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
             ZImageFile = self._fileZ.resize((self.imageDimensionOverride, newHeight))
         else:
-            RGBImageFile = self._fileMaster
             ZImageFile = self._fileZ
 
         # Convert into array format 
-        self.rgbArray = bd.array(RGBImageFile)
         self.zArray = bd.array(ZImageFile)
 
         # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
-        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
         self.zArray = self.zArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+
+
+
 
 

@@ -262,12 +262,15 @@ def ReflectionSpotPositionOrig(lens, position, focusDistance = 5000, imageMinSam
    
 
 
-def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000, focusDistance = 5000, saveIterationCount = 100, realTimeUpdate = True):
+def MugReflectionSpotTesting(position, lens=Mug(), sampleSize=512, saveIterationCount = 100, realTimeUpdate = True):
 
     imager = StdImager(2, w = 45, h  =45, horiPx=1920) 
     #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
+
+    source = PointsSource()
+    source.GenerateFixPoint(position)
 
     start = time.time()
 
@@ -279,11 +282,11 @@ def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000,
     iterationCount = 0
 
     while(True):
-        mainRB = EmitField(30, 30, distance=1500, sampleTargets = lens.entrancePupil.GetSamplePoints(sampleSize))
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(sampleSize), 5, addSecondary=5)
+        
 
-        lens.SetIncidentRaybatch(mainRB)
 
-        _mainRB, mainRP, mainRB = lens.Propagate(reflection=True)
+        _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
         # mainRB.Merge(_mainRB)
         print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
         
@@ -302,12 +305,11 @@ def MugReflectionSpotTesting(lens=Mug(), sampleSize=512, objectDistance = 20000,
         #print(source.sampleRecord)
         elpased = time.time() - start
 
-        print("\n- Focusing ", focusDistance, " for obj at ", objectDistance,  
-            "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
-        #print(" \t immax ", bd.max(image), "  \t\t imMin", bd.min(image), "\t\t ImAve ", bd.mean(image), "\t\t median ", bd.median(image))
+        print("\nAt ", str(iterationCount), "th iteration after ", str(elpased))
+        ProgressBar(iterationCount / saveIterationCount, 100)
 
         if(iterationCount > saveIterationCount):
-            SaveAsEXR(image, r"resources/Results/SpotTestng", "exrTest")
+            SaveAsEXR(image, r"resources/Results/mugShot", "exrTest")
             break
 
         iterationCount += 1
@@ -422,18 +424,19 @@ def main():
     # lens.SetAperture(4)
     #ISO12233Test(lens, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours 
 
-    for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
+    #for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
         #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
 
         #position = bd.array([1000, 600, -o])
-        position = AngleFieldToCartesian(ax, ay, -d)
-        print("Current origin position: ", position)
-        ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=256, realTimeUpdate=True)
+        #position = AngleFieldToCartesian(ax, ay, -d)
+        #print("Current origin position: ", position)
+        #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
         #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 
-    # MugReflectionSpotTesting(Mug(), sampleSize=40960, saveIterationCount=32, realTimeUpdate=True)
+    position = bd.array([500., 600., -1000.]) * 100 
+    MugReflectionSpotTesting(position, Mug(), sampleSize=4096, saveIterationCount=1024, realTimeUpdate=False)
 
     #ReflectionTesting(Mug())
 

@@ -6,7 +6,7 @@ from Surfaces.Surface import FieldStopType, Surface
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
-from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis
+from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis, OUTPUT_TYPE
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import PointsInTriangle, NumpyConversion
 
@@ -91,16 +91,13 @@ class StdImager(Surface):
         DrawPlane(self.gatePoints, color='black')
 
 
-    def AccquireEmpty(self, dataType=bd.uint8):
+    def AccquireEmpty(self, dataType=OUTPUT_TYPE):
         """
         Accquire an empty image array. When converted, this will be a black and blank image. 
         """
-        # TODO: add more bitdepth support 
-        imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=dataType)
         
-        # if(backend_name == 'cupy'):       
-        #     imgAry = bd.asnumpy(imgAry)
-
+        imgAry = bd.zeros((self.horizontalPx , self.verticalPx, 3),  dtype=dataType)
+    
         return imgAry
 
 

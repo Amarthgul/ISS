@@ -32,6 +32,10 @@ ENABLE_RAYPATH = True
 PRECISION_TYPE = bd.float64
 
 
+# This is used to hold the result of the imager 
+OUTPUT_TYPE = bd.float32
+
+
 # Placeholder focus/object distance 
 KNOB_DISTANCE = 1500 
 # Name and value from leica lenses which has a focus knob,

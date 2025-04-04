@@ -1,6 +1,7 @@
 
-
+import os
 import OpenEXR
+
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Misc import NumpyConversion
@@ -63,6 +64,9 @@ def SaveAsEXR(ary, folder, fileName):
     if(folder[-1] != r"/"):
         folder += r"/"
 
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
     nameStr = folder + fileName + ".exr"
 
     with OpenEXR.File(header, channels) as outfile:
