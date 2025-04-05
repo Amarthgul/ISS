@@ -309,41 +309,12 @@ def MugReflectionSpotTesting(position, lens=Mug(), sampleSize=512, saveIteration
         ProgressBar(iterationCount / saveIterationCount, 100)
 
         if(iterationCount > saveIterationCount):
+            image /= 10.
             SaveAsEXR(image, r"resources/Results/mugShot", "exrTest")
             break
 
         iterationCount += 1
 
-
-def ReflectionTesting(lens):
-
-    lens.DrawLens() # ======= Draw call
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
-
-
-    targetR = 15
-    mainRB = EmitField(10, 0, 
-                       distance=50, 
-                       sampleTargets=CircularDistribution(zDepth=3) * bd.array([targetR, targetR, 1]))
-    
-    mainRB = EmitFieldMultispectral(60, 0, sampleTargets = lens.entrancePupil.     GetSamplePoints(16))
-
-    lens.SetIncidentRaybatch(mainRB)
-    mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True, reflection=True)
-
-    #print(bd.max(reflectedRB.PolarizedRadiance()))
-
-    #print(mainRB.PolarizedRadiance())
-
-    #DrawRaybatch(reflectedRB) # ======= Draw call
-    # mainRP.DrawPath() # ======= Draw call
-
-    
-    
-    plt.show()
-    
 
 def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
     
@@ -435,8 +406,9 @@ def main():
     
     #SpotTesting(lens, realTimeUpdate=False)
 
-    position = bd.array([500., 600., -1000.]) * 100 
-    MugReflectionSpotTesting(position, Mug(), sampleSize=4096, saveIterationCount=1024, realTimeUpdate=False)
+    position = bd.array([angleFieldX[0], angleFieldY[0], -bd.array(20000)]) 
+    ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
+    #MugReflectionSpotTesting(position, Mug(), sampleSize=4096, saveIterationCount=10240, realTimeUpdate=False)
 
     #ReflectionTesting(Mug())
 

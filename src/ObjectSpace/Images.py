@@ -3,11 +3,14 @@
 import PIL.Image
 import matplotlib.pyplot as plt
 
-# For whatever reasonimport is not working normally on my machine, had to use this ugly if else shit instead 
-if __name__ == "__main__":
-    from Points import PointsSource
-else:
-    from ObjectSpace.Points import PointsSource
+
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+from Points import PointsSource
+
 
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
@@ -28,7 +31,6 @@ class Image2D:
 
         """Original image file"""
         self._fileMaster = None 
-
 
         """Point source object built from the image"""
         self.pointSource = None
@@ -149,8 +151,8 @@ class Image2DFlat(Image2D):
         # This method of updating pixel pitch only works when the image is a spatial rectangle, is it stretches, then this will become uneven 
         self.pixelPitch = Magnitude(self.pointAnchor[1]-self.pointAnchor[0]) / self.imageDimensionOverride
 
-        sampleX = self.image.shape[1]
-        sampleY = self.image.shape[0]
+        sampleX = self.rgbArray.shape[1]
+        sampleY = self.rgbArray.shape[0]
 
         u = bd.linspace(0, 1, sampleX)  # Interpolation values in x-direction
         v = bd.linspace(0, 1, sampleY)  # Interpolation values in y-direction
@@ -171,7 +173,7 @@ class Image2DFlat(Image2D):
         
         # Reshape the point position and color array
         gridPositions = gridPositions.reshape(sampleY * sampleX, 3)
-        gridColors = self.image.reshape(sampleY * sampleX, 3)
+        gridColors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
         # Concatenate the position and color 
         gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)
@@ -190,7 +192,7 @@ class Image2DFlat(Image2D):
         rad = bd.deg2rad(self.horizontalAoV) / 2
 
         halfX = bd.abs(bd.tan(rad) * zDist)
-        halfY = halfX * bd.abs(self._file.height / self._file.width)
+        halfY = halfX * bd.abs(self._fileMaster.height / self._fileMaster.width)
 
         self.pointAnchor = bd.array([
             [-halfX, -halfY, zDist], 
@@ -211,7 +213,7 @@ def main():
         [1, -2, 25]
     ])
 
-    img = Image2D()
+    img = Image2DFlat()
     img.imageDimensionOverride = 100 
     img.distance = bd.array(100)
     img.LoadFrom8bit(r"resources/Arrow.png")
@@ -223,13 +225,13 @@ def main():
 
     SetUnifScale(250)
     AddXYZ()
-    DrawRaybatch(RB, length=50)
+    DrawRaybatch(RB, lLength=50)
     DrawPoints(targets)
     img.DrawImage()
     plt.show()
 
     
 
-
 if __name__ == "__main__":
     main() 
+

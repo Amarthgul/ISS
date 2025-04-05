@@ -37,7 +37,7 @@ OUTPUT_TYPE = bd.float32
 
 
 # Placeholder focus/object distance 
-KNOB_DISTANCE = 1500 
+KNOB_DISTANCE = bd.array(1500)
 # Name and value from leica lenses which has a focus knob,
 # the lens will focus at 1.2 to 1.5 meter when the knob point down 
 
@@ -71,7 +71,7 @@ NEAR_ZERO = 1e-10
 AXIAL_ZERO = 1e-3
 
 
-# Far distance is treated as 500m away from the lens
+"""Far distance is treated as 500m away from the lens. This is an unsigned value."""
 FAR_DISTANCE = bd.array(500000.0)
 # This is treated as a pesudo infinity for the lens system.
 

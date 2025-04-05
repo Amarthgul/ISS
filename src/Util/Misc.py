@@ -213,6 +213,50 @@ def AngleFieldToCartesian(xAngle, yAngle, distance, angleInRadian=False):
     return bd.array([x, y, distance])
 
 
+def PolarToCartesian(polarCoords, angleInRad=False):
+    """
+    Convert a grid of polar-based coordinates [theta_x, theta_y, D] 
+    into Cartesian coordinates [x, y, z].
+
+    The input polarCoords should be an array of shape (H, W, 3) where:
+        - polarCoords[..., 0] is theta_x (horizontal field angle)
+        - polarCoords[..., 1] is theta_y (vertical field angle)
+        - polarCoords[..., 2] is D, the distance along the optical axis
+
+    The conversion is:
+        x = D * tan(theta_x)
+        y = D * tan(theta_y)
+        z = D
+
+    Parameters:
+      polarCoords (ndarray): Array of shape (H, W, 3) of polar coordinates.
+      angleInRad (bool): If True, the angles are already in radians.
+                         If False, the angles are in degrees and will be converted.
+    
+    Returns:
+      ndarray: Array of shape (H, W, 3) with Cartesian coordinates.
+    """
+    polarCoords = bd.asarray(polarCoords)
+    # Extract the three components from the last axis
+    theta_x = polarCoords[..., 0]  # shape (H, W)
+    theta_y = polarCoords[..., 1]  # shape (H, W)
+    D = polarCoords[..., 2]        # shape (H, W)
+
+    # Convert angles to radians if they are in degrees
+    if not angleInRad:
+        theta_x = bd.deg2rad(theta_x)
+        theta_y = bd.deg2rad(theta_y)
+
+    # Compute Cartesian coordinates
+    x = D * bd.tan(theta_x)
+    y = D * bd.tan(theta_y)
+    z = D
+
+    # Stack the coordinates back together along the last axis.
+    cartCoords = bd.stack((x, y, z), axis=-1)
+    return cartCoords
+
+
 def MovingAverageSmoothing(values):
     """
     Smooth the data with end points preservation. 
