@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 
 import sys
 import os
+print(os.getcwd())
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
-from Points import PointsSource
+from .Points import PointsSource
 
 
 from Util.Backend import backend as bd

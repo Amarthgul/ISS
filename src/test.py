@@ -22,7 +22,7 @@ from Raytracing.Raypath import RayPath
 FrameCount = 0 
 
 
-def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
     
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
@@ -32,12 +32,10 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2DFlat()
-    sourceImage.horizontalAoV = 40 
+    sourceImage.horizontalAoV = AoV 
     sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = 750 # imageDistance
+    sourceImage.distance = imageDistance
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-
-    #sourceImage.SetupTransitionTest()
     # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
 
     start = time.time()
@@ -58,9 +56,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
         mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays) 
         # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up 
 
-        lens.SetIncidentRaybatch(mainRB)
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(reflection=False)
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -78,7 +74,7 @@ def ISO12233Test(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpd
 
         #print("End RB size: ", mainRB.value.shape)
         print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
-        ProgressBar(iterationCount / imageMinSample)
+        ProgressBar(iterationCount / imageMinSample, 100)
 
         iterationCount += 1
         
@@ -383,20 +379,22 @@ def main():
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     ]
-    objectDistance = [ 
-        850, 875, 900, 925, 950, 975, 1000, 1050, 1100, 1150, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 
-        5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
-    ]
+    # objectDistance = [ 
+    #     850, 875, 900, 925, 950, 975, 1000, 1050, 1100, 1150, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 
+    #     5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
+    # ]
     
     angleFieldX = bd.linspace(-20, 20, len(objectDistance))
     angleFieldY = bd.linspace(-13, 13, len(objectDistance))
 
     lens = Biotar50mmf14()
+    lens = ZeissHologon15mmf8()
+    print(lens.__dict__)
     # lens.SetAperture(4)
-    #ISO12233Test(lens, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours 
+    ISO12233Test(lens, AoV=90, imageDistance=100000, imageMinSample=32, realTimeUpdate=True) #4096: 10 hours 
 
-    #for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
-        #ISO12233Test(lens, imageDistance=o, imageMinSample=512, realTimeUpdate=False)
+    # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
+    #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
 
         #position = bd.array([1000, 600, -o])
         #position = AngleFieldToCartesian(ax, ay, -d)
@@ -406,8 +404,8 @@ def main():
     
     #SpotTesting(lens, realTimeUpdate=False)
 
-    position = bd.array([angleFieldX[0], angleFieldY[0], -bd.array(20000)]) 
-    ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
+    #position = bd.array([angleFieldX[0], angleFieldY[0], -bd.array(20000)]) 
+    #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
     #MugReflectionSpotTesting(position, Mug(), sampleSize=4096, saveIterationCount=10240, realTimeUpdate=False)
 
     #ReflectionTesting(Mug())

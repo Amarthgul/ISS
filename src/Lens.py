@@ -56,10 +56,10 @@ class Lens:
 
         """Minimum object distance, i.e., min focus distance"""
         self.MOD = None 
-        # This property is useful when there are floating lens element involved and the position of lens groups are dependent on interpolation between inf and MOD focus. 
 
         self.isAfocal = False 
 
+        self.TestAttr = 0 
 
         self._lastSurfaceIndex = 0
 

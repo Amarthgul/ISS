@@ -183,7 +183,7 @@ class PointsSource:
             RefreshRNG()
             jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
             sourcePos += jitter
-            #print("Updated position: ", sourcePos)
+            # TODO: add handle cases for when jitter is a 2D array 
         
         # Expand the points to prepare crossing them 
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)

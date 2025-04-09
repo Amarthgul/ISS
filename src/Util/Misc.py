@@ -3,7 +3,6 @@
 import math
 import sys
 
-
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN
