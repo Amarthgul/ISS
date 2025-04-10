@@ -8,11 +8,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Misc import LambdaLines
-from Util.Globals import ZERO, ONE, TWO
+from Util.Globals import ZERO, ONE, TWO, LambdaLines
 
-# Load the material sheet globally to avoid repeatly open-close 
-GlassTablePath = r"resources/AbbeGlassTable.xlsx"
+
+# Load the material sheet globally to avoid repeatedly open-close
+#GlassTablePath = r"resources/AbbeGlassTable.xlsx"
+GlassTablePath = os.path.join(os.path.dirname(__file__), "..", "resources/AbbeGlassTable.xlsx")
+GlassTablePath = os.path.abspath(GlassTablePath)
+
+print()
 
 PreRead = True 
 GlassTable = None 
@@ -277,7 +281,8 @@ class MonochromaticMaterial(Material):
 
 
 def main():
-    newglass = Material("E-KZFH1")
+    # newglass = Material("E-KZFH1")
+    newglass = Material("UVIR")
     newglass.DrawRI()
     print(newglass.coef)
 

@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True 
+LOAD_LENS_FROM_FILE = False
 
 
 class Example():
@@ -45,18 +45,18 @@ def Mug():
     else:
         fileName += '_NP'
 
-    biotarExample = Example(None, fileName)
+    mugExample = Example(None, fileName)
 
     if(LOAD_LENS_FROM_FILE):
-        biotarExample.LoadExample()
-        biotar = biotarExample.data
+        mugExample.LoadExample()
+        mug = mugExample.data
     else: 
-        biotar = _MugData()
-        biotar.UpdateLens()
-        biotarExample.data = biotar
-        biotarExample.SaveExample()
+        mug = _MugData()
+        mug.UpdateLens()
+        mugExample.data = mug
+        mugExample.SaveExample()
 
-    return biotar
+    return mug
 
 
 # ==================================================================
@@ -238,19 +238,30 @@ def _ZeissHologon15mmf8Data():
     """
     lens = Lens()
 
-    lens.AddSurface(Surface(11.64,	    7.9785,     11,     "FD60"))
-    lens.AddSurface(Surface(3.843,	    2.703,      3.5))
-    lens.AddSurface(Surface(5.6685,	    4.1685,     3.5,     "H-LAK7"))
-    _temp =         Surface(INFINITY,	0,          0.75)
+    lens.AddSurface(Surface(11.64,	    7.9785,     11.25,     "FD60"))
+    lens.AddSurface(Surface(3.843,	    2.703,      3.8))
+    lens.AddSurface(Surface(5.6685,	    4.1685,     3.6,     "H-LAK7"))
+
+    _temp =         Surface(INFINITY,	0,          0.8)
     _temp.disableBoundaryL = True
+    _temp.fieldStopOnly = True
     lens.AddSurface(_temp)
+
     lens.AddSurface(Stop(               0))
-    lens.AddSurface(Surface(INFINITY,	3.48,       0.75,     "H-LAK7"))
+
+    _temp =         Surface(INFINITY,	3.48,       0.8,     "H-LAK7")
+    _temp.fieldStopOnly = True
+    lens.AddSurface(_temp)
+
     _temp =         Surface(-5.508,	    2.4045,     3.5)
     _temp.disableBoundaryL = True
     lens.AddSurface(_temp)
-    lens.AddSurface(Surface(-3.6285,	5.2365,     3.5,      "FD60"))
-    lens.AddSurface(Surface(-8.9835,	4.2686,     8))
+
+    lens.AddSurface(Surface(-3.6285,	    5.2365,     3.6,      "FD60"))
+    lens.AddSurface(Surface(-8.9835,	    4.2686,     8.7))
+
+    # lens.AddSurface(Surface(INFINITY, 1, 23))
+    # lens.AddSurface(Surface(INFINITY, 1, 23))
 
     return lens
 

@@ -1,8 +1,8 @@
 
 from enum import Enum
+from pathlib import Path
 
-
-from .Backend import backend as bd 
+from .Backend import backend as bd
 
 
 """
@@ -22,10 +22,12 @@ DEVELOPER_MODE = True
 RENDER_MODE=False
 
 
-
 # Gloabl flag if the ray path feature is enabled
 ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 
+
+
+ROOT_PATH = Path(__file__).resolve().parent.parent.parent
 
 
 # Default data type for array calculation  

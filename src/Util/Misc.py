@@ -2,11 +2,40 @@
 
 import math
 import sys
+import os
+from pathlib import Path
 
-from Util.Backend import backend as bd 
-from Util.Backend import backend_name
-from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN
 
+from .Backend import backend as bd
+from .Backend import backend_name
+from .Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN, ROOT_PATH
+
+
+
+def SoundAlarm():
+    import winsound
+    # Frequency in Hertz, duration in milliseconds
+    winsound.Beep(600, 2000)
+
+
+def RectPath(relPath: str) -> str:
+    """
+    Convert a relative file path (relative to the project root) into an absolute path.
+
+    :param relPath: The path relative to the project's root.
+
+    :return: The absolute path to the file.
+    """
+    # Create a Path object from the provided relative path.
+    path_obj = Path(relPath)
+
+    # If the provided path is already absolute, return it as a string.
+    if path_obj.is_absolute():
+        return str(path_obj.resolve())
+
+    # Otherwise, join the relative path with ROOT_PATH and resolve it to an absolute path.
+    absolute_path = (ROOT_PATH / path_obj).resolve()
+    return str(absolute_path)
 
 
 def NumpyConversion(ary):

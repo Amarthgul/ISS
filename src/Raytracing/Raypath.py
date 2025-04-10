@@ -79,7 +79,7 @@ class RayPath():
 
         # Draw the last point
         if(expendEnd > 0):
-            i = len(self.position)-1
+            i = len(self.direction)-1
             DrawNormal(
                 self.position[i][~self.reflected[i]], 
                 self.direction[i][~self.reflected[i]], 

@@ -75,6 +75,10 @@ class Surface:
         self.disableBoundaryL = False
 
 
+        """When flagged, this surface will only act as a field stop and no longer alters the diretion of the incident rays """
+        self.fieldStopOnly = False
+
+
         """Whether this surface share the same optical axis as the lens"""
         self.IsOnAxis = True
         # By default the surface is treated to have the same optical axis as the lens 
@@ -313,7 +317,14 @@ class Surface:
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
-        
+
+        if(self.fieldStopOnly):
+            incidentRaybatch = incidentRaybatch.Mask(~boolVig)
+            TIR = bd.zeros_like(incidentRaybatch.Wavelength()).astype(bool)
+            return incidentRaybatch, TIR, boolVig, None
+
+        #DrawPoints(intersections) # ======= Draw call
+
         # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
         desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
         # Apply desired direction to the normals 

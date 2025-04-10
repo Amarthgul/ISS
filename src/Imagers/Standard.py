@@ -58,15 +58,18 @@ class StdImager(Surface):
         :param length: length of the lens. 
         """
         self._lensLength = length 
-        self._zPos = length + self.BFD 
 
-        if(self.gatePoints is None):
+
+    def Update(self):
+        self._zPos = self._lensLength + self.BFD
+
+        if (self.gatePoints is None):
             self.gatePoints = bd.array([
-                [ self.width/2,  self.height/2, self._zPos], 
-                [-self.width/2,  self.height/2, self._zPos], 
-                [-self.width/2, -self.height/2, self._zPos], 
-                [ self.width/2, -self.height/2, self._zPos]])
-            
+                [self.width / 2, self.height / 2, self._zPos],
+                [-self.width / 2, self.height / 2, self._zPos],
+                [-self.width / 2, -self.height / 2, self._zPos],
+                [self.width / 2, -self.height / 2, self._zPos]])
+
         self.frontVertex = bd.array([ZERO, ZERO, self._zPos])
 
 

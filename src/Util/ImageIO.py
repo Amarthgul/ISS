@@ -4,7 +4,7 @@ import OpenEXR
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Misc import NumpyConversion
+from Util.Misc import NumpyConversion, RectPath
 from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines, RefreshRNG, Axis, UP_DIR, ORIGIN, NEAR_ZERO
 
 
@@ -64,6 +64,7 @@ def SaveAsEXR(ary, folder, fileName):
     if(folder[-1] != r"/"):
         folder += r"/"
 
+    folder = RectPath(folder)
     if not os.path.exists(folder):
         os.makedirs(folder)
     

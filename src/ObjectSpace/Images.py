@@ -3,20 +3,18 @@
 import PIL.Image
 import matplotlib.pyplot as plt
 
-
 import sys
 import os
-print(os.getcwd())
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+# SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# sys.path.append(os.path.dirname(SCRIPT_DIR))
 from .Points import PointsSource
-
 
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
-from Util.Misc import Magnitude, ArrayRotate
+from Util.Misc import Magnitude, ArrayRotate, RectPath
 from Raytracing.RayBatch import RayBatch
 
 
@@ -97,7 +95,8 @@ class Image2DFlat(Image2D):
         For common 8 bit image formats like jpg, bmp, and png. If a png is not 8 bit, do not use this method. Find the right bit depth method instead. 
         """
 
-        # Read and save the original 
+        # Read and save the original
+        imgPath = RectPath(imgPath)
         self._fileMaster = PIL.Image.open(imgPath).convert("RGB")
 
         # Resize the input if needed 

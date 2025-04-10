@@ -15,6 +15,7 @@ from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance
 from Util.SpatialEllipse import SpatialCircle
+from Util.Sampling import RandomEllipticalDistribution
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import Surface
@@ -69,6 +70,15 @@ class Lens:
 
     def AddSurface(self, inputSurface):
         self.surfaces.append(inputSurface)
+
+
+    def AddRearGroup(self, rearGroup):
+        if(len(rearGroup) == 0): return
+
+        self.surfaces[len(self.surfaces)-1].thickness =  1
+
+        for s in rearGroup:
+            self.AddSurface(s)
 
 
     def UpdateLens(self):
@@ -157,8 +167,13 @@ class Lens:
                     rayBatch, 
                     self._FindPreviousRI(i, rayBatch), 
                     reflection = reflection)
-                
-                #print(i, "th surface intersect ", rayBatch.value.shape)
+                # print("At surface ", i)
+                #print("RI comparison at ", i, "th:  ", self._FindPreviousRI(i, rayBatch), " w ", self.surfaces[i].RI(rayBatch.Wavelength()))
+
+                # DrawRaybatch(rayBatch, lLength=2, lineColor="r")  # =========== Draw call
+                # plt.draw()
+                # plt.pause(0.1)
+                # print(i, "th surface TIR ", _tir)
 
                 # The index of main RB is where they are after a surface
                 rayBatch.SetIndex(i)
@@ -203,7 +218,10 @@ class Lens:
 
     def BestFocusBFD(self, distance):
         """
-        Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays. 
+        Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays.
+
+        :param distance: distance of the source in meters.
+        :param rearGroups: converters or UVIR at the back of the lens. They do not count as part of this lens but here will be considered when calculating best focus. Note this assumes these rear groups to be afocal.
         """
         
         if(self.isAfocal):
@@ -232,11 +250,18 @@ class Lens:
         return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength
 
 
-    def GetFirstElementSamples(self):
+    def GetFirstElementSamples(self, sampleCount=512):
         """
         Randomly sample points from the 1st surface of the lens. The z position of the samples are determined by the z position of the first surface edge. 
         """
-        pass 
+        firstElementDepth = self.surfaces[0].sdCumulative
+
+        return RandomEllipticalDistribution(
+            major_axis=self.surfaces[0].clearSemiDiameter,
+            minor_axis=self.surfaces[0].clearSemiDiameter,
+            zDepth=firstElementDepth,
+            samplePoints=sampleCount,
+            groupByPoint=True)
 
 
     def GetInfo(self):
@@ -594,6 +619,22 @@ class Lens:
         else:
             return self.surfaces[index -1].RI(raybatch.Wavelength())
         
+
+    def _ZeroCondition(self, index):
+        """In some cases, a previous surface may have 0 thickness, i.e., it is directly on top of the current surface. This method tries to detect this condition"""
+
+        if(self.surfaces[index-1].thickness==0 and not isinstance(self.surfaces[index-1], Stop)):
+            # Check if the previous surface is not a Stop and has a 0 thickness
+            return index-1, index
+
+        elif(self.surfaces[index-1].thickness==0 and
+             isinstance(self.surfaces[index - 1], Stop) and
+             self.surfaces[index-2].thickness==0):
+            # It is reasonable to assume there's only 1 Stop
+            return True
+
+        return False
+
 
     def _BounceReflection(self, reflectedRB):
         """

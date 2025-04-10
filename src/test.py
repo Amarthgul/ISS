@@ -9,10 +9,11 @@ from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
-from Util.Misc import ProgressBar, AngleFieldToCartesian
+from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm
 from Util.Globals import PRECISION_TYPE
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
-from Imagers.Standard import StdImager 
+from Imagers.Standard import StdImager
+from Imagers.PDA import PDA
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2DFlat
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
@@ -52,9 +53,10 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
 
     while(True):
 
-        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays) 
-        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up 
+
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays)
+        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
+        # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
 
@@ -113,9 +115,7 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
     while(True):
         mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=9)
 
-        lens.SetIncidentRaybatch(mainRB)
-
-        mainRB, mainRP, _ = lens.Propagate()
+        mainRB, mainRP, _ = lens.Propagate(mainRB)
 
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -257,7 +257,6 @@ def ReflectionSpotPositionOrig(lens, position, focusDistance = 5000, imageMinSam
     FrameCount += 1
    
 
-
 def MugReflectionSpotTesting(position, lens=Mug(), sampleSize=512, saveIterationCount = 100, realTimeUpdate = True):
 
     imager = StdImager(2, w = 45, h  =45, horiPx=1920) 
@@ -312,8 +311,13 @@ def MugReflectionSpotTesting(position, lens=Mug(), sampleSize=512, saveIteration
         iterationCount += 1
 
 
-def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
-    
+def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+
+    lens.DrawLens()
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
@@ -321,52 +325,115 @@ def RayPathTesting(lens, imageDistance = 200000, imageMinSample = 320, realTimeU
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
-    sourceImage = Image2DFlat()
-    sourceImage.horizontalAoV = 40 
-    sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-    #sourceImage.SetupTransitionTest()
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
-
     start = time.time()
 
-    iterationCount = 0
-    normalizer = iterationCount + 10
-    perIterRays = 4
+    mainRB = EmitField(AoV/2, 0, imageMinSample, sampleTargets=lens.entrancePupil.GetSamplePoints(16))
 
-    normalizer = iterationCount + 10
 
-    #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5)
-    #DrawPoints(lens.entrancePupil.GetSamplePoints(10))
-    
-    mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(64), perIterRays)
-    print("Inititally generated ", mainRB.value.shape)
+    mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, recordPath=True)
 
-    lens.SetIncidentRaybatch(mainRB)
+    # mainRB, _tir, _vig = imager.IntersectRays(mainRB)
 
-    mainRB, mainRP, reflectedRB = lens.Propagate(recordPath=True)
-
-    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
     # mainRP.Append(mainRB, _tir, _vig)
 
     image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
-    #mainRP.DrawPath(expendEnd=40)
+    mainRP.DrawPath(expendEnd=40)
     #lens.entrancePupil.DrawSurface()
-    lens.DrawLens()
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
+
     plt.show()
 
 
     elpased = time.time() - start
-    imMin, imMax, imR = sourceImage.GetSampleRatios()
 
-    return elpased 
+    return elpased
 
 
+def PDATest(lens, tUVIR = 1, AoV=40, imageDistance=200000, imageMinSample=320, realTimeUpdate=False):
+    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+
+    imager = PDA()
+    if(tUVIR > 0):
+        imager.tUVIR = tUVIR
+        lens.AddRearGroup(imager.GetUVIR())
+        lens.UpdateLens()
+
+    # Assemble the imaging system
+    imager.SetLensLength(lens.totalAxialLength)
+    imager.BFD = lens.BestFocusBFD(imageDistance)
+    imager.Update()
+    print("Best focus: ", imager.BFD)
+    image = imager.AccquireEmpty()
+
+    # lens.DrawLens()
+    # SetUnifScale(50)
+    # AddXYZ()
+    # RemoveBG()
+    # imager.DrawSurface()
+    # plt.draw()
+    # plt.pause(5)
+
+    sourceImage = Image2DFlat()
+    sourceImage.horizontalAoV = AoV
+    sourceImage.imageDimensionOverride = 1920
+    sourceImage.distance = imageDistance
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
+
+    start = time.time()
+
+    iterationCount = 0
+    perIterRays = 20480  # 40960
+
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
+
+    while (True):
+
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays)
+        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
+        # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+        if (realTimeUpdate):
+            im.set_data(ImageConversion(image))
+            plt.draw()
+            plt.pause(0.01)
+
+        # print(source.sampleRecord)
+        elpased = time.time() - start
+        imMin, imMax, imR = sourceImage.GetSampleRatios()
+
+        # print("End RB size: ", mainRB.value.shape)
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin,
+              " max: ", imMax, " -Ratio: ", imR)
+        ProgressBar(iterationCount / imageMinSample, 100)
+
+        iterationCount += 1
+
+        if (iterationCount > imageMinSample):
+            image /= 100
+            global FrameCount
+            fn = r"UVIR_Test" + str(imageDistance) + "_" + str(tUVIR)
+            SaveAsEXR(image, r"resources/Results/", fn)
+            break
+
+    FrameCount += 1
+
+    return elpased
+
+
+# ==================================================================
+""" ======================== End of Defs ======================= """
+# ==================================================================
 def main():
 
     objectDistance = [
@@ -389,9 +456,12 @@ def main():
 
     lens = Biotar50mmf14()
     lens = ZeissHologon15mmf8()
-    print(lens.__dict__)
     # lens.SetAperture(4)
-    ISO12233Test(lens, AoV=90, imageDistance=100000, imageMinSample=32, realTimeUpdate=True) #4096: 10 hours 
+    # RayPathTesting(lens, AoV=110)
+    #ISO12233Test(lens, AoV=101, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours
+
+    for t in [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2, 1.35, 1.5]*2:
+        PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=32, realTimeUpdate=False)
 
     # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
@@ -412,11 +482,16 @@ def main():
 
     # testRP.DrawPath()
 
+    # lens.DrawLens()
+    # DrawPoints(lens.GetFirstElementSamples())
+    # print(lens.GetFirstElementSamples())
+
     # SetUnifScale(50)
-    # #AddXYZ()
+    # AddXYZ()
     # RemoveBG()
     # plt.show()
-    
+
+    SoundAlarm()
     
 
 
