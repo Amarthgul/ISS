@@ -60,11 +60,12 @@ def SaveAsEXR(ary, folder, fileName):
     channels = { "RGB" : RGB }
     header = { "compression" : OpenEXR.ZIP_COMPRESSION,
             "type" : OpenEXR.scanlineimage }
-    
-    if(folder[-1] != r"/"):
-        folder += r"/"
 
     folder = RectPath(folder)
+
+    if (folder[-1] != r"/"):
+        folder += r"/"
+
     if not os.path.exists(folder):
         os.makedirs(folder)
     

@@ -75,7 +75,7 @@ class Lens:
     def AddRearGroup(self, rearGroup):
         if(len(rearGroup) == 0): return
 
-        self.surfaces[len(self.surfaces)-1].thickness =  1
+        self.surfaces[len(self.surfaces)-1].thickness =  .2
 
         for s in rearGroup:
             self.AddSurface(s)
