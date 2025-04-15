@@ -9,14 +9,11 @@ import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.Globals import ZERO, ONE, TWO, LambdaLines
+from Util.Misc import RectPath
 
 
-# Load the material sheet globally to avoid repeatedly open-close
-#GlassTablePath = r"resources/AbbeGlassTable.xlsx"
-GlassTablePath = os.path.join(os.path.dirname(__file__), "..", "resources/AbbeGlassTable.xlsx")
-GlassTablePath = os.path.abspath(GlassTablePath)
+GlassTablePath = RectPath("resources/AbbeGlassTable.xlsx")
 
-print()
 
 PreRead = True 
 GlassTable = None 
@@ -27,20 +24,6 @@ if(PreRead):
 
 def MaterialClear():
     del GlassTable
-
-
-def FormulaLimit(formulas):
-    pass 
-
-
-def MaterialLookup_d(n_d, V_d):
-
-    pass 
-
-
-
-def MaterialLookup_e():
-    pass
 
 
 
@@ -56,6 +39,7 @@ class Material:
         self.coef = [] 
 
         self.Startup()
+
 
     def RI(self, lam):
         """
@@ -83,9 +67,14 @@ class Material:
         return ( self.RI(LambdaLines["d"]) - ONE ) / \
             (self.RI(LambdaLines["F"]) - self.RI(LambdaLines["C"]))
 
+    def V_D(self):
+        return ( self.RI(LambdaLines["D"]) - ONE ) / \
+            (self.RI(LambdaLines["F"]) - self.RI(LambdaLines["C"]))
 
-    def DrawRI(self, UV=380, IR=720):
-        lam = np.arange(UV, IR, dtype=float) 
+
+
+    def DrawRI(self, UV=380.0, IR=720.0):
+        lam = np.arange(UV, IR)
         RI = self._RI(lam)
 
         if(backend_name == "cupy"):
@@ -118,9 +107,24 @@ class Material:
             if (formula == "Schott"):
                 self.Formula = "Schott"
                 self._decodeSchott(found)
+            elif (formula == "Conrady"):
+                self.Formula = "Conrady"
+                self._decodeConrady(found)
+            elif (formula == "Herzberger"):
+                self.Formula = "Herzberger"
+                self._decodeHerzberger(found)
             elif (formula == "Sellmeier1"):
                 self.Formula = "Sellmeier1"
                 self._decodeSellmeier1(found)
+            elif (formula == "Sellmeier3"):
+                self.Formula = "Sellmeier3"
+                self._decodeSellmeier3(found)
+            elif (formula == "Sellmeier4"):
+                self.Formula = "Sellmeier4"
+                self._decodeSellmeier4(found)
+            elif (formula == "Sellmeier5"):
+                self.Formula = "Sellmeier5"
+                self._decodeSellmeier5(found)
             elif (formula == "Extended 2"):
                 self.Formula = "Extended 2"
                 self._decodeExtended_2(found)
@@ -142,15 +146,32 @@ class Material:
 
 
     def _RI(self, wavelength = 550):
+        ior = 0
+
         if(self.Formula == "Schott"):
-            return self._Schott(wavelength)
-        elif(self.Formula == "Sellmeier1"):
-            return self._Sellmeier1(wavelength)
-        elif(self.Formula == "Extended 2"):
-            return self._Extended_2(wavelength)
-        elif(self.Formula == "Extended 3"):
-            return self._Extended_3(wavelength)
-        
+            ior = self._Schott(wavelength)
+        elif (self.Formula == "Conrady"):
+            ior = self._Conrady(wavelength)
+        elif (self.Formula == "Herzberger"):
+            ior = self._Herzberger(wavelength)
+        elif (self.Formula == "Sellmeier1"):
+            ior = self._Sellmeier1(wavelength)
+        elif (self.Formula == "Sellmeier3"):
+            ior = self._Sellmeier3(wavelength)
+        elif (self.Formula == "Sellmeier4"):
+            ior = self._Sellmeier4(wavelength)
+        elif (self.Formula == "Sellmeier5"):
+            ior = self._Sellmeier5(wavelength)
+        elif (self.Formula == "Extended 2"):
+            ior = self._Extended_2(wavelength)
+        elif (self.Formula == "Extended 3"):
+            ior = self._Extended_3(wavelength)
+
+        if(ior is None):
+            ior = 0
+
+        return ior
+
 
     def _decodeSchott(self, df):
         df = df.to_numpy()
@@ -162,7 +183,6 @@ class Material:
             df[np.where(df=="A4")[0] + 1][0],
             df[np.where(df=="A5")[0] + 1][0]
         ]
-        
 
     def _Schott(self, lam):
         """
@@ -175,7 +195,7 @@ class Material:
         a3 = self.coef[3]
         a4 = self.coef[4]
         a5 = self.coef[5]
-        lam = bd.array(bd.copy(lam) / 1000.0) # Convert to micrometers to use in the formula 
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
         n2 = a0 + a1* lam**2 + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8)
         return bd.sqrt(n2)
 
@@ -191,7 +211,6 @@ class Material:
             df[np.where(df=="L3")[0] + 1][0]
         ]
 
-
     def _Sellmeier1(self, lam):
         k1 = self.coef[0]
         l1 = self.coef[1]
@@ -199,9 +218,132 @@ class Material:
         l2 = self.coef[3]
         k3 = self.coef[4]
         l3 = self.coef[5]
-        lam = bd.array(bd.copy(lam) / 1000.0) # Convert to micrometers to use in the formula 
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
         n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + 1
         return bd.sqrt(n2) 
+
+
+    def _decodeSellmeier3(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df=="K1")[0] + 1][0],
+            df[np.where(df=="L1")[0] + 1][0],
+            df[np.where(df=="K2")[0] + 1][0],
+            df[np.where(df=="L2")[0] + 1][0],
+            df[np.where(df=="K3")[0] + 1][0],
+            df[np.where(df=="L3")[0] + 1][0],
+            df[np.where(df=="K4")[0] + 1][0],
+            df[np.where(df=="L4")[0] + 1][0]
+        ]
+
+    def _Sellmeier3(self, lam):
+        k1 = self.coef[0]
+        l1 = self.coef[1]
+        k2 = self.coef[2]
+        l2 = self.coef[3]
+        k3 = self.coef[4]
+        l3 = self.coef[5]
+        k4 = self.coef[4]
+        l4 = self.coef[5]
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
+        n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + (k4 * lam**2) / (lam**2 - l4) + 1
+        return bd.sqrt(n2)
+
+
+    def _decodeSellmeier4(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df=="A")[0] + 1][0],
+            df[np.where(df=="B")[0] + 1][0],
+            df[np.where(df=="C")[0] + 1][0],
+            df[np.where(df=="D")[0] + 1][0],
+            df[np.where(df=="E")[0] + 1][0],
+        ]
+
+    def _Sellmeier4(self, lam):
+        A = self.coef[0]
+        B = self.coef[1]
+        C = self.coef[2]
+        D = self.coef[3]
+        E = self.coef[4]
+
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
+        n2 = A + (B * lam**2)/(lam**2 - C) + (D * lam**2)/(lam**2 - E)
+        return bd.sqrt(n2)
+
+
+    def _decodeSellmeier5(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df=="K1")[0] + 1][0],
+            df[np.where(df=="L1")[0] + 1][0],
+            df[np.where(df=="K2")[0] + 1][0],
+            df[np.where(df=="L2")[0] + 1][0],
+            df[np.where(df=="K3")[0] + 1][0],
+            df[np.where(df=="L3")[0] + 1][0],
+            df[np.where(df=="K4")[0] + 1][0],
+            df[np.where(df=="L4")[0] + 1][0],
+            df[np.where(df=="K5")[0] + 1][0],
+            df[np.where(df=="L5")[0] + 1][0]
+        ]
+
+    def _Sellmeier5(self, lam):
+        k1 = self.coef[0]
+        l1 = self.coef[1]
+        k2 = self.coef[2]
+        l2 = self.coef[3]
+        k3 = self.coef[4]
+        l3 = self.coef[5]
+        k4 = self.coef[4]
+        l4 = self.coef[5]
+        k5 = self.coef[4]
+        l5 = self.coef[5]
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
+        n2 = (k1 * lam**2) / (lam**2 - l1) + (k2 * lam**2) / (lam**2 - l2) + (k3 * lam**2) / (lam**2 - l3) + (k4 * lam**2) / (lam**2 - l4) + (k5 * lam**2) / (lam**2 - l5) + 1
+        return bd.sqrt(n2)
+
+
+    def _decodeConrady(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df == "N0")[0] + 1][0],
+            df[np.where(df == "A")[0] + 1][0],
+            df[np.where(df == "B")[0] + 1][0],
+        ]
+
+    def _Conrady(self, lam):
+        N0 = self.coef[0]
+        A = self.coef[1]
+        B = self.coef[2]
+
+        lam = self._LamUnitConversion(lam)  # Convert to micrometers to use in the formula
+        n = N0 + A/lam + B/(lam**3.5)
+        return N0 + A/lam + B/(lam**3.5)
+
+
+    def _decodeHerzberger(self, df):
+        df = df.to_numpy()
+        self.coef = [
+            df[np.where(df=="A")[0] + 1][0],
+            df[np.where(df=="B")[0] + 1][0],
+            df[np.where(df=="C")[0] + 1][0],
+            df[np.where(df=="D")[0] + 1][0],
+            df[np.where(df=="E")[0] + 1][0],
+            df[np.where(df=="F")[0] + 1][0],
+        ]
+
+    def _Herzberger(self, lam):
+        A = self.coef[0]
+        B = self.coef[1]
+        C = self.coef[2]
+        D = self.coef[3]
+        E = self.coef[4]
+        F = self.coef[5]
+
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
+        L = 1 / (lam**2 - 0.028)
+
+        return A + B*L + C* L**2 + D* lam**2 + E* lam**4 + F* lam**6
 
 
     def _decodeExtended_2(self, df):
@@ -217,7 +359,6 @@ class Material:
             df[np.where(df=="A7")[0] + 1][0],
         ]
 
-
     def _Extended_2(self, lam):
         a0 = self.coef[0]
         a1 = self.coef[1]
@@ -227,7 +368,7 @@ class Material:
         a5 = self.coef[5]
         a6 = self.coef[6]
         a7 = self.coef[7]
-        lam = bd.array(bd.copy(lam) / 1000.0) # Convert to micrometers to use in the formula 
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
         n2 = a0 + a1 * lam**(2) + a2 * lam**(-2) + a3 * lam**(-4) + a4 * lam**(-6) + a5 * lam**(-8) + a6 * lam**(4) + a7 * lam**(6)
         return bd.sqrt(n2)
 
@@ -246,7 +387,6 @@ class Material:
             df[np.where(df=="A8")[0] + 1][0]
         ]
 
-
     def _Extended_3(self, lam):
         a0 = self.coef[0]
         a1 = self.coef[1]
@@ -257,13 +397,16 @@ class Material:
         a6 = self.coef[6]
         a7 = self.coef[7]
         a8 = self.coef[8]
-        lam = bd.array(bd.copy(lam) / 1000.0) # Convert to micrometers to use in the formula  
+        lam = self._LamUnitConversion(lam) # Convert to micrometers to use in the formula
         n2 = a0 + a1 * lam**(2) + a2 * lam**(4) + a3 * lam**(-2) + a4 * lam**(-4) + a5 * lam**(-6) + a6 * lam**(-8) + a7 * lam**(-10) + a8 * lam**(-12)
         return bd.sqrt(n2)
 
-    # TODO: add more decoder and formula here if needed 
 
-
+    def _LamUnitConversion(self, lam):
+        if isinstance(lam, float):
+            return lam/1000.0
+        else:
+            return bd.array(bd.copy(lam) / 1000.0)
 
 
 class MonochromaticMaterial(Material):
@@ -277,14 +420,107 @@ class MonochromaticMaterial(Material):
         For mono material, the RI is a constant regardless of wavelength. 
         """
         return bd.ones_like(lam) * self.monoRI
-    
+
+
+def CreateMaterialRefractiveIndicesTable(
+        excel_in=RectPath("resources/AbbeGlassTable.xlsx"),
+        excel_out=RectPath("resources/Material_RefractionIndices.xlsx")
+):
+    """
+    Reads all materials from 'AbbeGlassTable.xlsx', computes RI at each
+    of the defined wavelength lines, and writes them to a new Excel file.
+
+    This is extremely computationally ineffective, but man who cares, you only need to run it once whenever the AbbeGlassTable is updated.
+    """
+
+    # 1. Read the glass table. If 'Material.py' is configured to pre-read
+    #    the file, you can alternatively refer to `Material.GlassTable`.
+    glass_df = pd.read_excel(excel_in)
+
+    # 2. Collect the results in a list of dicts, one per row
+    results = []
+
+    global LambdaLines
+
+    # Loop over each unique material in the table
+    for mat_name in glass_df["Name"].unique():
+        mat_obj = Material(mat_name)  # Instantiates the Material class
+
+        # Prepare a dict to hold columns: Name + each wavelength line
+        row_data = {"Name": mat_name}
+
+        # 3. Compute the RI for each line in LambdaLines
+        for line_label, wavelength_nm in LambdaLines.items():
+            ri_value = mat_obj.RI(wavelength_nm)
+
+            if(ri_value is None):
+                continue
+
+            ri_value = float(ri_value)
+
+            row_data[line_label] = ri_value
+
+        results.append(row_data)
+
+    # 4. Create a DataFrame from the collected results
+    out_df = pd.DataFrame(results)
+
+    # 5. Write the DataFrame to a new Excel file
+    out_df.to_excel(excel_out, index=False)
+    print(f"Refractive indices saved to: {excel_out}")
+
+
+def AppendAbbeNumbers(
+    excel_in=RectPath("resources/MaterialRefractionIndices.xlsx"),
+    excel_out=RectPath("resources/MaterialRefractionIndices.xlsx")
+):
+    """
+    After calling CreateMaterialRefractiveIndicesTable, call this to create the corresponding V_d, V_D, and V_e.
+    """
+
+    # 1. Read the existing table of refractive indices
+    df = pd.read_excel(excel_in)
+
+    # 2. Prepare lists for Abbe numbers
+    Vd_list = []
+    VD_list = []
+    Ve_list = []
+
+    # 3. We will re-instantiate each Material by 'Name' in df
+    #    Then compute V_d, V_D, and V_e
+    for _, row in df.iterrows():
+        mat_name = row["Name"]
+
+        mat_obj = Material(mat_name)  # Re-instantiate with that name
+
+        # Compute Abbe numbers (convert array-like to float)
+        Vd_val = float(mat_obj.V_d())  # uses F, C lines
+        VD_val = float(mat_obj.V_D())  # uses F, C lines but D line for numerator
+        Ve_val = float(mat_obj.V_e())  # uses F', C' lines but e line for numerator
+
+        Vd_list.append(Vd_val)
+        VD_list.append(VD_val)
+        Ve_list.append(Ve_val)
+
+    # 4. Insert these columns into the DataFrame
+    df["V_d"] = Vd_list
+    df["V_D"] = VD_list
+    df["V_e"] = Ve_list
+
+    # 5. Save to a new Excel file
+    df.to_excel(excel_out, index=False)
+    print(f"Abbe numbers appended and saved to: {excel_out}")
+
 
 
 def main():
     # newglass = Material("E-KZFH1")
-    newglass = Material("UVIR")
-    newglass.DrawRI()
-    print(newglass.coef)
+    # newglass = Material("KRS5")
+    # newglass.DrawRI()
+    # print(newglass.coef)
+
+    AppendAbbeNumbers()
+
 
  
 if __name__ == "__main__":

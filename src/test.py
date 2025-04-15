@@ -16,6 +16,7 @@ from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2DFlat
+from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
 
@@ -327,7 +328,7 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
 
     start = time.time()
 
-    mainRB = EmitField(AoV/2, 0, imageMinSample, sampleTargets=lens.entrancePupil.GetSamplePoints(16))
+    mainRB = EmitField(AoV/2, 0, imageMinSample, sampleTargets=lens.entrancePupil.GetSamplePoints(32))
 
 
     mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, recordPath=True)
@@ -430,6 +431,26 @@ def PDATest(lens, tUVIR = 1, AoV=40, imageDistance=200000, imageMinSample=320, r
 
     return elpased
 
+def StereoImageTest():
+    targets = bd.array([
+        [1, 2, 25],
+        [2, 4, 25],
+        [-2, 3, 25],
+        [1, -2, 25]
+    ])
+
+    img = Image2DVariDepth()
+    img.imageDimensionOverride = 300
+    img.zDepthMappingRange = bd.array([500, 1000])
+
+    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+
+    img.DrawImage()
+
+    RemoveBG()
+    SetUnifScale(1000)
+    plt.show()
+
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -442,6 +463,8 @@ def main():
     focusDistance = [
         350, 500, 800, 1200, 1500, 2000, 3000, 5000, 8000, 15000, 30000, 100000
     ]
+
+    # StereoImageTest()
 
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
@@ -457,11 +480,11 @@ def main():
     lens = Biotar50mmf14()
     lens = ZeissHologon15mmf8()
     # lens.SetAperture(4)
-    # RayPathTesting(lens, AoV=110)
-    #ISO12233Test(lens, AoV=101, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours
+    #RayPathTesting(lens, AoV=40)
+    ISO12233Test(lens, AoV=101, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours
 
-    for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
-        PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=512, realTimeUpdate=False)
+    # for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
+    #     PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=512, realTimeUpdate=False)
 
     # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)

@@ -7,16 +7,18 @@ import OpenEXR
 
 import sys
 import os
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(SCRIPT_DIR))
-from Points import PointsSource
-from Images import Image2D
+
+# SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from .Points import PointsSource
+from .Images import Image2D
 
 
 from Util.Backend import backend as bd
 from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor, RemoveBG
-from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian
+from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
 from Raytracing.RayBatch import RayBatch
 
 
@@ -88,6 +90,7 @@ class Image2DVariDepth(Image2D):
         """
         Load an RGB image from the given path. 
         """
+        rgbImgPath = RectPath(rgbImgPath)
 
         # Read and save the master file  
         self._fileMaster = PIL.Image.open(rgbImgPath).convert("RGB")
@@ -106,6 +109,8 @@ class Image2DVariDepth(Image2D):
 
 
     def LoadFrom8bitZ(self, zImgPath):
+
+        zImgPath = RectPath(zImgPath)
 
         # Read and save the z depth file 
         self._fileZ = PIL.Image.open(zImgPath).convert("L")

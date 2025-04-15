@@ -30,7 +30,7 @@ class PDA(StdImager):
         Accquire the surfaces of the UVIR glass.
         """
 
-        diagonal = bd.sqrt((self.width/2.0)**2 + (self.height/2.0)**2) + 1
+        diagonal = bd.sqrt((self.width/2.0)**2 + (self.height/2.0)**2) + 5
 
         newS = Surface(INFINITY, self.tUVIR, diagonal, self.material)
 

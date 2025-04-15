@@ -13,6 +13,9 @@ from .Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, LambdaLines, Refresh
 
 
 def SoundAlarm():
+    """
+    Play a sound alarm.
+    """
     import winsound
     # Frequency in Hertz, duration in milliseconds
     winsound.Beep(600, 2000)

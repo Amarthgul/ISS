@@ -57,7 +57,9 @@ class StdImager(Surface):
 
         :param length: length of the lens. 
         """
-        self._lensLength = length 
+        self._lensLength = length
+
+        self.Update()
 
 
     def Update(self):
