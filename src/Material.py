@@ -424,7 +424,7 @@ class MonochromaticMaterial(Material):
 
 def CreateMaterialRefractiveIndicesTable(
         excel_in=RectPath("resources/AbbeGlassTable.xlsx"),
-        excel_out=RectPath("resources/Material_RefractionIndices.xlsx")
+        excel_out=RectPath("resources/MaterialRefractionIndices.xlsx")
 ):
     """
     Reads all materials from 'AbbeGlassTable.xlsx', computes RI at each
@@ -446,23 +446,32 @@ def CreateMaterialRefractiveIndicesTable(
     for mat_name in glass_df["Name"].unique():
         mat_obj = Material(mat_name)  # Instantiates the Material class
 
-        # Prepare a dict to hold columns: Name + each wavelength line
-        row_data = {"Name": mat_name}
+        # Find the row(s) in glass_df matching this material
+        # to retrieve its 'Cate' (catalog) value.
+        matching_rows = glass_df[glass_df["Name"] == mat_name]
+        # Assuming each 'Name' appears only once or that
+        # the 'Cate' is the same for all rows with that 'Name'.
+        cate_value = matching_rows["Cate"].iloc[0]
+
+        # Prepare a dict to hold columns: Name, Cate + each wavelength line
+        row_data = {
+            "Name": mat_name,
+            "Cate": cate_value
+        }
 
         # 3. Compute the RI for each line in LambdaLines
         for line_label, wavelength_nm in LambdaLines.items():
             ri_value = mat_obj.RI(wavelength_nm)
-
-            if(ri_value is None):
+            if ri_value is None:
                 continue
 
+            # Convert to float if necessary (e.g., GPU array returns)
             ri_value = float(ri_value)
-
             row_data[line_label] = ri_value
 
         results.append(row_data)
 
-    # 4. Create a DataFrame from the collected results
+        # 4. Create a DataFrame from the collected results
     out_df = pd.DataFrame(results)
 
     # 5. Write the DataFrame to a new Excel file
@@ -519,6 +528,7 @@ def main():
     # newglass.DrawRI()
     # print(newglass.coef)
 
+    # CreateMaterialRefractiveIndicesTable()
     AppendAbbeNumbers()
 
 

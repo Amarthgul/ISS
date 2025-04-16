@@ -70,6 +70,7 @@ def FindClosestMaterials(
 
     # 6. Create a new DataFrame with only the desired columns
     result = pd.DataFrame({
+        "Cate": df_sorted["Cate"],
         "Name": df_sorted["Name"],
         f"desired n_{line}": [n_target] * len(df_sorted),
         f"actual n_{line}": df_sorted[index_col],
