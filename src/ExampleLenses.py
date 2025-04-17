@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True
+LOAD_LENS_FROM_FILE = False
 
 
 class Example():
@@ -359,7 +359,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = ZeissHologon15mmf8()
+    exampleLens = Helios58mmf2()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

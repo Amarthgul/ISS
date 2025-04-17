@@ -459,24 +459,25 @@ def MaterialLookUpTest():
     excel_file = ReadSheet()
 
     # Suppose you have n=1.5168 and V=64.1 for the 'd' line
-    line = 'd'
+    line = 'D'
     stats = [
-        [1.671 ,  47.2],
-        [1.671 ,  47.2],
-        [1.4962,   70.1],
-        [1.7394,   28.2],
-        [1.5232,   50.9],
-        [1.6578,   51.2],
-        [1.5894,   51.2]
+        [1.6369 ,   56   ],
+        [1.6707 ,   47.4 ],
+        [1.4644 ,   66   ],
+        [1.689  ,  30.9  ],
+        [1.6574 ,   50.8 ],
+        [1.54832,    53.3],
+        [1.6574 ,   50.8 ]
     ]
 
     for item in stats:
         n_val = item[0]
         v_val = item[1]
 
-        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=3)
+        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=5)
         print("Closest matches:")
         print(result_df)
+
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -490,7 +491,7 @@ def main():
         350, 500, 800, 1200, 1500, 2000, 3000, 5000, 8000, 15000, 30000, 100000
     ]
 
-    MaterialLookUpTest()
+    #MaterialLookUpTest()
 
     objectDistance = [
         450, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1700, 1800, 1900, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
@@ -505,6 +506,8 @@ def main():
 
     lens = Biotar50mmf14()
     lens = ZeissHologon15mmf8()
+    lens = Helios58mmf2()
+
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
     # ISO12233Test(lens, AoV=101, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours
@@ -512,14 +515,14 @@ def main():
     # for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
     #     PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=512, realTimeUpdate=False)
 
-    # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
+    for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
 
         #position = bd.array([1000, 600, -o])
-        #position = AngleFieldToCartesian(ax, ay, -d)
+        position = AngleFieldToCartesian(ax, ay, -d)
         #print("Current origin position: ", position)
         #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
-        #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
     
     #SpotTesting(lens, realTimeUpdate=False)
 

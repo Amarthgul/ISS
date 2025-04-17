@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import math
 import numpy as np 
+import numbers
 
 import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
@@ -132,6 +133,8 @@ class Material:
                 self.Formula = "Extended 3"
                 self._decodeExtended_3(found)
 
+        # print(self.Formula, ":  ", self.coef)
+
         # After reading the parameters, try to convert the data to cupy 
         self.coef = bd.asarray(self.coef)
     
@@ -201,15 +204,46 @@ class Material:
 
 
     def _decodeSellmeier1(self, df):
-        df = df.to_numpy()
-        self.coef = [
-            df[np.where(df=="K1")[0] + 1][0],
-            df[np.where(df=="L1")[0] + 1][0],
-            df[np.where(df=="K2")[0] + 1][0],
-            df[np.where(df=="L2")[0] + 1][0],
-            df[np.where(df=="K3")[0] + 1][0],
-            df[np.where(df=="L3")[0] + 1][0]
-        ]
+        """
+        There is one material using Sellmeier 1 whose name is literally K3, which causes problem in coefficient lookup, thus born this complicated mess.
+
+        """
+
+        # Convert to a plain Python list for fast iteration
+        row_vals = df.to_list()
+
+        # ------------------------------------------------------------------
+        # 1) Build a token → value dictionary by scanning pair‑wise
+        # ------------------------------------------------------------------
+        token_value = {}
+        i = 0
+        while i < len(row_vals) - 1:
+            token = row_vals[i]
+            value = row_vals[i + 1]
+
+            # Accept the pair only if the token is a str and the value is numeric
+            if isinstance(token, str) and isinstance(value, numbers.Number):
+                # Only record the *first* numeric value we encounter for each token
+                token_value.setdefault(token, value)
+            i += 2  # jump to the next candidate pair
+
+        # ------------------------------------------------------------------
+        # 2) Pull the coefficients we need from the dictionary
+        # ------------------------------------------------------------------
+        try:
+            self.coef = [
+                token_value["K1"],
+                token_value["L1"],
+                token_value["K2"],
+                token_value["L2"],
+                token_value["K3"],
+                token_value["L3"],
+            ]
+        except KeyError as missing:
+            raise ValueError(
+                f"Coefficient {missing} not found for material {self.name}. "
+                "Check the source table formatting."
+            )
 
     def _Sellmeier1(self, lam):
         k1 = self.coef[0]
@@ -437,44 +471,53 @@ def CreateMaterialRefractiveIndicesTable(
     #    the file, you can alternatively refer to `Material.GlassTable`.
     glass_df = pd.read_excel(excel_in)
 
-    # 2. Collect the results in a list of dicts, one per row
+    global LambdaLines
+    global GlassTable
+
+    # Unique combinations of Catalogue + Name
+    unique_pairs = glass_df[["Cate", "Name"]].drop_duplicates()
+
     results = []
 
-    global LambdaLines
+    # ------------------------------------------------------------------
+    # 2) iterate over every unique (Cate, Name) pair
+    # ------------------------------------------------------------------
+    original_table = GlassTable  # keep a copy to restore later
 
-    # Loop over each unique material in the table
-    for mat_name in glass_df["Name"].unique():
-        mat_obj = Material(mat_name)  # Instantiates the Material class
+    for _, pair in unique_pairs.iterrows():
+        cate_val = pair["Cate"]
+        name_val = pair["Name"]
 
-        # Find the row(s) in glass_df matching this material
-        # to retrieve its 'Cate' (catalog) value.
-        matching_rows = glass_df[glass_df["Name"] == mat_name]
-        # Assuming each 'Name' appears only once or that
-        # the 'Cate' is the same for all rows with that 'Name'.
-        cate_value = matching_rows["Cate"].iloc[0]
+        # ------------------------------------------------------------------
+        # 2a) isolate the single row matching BOTH Cate and Name
+        # ------------------------------------------------------------------
+        filtered_table = glass_df[(glass_df["Cate"] == cate_val) &
+                                  (glass_df["Name"] == name_val)]
 
-        # Prepare a dict to hold columns: Name, Cate + each wavelength line
-        row_data = {
-            "Name": mat_name,
-            "Cate": cate_value
-        }
+        # Replace the global GlassTable just for the upcoming Material() call
+        GlassTable = filtered_table
 
-        # 3. Compute the RI for each line in LambdaLines
-        for line_label, wavelength_nm in LambdaLines.items():
-            ri_value = mat_obj.RI(wavelength_nm)
-            if ri_value is None:
-                continue
+        # Instantiate the material – it now sees only the correct row
+        mat_obj = Material(name_val)
 
-            # Convert to float if necessary (e.g., GPU array returns)
-            ri_value = float(ri_value)
-            row_data[line_label] = ri_value
+        # Restore the full table so the next iteration starts clean
+        GlassTable = original_table
+
+        # ------------------------------------------------------------------
+        # 2b) collect output for this pair
+        # ------------------------------------------------------------------
+        row_data = {"Cate": cate_val, "Name": name_val}
+
+        for line_lbl, λ_nm in LambdaLines.items():
+            ri = float(mat_obj.RI(λ_nm))  # scalar – ensure python float
+            row_data[line_lbl] = ri
 
         results.append(row_data)
 
-        # 4. Create a DataFrame from the collected results
+    # ------------------------------------------------------------------
+    # 3) write everything out
+    # ------------------------------------------------------------------
     out_df = pd.DataFrame(results)
-
-    # 5. Write the DataFrame to a new Excel file
     out_df.to_excel(excel_out, index=False)
     print(f"Refractive indices saved to: {excel_out}")
 
