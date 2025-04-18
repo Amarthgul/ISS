@@ -114,6 +114,62 @@ def Biotar50mmf14():
 
     return biotar
 
+# ==================================================================
+""" ==================== Zeiss Sonnar 50mm f/1.5 =============== """
+# ==================================================================
+
+
+def _Sonnar50F15Data():
+    """
+    Zeiss Biotar 500mm f/1.4. 
+    Data from US 1786916 Example 2, EFL 100mm. 
+
+    :return: Lens object with only data and not initlized.
+    """
+    sonnar = Lens() 
+
+    sonnar.AddSurface(Surface(34.605,	4.665,      17,     "H-ZBAF5"))
+    sonnar.AddSurface(Surface(216.92,	0.19,       17))
+    sonnar.AddSurface(Surface(17.93,	5.905,      14,     "H-ZBAF5"))
+    sonnar.AddSurface(Surface(42.89,	3.525,      14,     "FSL5"))
+    sonnar.AddSurface(Surface(-323.155,	0.95,       14,     "SF3"))
+    sonnar.AddSurface(Surface(11.755,	6.49,       9.5))
+
+    sonnar.AddSurface(Stop(             1.13))
+
+    sonnar.AddSurface(Surface(INFINITY,	1.24,       10,     "KF5"))
+    sonnar.AddSurface(Surface(25.545,	9.905,      10,     "S-ZBAF3"))
+    sonnar.AddSurface(Surface(-11.06,	2.285,      10,   "BAL7"))
+    sonnar.AddSurface(Surface(-51.565,	22.728,     11))
+
+    return sonnar 
+
+
+def Sonnar50mmF15():
+    """
+    Zeiss Biotar 500mm f/1.4. 
+
+    :return: initlized lens object.
+    """
+    fileName = "ZeissSonnar50mmf1.5"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    sonnarExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        sonnarExample.LoadExample()
+        sonnar = sonnarExample.data
+    else: 
+        sonnar = _Sonnar50F15Data()
+        sonnar.UpdateLens()
+        sonnarExample.data = sonnar
+        sonnarExample.SaveExample()
+
+    return sonnar
 
 # ==================================================================
 """ ====================== Helios-44 58mm f/2 ================= """
@@ -359,7 +415,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = Helios58mmf2()
+    exampleLens = Biotar50mmf14()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

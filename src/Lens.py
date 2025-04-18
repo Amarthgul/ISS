@@ -368,6 +368,8 @@ class Lens:
 
                 
     def _CreateClearBoundary(self):
+        """Create clear boundary for the lens"""
+
         for key, value in self.groupMaxSemi.items():
             # The key here is group index, and value is the max clear semi diameter of the group 
 
@@ -449,7 +451,8 @@ class Lens:
 
                 # ================ Deal with middle surface, if any ================
                 else: 
-                    pass 
+                    # TODO: Add better handling here 
+                    pass  
 
                 # print("Surface ", s, " max csd ", value)
                 if(self.surfaces[s].clearSemiDiameter < value):
