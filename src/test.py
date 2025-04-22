@@ -44,7 +44,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
     start = time.time()
 
     iterationCount = 0
-    perIterRays = 20480 #40960 
+    perIterRays = 40960 #40960
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -433,25 +433,7 @@ def PDATest(lens, tUVIR = 1, AoV=40, imageDistance=200000, imageMinSample=320, r
     return elpased
 
 
-def StereoImageTest():
-    targets = bd.array([
-        [1, 2, 25],
-        [2, 4, 25],
-        [-2, 3, 25],
-        [1, -2, 25]
-    ])
 
-    img = Image2DVariDepth()
-    img.imageDimensionOverride = 300
-    img.zDepthMappingRange = bd.array([500, 1000])
-
-    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
-
-    img.DrawImage()
-
-    RemoveBG()
-    SetUnifScale(1000)
-    plt.show()
 
 
 def MaterialLookUpTest():
@@ -510,7 +492,8 @@ def main():
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
-    # ISO12233Test(lens, AoV=101, imageDistance=100000, imageMinSample=32, realTimeUpdate=False) #4096: 10 hours
+    for o in objectDistance:
+        ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=False) #4096: 10 hours
 
     # for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
     #     PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=512, realTimeUpdate=False)

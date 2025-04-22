@@ -87,7 +87,11 @@ class Image2DFlat(Image2D):
         
 
         """Height/width of each pixel, assuming square pixels"""
-        self.pixelPitch = None 
+        self.pixelPitch = None
+
+
+        self._opacity = None
+        self._opacityArray = None
 
 
     def LoadFrom8bit(self, imgPath):
@@ -99,20 +103,22 @@ class Image2DFlat(Image2D):
         imgPath = RectPath(imgPath)
         self._fileMaster = PIL.Image.open(imgPath).convert("RGB")
 
-        # Resize the input if needed 
-        if(self.imageDimensionOverride is not None):
-            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
-        else:
-            imageFile = self._fileMaster
+        self._Update()
 
-        # Convert into array format 
-        self.rgbArray = bd.array(imageFile)
 
-        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
-        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+    def LoadFrom8BitPNG(self, imgPath):
+        # Read and save the original
+        imgPath = RectPath(imgPath)
+        self._fileMaster = PIL.Image.open(imgPath).convert("RGBA")
+        # if self._fileMaster.mode != "RGBA":
+        #     self._fileMaster = self._fileMaster.convert("RGBA")
 
-        self._GeneratePointSources()
+        r, g, b, self._opacity = self._fileMaster.split()
+
+        self._fileMaster = self._fileMaster.convert("RGB")
+
+
+        self._Update()
 
 
     def SetupTransitionTest(self, rotateDegree=45, scale=2):
@@ -137,6 +143,27 @@ class Image2DFlat(Image2D):
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _Update(self):
+
+        # Resize the input if needed
+        if (self.imageDimensionOverride is not None):
+            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
+            imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
+            if(self._opacity is not None):
+                opacityArray = self._opacity.resize((self.imageDimensionOverride, newHeight))
+        else:
+            imageFile = self._fileMaster
+
+        # Convert into array format
+        self.rgbArray = bd.array(imageFile)
+        if (self._opacity is not None):
+            self._opacityArray = bd.array(opacityArray)
+
+        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in
+        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+
+        self._GeneratePointSources()
 
 
     def _GeneratePointSources(self):
@@ -170,15 +197,24 @@ class Image2DFlat(Image2D):
 
         # The grid generated this way is transposed, thus need the axis swapped
         gridPositions = bd.swapaxes(gridPositions, 0, 1)
-        
+
         # Reshape the point position and color array
         gridPositions = gridPositions.reshape(sampleY * sampleX, 3)
         gridColors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
-        # Concatenate the position and color 
-        gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)
+        if self._opacityArray is not None:
+            flat_opacity = self._opacityArray.reshape(sampleY * sampleX)
+            mask = flat_opacity > 0
+            gridPositions = gridPositions[mask]
+            gridColors = gridColors[mask]
 
-        self.pointSource = PointsSource(gridPositions)
+        gridData = bd.concatenate([gridPositions, gridColors], axis=1)
+        self.pointSource = PointsSource(gridData)
+
+        # Concatenate the position and color 
+        # gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)
+        #
+        # self.pointSource = PointsSource(gridPositions)
 
 
     def _CreateAnchors(self, zDist=None):
