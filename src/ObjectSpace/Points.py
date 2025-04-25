@@ -119,6 +119,38 @@ class PointsSource:
 
         self._ResetSampleRecord()
 
+    def GenerateGridSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=10):
+        """
+        Generate a symmetric 2D grid of white point sources spanning from 
+        (-xAngle, -yAngle) to (xAngle, yAngle).
+        """
+
+        # Create symmetric angle ranges for both axes
+        xAngles = bd.linspace(-xAngle, xAngle, sampleField)
+        yAngles = bd.linspace(-yAngle, yAngle, sampleField)
+
+        # Create 2D grid of (x, y) angles
+        xGrid, yGrid = bd.meshgrid(xAngles, yAngles)
+
+        # Flatten the mesh to 1D arrays
+        xFlat = xGrid.ravel()
+        yFlat = yGrid.ravel()
+
+        # All distances set to a negative value (e.g., for direction into scene)
+        dists = -bd.ones_like(xFlat) * dist
+
+        # Combine into Nx3 coordinates: (xAngle, yAngle, distance)
+        gridPoints = bd.column_stack((xFlat, yFlat, dists))
+
+        # Append a white intensity vector (1, 1, 1) to each point
+        fullPoints = bd.concatenate([gridPoints, bd.full((gridPoints.shape[0], 3), 1)], axis=1)
+
+        # Store the full array
+        self.value = fullPoints
+
+        # Reset sample record
+        self._ResetSampleRecord()
+
 
     def GenerateFixPoint(self, position=None, color=bd.array([1, 1, 1])):
 
