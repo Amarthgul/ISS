@@ -133,12 +133,13 @@ class Image2DVariDepth(Image2D):
 
     def UpdateDepthRange(self, newRange=None):
 
-        if(newRange is not None):
-            assert len(newRange) == 2, "The new range should be a list of two values"
-            if(newRange[0] > newRange[1]):
-                self.zDepthMappingRange = bd.array([newRange[1], newRange[0]])
-            else:
-                self.zDepthMappingRange = bd.array(newRange)
+        if(newRange is None):
+            newRange = self.zDepthMappingRange
+
+        if(newRange[0] > newRange[1]):
+            self.zDepthMappingRange = bd.array([newRange[1], newRange[0]])
+        else:
+            self.zDepthMappingRange = bd.array(newRange)
 
         deltaRange = self.zDepthMappingRange[1] - self.zDepthMappingRange[0]
 
@@ -197,9 +198,6 @@ class Image2DVariDepth(Image2D):
         # Stack the three components into a (sampleX, sampleY, 3) array.
         coordinates = bd.stack([theta_x, theta_y, D], axis=-1)
 
-        # Convert the angle field to Cartesian coordinates 
-        coordinates = PolarToCartesian(coordinates, angleInRad=True)
-
         # The grid was built with U, V of shape (sampleX, sampleY), but typically 
         # we want the final list of points to be organized per pixel (row-major order).
         # Swap axes if needed, then reshape to (sampleX*sampleY, 3)
@@ -214,7 +212,7 @@ class Image2DVariDepth(Image2D):
         
         # Finally, create a new PointsSource with these points.
         self.pointSource = PointsSource(points)
-
+        self.pointSource.isCartesian = False
 
 
 

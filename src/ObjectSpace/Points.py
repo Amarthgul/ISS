@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
-from Util.Misc import  GridNormalized
+from Util.Misc import  GridNormalized, PolarToCartesian
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
 from Raytracing.RayBatch import RayBatch
@@ -61,7 +61,7 @@ class PointsSource:
         if(self.isCartesian):
             return self.value[:, :3]
         else:
-            return self._PolarToCart()
+            return PolarToCartesian(self.value[:, :3], True)
             
     
     def Color(self):
