@@ -34,6 +34,7 @@ def StereoImageTest():
 
     img = Image2DVariDepth()
     img.imageDimensionOverride = 200
+    img.nearClipping = 200
     img.zDepthMappingRange = bd.array([500, 1000])
 
     img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")

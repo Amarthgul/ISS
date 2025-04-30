@@ -119,6 +119,7 @@ class PointsSource:
 
         self._ResetSampleRecord()
 
+
     def GenerateGridSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=10):
         """
         Generate a symmetric 2D grid of white point sources spanning from 
@@ -161,7 +162,6 @@ class PointsSource:
         self.value = bd.stack([assemb, assemb], axis=0)
         self._ResetSampleRecord()
         
-
 
     def GetSampleRatios(self):
         """
@@ -215,12 +215,12 @@ class PointsSource:
             RefreshRNG()
             jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
             sourcePos += jitter
-            # TODO: add handle cases for when jitter is a 2D array 
-        
-        # Expand the points to prepare crossing them 
+            # TODO: add handle cases for when jitter is a 2D array
+
+        # Expand the points to prepare crossing them
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
 
-        # Compute the direction of acrossing the source and target 
+        # Compute the direction of acrossing the source and target
         dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
         dirCross = GridNormalized(dirCross)
 
@@ -228,75 +228,62 @@ class PointsSource:
         appended = bd.concatenate([sourcePos, dirCross], axis=2)
         # After applying the mask, appended is of shape (m*n', 6)
 
-        # Convert source color to wavelength 
+        # Convert source color to wavelength
         if (addSecondary is not None):
-            # Spot sim assumes source to be white, so add more spectrums 
+            # Spot sim assumes source to be white, so add more spectrums
             wavelengths, radiants = RGBToWavelengthSpotSim(sampleSource.Color(), addCount=addSecondary)
         else:
             wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
 
 
-        # Expand the wavelength to match the pos/dir 
+        # Expand the wavelength to match the pos/dir
         wavelengths = wavelengths[:, bd.newaxis, :]
         wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))
         # At this point the wavelengths should be of size (m, n, n_lambda)
-        # Where m is number of source point, n is number of target points 
-        # and n_lambda is number of different wavelengths 
+        # Where m is number of source point, n is number of target points
+        # and n_lambda is number of different wavelengths
 
-        # Accquire the number of wavelengths, 
+        # Accquire the number of wavelengths,
         wavelengthCount = wavelengths.shape[2]
 
-        # Spilt the wavelengths, copy and concatenate them to 
+        # Spilt the wavelengths, copy and concatenate them to
         wavelengths = bd.split(wavelengths, indices_or_sections=wavelengthCount, axis=2)
 
         appended = [bd.concatenate([appended, b], axis=2) for b in wavelengths]
-        
-        # This creates a boolean mask whose filter ratio is based on the radiant of the corresponding wavelength 
+
+        # This creates a boolean mask whose filter ratio is based on the radiant of the corresponding wavelength
         radiantMask = [
-            bd.random.random((sourcePos.shape[0], targets.shape[0])) < radiants[:, i][:, bd.newaxis] 
+            bd.random.random((sourcePos.shape[0], targets.shape[0])) < radiants[:, i][:, bd.newaxis]
             for i in range(radiants.shape[1])
-            ] 
+            ]
+
+        # 1. cosθ between each ray and +Z (= |z-component|, dirCross already normalised)
+        cosTheta = bd.abs(dirCross[..., 2])  # shape (n,m)
+        # 2. same-size random array
+        randCos = bd.random.random(cosTheta.shape)
+        # 3. boolean acceptance by comparing randCos < cosTheta
+        angMask = randCos < cosTheta  # shape (n,m) boolean
+        # 4. combine with the wavelength radiant mask
+        radiantMask = [mask & angMask for mask in radiantMask]
+
 
         # Using the filter from last step to drop the elements.
-        # This is how RGB is created, note that such method rely heavily on large scale Monte Carlo to reduce randomness 
+        # This is how RGB is created, note that such method rely heavily on large scale Monte Carlo to reduce randomness
         appended = [appended[i][radiantMask[i]] for i in range(len(radiantMask))]
 
 
-        # This yields a (w*m*n', 7) array, prime sign means it's smaller than w*m*n since some of them are just dropped out 
-        appended = bd.concatenate(appended, axis=0) 
-        
+        # This yields a (w*m*n', 7) array, prime sign means it's smaller than w*m*n since some of them are just dropped out
+        appended = bd.concatenate(appended, axis=0)
+
         temp = bd.ones(4)
         temp[0] = ONE    # Sagittal radiant
         temp[1] = ONE    # Tangential radiant
-        temp[2] = INIT_ELLIPSE_TILT   # Phase difference 
-        temp[3] = bd.zeros_like(temp[3])  # Surface index 
+        temp[2] = INIT_ELLIPSE_TILT   # Phase difference
+        temp[3] = bd.zeros_like(temp[3])  # Surface index
 
         return RayBatch(
             bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
         )
-
-
-    def _PolarToCart(self, input=None):
-        """
-        Convert polar coordinates to Cartesian, if no input is passed, convert the self value. Note that this assumes x and y to be in polar cooridnate while z is still Cartesian. 
-        """
-        
-        if(input is None):
-            xVal = self.value[:, 0]
-            yVal = self.value[:, 1]
-            zVal = self.value[:, 2]
-        else:
-            xVal = input[:, 0]
-            yVal = input[:, 1]
-            zVal = input[:, 2]
-        
-
-        xPos = xVal if self.angleInRad else bd.deg2rad(xVal)
-        yPos = yVal if self.angleInRad else bd.deg2rad(yVal)
-        xPos = zVal * bd.tan(xPos)
-        yPos = zVal * bd.tan(yPos)
-
-        return bd.column_stack((xPos, yPos, zVal))
 
         
     def _SelectLeastSampled(self, sampleCount):

@@ -154,6 +154,10 @@ class Image2DVariDepth(Image2D):
         Manually refresh the parameters. Remap the depth and recreate the point sources. 
         """
 
+        # Object space in world coordinate is negative, thus need to make sure the near clip is also a negative number
+        if (self.nearClipping > 0 ):
+            self.nearClipping = - self.nearClipping
+
         self.UpdateDepthRange()
 
         self._GeneratePolarPointSources()
@@ -194,7 +198,8 @@ class Image2DVariDepth(Image2D):
         # For each pixel row, compute theta_y in the range [-half_vertical, half_vertical]
         theta_y = -half_vertical + V * verticalAoV_rad
         
-        D = bd.swapaxes(self.zDistance, 0, 1)  
+        D = bd.swapaxes(self.zDistance, 0, 1) + self.nearClipping
+
         # Stack the three components into a (sampleX, sampleY, 3) array.
         coordinates = bd.stack([theta_x, theta_y, D], axis=-1)
 
