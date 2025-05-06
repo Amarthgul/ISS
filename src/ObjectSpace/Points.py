@@ -205,9 +205,9 @@ class PointsSource:
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
 
-    def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None):
+    def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
 
-        # =================== Version 1
+
         sourcePos = bd.copy(sampleSource.Position())
         sourcePos = sourcePos[:, bd.newaxis, :]
         sourcePos = bd.tile(sourcePos, (1, targets.shape[0], 1))
@@ -257,14 +257,15 @@ class PointsSource:
             for i in range(radiants.shape[1])
             ]
 
-        # 1. cosθ between each ray and +Z (= |z-component|, dirCross already normalised)
-        cosTheta = bd.abs(dirCross[..., 2])  # shape (n,m)
-        # 2. same-size random array
-        randCos = bd.random.random(cosTheta.shape)
-        # 3. boolean acceptance by comparing randCos < cosTheta
-        angMask = randCos < cosTheta  # shape (n,m) boolean
-        # 4. combine with the wavelength radiant mask
-        radiantMask = [mask & angMask for mask in radiantMask]
+        if(cosineFalloff):
+            # 1. cosθ between each ray and +Z (= |z-component|, dirCross already normalised)
+            cosTheta = bd.abs(dirCross[..., 2]) ** 4 # shape (n,m)
+            # 2. same-size random array
+            randCos = bd.random.random(cosTheta.shape)
+            # 3. boolean acceptance by comparing randCos < cosTheta
+            angMask = randCos < cosTheta  # shape (n,m) boolean
+            # 4. combine with the wavelength radiant mask
+            radiantMask = [mask & angMask for mask in radiantMask]
 
 
         # Using the filter from last step to drop the elements.

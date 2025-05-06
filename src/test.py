@@ -488,25 +488,25 @@ def main():
 
     lens = Biotar50mmf14()
     lens = ZeissHologon15mmf8()
-    lens = Helios58mmf2()
+    #lens = Helios58mmf2()
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
-    for o in objectDistance:
-        ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
+    # for o in objectDistance:
+    #     ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
 
-    # for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
-    #     PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=512, realTimeUpdate=False)
+    for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
+        PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
 
-    for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
-    #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
-
-        #position = bd.array([1000, 600, -o])
-        position = AngleFieldToCartesian(ax, ay, -d)
-        #print("Current origin position: ", position)
-        #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=32, realTimeUpdate=True)
-    
+    # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
+    # #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
+    #
+    #     #position = bd.array([1000, 600, -o])
+    #     position = AngleFieldToCartesian(ax, ay, -d)
+    #     #print("Current origin position: ", position)
+    #     #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
+    #     ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=32, realTimeUpdate=True)
+    #
     #SpotTesting(lens, realTimeUpdate=False)
 
     #position = bd.array([angleFieldX[0], angleFieldY[0], -bd.array(20000)]) 
