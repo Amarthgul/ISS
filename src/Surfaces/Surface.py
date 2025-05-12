@@ -57,7 +57,7 @@ class Surface:
     """
     Standard spherical surface. 
     """
-    def __init__(self, r, t, sd, m = "AIR"):
+    def __init__(self, r, t, sd, m = "AIR", disableL=False):
         self.radius = constant(r)
         self.thickness = constant(t)
         self.clearSemiDiameter = constant(sd)
@@ -67,15 +67,15 @@ class Surface:
         self.clearBoundaryL = None 
         # This could be assigned during lens update, if needed 
 
-        """Tangential-direction clear boundary. While it is called tangential, it may not be entirly perpendicular to the optical axis, it could also be chamfered."""
+        """Tangential-direction clear boundary. While it is called tangential, it may not be entirely perpendicular to the optical axis, it could also be chamfered."""
         self.clearBoundaryT = None 
         # This could be assigned during lens update, if needed 
 
-        """This flag makes the surface clear boundary to directly connects to the previsous one's semi diameter edge. Effectively removing Longitudinal CB abd leaving only the Tangential one"""
-        self.disableBoundaryL = False
+        """This flag makes the surface clear boundary to directly connects to the previous one's semi diameter edge. Effectively removing Longitudinal CB abd leaving only the Tangential one"""
+        self.disableBoundaryL = disableL
 
 
-        """When flagged, this surface will only act as a field stop and no longer alters the diretion of the incident rays """
+        """When flagged, this surface will only act as a field stop and no longer alters the direction of the incident rays """
         self.fieldStopOnly = False
 
 

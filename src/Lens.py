@@ -367,106 +367,147 @@ class Lens:
         # print(self.groupMaxSemi)
 
                 
-    def _CreateClearBoundary(self):
+    def _CreateClearBoundary(self) -> None:
         """Create clear boundary for the lens"""
 
-        for key, value in self.groupMaxSemi.items():
+        def DirectConnectPrevious(_index):
+            # Remove the Longitudinal clear boundary
+            self.surfaces[_index].clearBoundaryL = None
+            self.surfaces[_index].clearBoundaryT = None
+            _C1 = SpatialCircle(self.surfaces[_index - 1].sdCumulative, self.surfaces[_index - 1].clearSemiDiameter)
+            _C2 = SpatialCircle(self.surfaces[_index].sdCumulative, self.surfaces[_index].clearSemiDiameter)
+            self.surfaces[_index].clearBoundaryT = ClearBoundary(_C1, _C2)
+
+
+        def BevelTowardsImageSpace(_index, _maxGroupSD, caller=1):
+            """Requires given indexed surface to have a smaller SD than the surface in front of it
+
+            :param _index: index of the surface in lens surface list.
+            :param _maxGroupSD: maximum semi diameter of the current croup.
+            :param caller: When caller is 1, it means caller sits at the positive side of the Z axis compare to the other surface. Since this method is intended for the last surface of a group, caller is defaulted at 1.
+            """
+            _imageSideIndex = _index if (caller == 1) else _index + 1
+            _objectSideIndex = _imageSideIndex - 1
+
+
+            _C3 = SpatialCircle(self.surfaces[_imageSideIndex].sdCumulative,
+                               self.surfaces[_imageSideIndex].clearSemiDiameter)
+            _C1 = SpatialCircle(self.surfaces[_objectSideIndex].sdCumulative, maxGroupSD)
+
+            sdDifference = maxGroupSD - self.surfaces[_imageSideIndex].clearSemiDiameter
+            sdzDifference = self.surfaces[_imageSideIndex].sdCumulative - self.surfaces[_index - 1].sdCumulative
+
+            if (sdzDifference > sdDifference):
+                _C2 = SpatialCircle(
+                    self.surfaces[_imageSideIndex].sdCumulative - sdDifference, maxGroupSD)
+            else:
+                _C2 = SpatialCircle(
+                    self.surfaces[_imageSideIndex].sdCumulative,
+                    self.surfaces[_objectSideIndex].clearSemiDiameter - sdzDifference
+                )
+
+            # Last surface might already have boundaries created when processing previous surfaces, but the coverage may not be correct.
+            if (self.surfaces[_imageSideIndex].clearBoundaryT is None) or (self.surfaces[_imageSideIndex].clearBoundaryL is None):
+                self.surfaces[_imageSideIndex].clearBoundaryL = ClearBoundary(_C1, _C2)
+                self.surfaces[_imageSideIndex].clearBoundaryT = ClearBoundary(_C2, _C3)
+
+
+        def BevelTowardsObjectSpace(_index, _maxGroupSD, caller=-1):
+            """Requires given indexed surface to have a larger SD than the surface in front of it.
+
+            :param _index: index of the surface in lens surface list.
+            :param _maxGroupSD: maximum semi diameter of the current croup.
+            :param caller: When caller is 1, it means caller sits at the positive side of the Z axis compare to the other surface. Since this method is intended for the first surface of a group, caller is defaulted at -1.
+            """
+            _objectSideIndex = _index if (caller == -1) else _index - 1
+            _imageSideIndex = _objectSideIndex + 1
+
+            _C1 = SpatialCircle(self.surfaces[_objectSideIndex].sdCumulative,
+                               self.surfaces[_objectSideIndex].clearSemiDiameter)
+
+            # There must be a border at the next surface's SD z position
+            _C3 = SpatialCircle(self.surfaces[_imageSideIndex].sdCumulative, _maxGroupSD)
+
+            sdDifference = _maxGroupSD - self.surfaces[_objectSideIndex].clearSemiDiameter
+            sdzDifference = self.surfaces[_imageSideIndex].sdCumulative - self.surfaces[_objectSideIndex].sdCumulative
+
+            if (sdzDifference > sdDifference):
+                _C2 = SpatialCircle(
+                    self.surfaces[_objectSideIndex].sdCumulative + sdDifference, _maxGroupSD)
+            else:
+                _C2 = SpatialCircle(
+                    self.surfaces[_objectSideIndex].sdCumulative,
+                    self.surfaces[_imageSideIndex].clearSemiDiameter - sdzDifference
+                )
+
+            self.surfaces[_imageSideIndex].clearBoundaryT = ClearBoundary(_C1, _C2)
+            self.surfaces[_imageSideIndex].clearBoundaryL = ClearBoundary(_C2, _C3)
+
+
+
+        for groupIndex, maxGroupSD in self.groupMaxSemi.items():
             # The key here is group index, and value is the max clear semi diameter of the group 
 
-            for s in self.groups[key]:
-                # Iterate through the surfaces in the group 
+            LastSufraceDC = False
 
-                # ============ Deal with the first surface (of a group) ============
-                if(s == self.groups[key][0]):
+            for s in self.groups[groupIndex]:
+                # Iterate through the surfaces in the group
+
+
+                if (self.surfaces[s].disableBoundaryL):
+                    DirectConnectPrevious(s)
+                    # Then skip other checks
+                    continue
+
+            # ============ Deal with the first surface (of a group) ============
+                if(s == self.groups[groupIndex][0]):
                     # C1 must be connected to the clear semi diameter of this surface 
                     C1 = SpatialCircle(self.surfaces[s].sdCumulative, 
                                        self.surfaces[s].clearSemiDiameter)
 
-                    # For lens groups, the first surface typically have SD smaller than the group max SD, such as the first group after the stop in a Planar setup 
-                    if (self.surfaces[s].clearSemiDiameter < value):
+                    # For lens groups, the first surface typically have either the same SD, or smaller SD than the group max SD, such as the first group after the stop in a Planar setup
+                    if (self.surfaces[s].clearSemiDiameter < maxGroupSD and len(self.groups[groupIndex]) >= 2):
+                        BevelTowardsObjectSpace(s, maxGroupSD)
 
-                        # Check if there are surfaces after 
-                        if(len(self.groups[key]) >= 2):
-                            # There must be a border at the next surface's SD z position 
-                            C3 = SpatialCircle(self.surfaces[s+1].sdCumulative, value)
-                            
-                            sdDifference = value - self.surfaces[s].clearSemiDiameter
-                            sdzDifference = self.surfaces[s+1].sdCumulative - self.surfaces[s].sdCumulative
-
-                            if(sdzDifference > sdDifference):
-                                C2 = SpatialCircle(
-                                    self.surfaces[s].sdCumulative + sdDifference, value)
-                            else:
-                                C2 = SpatialCircle(
-                                    self.surfaces[s].sdCumulative,
-                                    self.surfaces[s+1].clearSemiDiameter-sdzDifference
-                                )
-                            self.surfaces[s+1].clearBoundaryT = ClearBoundary(C1, C2)
-                            self.surfaces[s+1].clearBoundaryL = ClearBoundary(C2, C3)
 
                     else:
                         # This else is only possible when the SD of this surface is equal to the group max SD. So check if next surface exist and use its SD z position.
-                        if(len(self.groups[key]) >= 2):
-                            C2 = SpatialCircle(self.surfaces[s+1].sdCumulative, value) 
+                        if(len(self.groups[groupIndex]) >= 2):
+                            C2 = SpatialCircle(self.surfaces[s+1].sdCumulative, maxGroupSD)
                             self.surfaces[s+1].clearBoundaryL = ClearBoundary(C1, C2)
 
 
-                # ============ Deal with the last surface (of a group) =============
-                if(s == self.groups[key][-1]):
+            # ============ Deal with the last surface (of a group) =============
+                elif(s == self.groups[groupIndex][-1]):
+
                     # C3 must be connected to the clear semi diameter of this surface
-                    C3 = SpatialCircle(self.surfaces[s].sdCumulative, 
+                    C3 = SpatialCircle(self.surfaces[s].sdCumulative,
                                        self.surfaces[s].clearSemiDiameter)
                     
-                    if (self.surfaces[s].clearSemiDiameter < value):
+                    if (self.surfaces[s].clearSemiDiameter < maxGroupSD) and (len(self.groups[groupIndex]) >= 2):
+                        BevelTowardsImageSpace(s, maxGroupSD)
 
-                        # Check if there are surfaces before  
-                        if(len(self.groups[key]) >= 2):
-                            C1 = SpatialCircle(self.surfaces[s-1].sdCumulative, value)
-
-                            sdDifference = value - self.surfaces[s].clearSemiDiameter
-                            sdzDifference = self.surfaces[s].sdCumulative - self.surfaces[s-1].sdCumulative
-
-                            if(sdzDifference > sdDifference):
-                                C2 = SpatialCircle(
-                                    self.surfaces[s].sdCumulative - sdDifference, value)
-                            else:
-                                C2 = SpatialCircle(
-                                    self.surfaces[s].sdCumulative,
-                                    self.surfaces[s-1].clearSemiDiameter-sdzDifference
-                                )
-
-                            # Last surface might already have boundaries created when processing previous surfaces, but the coverage may not be correct. 
-                            if(self.surfaces[s].clearBoundaryT == None or self.surfaces[s].clearBoundaryL == None):
-                                self.surfaces[s].clearBoundaryL = ClearBoundary(C1, C2)
-                                self.surfaces[s].clearBoundaryT = ClearBoundary(C2, C3)
+                    elif (len(self.groups[groupIndex]) >= 2) and (self.surfaces[s].clearSemiDiameter > self.surfaces[s-1].clearSemiDiameter) and (self.surfaces[s-1].disableBoundaryL):
+                        BevelTowardsObjectSpace(s, maxGroupSD, 1)
 
                     else:
-                        # This else is only possible when the SD of this surface is equal to the group max SD. But being the last surface, it might also happen that the previous surface already created a boundary for it. 
-
+                        # This else is only possible when the SD of this surface is equal to the group max SD.
+                        # But being the last surface, it might also happen that the previous surface already created a boundary for it. So another check is needed.
                         if (self.surfaces[s].clearBoundaryL == None):
-                            C2 = SpatialCircle(self.surfaces[s-1].sdCumulative, value)
+                            C2 = SpatialCircle(self.surfaces[s-1].sdCumulative, maxGroupSD)
+                            self.surfaces[s].clearBoundaryL = ClearBoundary(C2, C3)
 
-                            self.surfaces[s].clearBoundaryL = ClearBoundary(C2, C3) 
 
-
-                # ================ Deal with middle surface, if any ================
-                else: 
-                    # TODO: Add better handling here 
-                    pass  
+            # ================ Deal with middle surface, if any ================
+                else:
+                    if (self.surfaces[s].clearSemiDiameter == self.surfaces[s-1].clearSemiDiameter):
+                        DirectConnectPrevious(s)
 
                 # print("Surface ", s, " max csd ", value)
-                if(self.surfaces[s].clearSemiDiameter < value):
+                if(self.surfaces[s].clearSemiDiameter < maxGroupSD):
                     pass 
-                    
-        # Second pass enforce the surface with disableBoundaryL set 
-        for i in range(len(self.surfaces)):
-            if not isinstance(self.surfaces[i], Stop):
-                if(self.surfaces[i].disableBoundaryL):
-                    # Remove the Longitudinal clear boundary 
-                    self.surfaces[i].clearBoundaryL = None
-                    C1 = SpatialCircle(self.surfaces[i-1].sdCumulative, self.surfaces[i-1].clearSemiDiameter)
-                    C2 = SpatialCircle(self.surfaces[i].sdCumulative, self.surfaces[i].clearSemiDiameter)
-                    self.surfaces[i].clearBoundaryT = ClearBoundary(C1, C2)
+
+
 
 
     def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
@@ -714,6 +755,9 @@ class Lens:
                 
 
         return returnRB
+
+
+
 
 
 def main():

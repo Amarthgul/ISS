@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = False
+LOAD_LENS_FROM_FILE = True
 
 
 class Example():
@@ -138,8 +138,8 @@ def _Sonnar50F15Data():
     sonnar.AddSurface(Stop(             1.13))
 
     sonnar.AddSurface(Surface(INFINITY,	1.24,       10,     "KF5"))
-    sonnar.AddSurface(Surface(25.545,	9.905,      10,     "S-ZBAF3"))
-    sonnar.AddSurface(Surface(-11.06,	2.285,      10,   "BAL7"))
+    sonnar.AddSurface(Surface(25.545,	9.905,      10,     "S-ZBAF3", True))
+    sonnar.AddSurface(Surface(-11.06,	2.285,      10,   "BAL7", True))
     sonnar.AddSurface(Surface(-51.565,	22.728,     11))
 
     return sonnar 
@@ -415,7 +415,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = Biotar50mmf14()
+    exampleLens = CanonFD50mmf18()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

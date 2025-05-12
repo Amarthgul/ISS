@@ -12,7 +12,7 @@ from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE
 from Util.MaterialLookup import FindClosestMaterials, ReadSheet
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
 from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
 from ObjectSpace.Points import PointsSource
@@ -351,7 +351,7 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
     return elpased
 
 
-def PDATest(lens, tUVIR = 1, AoV=40, imageDistance=200000, imageMinSample=320, realTimeUpdate=False):
+def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320, realTimeUpdate=False):
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
     imager = PDA()
@@ -487,16 +487,17 @@ def main():
     angleFieldY = bd.linspace(-13, 13, len(objectDistance))
 
     lens = Biotar50mmf14()
-    lens = ZeissHologon15mmf8()
-    #lens = Helios58mmf2()
+    lens = ZeissHologon15mmf8() #AoV 104
+    lens = Sonnar50mmF15()
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
     # for o in objectDistance:
     #     ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
 
-    for t in [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
-        PDATest(lens, t, AoV=104, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
+    # [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]
+    for t in [ 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
+        PDATest(lens, t, AoV=38.75, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
 
     # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     # #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
