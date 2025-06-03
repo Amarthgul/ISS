@@ -230,9 +230,11 @@ class Pupil(VirtualSurface):
         self._workingDepth = bd.concatenate([self._zDepth[:insert_index], bd.array([self._workingDepth])])
         
 
-    def _ResetSamplePool(self, poolSize=64):
+    def _ResetSamplePool(self, poolSize=2048):
         """
         Regenerate the sample pool of points for the pupil based on the current pupil shape and size.
+
+        :param poolSize: number of points in the sample pool. This should be set to a very high value to ensure evener sampling.
         """
 
         # Using the curved pupil surface might introduce some unevenness after propagation, an average is used here. Other methods can also be used to calculate the average depth depending on the desired effect.

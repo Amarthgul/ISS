@@ -144,7 +144,7 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
         iterationCount += 1
 
 
-def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, realTimeUpdate = True):
+def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, refIte=2, realTimeUpdate = True):
 
 
     source = PointsSource()
@@ -163,11 +163,14 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
         im = ax.imshow(ImageConversion(image))
 
     iterationCount = 0
+    powerCoef = 2 ** (refIte-2)
+    pupilSampleCount = int(1024 / powerCoef)
+    print("Pupil sample per iter at ", pupilSampleCount)
 
-    while(iterationCount < imageMinSample):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(2048), 5, addSecondary=5)
+    while(iterationCount < imageMinSample*powerCoef):
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(pupilSampleCount), 5, addSecondary=5)
 
-        _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
+        _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True, iteCount=refIte)
   
         if(mainRB.value.shape[0] == 0):
             continue
@@ -194,7 +197,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
     image /= 10.0
     global FrameCount
-    fn = r"SingleFlareTestTransverse"+str(FrameCount)
+    fn = r"SingleFlareDepth"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -461,6 +464,15 @@ def MaterialLookUpTest():
         print(result_df)
 
 
+def RefDepthTest():
+    refDepthList = [2, 3, 4, 5, 6, 7]
+    lens = Biotar50mmf14()
+    position = AngleFieldToCartesian(18, 10, -200000)
+
+    for r in refDepthList:
+        ReflectionSpotTesting(lens, position, refIte=r, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
+
+
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
@@ -532,4 +544,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    RefDepthTest()

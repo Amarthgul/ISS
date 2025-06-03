@@ -13,7 +13,7 @@ from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSp
 
 
 # When flagged, lenses will be loaded from file rather than calculated 
-LOAD_LENS_FROM_FILE = True
+LOAD_LENS_FROM_FILE = False
 
 
 class Example():
