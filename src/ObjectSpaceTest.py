@@ -21,6 +21,7 @@ from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
 
 
 
@@ -44,6 +45,9 @@ def StereoImageTest():
     # RemoveBG()
     SetUnifScale(1000)
     plt.show()
+
+    lens = Biotar50mmf14()
+    mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024)
 
 
 def DoubleImgTest():

@@ -24,6 +24,8 @@ from Raytracing.Raypath import RayPath
 
 FrameCount = 0 
 
+# This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
+sampleMultiplier = 0.01
 
 def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
     
@@ -44,7 +46,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
     start = time.time()
 
     iterationCount = 0
-    perIterRays = 40960 #40960
+    perIterRays = int(40960 * sampleMultiplier) #40960
 
     if(realTimeUpdate):
         plt.ion()  # Turn on interactive mode
@@ -504,12 +506,12 @@ def main():
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
-    # for o in objectDistance:
-    #     ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
+    for o in objectDistance:
+        ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
 
     # [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]
-    for t in [ 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
-        PDATest(lens, t, AoV=38.75, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
+    # for t in [ 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
+    #     PDATest(lens, t, AoV=38.75, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
 
     # for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     # #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
@@ -544,4 +546,4 @@ def main():
 
 
 if __name__ == "__main__":
-    RefDepthTest()
+    main()

@@ -39,7 +39,7 @@ class Image2DVariDepth(Image2D):
         """Z depth array of the image. This is the direct value of the image representing the z depth, not the acutal physical distance."""
         self.zArray = None 
         
-        """This is the distnace calculated from zArray and zDepthMappingRange."""
+        """This is the distance calculated from zArray and zDepthMappingRange."""
         self.zDistance = None 
 
         """Because this is a secondary imaging process, an angle of view of the image source is needed. Value is unsigned unit in degree. Default value 40 degrees, which is a 50mm on 135 format."""
@@ -68,6 +68,9 @@ class Image2DVariDepth(Image2D):
         This property marks the distance from the near clipping plane to the camera, i.e.e, the (0, 0, 0) point. This should be an unsigned value."""
         self.nearClipping = 0
 
+
+        """An array of same size with the number of point sources. Each entry in this array corresponds to the """
+        self.jitterPerPoint = None
 
 
     def LoadFrom8bit(self, rgbImgPath, zImgPath=None):
@@ -132,7 +135,10 @@ class Image2DVariDepth(Image2D):
 
 
     def UpdateDepthRange(self, newRange=None):
+        """
+        Update the depth of the
 
+        """
         if(newRange is None):
             newRange = self.zDepthMappingRange
 
@@ -162,6 +168,10 @@ class Image2DVariDepth(Image2D):
 
         self._GeneratePolarPointSources()
 
+
+    def EmitSamplesToward(self, targets, sampleCount=64):
+
+        return self.pointSource.EmitSamplesToward(targets, sampleCount, self.jitterPerPoint)
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -197,8 +207,13 @@ class Image2DVariDepth(Image2D):
         theta_x = -half_horizontal + U * horizontalAoV_rad
         # For each pixel row, compute theta_y in the range [-half_vertical, half_vertical]
         theta_y = -half_vertical + V * verticalAoV_rad
-        
-        D = bd.swapaxes(self.zDistance, 0, 1) + self.nearClipping
+
+        # zClipDist is an array representing the
+        zClipDist = self._zClipDistance(half_horizontal, half_vertical, sampleY, sampleX, self.nearClipping)
+
+        D = bd.swapaxes(self.zDistance, 0, 1) + zClipDist #self.nearClipping
+
+        self.jitterPerPoint = self._AngularJitter(half_horizontal, half_vertical, sampleY, sampleX, D)
 
         # Stack the three components into a (sampleX, sampleY, 3) array.
         coordinates = bd.stack([theta_x, theta_y, D], axis=-1)
@@ -218,6 +233,65 @@ class Image2DVariDepth(Image2D):
         # Finally, create a new PointsSource with these points.
         self.pointSource = PointsSource(points)
         self.pointSource.isCartesian = False
+
+
+    def _zClipDistance(self, horizontalHalfRad, verticalHalfRad,
+                       h_steps, v_steps, clipDepth):
+        """
+        Calculate the distance from the camera pivot to the source points' projection on the near clipping plane.
+        The rectangle sits in the XZ-plane at y = 0.
+        Its corners subtend ±(horizontal_FOV/2) in X and ±(vertical_FOV/2) in Z
+        from the origin *when projected onto a plane located at z = plane_z*.
+
+        :param horizontalHalfRad: Half horizontal field-angle (rad).
+        :param verticalHalfRad: Half vertical field-angle (rad).
+        :param h_steps: Sub-divisions along the horizontal direction (number of intervals).
+        :param v_steps: Sub-divisions along the vertical   direction (number of intervals).
+        :param clipDepth: The Z-coordinate (“depth”) where the rectangle plane is located. All grid points share this z.
+
+        :return distances: Euclidean distance from P to each rectangle node.
+        """
+
+        if(clipDepth >= 0): clipDepth = -clipDepth
+
+        theta_h = bd.linspace(-horizontalHalfRad, horizontalHalfRad, h_steps )  # shape (h_steps,)
+        theta_v = bd.linspace(-verticalHalfRad, verticalHalfRad, v_steps )  # shape (v_steps,)
+
+        # 2. Meshgrid (X uses theta_h, Z uses theta_v)
+        TH, TV = bd.meshgrid(theta_h, theta_v, indexing='xy')  # TH,TV shape (v, h)
+
+        # 3. Convert angular deflection to X and Z on plane_z
+        #    x = (plane_z) * tan(theta_h)
+        #    z = plane_z + (plane_z) * tan(theta_v)
+        #    (y is zero because rectangle lies in XZ plane)
+        X = clipDepth * bd.tan(TH)  # shape (v, h)
+        Y = clipDepth * (1 + bd.tan(TV))  # add base plane depth
+        Z = bd.zeros_like(X)  # same shape
+
+        # 4. Euclidean distance to P = (0,0,z0)
+        distances = bd.sqrt(X**2 + Y**2 + clipDepth**2)  # y-term is zero
+
+        return distances
+
+
+    def _AngularJitter(self, horizontalHalfRad, verticalHalfRad,
+                       h_steps, v_steps, perPointDistance):
+
+        # angular pitch of a single pixel
+        #  (use max(n-1,1) to avoid division by zero on 1-pixel edges)
+        dtheta_h = (horizontalHalfRad * 2.0) / max(h_steps - 1, 1)
+        # dtheta_v = (verticalHalfRad * 2.0) / max(v_steps - 1, 1)
+
+        # ± jitter range that keeps a ray inside its pixel’s solid-angle
+        jitter_h = perPointDistance * bd.tan(dtheta_h * 0.5)  # shape (v, h)
+        # jitter_v = perPointDistance * bd.tan(dtheta_v * 0.5)  # shape (v, h)
+
+        # flatten to 1-D so index order matches the flattened point list
+        jitter_h_flat = bd.swapaxes(jitter_h, 0, 1).reshape(-1)
+        # jitter_v_flat = bd.swapaxes(jitter_v, 0, 1).reshape(-1)
+
+        # Horizontal and vertical angular resolution should be the same, a single return should suffice in most cases.
+        return jitter_h_flat
 
 
 

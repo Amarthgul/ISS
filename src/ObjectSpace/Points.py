@@ -213,9 +213,25 @@ class PointsSource:
         sourcePos = bd.tile(sourcePos, (1, targets.shape[0], 1))
         if(jitter is not None):
             RefreshRNG()
-            jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
-            sourcePos += jitter
-            # TODO: add handle cases for when jitter is a 2D array
+
+            if bd.ndim(jitter) == 0:  # scalar
+                mag_xyz = bd.full(sourcePos.shape, abs(float(jitter)))
+
+            elif bd.ndim(jitter) == 2:  # (nSrc, nTgt) → expand last axis
+                if jitter.shape != sourcePos.shape[:2]:
+                    raise ValueError("jitter 2-D array must match (nSources, nTargets)")
+                mag_xyz = bd.asarray(jitter)[..., bd.newaxis]  # add axis-3
+                mag_xyz = bd.repeat(mag_xyz, 3, axis=2)  # copy for X,Y,Z
+
+            # keep Z-axis jitter zero
+            mag_xyz = mag_xyz * bd.array([1, 1, 0])
+
+            # draw uniform offsets in [-mag, +mag] for every component
+            jitter_off = RNG.uniform(low=-mag_xyz, high=mag_xyz)
+            sourcePos += jitter_off
+            # jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
+            # sourcePos += jitter
+            # TODO: add handle cases for when jitter is a 2D scalar array the same size as sampleSource
 
         # Expand the points to prepare crossing them
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
@@ -288,7 +304,10 @@ class PointsSource:
 
         
     def _SelectLeastSampled(self, sampleCount):
-        # Find all indices with minimum sample count
+        """
+        Find all indices with the least amount of sample history.
+        """
+
         min_count = bd.min(self.sampleRecord)
         candidates = bd.where(self.sampleRecord == min_count)[0]
         
