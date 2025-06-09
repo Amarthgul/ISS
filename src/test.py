@@ -166,10 +166,11 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
     iterationCount = 0
     powerCoef = 2 ** (refIte-2)
-    pupilSampleCount = int(1024 / powerCoef)
+    pupilSampleCount = int(256 / powerCoef)
+    totalSampleIteration = imageMinSample*powerCoef
     print("Pupil sample per iter at ", pupilSampleCount)
 
-    while(iterationCount < imageMinSample*powerCoef):
+    while(iterationCount < totalSampleIteration):
         mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(pupilSampleCount), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True, iteCount=refIte)
@@ -193,7 +194,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
         print("\n- Focusing ", focusDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
-        ProgressBar(iterationCount / imageMinSample, 100)
+        ProgressBar(iterationCount / totalSampleIteration, 100)
 
         iterationCount += 1
 
@@ -448,13 +449,9 @@ def MaterialLookUpTest():
     # Suppose you have n=1.5168 and V=64.1 for the 'd' line
     line = 'D'
     stats = [
-        [1.6369 ,   56   ],
-        [1.6707 ,   47.4 ],
-        [1.4644 ,   66   ],
-        [1.689  ,  30.9  ],
-        [1.6574 ,   50.8 ],
-        [1.54832,    53.3],
-        [1.6574 ,   50.8 ]
+        [1.72 , 47.5],
+        [1.72 , 29.3],
+        [1.72 , 47.5]
     ]
 
     for item in stats:
@@ -467,13 +464,16 @@ def MaterialLookUpTest():
 
 
 def RefDepthTest():
-    refDepthList = [2, 3, 4, 5, 6, 7]
+    refDepthList = [4, 5, 6, 7]
     lens = Biotar50mmf14()
     position = AngleFieldToCartesian(18, 10, -200000)
 
     for r in refDepthList:
-        ReflectionSpotTesting(lens, position, refIte=r, focusDistance=1500, imageMinSample=2048, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, refIte=r, focusDistance=1500, imageMinSample=8192, realTimeUpdate=False)
 
+
+def AsphericTest():
+    from Surfaces.EvenAspheric import EvenAspheric
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -546,4 +546,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    RefDepthTest()

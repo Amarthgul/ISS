@@ -43,11 +43,20 @@ def StereoImageTest():
     img.DrawImage()
 
     # RemoveBG()
-    SetUnifScale(1000)
-    plt.show()
+    # SetUnifScale(1000)
+    # plt.show()
 
     lens = Biotar50mmf14()
+    imager = StdImager(lens.BestFocusBFD(50000))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty()
+
     mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024)
+    mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+    # mainRP.Append(mainRB, _tir, _vig)
+
+    image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
 
 def DoubleImgTest():

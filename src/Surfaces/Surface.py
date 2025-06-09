@@ -26,17 +26,11 @@ class CurvatureType(Enum):
     Parabolic = 3     # Mostly for reflective optics 
 
 
-
 # Field stop constrains the rays to a certain area, out of area rays are vignetted.
 # This is also used to define the boundary of each surface. A typicaly spherical surface has a circular boundary, thus circular field stop. Some surfaces, such as anaomorphics, have rectangular field stops. Additionally, the imager typically also has a rectangular field stop.
 class FieldStopType(Enum):
     Circular = 0
     Rectangular = 1
-
-
-
-
-
 
 
 # ==================================================================

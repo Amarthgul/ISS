@@ -86,12 +86,14 @@ class ClearBoundary():
 
         elif(E1R == E2R):
             # When both circle have same radius, they are a cylinder
+            # print("From cylinder")
             points, _bool = self._RayCylinderIntersection(origin, direction, 
                                                   self.E1.ZCoord(), 
                                                   self.E2.ZCoord(),
                                                   self.E1.SemiAxisMagnititude())
         else:
-            # If both check failed, then it's a circular frustum 
+            # If both check failed, then it's a circular frustum
+            # print("from circular frustum")
             points, _bool = self._RayCircularFrustumIntersect(origin, direction,
                                                   self.E1.ZCoord(), 
                                                   self.E2.ZCoord(), 
@@ -476,95 +478,92 @@ class ClearBoundary():
         intersections = rayPos + t_candidate[:, None] * rayDir
         return intersections, bd.ones(rayPos.shape[0], dtype=bool)
 
-
     def _RayCylinderIntersection(self, rayPos, rayDir, z1, z2, r):
         """
-        This method assumes the clear boundary is a cylinder on the longitudinal z axis direction with radius r. 
+        This method assumes the clear boundary is a cylinder on the longitudinal z axis direction with radius r.
+        Each ray contributes at most one intersection along the positive ray direction.
         """
         # Component decomposition
         ox, oy, oz = rayPos[:, 0], rayPos[:, 1], rayPos[:, 2]
         dx, dy, dz = rayDir[:, 0], rayDir[:, 1], rayDir[:, 2]
-        
-        # Initialize empty array for coordinates and global mask
+
+        # Initialize output
         all_coords = bd.empty((0, 3), dtype=bd.float32)
         global_valid_mask = bd.zeros(rayPos.shape[0], dtype=bool)
 
-        # Process non-vertical rays ------------------------------------------
+        # Non-vertical rays ------------------------------------------------------
         non_vert_mask = dz != 0
         if bd.any(non_vert_mask):
-            # Get indices of non-vertical rays
             non_vert_indices = bd.where(non_vert_mask)[0]
-            
-            # Batch compute quadratic solutions
-            A = dx[non_vert_mask]**2 + dy[non_vert_mask]**2
-            B = 2 * (ox[non_vert_mask]*dx[non_vert_mask] + oy[non_vert_mask]*dy[non_vert_mask])
-            C = ox[non_vert_mask]**2 + oy[non_vert_mask]**2 - r**2
-            
-            discriminant = B**2 - 4*A*C
-            intersect_mask_local = discriminant >= 0
-            
-            # Get global indices for rays with valid discriminant
-            valid_disc_indices = non_vert_indices[intersect_mask_local]
-            
-            sqrt_d = bd.sqrt(discriminant[intersect_mask_local])
-            t1 = (-B[intersect_mask_local] - sqrt_d) / (2*A[intersect_mask_local])
-            t2 = (-B[intersect_mask_local] + sqrt_d) / (2*A[intersect_mask_local])
 
-            # Calculate coordinates for both solutions
+            # Quadratic coefficients for cylinder side intersection
+            A = dx[non_vert_mask] ** 2 + dy[non_vert_mask] ** 2
+            B = 2 * (ox[non_vert_mask] * dx[non_vert_mask] + oy[non_vert_mask] * dy[non_vert_mask])
+            C = ox[non_vert_mask] ** 2 + oy[non_vert_mask] ** 2 - r ** 2
+
+            discriminant = B ** 2 - 4 * A * C
+            has_real_solution = discriminant >= 0
+            valid_indices = non_vert_indices[has_real_solution]
+
+            sqrt_d = bd.sqrt(discriminant[has_real_solution])
+            A_valid = A[has_real_solution]
+            dx_valid = dx[non_vert_mask][has_real_solution]
+            dy_valid = dy[non_vert_mask][has_real_solution]
+            dz_valid = dz[non_vert_mask][has_real_solution]
+            ox_valid = ox[non_vert_mask][has_real_solution]
+            oy_valid = oy[non_vert_mask][has_real_solution]
+            oz_valid = oz[non_vert_mask][has_real_solution]
+
+            t1 = (-B[has_real_solution] - sqrt_d) / (2 * A_valid)
+            t2 = (-B[has_real_solution] + sqrt_d) / (2 * A_valid)
+
+            # Compute coords
             coords_t1 = bd.stack([
-                ox[non_vert_mask][intersect_mask_local] + t1*dx[non_vert_mask][intersect_mask_local],
-                oy[non_vert_mask][intersect_mask_local] + t1*dy[non_vert_mask][intersect_mask_local],
-                oz[non_vert_mask][intersect_mask_local] + t1*dz[non_vert_mask][intersect_mask_local]
+                ox_valid + t1 * dx_valid,
+                oy_valid + t1 * dy_valid,
+                oz_valid + t1 * dz_valid
             ], axis=1)
 
             coords_t2 = bd.stack([
-                ox[non_vert_mask][intersect_mask_local] + t2*dx[non_vert_mask][intersect_mask_local],
-                oy[non_vert_mask][intersect_mask_local] + t2*dy[non_vert_mask][intersect_mask_local],
-                oz[non_vert_mask][intersect_mask_local] + t2*dz[non_vert_mask][intersect_mask_local]
+                ox_valid + t2 * dx_valid,
+                oy_valid + t2 * dy_valid,
+                oz_valid + t2 * dz_valid
             ], axis=1)
 
-            # Filter valid z-ranges and update global mask
-            valid_z_t1 = (coords_t1[:, 2] >= z1) & (coords_t1[:, 2] <= z2) & (t1 >= 0)
-            valid_z_t2 = (coords_t2[:, 2] >= z1) & (coords_t2[:, 2] <= z2) & (t2 >= 0)
-            
-            # Update global mask using original indices
-            global_valid_mask[valid_disc_indices[valid_z_t1]] = True
-            global_valid_mask[valid_disc_indices[valid_z_t2]] = True
+            # Filter valid t's
+            valid1 = (t1 >= 0) & (coords_t1[:, 2] >= z1) & (coords_t1[:, 2] <= z2)
+            valid2 = (t2 >= 0) & (coords_t2[:, 2] >= z1) & (coords_t2[:, 2] <= z2)
 
-            # Collect valid coordinates
-            all_coords = bd.concatenate([
-                all_coords, 
-                coords_t1[valid_z_t1], 
-                coords_t2[valid_z_t2]
-            ], axis=0)
+            # Prefer t1 if both valid
+            choose_t1 = valid1
+            choose_t2 = ~valid1 & valid2
+            final_mask = choose_t1 | choose_t2
 
-        # Process vertical rays ----------------------------------------------
-        vert_mask = (dz == 0)
+            chosen_coords = bd.where(choose_t1[:, None], coords_t1, coords_t2)
+            all_coords = bd.concatenate([all_coords, chosen_coords[final_mask]], axis=0)
+            global_valid_mask[valid_indices[final_mask]] = True
+
+        # Vertical rays ----------------------------------------------------------
+        vert_mask = dz == 0
         if bd.any(vert_mask):
-            # Find vertical rays inside cylinder
             vert_indices = bd.where(vert_mask)[0]
-            in_z = (oz[vert_mask] >= z1) & (oz[vert_mask] <= z2)
-            in_radius = (ox[vert_mask]**2 + oy[vert_mask]**2) <= r**2
-            valid_vert = in_z & in_radius
+            ox_v = ox[vert_mask]
+            oy_v = oy[vert_mask]
+            oz_v = oz[vert_mask]
 
-            # Update global mask for vertical rays
-            global_valid_mask[vert_indices[valid_vert]] = True
+            # Must be inside cylinder and z range
+            in_radius = (ox_v ** 2 + oy_v ** 2) <= r ** 2
+            in_z = (oz_v >= z1) & (oz_v <= z2)
+            valid_vert = in_radius & in_z
 
-            # Generate coordinates for valid vertical rays
-            vert_coords = bd.stack([
-                ox[vert_mask][valid_vert],
-                oy[vert_mask][valid_vert],
-                oz[vert_mask][valid_vert]
-            ], axis=1)
-
-            # Duplicate coordinates for both endpoints
-            vert_coords = bd.repeat(vert_coords, 2, axis=0)
-            vert_coords[1::2, 2] = z2  # Second point at upper Z
-            
-            all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
+            if bd.any(valid_vert):
+                valid_idx = vert_indices[valid_vert]
+                vert_coords = bd.stack([ox_v[valid_vert], oy_v[valid_vert], oz_v[valid_vert]], axis=1)
+                all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
+                global_valid_mask[valid_idx] = True
 
         return all_coords, global_valid_mask
-        
+
 
     def _PlaneIntersection(self, rayPos, rayDir, E1, E2, axis=OBJ_FACING):
         """

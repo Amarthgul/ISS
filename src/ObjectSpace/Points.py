@@ -78,7 +78,7 @@ class PointsSource:
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
 
-        # In the case that there are less sources than demanded sample count, return all 
+        # In the case that there are fewer sources than demanded sample count, return all
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets, jitter=jitter, addSecondary=addSecondary)
 
@@ -93,6 +93,9 @@ class PointsSource:
 
         # In case of spot testing, copy the Cartesian setting 
         sourceDuplicate.isCartesian = self.isCartesian
+
+        # If the sources come from a vari depth image, the jitters may be a 1D array corresponding to each source
+        if (bd.ndim(jitter) == 1): jitter = jitter[selectedIndices]
 
         return self._SamplesToTargetsEmission(
             sourceDuplicate, 
@@ -206,32 +209,37 @@ class PointsSource:
 
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
+        """
+        Emit rays from all samples towards all targets. This creates a cross emission of MxN size where M is the number of samples and N is the number of targets.
 
+        :param sampleSource: sample source as point source objects.
+        :param targets: targets of 3D positions.
+        :param jitter: jittering amount, either a single float or a vector of floats corresponding to all the sample sources.
+        :param addSecondary: whether to add secondary spectrum into the wavelength or not.
+        :param cosineFalloff: whether to consider cosine 4th power falloff.
+
+        :return: RayBatch object of the emitted rays.
+        """
 
         sourcePos = bd.copy(sampleSource.Position())
         sourcePos = sourcePos[:, bd.newaxis, :]
         sourcePos = bd.tile(sourcePos, (1, targets.shape[0], 1))
         if(jitter is not None):
             RefreshRNG()
+            if bd.ndim(jitter) == 0:  # scalar → broadcast
+                mag = bd.full(sourcePos.shape[:2], float(jitter))
 
-            if bd.ndim(jitter) == 0:  # scalar
-                mag_xyz = bd.full(sourcePos.shape, abs(float(jitter)))
+            elif bd.ndim(jitter) == 1:  # 1-D, per source
+                if jitter.shape[0] != sourcePos.shape[0]:
+                    raise ValueError("jitter 1-D length must equal number of sources")
+                mag = bd.tile(jitter[:, bd.newaxis], (1, targets.shape[0]))
 
-            elif bd.ndim(jitter) == 2:  # (nSrc, nTgt) → expand last axis
-                if jitter.shape != sourcePos.shape[:2]:
-                    raise ValueError("jitter 2-D array must match (nSources, nTargets)")
-                mag_xyz = bd.asarray(jitter)[..., bd.newaxis]  # add axis-3
-                mag_xyz = bd.repeat(mag_xyz, 3, axis=2)  # copy for X,Y,Z
-
-            # keep Z-axis jitter zero
-            mag_xyz = mag_xyz * bd.array([1, 1, 0])
-
-            # draw uniform offsets in [-mag, +mag] for every component
+            mag_xyz = mag[..., bd.newaxis] * bd.array([1, 1, 0])
             jitter_off = RNG.uniform(low=-mag_xyz, high=mag_xyz)
             sourcePos += jitter_off
+
             # jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
             # sourcePos += jitter
-            # TODO: add handle cases for when jitter is a 2D scalar array the same size as sampleSource
 
         # Expand the points to prepare crossing them
         targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
