@@ -1,4 +1,9 @@
 
+"""
+Bunch of already modelled lenses for testing purpose.
+"""
+
+
 
 import matplotlib.pyplot as plt
 import time
@@ -415,7 +420,7 @@ def main():
 
     start = time.time()
 
-    exampleLens = CanonFD50mmf18()
+    exampleLens = Sonnar50mmF15()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

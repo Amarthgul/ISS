@@ -8,7 +8,7 @@ import OpenEXR
 
 from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawAspherical, DrawAsphericalProfile
 from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE
@@ -23,6 +23,29 @@ from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
 
+
+def PlotTest():
+    SetUnifScale()
+    AddXYZ(70)
+
+    DrawAspherical(radius=50.0,
+                   k=-1.0,
+                   A=[1e-5, -2e-7],
+                   clearSemiDiameter=15.0,
+                   cumulativeThickness=0,
+                   opacity=0.2)
+
+    DrawAsphericalProfile(
+        radius=50.0,
+        k=-1.0,
+        A=[1e-5, -2e-7],
+        clearSemiDiameter=15.0,
+        cumulativeThickness=0,
+        axis="x",  # or "y"
+        lineWidth=1.5
+    )
+
+    plt.show()
 
 
 def StereoImageTest():
@@ -84,8 +107,10 @@ def DoubleImgTest():
     SetUnifScale(700)
     plt.show()
 
+
+
 def main():
-    StereoImageTest()
+    PlotTest()
 
 
 if __name__ == "__main__":

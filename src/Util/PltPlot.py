@@ -332,6 +332,99 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
     ax.plot_surface(x, y, z, color = surfaceColor, alpha =opacity)
 
 
+def DrawAspherical(radius, k, A, clearSemiDiameter, cumulativeThickness,
+                   numPoints=THETA_DIV, surfaceColor="k", opacity=0.1, ax=AX):
+    """
+    Draw an aspherical surface along the z axis.
+
+    Parameters:
+        radius (float): Radius of curvature.
+        k (float): Conic constant.
+        A (list): Even aspheric coefficients (A4, A6, A8, ...).
+        clearSemiDiameter (float): Clear semi diameter.
+        cumulativeThickness (float): Axial offset from origin.
+        numPoints (int): Number of sampling points per axis.
+        surfaceColor (str): Surface color.
+        opacity (float): Surface opacity.
+        ax: Plot axis.
+    """
+    if RENDER_MODE:
+        return
+
+    CheckAX()
+
+    r = bd.linspace(0, clearSemiDiameter, numPoints)
+    theta = bd.linspace(0, 2 * bd.pi, numPoints)
+    R, Theta = bd.meshgrid(r, theta)
+
+    X = R * bd.cos(Theta)
+    Y = R * bd.sin(Theta)
+    R2 = X**2 + Y**2
+
+    sqrt_term = bd.sqrt(1 - (1 + k) * R2 / radius**2)
+    base = R2 / (radius * (1 + sqrt_term))
+    asphere = bd.zeros_like(R2)
+    for i, a in enumerate(A):
+        asphere += a * R2 ** (i + 2)
+
+    Z = base + asphere + cumulativeThickness
+
+    if backend_name == "cupy":
+        X, Y, Z = bd.asnumpy(X), bd.asnumpy(Y), bd.asnumpy(Z)
+
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
+
+
+def DrawAsphericalProfile(radius, k, A, clearSemiDiameter, cumulativeThickness,
+                          axis="x", numPoints=THETA_DIV, lineColor="r", lineWidth=1.0, ax=AX):
+    """
+    Draw the sagittal (cross-section) profile of an aspherical surface in the XZ or YZ plane.
+
+    :param radius: Radius of curvature.
+    :param k: Conic constant.
+    :param A: Even aspheric coefficients (A4, A6, ...).
+    :param clearSemiDiameter: Max radial distance from optical axis.
+    :param cumulativeThickness: Z-offset.
+    :param axis: "x" or "y" to select profile direction.
+    :param numPoints: Number of samples.
+    :param lineColor: Line color.
+    :param lineWidth: Line thickness.
+    :param ax: Plot axis (matplotlib 3D).
+    """
+
+    if RENDER_MODE:
+        return
+
+    CheckAX()
+
+    r = bd.linspace(-clearSemiDiameter, clearSemiDiameter, numPoints)
+    r2 = r**2
+
+    sqrt_term = bd.sqrt(1 - (1 + k) * r2 / radius**2)
+    base = r2 / (radius * (1 + sqrt_term))
+    asphere = bd.zeros_like(r2)
+    for i, a in enumerate(A):
+        asphere += a * r2 ** (i + 2)
+
+    z = base + asphere + cumulativeThickness
+
+    if axis.lower() == "x":
+        x = r
+        y = bd.zeros_like(x)
+    elif axis.lower() == "y":
+        y = r
+        x = bd.zeros_like(y)
+    else:
+        raise ValueError("axis must be 'x' or 'y'.")
+
+    if backend_name == "cupy":
+        z = bd.asnumpy(z)
+        x = bd.asnumpy(x)
+        y = bd.asnumpy(y)
+
+    ax.plot(x, y, z, color=lineColor, linewidth=lineWidth)
+
+
 def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=AX):
     if(RENDER_MODE):
         return 
@@ -524,8 +617,14 @@ def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=AX):
 def main():
     SetUnifScale()
     AddXYZ(6)
-    
-    DrawSpherical(INFINITY, 4, 0)
+
+    DrawAspherical(radius=50.0,
+                   k=-1.0,
+                   A=[1e-5, -2e-7],
+                   clearSemiDiameter=25.0,
+                   cumulativeThickness=0,
+                   surfaceColor="magenta",
+                   opacity=0.2)
     
     
     plt.show()

@@ -93,11 +93,15 @@ class Lens:
 
         for i in range(len(self.surfaces)):
             self.surfaces[i].SetCumulative(bd.copy(currentT))
+
             if(i != len(self.surfaces)-1):
                 # The last surface's thickness of a lens is not useful for the lens 
                 currentT += self.surfaces[i].thickness
+
             if isinstance(self.surfaces[i], Stop):
-                self.stopIndex = i 
+                # For stop, simply mark its index as the lens' stop index, nothing else need to be done for it
+                self.stopIndex = i
+
             self._lastSurfaceIndex = i
 
         # Total axial length, counting from the first surface vertex to the last  

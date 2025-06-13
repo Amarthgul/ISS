@@ -5,23 +5,53 @@ from scipy.optimize import minimize_scalar
 from .Surface import * 
 from Util.Backend import backend as bd
 from Util.Backend import constant
+from Util.PltPlot import DrawAspherical, DrawAsphericalProfile
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
+
+
 
 class EvenAspheric(Surface):
     """
     Even aspheric surface.
     """ 
-    def __init__(self, r, t, sd):
+    def __init__(self, r, t, sd, K, A):
         super().__init__(r, t, sd)
 
-        self.K = 0
+        self.K = K
 
-        self.asphCoef = [] # Aspherical coefficients
+        """Aspherical coefficients"""
+        self.asphCoef = A
 
         self.boundingSurfaceF = None
 
         self.boundingSurfaceB = None
 
         self.cType = CurvatureType.EvenAspheric
+
+
+    def SetCumulative(self, cumulativeT):
+        """
+        Given the cumulative thickness, calculate the vertices. Foe even aspheric, this also computes the bounding proxy geometry.
+        """
+        cumulativeT = bd.array(cumulativeT)
+
+        # The local optical axis remains the same as OBJ FACING
+        self.cumulativeThickness = cumulativeT
+        self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
+        self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])
+        self._radiusDirection = self.frontVertex - self.radiusCenter
+
+        if(self.radius == INFINITY):
+            # When r=inf, the cumulative thickness at the edge is the same as the cumulative thickness of the vertex.
+            self.sdCumulative = cumulativeT
+        else:
+            self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+
+        self.PreComputeProxy()
+
+
+    def PreComputeProxy(selfself):
+        pass
 
 
     def Intersection(self, incidentRaybatch):
@@ -32,13 +62,32 @@ class EvenAspheric(Surface):
         pass
 
 
-    def DrawSurface(self):
-        pass
+    def DrawSurface(self, drawSag=True):
+        DrawAspherical(
+            radius=self.radius,
+            k=self.K,
+            A=[1e-5, -2e-7],
+            clearSemiDiameter=15.0,
+            cumulativeThickness=0,
+            opacity=0.2)
+
+        if (drawSag):
+            DrawAsphericalProfile(
+                radius=50.0,
+                k=-1.0,
+                A=[1e-5, -2e-7],
+                clearSemiDiameter=15.0,
+                cumulativeThickness=0,
+                axis="x",  # or "y"
+                lineWidth=1.5
+            )
 
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+
 
     def _AsphericSag(self, r, R, k, A):
         """Compute sag of even aspheric surface at radius r."""
@@ -48,6 +97,7 @@ class EvenAspheric(Surface):
         asphere = sum(A[i] * r2 ** (i + 2) for i in range(len(A)))
         return base + asphere
 
+
     def _AsphericSagDerivative(self, r, R, k, A):
         """Compute dz/dr for the aspheric surface."""
         r2 = r ** 2
@@ -56,6 +106,7 @@ class EvenAspheric(Surface):
         d_base = (2 * r / R) * (1 / (1 + sqrt_term) + (1 + k) * r2 / (R ** 2 * denom))
         d_asphere = sum((2 * (i + 2)) * A[i] * r ** (2 * i + 3) for i in range(len(A)))
         return d_base + d_asphere
+
 
     def _FindExtremePoints(self, R, k, A, C):
         """Find r that gives min and max sag within [0, C]."""
@@ -69,6 +120,7 @@ class EvenAspheric(Surface):
             'z_max': -res_max.fun,
             'dzdr_max': self._AsphericSagDerivative(res_max.x, R, k, A)
         }
+
 
     def _BestFitSphereThroughPointAndSlope(self, r, z, dzdr):
         """Compute radius and vertex height of sphere tangent to point (r, z) with slope dz/dr."""
@@ -86,6 +138,7 @@ class EvenAspheric(Surface):
         R_sphere = direction * abs(R_sphere)
         z_vertex = z - R_sphere * bd.sqrt(1 / (1 + dzdr ** 2))
         return R_sphere, z_vertex
+
 
     def _FindEnvelopingSpheres(self, R, k, A, C):
         """Find two tangent spheres enveloping the asphere."""
