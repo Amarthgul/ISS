@@ -61,7 +61,7 @@ class PointsSource:
         if(self.isCartesian):
             return self.value[:, :3]
         else:
-            return PolarToCartesian(self.value[:, :3], True)
+            return PolarToCartesian(self.value[:, :3], self.angleInRad)
             
     
     def Color(self):

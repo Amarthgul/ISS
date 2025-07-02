@@ -365,7 +365,8 @@ def DrawAspherical(radius, k, A, clearSemiDiameter, cumulativeThickness,
     base = R2 / (radius * (1 + sqrt_term))
     asphere = bd.zeros_like(R2)
     for i, a in enumerate(A):
-        asphere += a * R2 ** (i + 2)
+        # This starts from the 2nd order term
+        asphere += a * R2 ** (i + 1)
 
     Z = base + asphere + cumulativeThickness
 
@@ -404,7 +405,8 @@ def DrawAsphericalProfile(radius, k, A, clearSemiDiameter, cumulativeThickness,
     base = r2 / (radius * (1 + sqrt_term))
     asphere = bd.zeros_like(r2)
     for i, a in enumerate(A):
-        asphere += a * r2 ** (i + 2)
+        # This starts from 2nd order term
+        asphere += a * r2 ** (i + 1)
 
     z = base + asphere + cumulativeThickness
 

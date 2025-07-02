@@ -41,9 +41,6 @@ def constant(value):
     return backend.array(value)
 
 
-
-
-
 def set_backend(name: str):
     """ Set the backend for the simulations
     This way, all methods of the backend object will be replaced.

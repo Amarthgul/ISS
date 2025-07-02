@@ -81,6 +81,19 @@ class Lens:
             self.AddSurface(s)
 
 
+    def AddFrontGroup(self, frontGroup):
+        if(len(frontGroup) == 0): return
+
+        newGroup = []
+
+        for s in frontGroup:
+            newGroup.append(s)
+        for s in self.surfaces:
+            newGroup.append(s)
+
+        self.surfaces = newGroup
+
+
     def UpdateLens(self):
         """
         Iterate throught the elements and update their relative parameters. 

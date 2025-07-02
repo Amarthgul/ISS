@@ -2,9 +2,9 @@
 from scipy.optimize import minimize_scalar
 
 
-from .Surface import * 
+from .Surface import *
 from Util.Backend import backend as bd
-from Util.Backend import constant
+from Util.Backend import constant, backend_name
 from Util.PltPlot import DrawAspherical, DrawAsphericalProfile
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
 
@@ -17,10 +17,10 @@ class EvenAspheric(Surface):
     def __init__(self, r, t, sd, K, A):
         super().__init__(r, t, sd)
 
-        self.K = K
+        self.K = bd.array(K)
 
-        """Aspherical coefficients"""
-        self.asphCoef = A
+        """Aspherical coefficients. Start from 2nd order, then 4th, then 6th, etc."""
+        self.asphCoef = bd.array(A)
 
         self.boundingSurfaceF = None
 
@@ -50,8 +50,20 @@ class EvenAspheric(Surface):
         self.PreComputeProxy()
 
 
-    def PreComputeProxy(selfself):
-        pass
+    def PreComputeProxy(self):
+        var = self._FindEnvelopingSpheres(self.radius, self.K, self.asphCoef, self.clearSemiDiameter)
+
+        self.boundingSurfaceF = Surface(var["sphere_at_min"]["radius"], 0, self.clearSemiDiameter)
+        tempOffset = var["sphere_at_min"]["radius"] + var["sphere_at_min"]["vertex_z"]
+        print("Offset for min: ", tempOffset)
+        self.boundingSurfaceF.SetCumulative(self.cumulativeThickness + tempOffset)
+
+        self.boundingSurfaceB = Surface(var["sphere_at_max"]["radius"], 0, self.clearSemiDiameter)
+        tempOffset = var["sphere_at_max"]["radius"] + var["sphere_at_max"]["vertex_z"]
+        print("Offset for max: ", tempOffset)
+        self.boundingSurfaceB.SetCumulative(self.cumulativeThickness + tempOffset)
+
+        print(var)
 
 
     def Intersection(self, incidentRaybatch):
@@ -62,39 +74,46 @@ class EvenAspheric(Surface):
         pass
 
 
-    def DrawSurface(self, drawSag=True):
+    def DrawSurface(self, drawSag=True, drawProxy=False):
         DrawAspherical(
             radius=self.radius,
             k=self.K,
-            A=[1e-5, -2e-7],
-            clearSemiDiameter=15.0,
-            cumulativeThickness=0,
-            opacity=0.2)
+            A=self.asphCoef,
+            clearSemiDiameter=self.clearSemiDiameter,
+            cumulativeThickness=self.cumulativeThickness,
+            surfaceColor=SURFACE_COLOR)
 
         if (drawSag):
             DrawAsphericalProfile(
-                radius=50.0,
-                k=-1.0,
-                A=[1e-5, -2e-7],
-                clearSemiDiameter=15.0,
-                cumulativeThickness=0,
-                axis="x",  # or "y"
-                lineWidth=1.5
-            )
+                radius=self.radius,
+                k=self.K,
+                A=self.asphCoef,
+                clearSemiDiameter=self.clearSemiDiameter,
+                cumulativeThickness=self.cumulativeThickness)
+
+        if (drawProxy):
+            self.boundingSurfaceF.DrawSurface()
+            self.boundingSurfaceB.DrawSurface()
+
 
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-
-
     def _AsphericSag(self, r, R, k, A):
-        """Compute sag of even aspheric surface at radius r."""
+        """Compute sag of even aspheric surface at radius r.
+        Supports infinite radius (flat base) and starts from the 2nd order aspheric term.
+        """
         r2 = r ** 2
-        sqrt_term = bd.sqrt(1 - (1 + k) * r2 / R ** 2)
-        base = r2 / (R * (1 + sqrt_term))
-        asphere = sum(A[i] * r2 ** (i + 2) for i in range(len(A)))
+
+        if bd.isinf(R):
+            base = bd.zeros_like(r2)
+        else:
+            sqrt_term = bd.sqrt(1 - (1 + k) * r2 / R ** 2)
+            base = r2 / (R * (1 + sqrt_term))
+
+        asphere = sum(A[i] * r2 ** (i + 1) for i in range(len(A)))  # starts from r^2
         return base + asphere
 
 
@@ -110,8 +129,17 @@ class EvenAspheric(Surface):
 
     def _FindExtremePoints(self, R, k, A, C):
         """Find r that gives min and max sag within [0, C]."""
-        res_min = minimize_scalar(lambda r: self._AsphericSag(r, R, k, A), bounds=(0, C), method='bounded')
-        res_max = minimize_scalar(lambda r: -self._AsphericSag(r, R, k, A), bounds=(0, C), method='bounded')
+
+        if (backend_name == "cupy"):
+            # The next several lines will need Scipy, however,
+            # Scipy does not go well with cupy, actually numpy too
+            R = R.item()
+            k = bd.asnumpy(k).item()
+            A = bd.asnumpy(A).tolist()
+            C = bd.asnumpy(C).item()
+
+        res_min = minimize_scalar(lambda r: float(self._AsphericSag(r, R, k, A)), bounds=(0, C), method='bounded')
+        res_max = minimize_scalar(lambda r: float(-self._AsphericSag(r, R, k, A)), bounds=(0, C), method='bounded')
         return {
             'r_min': res_min.x,
             'z_min': res_min.fun,
@@ -122,21 +150,26 @@ class EvenAspheric(Surface):
         }
 
 
+    def _AsphericSagSecondDerivative(self, r, R, k, A):
+        """Compute d²z/dr² for curvature calculation."""
+        r2 = r ** 2
+        sqrt_term = bd.sqrt(1 - (1 + k) * r2 / R ** 2)
+        denom = (1 + sqrt_term) * sqrt_term
+        d2_base = (2 / R) * (1 / (1 + sqrt_term) +
+                             3 * (1 + k) * r2 / (R ** 2 * denom ** 2) +
+                             (1 + k) / (R ** 2 * denom))
+
+        d2_asphere = sum((2 * (i + 2)) * (2 * i + 3) * A[i] * r ** (2 * i + 2) for i in range(len(A)))
+        return d2_base + d2_asphere
+
+
     def _BestFitSphereThroughPointAndSlope(self, r, z, dzdr):
-        """Compute radius and vertex height of sphere tangent to point (r, z) with slope dz/dr."""
-        theta = bd.arctan(dzdr)
-        sin_theta = bd.sin(theta)
-        cos_theta = bd.cos(theta)
-
-        # Center coordinates in polar direction
-        cx = r - sin_theta * bd.inf
-        cz = z + cos_theta * bd.inf
-
-        # Use geometric formula for radius and vertex height
-        R_sphere = (1 + dzdr ** 2) ** 1.5 / 1e-6  # Use a small curvature value for approximation
-        direction = bd.sign(dzdr) if dzdr != 0 else 1
-        R_sphere = direction * abs(R_sphere)
-        z_vertex = z - R_sphere * bd.sqrt(1 / (1 + dzdr ** 2))
+        d2zdr2 = self._AsphericSagSecondDerivative(r, self.radius, self.K, self.asphCoef)
+        curvature = d2zdr2
+        if curvature == 0:
+            return bd.inf, z  # Flat
+        R_sphere = (1 + dzdr ** 2) ** 1.5 / curvature
+        z_vertex = z - R_sphere / bd.sqrt(1 + dzdr ** 2)
         return R_sphere, z_vertex
 
 

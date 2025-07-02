@@ -10,11 +10,12 @@ from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
 from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
-from Util.Globals import PRECISION_TYPE
+from Util.Globals import PRECISION_TYPE, INFINITY
 from Util.MaterialLookup import FindClosestMaterials, ReadSheet
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
 from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
+from Surfaces.Surface import Surface
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
@@ -25,11 +26,19 @@ from Raytracing.Raypath import RayPath
 FrameCount = 0 
 
 # This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
-sampleMultiplier = 0.01
+sampleMultiplier = 0.1
 
 def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
     
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+
+    # AddRearGroup AddFrontGroup
+    lens.AddRearGroup([
+        Surface(200, 2, 15, "FK5"),
+        Surface(INFINITY, 1, 15)
+    ])
+    lens.UpdateLens()
+    print(lens.GetInfo())
 
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4 lens.BestFocusBFD(imageDistance)
     # Assemble the imaging system 
@@ -40,7 +49,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
     sourceImage.horizontalAoV = AoV 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
+    sourceImage.LoadFrom8bit(r"resources/CustomSheet.png")
     # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
 
     start = time.time()
@@ -96,18 +105,31 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIterationCount = 32, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 50000, focusDistance = 1000, saveIterationCount = 64, realTimeUpdate = False):
 
+    print("Start spot testing")
     source = PointsSource()
     source.isCartesian = False
-    source.GenerateSpots(19, 12, dist=objectDistance)
-    
+    xAngle = 19*0.85
+    yAngle = 12*0.85
+    sample = 10
+    source.GenerateGridSpots(xAngle, yAngle, dist=objectDistance, sampleField=sample)
+
+    # AddRearGroup AddFrontGroup
+    # lens.AddFrontGroup([
+    #     Surface(100, 5, 15, "FK5"),
+    #     Surface(INFINITY, 1, 15)
+    # ])
+    # lens.UpdateLens()
+    # print(lens.GetInfo())
 
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
     start = time.time()
+
+
 
     iterationCount = 0
     if(realTimeUpdate):
@@ -117,7 +139,7 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
         
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(20480), 5, addSecondary=9)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), sample*sample, addSecondary=9)
 
         mainRB, mainRP, _ = lens.Propagate(mainRB)
 
@@ -125,11 +147,6 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
         # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image)
-
-        if(realTimeUpdate):
-            im.set_data(ImageConversion(image))
-            plt.draw()
-            plt.pause(0.01)
         
         #print(source.sampleRecord)
         elpased = time.time() - start
@@ -138,8 +155,14 @@ def SpotTesting(lens, objectDistance = 100000, focusDistance = 750, saveIteratio
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased) )
         ProgressBar(iterationCount / saveIterationCount)
 
+        if(realTimeUpdate):
+            print("Max ", bd.max(image))
+            im.set_data(ImageConversion(image, maxModifier=0.5)) #0.002
+            plt.draw()
+            plt.pause(0.01)
+
         if(iterationCount > saveIterationCount):
-            fn = r"SpotTest"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"Swirl"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -357,7 +380,7 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
     return elpased
 
 
-def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320, realTimeUpdate=False):
+def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320, realTimeUpdate=True):
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
     imager = PDA()
@@ -440,8 +463,6 @@ def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320,
 
 
 
-
-
 def MaterialLookUpTest():
     # Example usage:
     excel_file = ReadSheet()
@@ -500,14 +521,17 @@ def main():
     angleFieldX = bd.linspace(-20, 20, len(objectDistance))
     angleFieldY = bd.linspace(-13, 13, len(objectDistance))
 
-    lens = Biotar50mmf14()
-    lens = ZeissHologon15mmf8() #AoV 104
-    lens = Sonnar50mmF15()
+    lens = CanonFD50mmf18()
+    lens = Helios58mmf2()
+    # lens = ZeissHologon15mmf8() #AoV 104
+    # lens = Sonnar50mmF15()
+
+    SpotTesting(lens, realTimeUpdate=True)
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
-    for o in objectDistance:
-        ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
+    # for o in objectDistance:
+    #     ISO12233Test(lens, AoV=32, imageDistance=o, imageMinSample=256, realTimeUpdate=True) #4096: 10 hours
 
     # [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]
     # for t in [ 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
@@ -546,4 +570,4 @@ def main():
 
 
 if __name__ == "__main__":
-    RefDepthTest()
+    main()

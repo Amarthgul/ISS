@@ -22,28 +22,19 @@ from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
+from src.Surfaces.EvenAspheric import EvenAspheric
+from src.Util.Globals import INFINITY
 
 
-def PlotTest():
+def AsphTest():
     SetUnifScale()
     AddXYZ(70)
 
-    DrawAspherical(radius=50.0,
-                   k=-1.0,
-                   A=[1e-5, -2e-7],
-                   clearSemiDiameter=15.0,
-                   cumulativeThickness=0,
-                   opacity=0.2)
+    asphS = EvenAspheric(INFINITY, 0.1510, 24, -1.0,
+                         [-7.39600E-03, 2.39000E-07, 2.21800E-09, -3.20700E-12, 1.92500E-15])
+    asphS.SetCumulative(2)
 
-    DrawAsphericalProfile(
-        radius=50.0,
-        k=-1.0,
-        A=[1e-5, -2e-7],
-        clearSemiDiameter=15.0,
-        cumulativeThickness=0,
-        axis="x",  # or "y"
-        lineWidth=1.5
-    )
+    asphS.DrawSurface(drawProxy=True)
 
     plt.show()
 
@@ -109,8 +100,9 @@ def DoubleImgTest():
 
 
 
+
 def main():
-    PlotTest()
+    AsphTest()
 
 
 if __name__ == "__main__":
