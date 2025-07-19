@@ -422,11 +422,11 @@ def main():
 
     exampleLens = Sonnar50mmF15()
 
-    exampleLens.AddFrontGroup([
-        Surface(200, 2, 20, "FD60"),
-        Surface(INFINITY, 1, 20)
-    ])
-    exampleLens.UpdateLens()
+    # exampleLens.AddFrontGroup([
+    #     Surface(200, 2, 20, "FD60"),
+    #     Surface(INFINITY, 1, 20)
+    # ])
+    # exampleLens.UpdateLens()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

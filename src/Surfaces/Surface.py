@@ -57,7 +57,7 @@ class Surface:
         self.clearSemiDiameter = constant(sd)
         self.material = Material(m)
 
-        """Longitudinal-direction clear boundary"""
+        """Longitudinal-direction clear boundary. This has a higher priority than the tangential direction, i.e., it may happen that the surface has only this longitudinal direction and no tangential direction."""
         self.clearBoundaryL = None 
         # This could be assigned during lens update, if needed 
 

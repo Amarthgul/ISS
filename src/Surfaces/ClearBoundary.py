@@ -13,7 +13,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
 from Util.Misc import ArrayNormalized, TransversalDistance
-from Util.Globals import OBJ_FACING, Axis, RNG
+from Util.Globals import OBJ_FACING, Axis, RNG, PBR
 from Util.SpatialEllipse import SpatialEllipse, SpatialCircle
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 
@@ -27,19 +27,24 @@ class RayBehavior(Enum):
 
 
 
+
 class ClearBoundary():
     """
     A clear boundary is the cylinder shaped surface that connects 2 lens surfaces. 
     """
 
-    def __init__(self, E1, E2):
+    def __init__(self, E1, E2, mat=PBR.GLASS):
 
         """2 rings of class SpatialEllipse that defines this clear boundary"""
         self.E1 = E1 
         self.E2 = E2
 
 
-        """Describes the material at the other side. When set to None, treat it as Air; it can also be set to a constant float that represents IOR; alternatively it could be a material class."""
+        """Type of material for the bounding surface. Fow those within the lens element, it would naturally be glass. For clear boundaries outside of the lens element, such as between 2 groups, it can be set to metal or plastic."""
+        self.materialType = mat
+
+
+        """Describes the material at the other side. When set to None, treat it as Air; it can also be set to a constant float that represents IOR; alternatively it could be a material class. Note that if self.materialType is set to metal, this will not be used at all due to metal's preservation of the incidence."""
         self.exteriorCoating = Material() 
 
 
@@ -477,6 +482,7 @@ class ClearBoundary():
         # Compute intersection coordinates
         intersections = rayPos + t_candidate[:, None] * rayDir
         return intersections, bd.ones(rayPos.shape[0], dtype=bool)
+
 
     def _RayCylinderIntersection(self, rayPos, rayDir, z1, z2, r):
         """

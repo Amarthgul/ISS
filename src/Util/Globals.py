@@ -155,6 +155,10 @@ class Fit(Enum):
     FIT = 2   # Proportionally scale the image to fit the longer axis while ensuring the image is not cropped 
 
 
+class PBR(Enum):
+    GLASS = 0
+    METAL = 1
+
 
 # ==================================================================
 """ ============================ RNG =========================== """
