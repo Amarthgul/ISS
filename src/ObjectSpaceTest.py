@@ -32,6 +32,8 @@ def AsphTest():
 
     asphS = EvenAspheric(INFINITY, 0.1510, 24, -1.0,
                          [-7.39600E-03, 2.39000E-07, 2.21800E-09, -3.20700E-12, 1.92500E-15])
+
+
     asphS.SetCumulative(2)
 
     #asphS.DrawSurface(drawProxy=True)

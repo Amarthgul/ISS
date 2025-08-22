@@ -142,7 +142,6 @@ class EvenAspheric(Surface):
                 info += ("\nBounding surface back: " +
                          "\n  Radius: " + str(self.boundingSurfaceB.radius) +
                          "\n  Thickness: " + str(self.boundingSurfaceB.thickness))
-                pass
 
         return info
 
