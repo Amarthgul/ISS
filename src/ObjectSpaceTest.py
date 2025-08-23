@@ -36,9 +36,9 @@ def AsphTest():
 
     asphS.SetCumulative(2)
 
-    #asphS.DrawSurface(drawProxy=True)
+    asphS.DrawSurface(drawProxy=True)
 
-    #plt.show()
+    plt.show()
 
 
 def StereoImageTest():

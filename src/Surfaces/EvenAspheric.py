@@ -137,11 +137,13 @@ class EvenAspheric(Surface):
             if self.boundingSurfaceF is not None:
                 info += ("\nBounding surface front: " +
                          "\n  Radius: " + str(self.boundingSurfaceF.radius) +
-                         "\n  Thickness: " + str(self.boundingSurfaceF.thickness))
+                         "\n  Thickness: " + str(self.boundingSurfaceF.thickness) +
+                         "\n  Semi diameter: " + str(self.boundingSurfaceF.clearSemiDiameter))
             if self.boundingSurfaceB is not None:
                 info += ("\nBounding surface back: " +
                          "\n  Radius: " + str(self.boundingSurfaceB.radius) +
-                         "\n  Thickness: " + str(self.boundingSurfaceB.thickness))
+                         "\n  Thickness: " + str(self.boundingSurfaceB.thickness) +
+                         "\n  Semi diameter: " + str(self.boundingSurfaceB.clearSemiDiameter))
 
         return info
 
