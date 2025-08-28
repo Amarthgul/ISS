@@ -29,10 +29,12 @@ from src.Util.Globals import INFINITY
 def AsphTest():
     SetUnifScale()
     AddXYZ(70)
+    RemoveBG()
 
     asphS = EvenAspheric(INFINITY, 0.1510, 24, -1.0,
                          [-7.39600E-03, 2.39000E-07, 2.21800E-09, -3.20700E-12, 1.92500E-15])
-
+    asphS = EvenAspheric(85.289, 8, 20, 0,
+                         [0, -1.473089E-06, 1.381523E-10, 2.077557E-11, -7.423427E-14, 1.589502E-16])
 
     asphS.SetCumulative(2)
 

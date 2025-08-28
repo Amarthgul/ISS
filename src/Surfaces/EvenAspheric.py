@@ -5,7 +5,7 @@ from scipy.optimize import minimize_scalar
 from .Surface import *
 from Util.Backend import backend as bd
 from Util.Backend import constant, backend_name
-from Util.PltPlot import DrawAspherical, DrawAsphericalProfile
+from Util.PltPlot import DrawAspherical, DrawAsphericalProfile, DrawSphericalProfile
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
 
 
@@ -104,13 +104,13 @@ class EvenAspheric(Surface):
 
 
     def DrawSurface(self, drawSag=True, drawProxy=False):
-        DrawAspherical(
-            radius=self.radius,
-            k=self.K,
-            A=self.asphCoef,
-            clearSemiDiameter=self.clearSemiDiameter,
-            cumulativeThickness=self.cumulativeThickness,
-            surfaceColor=SURFACE_COLOR)
+        # DrawAspherical(
+        #     radius=self.radius,
+        #     k=self.K,
+        #     A=self.asphCoef,
+        #     clearSemiDiameter=self.clearSemiDiameter,
+        #     cumulativeThickness=self.cumulativeThickness,
+        #     surfaceColor=SURFACE_COLOR)
 
         if (drawSag):
             DrawAsphericalProfile(
@@ -121,8 +121,16 @@ class EvenAspheric(Surface):
                 cumulativeThickness=self.cumulativeThickness)
 
         if (drawProxy):
-            self.boundingSurfaceF.DrawSurface()
-            self.boundingSurfaceB.DrawSurface()
+            #self.boundingSurfaceF.DrawSurface()
+            #self.boundingSurfaceB.DrawSurface()
+            if(drawSag):
+                DrawSphericalProfile(self.boundingSurfaceF.radius,
+                                     clearSemiDiameter=self.boundingSurfaceF.clearSemiDiameter,
+                                     cumulativeThickness=self.boundingSurfaceF.cumulativeThickness,)
+                DrawSphericalProfile(self.boundingSurfaceB.radius,
+                                     clearSemiDiameter=self.boundingSurfaceB.clearSemiDiameter,
+                                     cumulativeThickness=self.boundingSurfaceB.cumulativeThickness,)
+
 
 
     def GetInfo(self, showBounding=True):

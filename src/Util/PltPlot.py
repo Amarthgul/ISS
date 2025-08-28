@@ -427,6 +427,73 @@ def DrawAsphericalProfile(radius, k, A, clearSemiDiameter, cumulativeThickness,
     ax.plot(x, y, z, color=lineColor, linewidth=lineWidth)
 
 
+def DrawSphericalProfile(radius, clearSemiDiameter, cumulativeThickness,  axis="x", numPoints=THETA_DIV,
+                         lineColor="m",  lineWidth=0.5, ax=AX):
+    """
+    Draw the sagittal (cross-section) profile of a spherical surface in the XZ or YZ plane.
+
+    Parameters:
+        radius (float): Signed radius of curvature (following your convention).
+        clearSemiDiameter (float): Max radial distance from the optical axis.
+        cumulativeThickness (float): Z offset of the vertex (same meaning as elsewhere).
+        axis (str): "x" or "y" – which meridian to draw along.
+        numPoints (int): Number of sample points along the meridian.
+        lineColor (str): Plot line color.
+        lineWidth (float): Plot line width.
+        ax: Matplotlib 3D axis to plot on.
+    """
+    if RENDER_MODE:
+        return
+
+    CheckAX()
+
+    # Handle flat surface directly
+    if radius == INFINITY:
+        r = bd.linspace(-clearSemiDiameter, clearSemiDiameter, numPoints)
+        z = bd.full_like(r, cumulativeThickness)
+        if axis.lower() == "x":
+            x, y = r, bd.zeros_like(r)
+        elif axis.lower() == "y":
+            y, x = r, bd.zeros_like(r)
+        else:
+            raise ValueError("axis must be 'x' or 'y'.")
+
+        if backend_name == "cupy":
+            x, y, z = bd.asnumpy(x), bd.asnumpy(y), bd.asnumpy(z)
+        ax.plot(x, y, z, color=lineColor, linewidth=lineWidth)
+        return
+
+    # Finite radius: clamp the plotting range to avoid sqrt domain issues
+    Rabs = bd.abs(radius)
+    # Ensure we don't sample beyond the sphere's valid cap (r <= |R|)
+    # Use a tiny margin factor to keep sqrt(...) strictly non-negative.
+    r_max = float(clearSemiDiameter)
+    if Rabs < r_max:
+        r_max = float(Rabs) * 0.999999
+
+    r = bd.linspace(-r_max, r_max, numPoints)
+    r2 = r**2
+
+    # Spherical sag: z(r) = cumulativeThickness + (R - sign(R)*sqrt(R^2 - r^2))
+    # Use bd.maximum(...) for numerical safety at the ends
+    inside = bd.maximum(radius**2 - r2, 0.0)
+    z = cumulativeThickness + (radius - bd.sign(radius) * bd.sqrt(inside))
+
+    if axis.lower() == "x":
+        x = r
+        y = bd.zeros_like(r)
+    elif axis.lower() == "y":
+        y = r
+        x = bd.zeros_like(r)
+    else:
+        raise ValueError("axis must be 'x' or 'y'.")
+
+    if backend_name == "cupy":
+        x, y, z = bd.asnumpy(x), bd.asnumpy(y), bd.asnumpy(z)
+
+    ax.plot(x, y, z, color=lineColor, linewidth=lineWidth)
+
+
 def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=AX):
     if(RENDER_MODE):
         return 
