@@ -212,9 +212,9 @@ class Surface:
         """
         Given a raybatch, calculate the intersection of these rays on this surface and return the intersection coordinates. 
 
-        :param incomingRaybatch: RayBatch that will be tested for intersection. 
+        :param incidentRaybatch: RayBatch that will be tested for intersection.
 
-        :return: An array of intersections, a bull secondary array, the bool array of vingetted. 
+        :return: An array of intersections, a bull secondary array, the bool array of vignetted.
         """
 
         if(self.radius == INFINITY):
@@ -238,6 +238,39 @@ class Surface:
             return bd.tile(copied, (intersections.shape[0], 1))
         else:
             return ArrayNormalized(intersections - self.radiusCenter)
+
+
+    def SampleFromSD(self, sampleCount):
+        """
+        Sample points uniformly over the circular clear aperture (radius = clearSemiDiameter), all lying on the plane z = self.sdCumulative.
+        This method would be useful for either single surface testing or when the surface itself is treated as the pupil and sampled by the emission source.
+
+        :param sampleCount: number of points to sample
+        :return: (N, 3) array of 3D points on the semi-diameter plane
+        """
+
+        # Radius of the circular clear aperture
+        R = self.clearSemiDiameter
+
+        # Draw uniform samples over the unit disk via polar coordinates
+        # Use sqrt for r to make density uniform over area
+        u = bd.random.random(sampleCount)
+        v = bd.random.random(sampleCount)
+        r = R * bd.sqrt(u)
+        theta = constant(2.0 * bd.pi) * v
+
+        x = r * bd.cos(theta)
+        y = r * bd.sin(theta)
+
+        # All points lie on the semi-diameter z plane
+        z = bd.full(sampleCount, self.sdCumulative)
+
+        # Assemble (N, 3)
+        samples = bd.stack((x, y, z), axis=1)
+
+        # TODO: add self._inverseTransform and field stop support
+
+        return samples
 
 
     def CrossSection(self, planeOrientation):

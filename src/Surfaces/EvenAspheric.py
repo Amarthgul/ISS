@@ -97,20 +97,159 @@ class EvenAspheric(Surface):
 
     def Intersection(self, incidentRaybatch):
         """
-        Calculates the intersection of ray and the aspheric surface.
+        Vectorized intersection of a ray batch with the even asphere.
+        Uses two precomputed proxy spheres as a bracket, then runs
+        a fixed-iteration safeguarded solve (array-only).
+        Returns:
+            points_on_surface (M,3)
+            dummy_bool (M,)   # kept for compatibility; all False
+            vignette_mask (N,)# True where ray did NOT produce a valid intersection
         """
+        
+        o = incidentRaybatch.Position()  # (N,3)
+        d = incidentRaybatch.Direction()  # (N,3)
+        N = o.shape[0]
+        C = self.clearSemiDiameter
 
+        # --- proxy sphere centers (z only) and shared signed radius
+        zc_lo, zc_hi = self._ProxyCentersZ()  # floats
+        Rs = float(self.boundingSurfaceF.radius)  # signed
+
+        # --- intersect with both proxies to form a bracket [t_lo, t_hi]
+        t1, v1 = self._intersect_ray_sphere_centerz(o, d, zc_lo, abs(Rs))
+        t2, v2 = self._intersect_ray_sphere_centerz(o, d, zc_hi, abs(Rs))
+
+        # valid bracket begins where both proxies intersect and at least one t>0
+        valid = v1 & v2
+        # build bracket
+        t_lo = bd.minimum(t1, t2)
+        t_hi = bd.maximum(t1, t2)
+
+        # Any NaN or degenerate brackets are invalid
+        bad = bd.isnan(t_lo) | bd.isnan(t_hi) | (t_hi <= t_lo)
+        valid &= ~bad
+
+        # If no valids at all, quick out (mirror Surface API)
+        if not valid.any():
+            vignette = bd.ones(N, dtype=bd.bool_)
+            return bd.zeros((0, 3)), bd.zeros(0, dtype=bd.bool_), vignette
+
+        # --- define F(t) and F'(t) on the fly (world coords)
+        def F(t):
+            # z_ray(t) - z_asphere_world(r(t))
+            x = o[:, 0] + t * d[:, 0]
+            y = o[:, 1] + t * d[:, 1]
+            z = o[:, 2] + t * d[:, 2]
+            r2 = x * x + y * y
+            f = self._SagAsphere_r2(r2)  # local sag
+            zsurf = self.cumulativeThickness + f
+            return z - zsurf
+
+        def Fp(t):
+            # d/dt [z_ray - z_asphere] = d_z - (dz/dr)*(dr/dt)
+            x = o[:, 0] + t * d[:, 0]
+            y = o[:, 1] + t * d[:, 1]
+            r2 = x * x + y * y
+            r = bd.sqrt(bd.maximum(r2, 0.0))
+            dzdr = self._AsphereDzDr(r)
+            numer = x * d[:, 0] + y * d[:, 1]
+            dzdt_asph = bd.where(r > 0, dzdr * (numer / r), bd.zeros_like(r))
+            return d[:, 2] - dzdt_asph
+
+        # Evaluate at bracket ends
+        F_lo = F(t_lo)
+        F_hi = F(t_hi)
+
+        # If same sign, move the worse side to midpoint (deterministic, mask-safe)
+        same = (F_lo * F_hi) > 0
+        if same.any():
+            t_mid = 0.5 * (t_lo + t_hi)
+            F_mid = F(t_mid)
+            # Replace the worse side by magnitude
+            replace_lo = same & (bd.abs(F_lo) > bd.abs(F_hi))
+            t_lo = bd.where(replace_lo, t_mid, t_lo)
+            F_lo = bd.where(replace_lo, F_mid, F_lo)
+            replace_hi = same & ~replace_lo
+            t_hi = bd.where(replace_hi, t_mid, t_hi)
+            F_hi = bd.where(replace_hi, F_mid, F_hi)
+
+        # Keep a mask of actually solvable rays
+        solvable = valid & ((F_lo * F_hi) <= 0)
+
+        if not solvable.any():
+            vignette = bd.ones(N, dtype=bd.bool_)
+            return bd.zeros((0, 3)), bd.zeros(0, dtype=bd.bool_), vignette
+
+        # === Safeguarded Newton (1–2 steps) + fixed bisection (4–6 steps) ===
+        # Tune these two integers to trade accuracy vs. cost:
+        NEWTON_STEPS = 1
+        BISECT_STEPS = 6
+        EPS = 1e-9
+
+        t = 0.5 * (t_lo + t_hi)
+
+        # Newton phase (safeguarded to bracket)
+        for _ in range(NEWTON_STEPS):
+            Ft = F(t)
+            Fpt = Fp(t)
+            good_deriv = bd.abs(Fpt) > EPS
+            step = bd.where(good_deriv, Ft / Fpt, bd.zeros_like(Fpt))
+            t_proposed = t - step
+            escaped = (t_proposed < t_lo) | (t_proposed > t_hi) | (~good_deriv)
+            t = bd.where(escaped, 0.5 * (t_lo + t_hi), t_proposed)
+            # re-bracket
+            Ft = F(t)
+            go_left = (F_lo * Ft) <= 0
+            t_hi = bd.where(go_left, t, t_hi)
+            F_hi = bd.where(go_left, Ft, F_hi)
+            t_lo = bd.where(go_left, t_lo, t)
+            F_lo = bd.where(go_left, F_lo, Ft)
+
+        # Bisection phase (fixed iterations)
+        for _ in range(BISECT_STEPS):
+            t_mid = 0.5 * (t_lo + t_hi)
+            F_mid = F(t_mid)
+            go_left = (F_lo * F_mid) <= 0
+            t_hi = bd.where(go_left, t_mid, t_hi)
+            F_hi = bd.where(go_left, F_mid, F_hi)
+            t_lo = bd.where(go_left, t_lo, t_mid)
+            F_lo = bd.where(go_left, F_lo, F_mid)
+
+        t_star = 0.5 * (t_lo + t_hi)
+
+        # Compute intersection points
+        P = bd.stack([o[:, 0] + t_star * d[:, 0],
+                      o[:, 1] + t_star * d[:, 1],
+                      o[:, 2] + t_star * d[:, 2]], axis=1)
+
+        # Field-stop mask on the asphere: r <= C
+        r_ok = bd.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2) < C
+        t_ok = bd.isfinite(t_star) & (t_star > 0)
+
+        inter_mask = solvable & r_ok & t_ok
+
+        if not inter_mask.any():
+            vignette = ~inter_mask
+            return bd.zeros((0, 3)), bd.zeros(0, dtype=bd.bool_), vignette
+
+        # Return like Surface._SphericalIntersection:
+        return P[inter_mask], \
+            bd.zeros(P[inter_mask].shape[0], dtype=bd.bool_), \
+            ~inter_mask
+
+
+    def Normal(self, intersections):
         pass
 
 
     def DrawSurface(self, drawSag=True, drawProxy=False):
-        # DrawAspherical(
-        #     radius=self.radius,
-        #     k=self.K,
-        #     A=self.asphCoef,
-        #     clearSemiDiameter=self.clearSemiDiameter,
-        #     cumulativeThickness=self.cumulativeThickness,
-        #     surfaceColor=SURFACE_COLOR)
+        DrawAspherical(
+            radius=self.radius,
+            k=self.K,
+            A=self.asphCoef,
+            clearSemiDiameter=self.clearSemiDiameter,
+            cumulativeThickness=self.cumulativeThickness,
+            surfaceColor=SURFACE_COLOR)
 
         if (drawSag):
             DrawAsphericalProfile(
@@ -121,8 +260,10 @@ class EvenAspheric(Surface):
                 cumulativeThickness=self.cumulativeThickness)
 
         if (drawProxy):
-            #self.boundingSurfaceF.DrawSurface()
-            #self.boundingSurfaceB.DrawSurface()
+            self.boundingSurfaceF.DrawSurface()
+            self.boundingSurfaceB.DrawSurface()
+
+            # This is kinda pathetic but hey how else should this if be placed?
             if(drawSag):
                 DrawSphericalProfile(self.boundingSurfaceF.radius,
                                      clearSemiDiameter=self.boundingSurfaceF.clearSemiDiameter,
@@ -132,8 +273,10 @@ class EvenAspheric(Surface):
                                      cumulativeThickness=self.boundingSurfaceB.cumulativeThickness,)
 
 
-
     def GetInfo(self, showBounding=True):
+        """
+        Get the information of this aspherical surface, include its own parameters and its proxy surfaces, should they exist. Result returns as a big chunk of string.
+        """
 
         info = "Aspheric surface " +\
             "\nRadius: " + str(self.radius) +\
@@ -160,7 +303,7 @@ class EvenAspheric(Surface):
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-    def _sag_asphere_vec(self, r):
+    def _SagAsphereVec(self, r):
         """Vectorized even-asphere sag f(r) with R= self.radius, k=self.K, A=self.asphCoef."""
         r2 = r ** 2
         # base (conic)
@@ -176,13 +319,13 @@ class EvenAspheric(Surface):
         return base + asph
 
 
-    def _sphere_shape_g(self, r, Rs_abs, sign_rs):
+    def _SphereShapeG(self, r, Rs_abs, sign_rs):
         """g_R(r) = R - sign(R)*sqrt(R^2 - r^2) with |R|=Rs_abs and sign=sign_rs (±1)."""
         # ensure domain: Rs_abs >= max(r)
         return sign_rs * (Rs_abs - bd.sqrt(Rs_abs ** 2 - r ** 2))
 
 
-    def _pick_R_range(self, C):
+    def _PickRRange(self, C):
         """
         Sensible radius bracket [Rlo, Rhi] (absolute value).
         - Must satisfy R >= C (domain of sqrt).
@@ -207,6 +350,85 @@ class EvenAspheric(Surface):
         return Rlo, Rhi
 
 
+    def _SagAsphere_r2(self, r2):
+        """Asphere sag f(r) from r^2 (vectorized). Adds only the local sag (no cumulative)."""
+        # base conic
+        if bd.isinf(self.radius):
+            base = bd.zeros_like(r2)
+        else:
+            sqrt_term = bd.sqrt(1 - (1 + self.K) * r2 / self.radius ** 2)
+            base = r2 / (self.radius * (1 + sqrt_term))
+        # even asphere terms: A2, A4, ...  (Horner over r2)
+        asph = bd.zeros_like(r2)
+        p = r2
+        for a in self.asphCoef:
+            asph = asph + a * p
+            p = p * r2
+        return base + asph
+
+
+    def _AsphereDzDr(self, r):
+        """dz/dr for the asphere (vectorized), safe at r=0."""
+        r2 = r ** 2
+        # base derivative
+        if bd.isinf(self.radius):
+            d_base = bd.zeros_like(r)
+        else:
+            sqrt_term = bd.sqrt(1 - (1 + self.K) * r2 / self.radius ** 2)
+            denom = (1 + sqrt_term) * sqrt_term
+            d_base = (2 * r / self.radius) * (1 / (1 + sqrt_term) + (1 + self.K) * r2 / (self.radius ** 2 * denom))
+        # asphere derivative: sum A[i] * 2(i+1) * r^(2(i+1)-1)
+        d_asph = bd.zeros_like(r)
+        if len(self.asphCoef) > 0:
+            p = r  # r^(2(0+1)-1) = r
+            for i, a in enumerate(self.asphCoef):
+                d_asph = d_asph + (2 * (i + 1)) * a * p
+                p = p * r2
+        return d_base + d_asph
+
+
+    def _ProxyCentersZ(self):
+        """Return (zc_lower, zc_upper) of the two proxy spheres."""
+        zc_lo = float(self.boundingSurfaceF.radiusCenter[2])
+        zc_hi = float(self.boundingSurfaceB.radiusCenter[2])
+        return zc_lo, zc_hi
+
+
+    def _intersect_ray_sphere_centerz(self, o, d, zc, Rs_abs):
+        """
+        Intersection t with a sphere centered at (0,0,zc), radius |Rs_abs|.
+        Returns t (nearest side by sign rule) and a validity mask (discriminant>=0).
+        """
+        ocx = o[:, 0]
+        ocy = o[:, 1]
+        ocz = o[:, 2] - zc
+        dx = d[:, 0]
+        dy = d[:, 1]
+        dz = d[:, 2]
+
+        a = dx * dx + dy * dy + dz * dz
+        b = 2.0 * (ocx * dx + ocy * dy + ocz * dz)
+        c = (ocx * ocx + ocy * ocy + ocz * ocz) - (Rs_abs * Rs_abs)
+
+        disc = b * b - 4 * a * c
+        valid = disc >= 0
+        t = bd.full_like(a, bd.nan)
+
+        if valid.any():
+            sd = bd.sqrt(disc[valid])
+            t0 = (-b[valid] - sd) / (2 * a[valid])
+            t1 = (-b[valid] + sd) / (2 * a[valid])
+            # choose side consistent with signed radius (like Surface._SphericalIntersection)
+            # sign(Rs) != sign(dz) -> take far root t1; else near t0
+            mask_far = (bd.sign(self.boundingSurfaceF.radius) != bd.sign(dz[valid]))
+            t_sel = bd.where(mask_far, t1, t0)
+            # if both negative, keep the other
+            t_sel = bd.where(t_sel > 0, t_sel, bd.where(mask_far, t0, t1))
+            t = bd.where(valid, t_sel, t)
+
+        return t, valid
+
+
     def FindTightEqualRadiusEnvelope(self, C, nr=2048, nR=128, margin=0.0):
         """
         Find two enclosing spherical surfaces with the SAME radius (signed),
@@ -226,10 +448,10 @@ class EvenAspheric(Surface):
         """
         # radial samples
         r = bd.linspace(0.0, float(C), int(nr))
-        f = self._sag_asphere_vec(r)
+        f = self._SagAsphereVec(r)
 
         # candidate |R| range
-        Rlo, Rhi = self._pick_R_range(C)
+        Rlo, Rhi = self._PickRRange(C)
 
         # search |R| on a log grid (deterministic, GPU-friendly)
         Rs_grid = bd.exp(bd.linspace(bd.log(Rlo), bd.log(Rhi), int(nR)))
