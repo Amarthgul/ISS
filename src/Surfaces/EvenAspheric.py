@@ -14,8 +14,8 @@ class EvenAspheric(Surface):
     """
     Even aspheric surface.
     """ 
-    def __init__(self, r, t, sd, K, A):
-        super().__init__(r, t, sd)
+    def __init__(self, r, t, sd, m, K, A):
+        super().__init__(r, t, sd, m)
 
         """The number for conic section"""
         self.K = bd.array(K)

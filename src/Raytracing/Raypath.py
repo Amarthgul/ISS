@@ -233,7 +233,7 @@ class RayPath():
 
     def EndToEndIntersection(self):
         """
-        Find the intersections of the incident rays and the exiting rays. 
+        Find the intersections between the incident rays and the exiting rays.
         This assume the path include the light source and is infinite conjugate. 
         """
 
@@ -258,7 +258,7 @@ class RayPath():
 
         # Clip them to use only the YZ coordinates 
         A = bd.stack([D1[:, 1:], -D2[:, 1:]], axis=2) 
-        B = P2[:, 1:] - P1[:, 1:] 
+        B = bd.stack([P2[:, 1] - P1[:, 1], P2[:, 2] - P1[:, 2]], axis=1)
 
         t = bd.linalg.solve(A, B)
         intersections = P1 + t[:, 0, bd.newaxis] * D1  # Shape (n, 3)
