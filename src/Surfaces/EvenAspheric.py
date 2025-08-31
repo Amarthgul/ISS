@@ -17,16 +17,21 @@ class EvenAspheric(Surface):
     def __init__(self, r, t, sd, K, A):
         super().__init__(r, t, sd)
 
+        """The number for conic section"""
         self.K = bd.array(K)
 
         """Aspherical coefficients. Start from 2nd order, then 4th, then 6th, etc."""
         self.asphCoef = bd.array(A)
 
+        """The bounding surface at the front"""
         self.boundingSurfaceF = None
 
+        """The bounding surface at the back"""
         self.boundingSurfaceB = None
 
+        """Thickness/distance between the two bounding surfaces"""
         self.proxyEnvelopeThickness = .0
+
 
         self.cType = CurvatureType.EvenAspheric
 
@@ -239,7 +244,41 @@ class EvenAspheric(Surface):
 
 
     def Normal(self, intersections):
-        pass
+        """
+        Compute unit surface normals at intersection points lying on this even-aspheric surface.
+        intersections: (N,3) bd.array  [x, y, z_world]
+        Returns: (N,3) bd.array of unit normals.
+
+        """
+        x = intersections[:, 0]
+        y = intersections[:, 1]
+
+        # r and dz/dr (vectorized)
+        r2 = x * x + y * y
+        r = bd.sqrt(bd.maximum(r2, 0.0))
+        dzdr = self._AsphereDzDr(r)  # uses self.radius, self.K, self.asphCoef
+
+        # avoid division by zero on axis
+        eps = constant(1e-12)
+        safe_r = bd.maximum(r, eps)
+
+        # fx = ∂f/∂x, fy = ∂f/∂y
+        fx = dzdr * (x / safe_r)
+        fy = dzdr * (y / safe_r)
+
+        # Un-normalized normal = (-fx, -fy, 1)
+        nx = -fx
+        ny = -fy
+        nz = bd.ones_like(nx)
+
+        invlen = 1.0 / bd.sqrt(nx * nx + ny * ny + nz * nz)
+        nx *= invlen
+        ny *= invlen
+        nz *= invlen
+
+        # Orientation points +z direction
+
+        return bd.stack([nx, ny, nz], axis=1)
 
 
     def DrawSurface(self, drawSag=True, drawProxy=False):
@@ -279,7 +318,9 @@ class EvenAspheric(Surface):
         """
 
         info = "Aspheric surface " +\
-            "\nRadius: " + str(self.radius) +\
+            "\nRadius: " + str(self.radius) + \
+            "\nThickness: " + str(self.thickness) + \
+            "\nSemi-diameter: " + str(self.clearSemiDiameter)+\
             "\nK: " + str(self.K) +\
             "\nAsph coefficients:" +\
             "".join(f"\n  {(i+1)*2}: {v}" for i, v in enumerate(self.asphCoef))
@@ -369,7 +410,9 @@ class EvenAspheric(Surface):
 
     def _AsphereDzDr(self, r):
         """dz/dr for the asphere (vectorized), safe at r=0."""
+
         r2 = r ** 2
+
         # base derivative
         if bd.isinf(self.radius):
             d_base = bd.zeros_like(r)
@@ -377,6 +420,7 @@ class EvenAspheric(Surface):
             sqrt_term = bd.sqrt(1 - (1 + self.K) * r2 / self.radius ** 2)
             denom = (1 + sqrt_term) * sqrt_term
             d_base = (2 * r / self.radius) * (1 / (1 + sqrt_term) + (1 + self.K) * r2 / (self.radius ** 2 * denom))
+
         # asphere derivative: sum A[i] * 2(i+1) * r^(2(i+1)-1)
         d_asph = bd.zeros_like(r)
         if len(self.asphCoef) > 0:
@@ -384,6 +428,7 @@ class EvenAspheric(Surface):
             for i, a in enumerate(self.asphCoef):
                 d_asph = d_asph + (2 * (i + 1)) * a * p
                 p = p * r2
+
         return d_base + d_asph
 
 

@@ -6,13 +6,16 @@
 """
 This file handles the initial generation of rays. 
 
-There are two method of doing so. One is to project the rays toward the first surface, and the second is to project them towards the entrence pupil. 
+There are two method of doing so. One is to project the rays toward the first surface, and the second is to project them towards the entrance pupil.
 
 Projecting to first surface is more faithful as it is less discriminative, and is better when glare and flares are needed. But this method is slower. 
 
 Projecting to the entrance pupil is faster, but it will offer less flare and glares. 
 
 """
+
+
+# TODO: reconsider if this file should be in Raytracing or in ObjectSpace
 
 
 from Util.Backend import backend as bd

@@ -8,7 +8,7 @@ import OpenEXR
 
 from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawAspherical, DrawAsphericalProfile
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawAspherical, DrawAsphericalProfile, DrawNormal
 from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE
@@ -24,22 +24,30 @@ from Raytracing.Raypath import RayPath
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
 from src.Surfaces.EvenAspheric import EvenAspheric
 from src.Util.Globals import INFINITY
-
+from Raytracing.Emission import EmitField
 
 def AsphTest():
     SetUnifScale()
     AddXYZ(70)
     RemoveBG()
 
+
     asphS = EvenAspheric(INFINITY, 0.1510, 24, -1.0,
                          [-7.39600E-03, 2.39000E-07, 2.21800E-09, -3.20700E-12, 1.92500E-15])
-    asphS = EvenAspheric(85.289, 8, 20, 0,
-                         [0, -1.473089E-06, 1.381523E-10, 2.077557E-11, -7.423427E-14, 1.589502E-16])
+    # asphS = EvenAspheric(85.289, 8, 20, 0,
+    #                      [0, -1.473089E-06, 1.381523E-10, 2.077557E-11, -7.423427E-14, 1.589502E-16])
 
     asphS.SetCumulative(2)
 
-    asphS.DrawSurface(drawProxy=True)
+    projectRB = EmitField(0, 10, sampleTargets=asphS.SampleFromSD())
 
+    intersections = asphS.Intersection(projectRB)
+    normals = asphS.Normal(intersections[0])
+
+    asphS.DrawSurface(drawProxy=False)
+
+    DrawNormal(intersections[0], normals)
+    DrawPoints(intersections[0])
     plt.show()
 
 

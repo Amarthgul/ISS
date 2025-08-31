@@ -75,7 +75,7 @@ class Surface:
 
         """Whether this surface share the same optical axis as the lens"""
         self.IsOnAxis = True
-        # By default the surface is treated to have the same optical axis as the lens 
+        # By default, the surface is treated to have the same optical axis as the lens
 
         """Position of the center of the surface in world space, vector (x, y, z)"""
         self.frontVertex = None 
@@ -94,7 +94,7 @@ class Surface:
 
         """Local optical axis of the surface, normalized vector (x, y, z)"""
         self._axis = OBJ_FACING
-        # By default it is parallel to Z and facing object side
+        # By default, it is parallel to Z and facing object side
 
         """Vector poinring from radius center to the front vertex"""
         self._radiusDirection = None
@@ -240,7 +240,7 @@ class Surface:
             return ArrayNormalized(intersections - self.radiusCenter)
 
 
-    def SampleFromSD(self, sampleCount):
+    def SampleFromSD(self, sampleCount=32):
         """
         Sample points uniformly over the circular clear aperture (radius = clearSemiDiameter), all lying on the plane z = self.sdCumulative.
         This method would be useful for either single surface testing or when the surface itself is treated as the pupil and sampled by the emission source.
@@ -475,6 +475,18 @@ class Surface:
 
         return refractedRB, TIR, boolVig, reflectedRB
     
+
+    def GetInfo(self):
+        """
+        Get the information of this surface.
+        """
+
+        info = "Spherical surface " +\
+            "\nRadius: " + str(self.radius) +\
+            "\nThickness: " + str(self.thickness) +\
+            "\nSemi-diameter: " + str(self.clearSemiDiameter)
+
+        return info
 
 
     # ==================================================================
