@@ -235,10 +235,10 @@ class Lens:
 
     def BestFocusBFD(self, distance):
         """
-        Calculate the best back focal distance given an object distance. This is achieved by finding the smallest RMS spot position in the exit rays.
+        Calculate the best back focal distance given an object distance.
+        Please note that this is achieved by finding the smallest RMS spot position in the exit rays without considering the density/radiance distribution. So quite often for wide open lenses, the smallest RMS might actually be slightly out of focus.
 
         :param distance: distance of the source in meters.
-        :param rearGroups: converters or UVIR at the back of the lens. They do not count as part of this lens but here will be considered when calculating best focus. Note this assumes these rear groups to be afocal.
         """
         
         if(self.isAfocal):
