@@ -103,7 +103,8 @@ class Material:
                 df = pd.read_excel(file_path)
             found = df[df["Name"] == self.name].iloc[0]
             # Same name material should have the same parameter so it should not matter 
-            formula = found["Formula"] 
+            formula = found["Formula"]
+            self.category = found["Cate"]
 
             if (formula == "Schott"):
                 self.Formula = "Schott"

@@ -41,7 +41,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 512, rea
     print(lens.GetInfo())
     print("Best focus",  lens.BestFocusBFD(imageDistance)) #32.926564?
 
-    imager = StdImager(34) #32.4 lens.BestFocusBFD(imageDistance)
+    imager = StdImager(33.5) #32.4 lens.BestFocusBFD(imageDistance)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 

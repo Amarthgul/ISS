@@ -6,7 +6,7 @@ from enum import Enum
 import numpy as np 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
+import re
 
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
@@ -299,6 +299,26 @@ class Lens:
             "Principal plane:\t" + str(self.frontPincipalPlane.GetInnerZ()) + "\n" +\
             "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
             
+        return info
+
+
+    def SurfaceReport(self):
+        info = "- Surface Info: \n"
+        index = 1
+        for i in self.surfaces:
+            if(isinstance(i, Stop)):
+                info += "  STOP \t\t\t\t\t" + "{:.3f}".format(i.thickness) + "\n"
+            else:
+                info += ("  " + str(index) + ":" +
+                         " \t" +  "{:.4f}".format(i.radius) +
+                         " \t\t" + "{:.3f}".format(i.thickness) +
+                         " \t" + str(i.material.category) +
+                         " \t"  + str(i.material.name) + "\n")
+
+            index += 1
+
+        info = re.sub(r'(?<=\s)inf(?=\s)', 'INFINITY', info)
+
         return info
 
 
