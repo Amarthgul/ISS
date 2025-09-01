@@ -12,7 +12,7 @@ from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE, INFINITY
 from Util.MaterialLookup import FindClosestMaterials, ReadSheet
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15, CanonEF50mmf12L
 from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
 from Surfaces.Surface import Surface
@@ -28,7 +28,7 @@ FrameCount = 0
 # This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
 sampleMultiplier = 0.1
 
-def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
+def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 512, realTimeUpdate = False):
     
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
@@ -49,7 +49,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
     sourceImage.horizontalAoV = AoV 
     sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/CustomSheet.png")
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
     # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
 
     start = time.time()
@@ -96,7 +96,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 320, rea
         if(iterationCount > imageMinSample):
             image /= 100 
             global FrameCount
-            fn = r"ISO12233Test"+str(imageDistance)+"_"+str(FrameCount)
+            fn = r"Canon501.2L_Asph_Test"+str(imageDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
 
@@ -522,11 +522,12 @@ def main():
     angleFieldY = bd.linspace(-13, 13, len(objectDistance))
 
     lens = CanonFD50mmf18()
-    lens = Helios58mmf2()
+    lens = CanonEF50mmf12L()
     # lens = ZeissHologon15mmf8() #AoV 104
     # lens = Sonnar50mmF15()
 
-    SpotTesting(lens, realTimeUpdate=True)
+    ISO12233Test(lens, realTimeUpdate=True)
+    #SpotTesting(lens, realTimeUpdate=True)
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)

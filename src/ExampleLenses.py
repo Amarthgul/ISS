@@ -240,26 +240,26 @@ def Helios58mmf2():
 def _CanonEF50mmf12Data():
     canon = Lens()
 
-    canon.AddSurface(Surface(61.844,    4.99, 24, "E-LASF016"))
-    canon.AddSurface(Surface(411.251,   0.24, 24))
-    canon.AddSurface(Surface(28.537,	   5.34, 22, "S-LAH55"))
-    canon.AddSurface(Surface(41.757,    1.14, 22, ))
-    canon.AddSurface(Surface(54.433,    2.16, 15, "PBM27"))
-    canon.AddSurface(Surface(19.579,    12.95, 15))
+    canon.AddSurface(Surface(61.844,    4.99, 22, "E-LASF016"))
+    canon.AddSurface(Surface(411.251,   0.24, 22))
+    canon.AddSurface(Surface(28.537,	   5.34, 20, "S-LAH55"))
+    canon.AddSurface(Surface(41.757,    1.14, 20, ))
+    canon.AddSurface(Surface(54.433,    2.16, 17, "PBM27"))
+    canon.AddSurface(Surface(19.579,    12.95, 17))
 
     canon.AddSurface(Stop(7.41))
 
-    canon.AddSurface(Surface(-23.181,   1.4,    12,     "S-TIH10"))
-    canon.AddSurface(Surface(196.367,   7.64,   12,     "LAH58"))
-    canon.AddSurface(Surface(-29.011,   0.45,   12  ))
-    canon.AddSurface(Surface(-27.438,   1.5,    14,     "E-SF15"))
-    canon.AddSurface(Surface(442.408,   6.48,   14,     "S-LAH55"))
-    canon.AddSurface(Surface(-41.024,   0.15,   14  ))
+    canon.AddSurface(Surface(-23.181,   1.4,    15,     "S-TIH10"))
+    canon.AddSurface(Surface(196.367,   7.64,   15,     "LAH58"))
+    canon.AddSurface(Surface(-29.011,   0.45,   15  ))
+    canon.AddSurface(Surface(-27.438,   1.5,    16,     "E-SF15"))
+    canon.AddSurface(Surface(442.408,   6.48,   16,     "S-LAH55"))
+    canon.AddSurface(Surface(-41.024,   0.15,   16  ))
 
-    canon.AddSurface(EvenAspheric(146.157,   5.87,   18, "J-LASF015",
+    canon.AddSurface(EvenAspheric(146.157,   5.87,   16, "J-LASF015",
                                   0, [0.00000e+00, -1.445310E-06, 2.501600E-10, -1.461230E-13, 0.000000E+00]))
 
-    canon.AddSurface(Surface(-61.524,   38.88,  18))
+    canon.AddSurface(Surface(-61.524,   38.88,  16))
 
     return canon
 
@@ -480,7 +480,8 @@ def main():
 
     start = time.time()
 
-    exampleLens = Industar50_50mmf35() #CanonEF50mmf12L()
+    #Industar50_50mmf35() #
+    exampleLens = CanonEF50mmf12L()
 
     # exampleLens.AddFrontGroup([
     #     Surface(200, 2, 20, "FD60"),

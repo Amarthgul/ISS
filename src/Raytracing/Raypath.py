@@ -258,9 +258,18 @@ class RayPath():
 
         # Clip them to use only the YZ coordinates 
         A = bd.stack([D1[:, 1:], -D2[:, 1:]], axis=2) 
-        B = bd.stack([P2[:, 1] - P1[:, 1], P2[:, 2] - P1[:, 2]], axis=1)
+        B = (P2[:, 1:] - P1[:, 1:]).copy()
 
-        t = bd.linalg.solve(A, B)
+        # For the love of God, at some point Numpy/Cupy seems to have changed the implementation. A as (N, 2, 2) and B as (N, 2) should have been perfectly fine but they made it so that B must be explicitly stated as the right hand vector for it to work, hence this abomination. I really should not have chosen to use Python for this.
+        B = B.reshape(B.shape[0], 2, 1)
+
+        print("A shape:", A.shape)
+        print("B shape:", B.shape)
+        # print(bd.array2string(A))
+        # print(bd.array2string(B))
+
+        t = bd.linalg.solve(A, B).squeeze()
+
         intersections = P1 + t[:, 0, bd.newaxis] * D1  # Shape (n, 3)
 
         return intersections
