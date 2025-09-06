@@ -28,20 +28,20 @@ FrameCount = 0
 # This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
 sampleMultiplier = 0.1
 
-def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 512, realTimeUpdate = False):
+def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, realTimeUpdate = False):
     
     print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
 
     # AddRearGroup AddFrontGroup
-    lens.AddRearGroup([
-        Surface(200, 2, 15, "FK5"),
-        Surface(INFINITY, 1, 15)
-    ])
-    lens.UpdateLens()
+    # lens.AddRearGroup([
+    #     Surface(200, 2, 15, "FK5"),
+    #     Surface(INFINITY, 1, 15)
+    # ])
+    # lens.UpdateLens()
     print(lens.GetInfo())
     print("Best focus",  lens.BestFocusBFD(imageDistance)) #32.926564?
 
-    imager = StdImager(33.5) #32.4 lens.BestFocusBFD(imageDistance)
+    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4 lens.BestFocusBFD(imageDistance)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
@@ -106,14 +106,15 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 512, rea
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 50000, focusDistance = 1000, saveIterationCount = 64, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 1500, focusDistance = 1000, saveIterationCount = 5120, realTimeUpdate = False):
 
     print("Start spot testing")
     source = PointsSource()
     source.isCartesian = False
-    xAngle = 19*0.85
-    yAngle = 12*0.85
-    sample = 10
+    ratio = 1
+    xAngle = 19*ratio
+    yAngle = 12*ratio
+    sample = 9
     source.GenerateGridSpots(xAngle, yAngle, dist=objectDistance, sampleField=sample)
 
     # AddRearGroup AddFrontGroup
@@ -124,7 +125,7 @@ def SpotTesting(lens, objectDistance = 50000, focusDistance = 1000, saveIteratio
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) #32.4
+    imager = StdImager(lens.BestFocusBFD(objectDistance)+1, horiPx=1920) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
@@ -154,7 +155,7 @@ def SpotTesting(lens, objectDistance = 50000, focusDistance = 1000, saveIteratio
 
         print("- Focusing ", focusDistance, " for obj at ", objectDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased) )
-        ProgressBar(iterationCount / saveIterationCount)
+        ProgressBar(iterationCount / saveIterationCount, 100)
 
         if(realTimeUpdate):
             print("Max ", bd.max(image))
@@ -163,7 +164,7 @@ def SpotTesting(lens, objectDistance = 50000, focusDistance = 1000, saveIteratio
             plt.pause(0.01)
 
         if(iterationCount > saveIterationCount):
-            fn = r"Swirl"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"CanonEFLTestPlus"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -527,8 +528,8 @@ def main():
     # lens = ZeissHologon15mmf8() #AoV 104
     # lens = Sonnar50mmF15()
 
-    ISO12233Test(lens, realTimeUpdate=True)
-    #SpotTesting(lens, realTimeUpdate=True)
+    #ISO12233Test(lens, realTimeUpdate=True)
+    SpotTesting(lens, realTimeUpdate=True)
 
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)

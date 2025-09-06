@@ -502,6 +502,8 @@ def main():
     
     plt.show()
 
+    print("End of test")
+
     
 
 if __name__ == "__main__":

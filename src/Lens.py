@@ -489,6 +489,8 @@ class Lens:
     def _CreateClearBoundaryInnerGroup(self) -> None:
         """Create clear boundaries that connects surfaces and make each element a sealed solid."""
 
+        #TODO: consider splitting this into methods? The current implementation has way to many if nesting...
+
         for groupIndex, maxGroupSD in self.groupMaxSemi.items():
             # The key here is group index, and value is the max clear semi diameter of the group
 
@@ -514,10 +516,20 @@ class Lens:
 
 
                     else:
-                        # This else is only possible when the SD of this surface is equal to the group max SD. So check if next surface exist and use its SD z position.
+                        # This else case is only possible when the SD of this surface is equal to the group max SD (because itself will be the max).
+                        # So, it checks if next surface exist.
                         if (len(self.groups[groupIndex]) >= 2):
-                            C2 = SpatialCircle(self.surfaces[s + 1].sdCumulative, maxGroupSD)
-                            self.surfaces[s + 1].clearBoundaryL = ClearBoundary(C1, C2)
+
+                            # Even for a single element, it may happen that the 2 surfaces have different SD.
+                            # First see if they are lucky enough to share the same SD
+                            if (self.surfaces[s + 1].clearSemiDiameter == maxGroupSD):
+                                C2 = SpatialCircle(self.surfaces[s + 1].sdCumulative, maxGroupSD)
+                                self.surfaces[s + 1].clearBoundaryL = ClearBoundary(C1, C2)
+
+                            # When the check did not pass, this means the other surface has a different SD. But since we already made sure the current surface has the max SD of the group, this means the next one can only be smaller. Thus, make a bevel towards the image space.
+                            else:
+                                self._BevelTowardsImageSpace(s+1, maxGroupSD)
+
 
 
                 # ============ Deal with the last surface (of a group) =============
@@ -554,7 +566,8 @@ class Lens:
 
 
     def _CreateClearBoundaryOuterGroup(self) -> None:
-        """Create clear boundaries that lies in between lens groups. These boundaries represent the lens barrel and other mechanical constructs."""
+        """Create metalic clear boundaries that lay in between lens groups.
+        These boundaries represent the lens barrel and other mechanical constructs."""
 
         for group in self.groups:
             firstElementIndex = group[0]
