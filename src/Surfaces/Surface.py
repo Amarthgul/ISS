@@ -172,10 +172,10 @@ class Surface:
             )
         
         if(self.clearBoundaryL is not None):
-            DrawClearBoundary(self.clearBoundaryL.E1, self.clearBoundaryL.E2, surfaceColor=BOUNDARY_COLOR, opacity=0.05)
+            self.clearBoundaryL.DrawSurface()
 
         if(self.clearBoundaryT is not None):
-            DrawClearBoundary(self.clearBoundaryT.E1, self.clearBoundaryT.E2, surfaceColor=BOUNDARY_COLOR, opacity=0.05) 
+            self.clearBoundaryT.DrawSurface()
 
 
     def zRange(self):

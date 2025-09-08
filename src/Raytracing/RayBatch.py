@@ -4,7 +4,7 @@
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines, RADIANT_KILL, Axis
+from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines, RADIANT_KILL, Axis, RNG
 from Util.Misc import Normalized
 
 
@@ -187,7 +187,11 @@ class RayBatch:
 
 
     def RandomDrop(self, keeprate = 1):
-        pass 
+        """Randomly remove some of the rays in this raybatch."""
+        rnd = RNG.rand(len(self.value))
+        keep_mask = rnd >= keeprate
+
+        self.value = self.value[keep_mask]
 
 
     def Mask(self, validMask):

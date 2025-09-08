@@ -5,13 +5,14 @@ import time
 from enum import Enum
 import numpy as np 
 import matplotlib.pyplot as plt
+from dask.dataframe.methods import boundary_slice
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import re
 
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO
+from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance
 from Util.SpatialEllipse import SpatialCircle
@@ -22,6 +23,7 @@ from Surfaces.Surface import Surface
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
 from Surfaces.ClearBoundary import ClearBoundary
+from Surfaces.MetalBoundary import MetalBoundary
 
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateEmpty
@@ -326,6 +328,7 @@ class Lens:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
+
     def _UpdateAfocal(self):
         """
         This method is for updating an afocal lens, which does not have a focal length. 
@@ -404,31 +407,47 @@ class Lens:
         # print(self.groupMaxSemi)
 
 
-    def _DirectConnectPrevious(self, _index):
+    def _DirectConnectPrevious(self, _index, sType=PBR.GLASS):
+
+        if (sType == PBR.GLASS):
+            boundary = ClearBoundary
+        elif (sType == PBR.METAL):
+            boundary = MetalBoundary
+
+
         # Remove the Longitudinal clear boundary
         self.surfaces[_index].clearBoundaryL = None
         self.surfaces[_index].clearBoundaryT = None
-        _C1 = SpatialCircle(self.surfaces[_index - 1].sdCumulative, self.surfaces[_index - 1].clearSemiDiameter)
+        previousSurfaceIndex = self._PreviousSurfaceIndex(_index)
+
+        _C1 = SpatialCircle(self.surfaces[previousSurfaceIndex].sdCumulative, self.surfaces[previousSurfaceIndex].clearSemiDiameter)
         _C2 = SpatialCircle(self.surfaces[_index].sdCumulative, self.surfaces[_index].clearSemiDiameter)
-        self.surfaces[_index].clearBoundaryT = ClearBoundary(_C1, _C2)
+
+        self.surfaces[_index].clearBoundaryT = boundary(_C1, _C2)
 
 
-    def _BevelTowardsImageSpace(self, _index, _maxGroupSD, caller=1):
+    def _BevelTowardsImageSpace(self, _index, _maxGroupSD, caller=1, sType=PBR.GLASS):
         """Requires given indexed surface to have a smaller SD than the surface in front of it
 
         :param _index: index of the surface in lens surface list.
         :param _maxGroupSD: maximum semi diameter of the current croup.
         :param caller: When caller is 1, it means caller sits at the positive side of the Z axis compare to the other surface. Since this method is intended for the last surface of a group, caller is defaulted at 1.
         """
-        _imageSideIndex = _index if (caller == 1) else _index + 1
-        _objectSideIndex = _imageSideIndex - 1
+
+        if(sType == PBR.GLASS):
+            boundary = ClearBoundary
+        elif(sType == PBR.METAL):
+            boundary = MetalBoundary
+
+        _imageSideIndex = _index if (caller == 1) else self._NextSurfaceIndex(_index)
+        _objectSideIndex = _index if (caller == -1) else self._PreviousSurfaceIndex(_imageSideIndex)
 
         _C3 = SpatialCircle(self.surfaces[_imageSideIndex].sdCumulative,
                             self.surfaces[_imageSideIndex].clearSemiDiameter)
         _C1 = SpatialCircle(self.surfaces[_objectSideIndex].sdCumulative, _maxGroupSD)
 
         sdDifference = _maxGroupSD - self.surfaces[_imageSideIndex].clearSemiDiameter
-        sdzDifference = self.surfaces[_imageSideIndex].sdCumulative - self.surfaces[_index - 1].sdCumulative
+        sdzDifference = self.surfaces[_imageSideIndex].sdCumulative - self.surfaces[_objectSideIndex].sdCumulative
 
         if (sdzDifference > sdDifference):
             _C2 = SpatialCircle(
@@ -442,19 +461,25 @@ class Lens:
         # Last surface might already have boundaries created when processing previous surfaces, but the coverage may not be correct.
         if (self.surfaces[_imageSideIndex].clearBoundaryT is None) or (
                 self.surfaces[_imageSideIndex].clearBoundaryL is None):
-            self.surfaces[_imageSideIndex].clearBoundaryL = ClearBoundary(_C1, _C2)
-            self.surfaces[_imageSideIndex].clearBoundaryT = ClearBoundary(_C2, _C3)
+            self.surfaces[_imageSideIndex].clearBoundaryL = boundary(_C1, _C2)
+            self.surfaces[_imageSideIndex].clearBoundaryT = boundary(_C2, _C3)
 
 
-    def _BevelTowardsObjectSpace(self, _index, _maxGroupSD, caller=-1):
+    def _BevelTowardsObjectSpace(self, _index, _maxGroupSD, caller=-1, sType=PBR.GLASS):
         """Requires given indexed surface to have a larger SD than the surface in front of it.
 
         :param _index: index of the surface in lens surface list.
         :param _maxGroupSD: maximum semi diameter of the current croup.
         :param caller: When caller is 1, it means caller sits at the positive side of the Z axis compare to the other surface. Since this method is intended for the first surface of a group, caller is defaulted at -1.
         """
-        _objectSideIndex = _index if (caller == -1) else _index - 1
-        _imageSideIndex = _objectSideIndex + 1
+
+        if (sType == PBR.GLASS):
+            boundary = ClearBoundary
+        elif (sType == PBR.METAL):
+            boundary = MetalBoundary
+
+        _objectSideIndex = _index if (caller == -1) else self._PreviousSurfaceIndex(_index)
+        _imageSideIndex = _index if (caller == 1) else self._NextSurfaceIndex(_objectSideIndex)
 
         _C1 = SpatialCircle(self.surfaces[_objectSideIndex].sdCumulative,
                             self.surfaces[_objectSideIndex].clearSemiDiameter)
@@ -474,8 +499,8 @@ class Lens:
                 self.surfaces[_imageSideIndex].clearSemiDiameter - sdzDifference
             )
 
-        self.surfaces[_imageSideIndex].clearBoundaryT = ClearBoundary(_C1, _C2)
-        self.surfaces[_imageSideIndex].clearBoundaryL = ClearBoundary(_C2, _C3)
+        self.surfaces[_imageSideIndex].clearBoundaryT = boundary(_C1, _C2)
+        self.surfaces[_imageSideIndex].clearBoundaryL = boundary(_C2, _C3)
 
 
     def _CreateClearBoundary(self) -> None:
@@ -483,7 +508,7 @@ class Lens:
 
         self._CreateClearBoundaryInnerGroup()
 
-        self._CreateClearBoundaryInnerGroup()
+        self._CreateClearBoundaryOuterGroup()
 
 
     def _CreateClearBoundaryInnerGroup(self) -> None:
@@ -569,9 +594,30 @@ class Lens:
         """Create metalic clear boundaries that lay in between lens groups.
         These boundaries represent the lens barrel and other mechanical constructs."""
 
-        for group in self.groups:
-            firstElementIndex = group[0]
 
+        for i in range(len(self.groups) - 1):
+
+            currentGroupLastIndex = self.groups[i][-1]
+            nextGroupFirstIndex = self.groups[i + 1][0]
+
+            currentSurface = self.surfaces[currentGroupLastIndex]
+            nextSurface = self.surfaces[nextGroupFirstIndex]
+
+            C1 = SpatialCircle(currentSurface.sdCumulative, currentSurface.clearSemiDiameter)
+            C2 = SpatialCircle(nextSurface.sdCumulative, nextSurface.clearSemiDiameter)
+
+            # This happens when the current surface "encapsulates" the next one, in which case a metal boundary is not very useful to have, thus might as well just skip it.
+            if (currentSurface.sdCumulative > nextSurface.sdCumulative):
+                continue
+
+            if(currentSurface.clearSemiDiameter > nextSurface.clearSemiDiameter):
+                self._BevelTowardsImageSpace(nextGroupFirstIndex, currentSurface.clearSemiDiameter, caller=1, sType=PBR.METAL)
+
+            elif(nextSurface.clearSemiDiameter > currentSurface.clearSemiDiameter):
+                self._BevelTowardsObjectSpace(nextGroupFirstIndex, nextSurface.clearSemiDiameter, caller=1, sType=PBR.METAL)
+
+            else:
+                self.surfaces[nextGroupFirstIndex].clearBoundaryT = MetalBoundary(C1, C2)
 
 
     def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
@@ -725,6 +771,30 @@ class Lens:
         else:
             return self.surfaces[index -1].RI(raybatch.Wavelength())
         
+
+    def _PreviousSurfaceIndex(self, index):
+
+        if(index == 0):
+            return 0
+
+        else:
+            if(isinstance(self.surfaces[index-1], Stop)):
+                return self._PreviousSurfaceIndex(index - 1)
+            else:
+                return index-1
+
+
+    def _NextSurfaceIndex(self, index):
+
+        if(index == len(self.surfaces)-1):
+            return index
+
+        else:
+            if (isinstance(self.surfaces[index+1], Stop)):
+                return self._NextSurfaceIndex(index + 1)
+            else:
+                return index+1
+
 
     def _ZeroCondition(self, index):
         """In some cases, a previous surface may have 0 thickness, i.e., it is directly on top of the current surface. This method tries to detect this condition"""

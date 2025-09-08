@@ -584,7 +584,6 @@ def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):
                                     E2.semiAxisMagA, 
                                     E2.semiAxisMagB  ) 
     
-    
 
     X = points[:, :, 0]
     Y = points[:, :, 1]

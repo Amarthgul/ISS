@@ -74,7 +74,7 @@ class EvenAspheric(Surface):
             return
 
         # Find equal-radius envelope (GPU-friendly, deterministic)
-        env = self.FindTightEqualRadiusEnvelope(
+        env = self._FindTightEqualRadiusEnvelope(
             C=self.clearSemiDiameter,
             nr=2048,  # radial samples (increase for tighter fit)
             nR=128,  # radius grid samples (log-spaced)
@@ -311,6 +311,12 @@ class EvenAspheric(Surface):
                                      clearSemiDiameter=self.boundingSurfaceB.clearSemiDiameter,
                                      cumulativeThickness=self.boundingSurfaceB.cumulativeThickness,)
 
+        if (self.clearBoundaryL is not None):
+            self.clearBoundaryL.DrawSurface()
+
+        if (self.clearBoundaryT is not None):
+            self.clearBoundaryT.DrawSurface()
+
 
     def GetInfo(self, showBounding=True):
         """
@@ -474,7 +480,7 @@ class EvenAspheric(Surface):
         return t, valid
 
 
-    def FindTightEqualRadiusEnvelope(self, C, nr=2048, nR=128, margin=0.0):
+    def _FindTightEqualRadiusEnvelope(self, C, nr=2048, nR=128, margin=0.0):
         """
         Find two enclosing spherical surfaces with the SAME radius (signed),
         that minimize the max gap thickness over r∈[0,C].

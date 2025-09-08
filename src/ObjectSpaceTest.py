@@ -13,6 +13,7 @@ from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE
 from Util.MaterialLookup import FindClosestMaterials, ReadSheet
+from Util.SpatialEllipse import SpatialCircle
 from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
 from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
@@ -25,6 +26,11 @@ from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHolo
 from src.Surfaces.EvenAspheric import EvenAspheric
 from src.Util.Globals import INFINITY
 from Raytracing.Emission import EmitField
+from Surfaces.MetalBoundary import MetalBoundary
+from Surfaces.Surface import Surface
+
+
+
 
 def AsphTest():
     SetUnifScale()
@@ -111,59 +117,33 @@ def DoubleImgTest():
     plt.show()
 
 
-def LinalgTest():
-    A = bd.array([[[ 0., -0.03225487],
-                  [ 1., -0.99947968]],
-                 [[ 0., -0.06186982],
-                  [ 1., -0.99808423]],
-                 [[ 0., -0.08692668],
-                  [ 1., -0.99621471]],
-                 [[ 0., -0.10661849],
-                  [ 1., -0.9943    ]],
-                 [[ 0., -0.12116925],
-                  [ 1., -0.99263186]],
-                 [[ 0., -0.13142925],
-                  [ 1., 0.99132555]],
-                 [[ 0., -0.13843404],
-                  [ 1., -0.99037166]],
-                 [[ 0., -0.14312024],
-                  [ 1., -0.98970531]],
-                 [[ 0., -0.14621826],
-                  [ 1., -0.98925235]],
-                 [[ 0.,  -0.14825282],
-                  [ 1.,  -0.98894949]],
-                 [[ 0.,  -0.1495842 ],
-                  [ 1.,  -0.98874899]],
-                 [[ 0.,  -0.15045374],
-                  [ 1.,  -0.98861705]],
-                 [[ 0.,  -0.15102104],
-                  [ 1.,  -0.98853055]],
-                 [[ 0.,  -0.15139092],
-                  [ 1.,  -0.98847397]]])
+def MetalTest():
+    SetUnifScale()
+    AddXYZ(70)
+    RemoveBG()
 
-    B = bd.array([
-                 [2.83727364e-01,5.00018818e+05],
-                 [5.33810970e-01,5.00018705e+05],
-                 [7.29764363e-01,5.00018551e+05],
-                 [8.68509736e-01,5.00018389e+05],
-                 [9.59310383e-01,5.00018243e+05],
-                 [1.01566953e+00,5.00018124e+05],
-                 [1.04968819e+00,5.00018033e+05],
-                 [1.07007025e+00,5.00017968e+05],
-                 [1.08235910e+00,5.00017922e+05],
-                 [1.08986636e+00,5.00017891e+05],
-                 [1.09452072e+00,5.00017870e+05],
-                 [1.09744508e+00,5.00017856e+05],
-                 [1.09930223e+00,5.00017847e+05],
-                 [1.10049110e+00,5.00017841e+05]])
+    pseudoSurface = Surface(INFINITY, 1, 10)
+    pseudoSurface.SetCumulative(0)
 
-    print("A.shape", A.shape)  # should be (N, 2, 2)
-    print("B.shape", B.shape)  # must be (N, 2)
+    e1 = SpatialCircle(0, 10)
+    e2 = SpatialCircle(5, 5)
+    mb = MetalBoundary(e1, e2)
 
-    t = bd.linalg.solve(A, B)
+    RB = EmitField(0, 0, 5000, sampleTargets=pseudoSurface.SampleFromSD())
+
+    inters = mb.Intersection(RB)
+    normals = mb.Normal(inters[0])
+    refl, _ = mb.Trace(RB)
+
+    DrawRaybatch(refl, lLength=2)
+    DrawNormal(inters[0], normals)
+
+    mb.DrawSurface()
+    plt.show()
+
 
 def main():
-    LinalgTest()
+    MetalTest()
 
 
 if __name__ == "__main__":

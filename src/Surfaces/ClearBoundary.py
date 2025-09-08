@@ -18,13 +18,6 @@ from Util.SpatialEllipse import SpatialEllipse, SpatialCircle
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
 
 
-class RayBehavior(Enum):
-    """ While it's called Refractive, it simply means the surface behaves like a normal glass, with refraction and reflection both at play. """
-    Refrative = 0
-
-    """ Those marked as Kill will remove all the rays that intersect with them. """
-    Kill = 1
-
 
 
 
@@ -48,13 +41,11 @@ class ClearBoundary():
         self.exteriorCoating = Material() 
 
 
-        """When exterior coating are absent, this attributes are used to calculate the lose of radiance after reflection."""
-        self.absorption = 0.5 
-
-
         """Weight of [0, 1] that controls total diffuse and total mirror reflection. When set to 0, surface reflects as lambertian, when set to 1, reflects like mirror"""
         self.specularReflection = 0.9
-        # This should be altered very carefully, too high of a change may resulting in relfected rays going beyonnd the surface 
+        # This should be altered very carefully, too high of a change may result in reflected rays going beyond the surface
+
+        self.absorption = 0
 
 
     def DrawSurface(self):

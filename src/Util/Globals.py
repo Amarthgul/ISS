@@ -90,7 +90,6 @@ PER_POINT_MAX_SAMPLE = 100
 
 
 
-
 # ==================================================================
 """ ========================== Vectors ========================= """
 # ==================================================================
@@ -158,6 +157,15 @@ class Fit(Enum):
 class PBR(Enum):
     GLASS = 0
     METAL = 1
+
+
+class RayBehavior(Enum):
+    """ While it's called Refractive, it simply means the surface behaves like a normal glass, with refraction and reflection both at play. """
+    Refrative = 0
+
+    """ Those marked as Kill will remove all the rays that intersect with them. """
+    Kill = 1
+
 
 
 # ==================================================================

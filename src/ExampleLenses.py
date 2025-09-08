@@ -481,7 +481,8 @@ def main():
     start = time.time()
 
     #Industar50_50mmf35() #
-    exampleLens = CanonEF50mmf12L()
+    # exampleLens = CanonEF50mmf12L()
+    exampleLens = ZeissHologon15mmf8()
 
     # exampleLens.AddFrontGroup([
     #     Surface(200, 2, 20, "FD60"),
