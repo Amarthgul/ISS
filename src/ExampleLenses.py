@@ -478,27 +478,27 @@ def _Zhongyi50f095Data():
     zy = Lens()
 
 
-    zy.AddSurface(Surface(108.29,   6.70,  29, "H-ZLAF55D"))
-    zy.AddSurface(Surface(-450.80,     0.10,  29))
-    zy.AddSurface(Surface(30.77,    6.84,  23, "H-ZLAF68B"))
+    zy.AddSurface(Surface(108.29,   6.70,  29,      "H-ZLAF55D"))
+    zy.AddSurface(Surface(-450.80,  0.10,  29))
+    zy.AddSurface(Surface(30.77,    6.84,  23,      "H-ZLAF68B"))
     zy.AddSurface(Surface(45.50,    2.82,  20))
-    zy.AddSurface(Surface(102.69,   1.20,  20.5, "H-ZF6"))
+    zy.AddSurface(Surface(102.69,   1.20,  20.5,    "H-ZF6"))
     zy.AddSurface(Surface(24.50,    9.58,  18.5))
 
     zy.AddSurface(Stop(7.76))
 
-    zy.AddSurface(Surface(-26.45,      1.37,    0,          18.5, "H-ZF5"))
-    zy.AddSurface(Surface(314.30,   9.15,    21, "H-ZLAF55D"))
-    zy.AddSurface(Surface(-41.48,      0.10,    1,          22))
-    zy.AddSurface(Surface(101.17,   5.20,    23, "H-ZLAF55D"))
-    zy.AddSurface(Surface(-1137.00,    3.43,    23))
-    zy.AddSurface(Surface(599.80,   5.82,    22.5, "H-ZLAF55D"))
-    zy.AddSurface(Surface(-82.10,      0.10,    22.5))
-    zy.AddSurface(Surface(55.88,    5.58,    20.5, "H-ZLAF55D"))
-    zy.AddSurface(Surface(373.20,   1.20,    19.5, "H-FK61"))
+    zy.AddSurface(Surface(-26.45,   1.37,    18.5,  "H-ZF5"))
+    zy.AddSurface(Surface(314.30,   9.15,    21,    "H-ZLAF55D"))
+    zy.AddSurface(Surface(-41.48,   0.10,    22))
+    zy.AddSurface(Surface(101.17,   5.20,    23,    "H-ZLAF55D"))
+    zy.AddSurface(Surface(-1137.00, 3.43,    23))
+    zy.AddSurface(Surface(599.80,   5.82,    22.5,  "H-ZLAF55D"))
+    zy.AddSurface(Surface(-82.10,   0.10,    22.5))
+    zy.AddSurface(Surface(55.88,    5.58,    20.5,  "H-ZLAF55D"))
+    zy.AddSurface(Surface(373.20,   1.20,    19.5,  "H-FK61"))
     zy.AddSurface(Surface(29.65,    2.99,    17))
-    zy.AddSurface(Surface(62.02,    8.97,    17.5, "H-LAF2"))
-    zy.AddSurface(Surface(-35.78,      1.20,    17.5, "H-ZF52TT"))
+    zy.AddSurface(Surface(62.02,    8.97,    17.5,  "H-LAF2"))
+    zy.AddSurface(Surface(-35.78,   1.20,    17.5,  "H-ZF52TT"))
     zy.AddSurface(Surface(372.66,   22.93,   17.5))
 
     return zy
@@ -517,14 +517,14 @@ def Zhongyi50f095():
 
     if(LOAD_LENS_FROM_FILE):
         zyExample.LoadExample()
-        sonnar = zyExample.data
+        zy = zyExample.data
     else:
-        sonnar = _Zhongyi50f095Data()
-        sonnar.UpdateLens()
-        zyExample.data = sonnar
+        zy = _Zhongyi50f095Data()
+        zy.UpdateLens()
+        zyExample.data = zy
         zyExample.SaveExample()
 
-    return zyExample
+    return zy
 
 
 # ==================================================================
