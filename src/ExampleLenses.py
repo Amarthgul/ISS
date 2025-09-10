@@ -65,117 +65,6 @@ def Mug():
     return mug
 
 
-# ==================================================================
-""" ==================== Zeiss Biotar 50mm f/1.4 =============== """
-# ==================================================================
-
-
-def _Biotar50mm14Data():
-    """
-    Zeiss Biotar 500mm f/1.4. 
-    Data from US 1786916 Example 2, EFL 100mm. 
-
-    :return: Lens object with only data and not initlized.
-    """
-    biotar = Lens() 
-
-    biotar.AddSurface(Surface(41.8,     5.375,      18,     "BAF9"))
-    biotar.AddSurface(Surface(160.5,    0.825,      18))
-    biotar.AddSurface(Surface(22.4,	    7.775,      16,     "SK10"))
-    biotar.AddSurface(Surface(-575,	    2.525,      16,     "LZ_LF5"))
-    biotar.AddSurface(Surface(14.15,	5.45,       11))
-    biotar.AddSurface(Stop(             4))
-    biotar.AddSurface(Surface(-19.25,	2.525,      11,     "SF5"))
-    biotar.AddSurface(Surface(25.25,	10.61,      14,     "BAF9"))
-    biotar.AddSurface(Surface(-26.6,	0.485,      14))
-    biotar.AddSurface(Surface(53, 	    6.95,       14.5,   "BAF9"))
-    biotar.AddSurface(Surface(-60,	    32.3552,    14.5))
-
-    return biotar 
-
-
-def Biotar50mmf14():
-    """
-    Zeiss Biotar 500mm f/1.4. 
-
-    :return: initlized lens object.
-    """
-    fileName = "ZeissBiotar50mmf1.4"
-
-    if(backend_name == 'cupy'):
-        fileName += '_CP'
-    else:
-        fileName += '_NP'
-
-    biotarExample = Example(None, fileName)
-
-    if(LOAD_LENS_FROM_FILE):
-        biotarExample.LoadExample()
-        biotar = biotarExample.data
-    else: 
-        biotar = _Biotar50mm14Data()
-        biotar.UpdateLens()
-        biotarExample.data = biotar
-        biotarExample.SaveExample()
-
-    return biotar
-
-# ==================================================================
-""" ==================== Zeiss Sonnar 50mm f/1.5 =============== """
-# ==================================================================
-
-
-def _Sonnar50F15Data():
-    """
-    Zeiss Biotar 500mm f/1.4. 
-    Data from US 1786916 Example 2, EFL 100mm. 
-
-    :return: Lens object with only data and not initlized.
-    """
-    sonnar = Lens() 
-
-    sonnar.AddSurface(Surface(34.605,	4.665,      17,     "H-ZBAF5"))
-    sonnar.AddSurface(Surface(216.92,	0.19,       17))
-    sonnar.AddSurface(Surface(17.93,	5.905,      14,     "H-ZBAF5"))
-    sonnar.AddSurface(Surface(42.89,	3.525,      14,     "FSL5"))
-    sonnar.AddSurface(Surface(-323.155,	0.95,       14,     "SF3"))
-    sonnar.AddSurface(Surface(11.755,	6.49,       9.5))
-
-    sonnar.AddSurface(Stop(             1.13))
-
-    sonnar.AddSurface(Surface(INFINITY,	1.24,       10,     "KF5"))
-    sonnar.AddSurface(Surface(25.545,	9.905,      10,     "S-ZBAF3", True))
-    sonnar.AddSurface(Surface(-11.06,	2.285,      10,   "BAL7", True))
-    sonnar.AddSurface(Surface(-51.565,	22.728,     11))
-
-    return sonnar 
-
-
-def Sonnar50mmF15():
-    """
-    Zeiss Biotar 500mm f/1.4. 
-
-    :return: initlized lens object.
-    """
-    fileName = "ZeissSonnar50mmf1.5"
-
-    if(backend_name == 'cupy'):
-        fileName += '_CP'
-    else:
-        fileName += '_NP'
-
-    sonnarExample = Example(None, fileName)
-
-    if(LOAD_LENS_FROM_FILE):
-        sonnarExample.LoadExample()
-        sonnar = sonnarExample.data
-    else: 
-        sonnar = _Sonnar50F15Data()
-        sonnar.UpdateLens()
-        sonnarExample.data = sonnar
-        sonnarExample.SaveExample()
-
-    return sonnar
 
 # ==================================================================
 """ ====================== Helios-44 58mm f/2 ================= """
@@ -348,6 +237,59 @@ def CanonFD50mmf18():
 
 
 # ==================================================================
+""" ========================== Industar ======================== """
+# ==================================================================
+
+
+def _Industar50_50mmf35Data():
+    """
+    Soviet lens.
+    """
+    lens = Lens()
+
+    lens.AddSurface(Surface(17.100, 2.700, 8, "LZ_TK14"))
+    lens.AddSurface(Surface(INFINITY, 4.160, 8))
+    lens.AddSurface(Surface(-33.570, 1.050, 7, "LZ_LF5"))
+    lens.AddSurface(Surface(14.560, 2.500, 7))
+
+    lens.AddSurface(Stop(2.550))
+
+    lens.AddSurface(Surface(346.700, 1.200, 7, "LZ_OF1"))
+    lens.AddSurface(Surface(15.000, 4.700, 7, "LZ_TK14"))
+    lens.AddSurface(Surface(-23.600, 44.560, 7))
+
+    return lens
+
+
+def Industar50_50mmf35():
+    """
+    Industar-50 50mm f/3.5
+
+    :return: initlized lens object.
+    """
+
+    fileName = "Industar-50-50mmf3.5"
+
+    if (backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    LensExample = Example(None, fileName)
+
+    if (LOAD_LENS_FROM_FILE):
+        LensExample.LoadExample()
+        industar = LensExample.data
+    else:
+        industar = _Industar50_50mmf35Data()
+        industar.UpdateLens()
+        LensExample.data = industar
+        LensExample.SaveExample()
+
+    return industar
+
+
+# ==================================================================
 """ ==================== Zeiss Hologon 15mm f/8 ================ """
 # ==================================================================
 
@@ -415,58 +357,174 @@ def ZeissHologon15mmf8():
     return canon
 
 
-
 # ==================================================================
-""" ========================== Industar ======================== """
+""" ==================== Zeiss Biotar 50mm f/1.4 =============== """
 # ==================================================================
 
 
-def _Industar50_50mmf35Data():
+def _Biotar50mm14Data():
     """
-    Soviet lens. 
+    Zeiss Biotar 500mm f/1.4.
+    Data from US 1786916 Example 2, EFL 100mm.
+
+    :return: Lens object with only data and not initlized.
     """
-    lens = Lens()
+    biotar = Lens()
 
-    lens.AddSurface(Surface(17.100,	    2.700,     8,       "LZ_TK14"))
-    lens.AddSurface(Surface(INFINITY,   4.160,     8))
-    lens.AddSurface(Surface(-33.570,	1.050,     7,       "LZ_LF5"))
-    lens.AddSurface(Surface(14.560,	    2.500,     7))
+    biotar.AddSurface(Surface(41.8,     5.375,      18,     "BAF9"))
+    biotar.AddSurface(Surface(160.5,    0.825,      18))
+    biotar.AddSurface(Surface(22.4,	    7.775,      16,     "SK10"))
+    biotar.AddSurface(Surface(-575,	    2.525,      16,     "LZ_LF5"))
+    biotar.AddSurface(Surface(14.15,	5.45,       11))
+    biotar.AddSurface(Stop(             4))
+    biotar.AddSurface(Surface(-19.25,	2.525,      11,     "SF5"))
+    biotar.AddSurface(Surface(25.25,	10.61,      14,     "BAF9"))
+    biotar.AddSurface(Surface(-26.6,	0.485,      14))
+    biotar.AddSurface(Surface(53, 	    6.95,       14.5,   "BAF9"))
+    biotar.AddSurface(Surface(-60,	    32.3552,    14.5))
 
-    lens.AddSurface(Stop(               2.550))
-
-    lens.AddSurface(Surface(346.700,    1.200,     7,      "LZ_OF1"))
-    lens.AddSurface(Surface(15.000,	    4.700,     7,      "LZ_TK14"))
-    lens.AddSurface(Surface(-23.600,	44.560,    7))
-
-    return lens
+    return biotar
 
 
-def Industar50_50mmf35():
+def Biotar50mmf14():
     """
-    Industar-50 50mm f/3.5
-    
+    Zeiss Biotar 500mm f/1.4.
+
     :return: initlized lens object.
     """
-
-    fileName = "Industar-50-50mmf3.5"
+    fileName = "ZeissBiotar50mmf1.4"
 
     if(backend_name == 'cupy'):
         fileName += '_CP'
     else:
         fileName += '_NP'
 
-    LensExample = Example(None, fileName)
+    biotarExample = Example(None, fileName)
 
     if(LOAD_LENS_FROM_FILE):
-        LensExample.LoadExample()
-        industar = LensExample.data
-    else: 
-        industar = _Industar50_50mmf35Data()
-        industar.UpdateLens()
-        LensExample.data = industar
-        LensExample.SaveExample()
+        biotarExample.LoadExample()
+        biotar = biotarExample.data
+    else:
+        biotar = _Biotar50mm14Data()
+        biotar.UpdateLens()
+        biotarExample.data = biotar
+        biotarExample.SaveExample()
 
-    return industar
+    return biotar
+
+# ==================================================================
+""" ==================== Zeiss Sonnar 50mm f/1.5 =============== """
+# ==================================================================
+
+
+def _Sonnar50F15Data():
+    """
+    Zeiss Biotar 500mm f/1.4.
+    Data from US 1786916 Example 2, EFL 100mm.
+
+    :return: Lens object with only data and not initlized.
+    """
+    sonnar = Lens()
+
+    sonnar.AddSurface(Surface(34.605,	4.665,      17,     "H-ZBAF5"))
+    sonnar.AddSurface(Surface(216.92,	0.19,       17))
+    sonnar.AddSurface(Surface(17.93,	5.905,      14,     "H-ZBAF5"))
+    sonnar.AddSurface(Surface(42.89,	3.525,      14,     "FSL5"))
+    sonnar.AddSurface(Surface(-323.155,	0.95,       14,     "SF3"))
+    sonnar.AddSurface(Surface(11.755,	6.49,       9.5))
+
+    sonnar.AddSurface(Stop(             1.13))
+
+    sonnar.AddSurface(Surface(INFINITY,	1.24,       10,     "KF5"))
+    sonnar.AddSurface(Surface(25.545,	9.905,      10,     "S-ZBAF3", True))
+    sonnar.AddSurface(Surface(-11.06,	2.285,      10,   "BAL7", True))
+    sonnar.AddSurface(Surface(-51.565,	22.728,     11))
+
+    return sonnar
+
+
+def Sonnar50mmF15():
+    """
+    Zeiss Biotar 500mm f/1.4.
+
+    :return: initlized lens object.
+    """
+    fileName = "ZeissSonnar50mmf1.5"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    sonnarExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        sonnarExample.LoadExample()
+        sonnar = sonnarExample.data
+    else:
+        sonnar = _Sonnar50F15Data()
+        sonnar.UpdateLens()
+        sonnarExample.data = sonnar
+        sonnarExample.SaveExample()
+
+    return sonnar
+
+
+# ==================================================================
+""" ===================== Zhongyi 50mm f/-/95  ================= """
+# ==================================================================
+
+def _Zhongyi50f095Data():
+    zy = Lens()
+
+
+    zy.AddSurface(Surface(108.29,   6.70,  29, "H-ZLAF55D"))
+    zy.AddSurface(Surface(-450.80,     0.10,  29))
+    zy.AddSurface(Surface(30.77,    6.84,  23, "H-ZLAF68B"))
+    zy.AddSurface(Surface(45.50,    2.82,  20))
+    zy.AddSurface(Surface(102.69,   1.20,  20.5, "H-ZF6"))
+    zy.AddSurface(Surface(24.50,    9.58,  18.5))
+
+    zy.AddSurface(Stop(7.76))
+
+    zy.AddSurface(Surface(-26.45,      1.37,    0,          18.5, "H-ZF5"))
+    zy.AddSurface(Surface(314.30,   9.15,    21, "H-ZLAF55D"))
+    zy.AddSurface(Surface(-41.48,      0.10,    1,          22))
+    zy.AddSurface(Surface(101.17,   5.20,    23, "H-ZLAF55D"))
+    zy.AddSurface(Surface(-1137.00,    3.43,    23))
+    zy.AddSurface(Surface(599.80,   5.82,    22.5, "H-ZLAF55D"))
+    zy.AddSurface(Surface(-82.10,      0.10,    22.5))
+    zy.AddSurface(Surface(55.88,    5.58,    20.5, "H-ZLAF55D"))
+    zy.AddSurface(Surface(373.20,   1.20,    19.5, "H-FK61"))
+    zy.AddSurface(Surface(29.65,    2.99,    17))
+    zy.AddSurface(Surface(62.02,    8.97,    17.5, "H-LAF2"))
+    zy.AddSurface(Surface(-35.78,      1.20,    17.5, "H-ZF52TT"))
+    zy.AddSurface(Surface(372.66,   22.93,   17.5))
+
+    return zy
+
+
+def Zhongyi50f095():
+
+    fileName = "Zhongyi50f095"
+
+    if(backend_name == 'cupy'):
+        fileName += '_CP'
+    else:
+        fileName += '_NP'
+
+    zyExample = Example(None, fileName)
+
+    if(LOAD_LENS_FROM_FILE):
+        zyExample.LoadExample()
+        sonnar = zyExample.data
+    else:
+        sonnar = _Zhongyi50f095Data()
+        sonnar.UpdateLens()
+        zyExample.data = sonnar
+        zyExample.SaveExample()
+
+    return zyExample
 
 
 # ==================================================================
@@ -482,7 +540,7 @@ def main():
 
     #Industar50_50mmf35() #
     # exampleLens = CanonEF50mmf12L()
-    exampleLens = CanonFD50mmf18()
+    exampleLens = Zhongyi50f095()
 
     # exampleLens.AddFrontGroup([
     #     Surface(200, 2, 20, "FD60"),
