@@ -121,8 +121,8 @@ class EvenAspheric(Surface):
         Rs = float(self.boundingSurfaceF.radius)  # signed
 
         # --- intersect with both proxies to form a bracket [t_lo, t_hi]
-        t1, v1 = self._intersect_ray_sphere_centerz(o, d, zc_lo, abs(Rs))
-        t2, v2 = self._intersect_ray_sphere_centerz(o, d, zc_hi, abs(Rs))
+        t1, v1 = self._IntersectRaySphereCenterz(o, d, zc_lo, abs(Rs))
+        t2, v2 = self._IntersectRaySphereCenterz(o, d, zc_hi, abs(Rs))
 
         # valid bracket begins where both proxies intersect and at least one t>0
         valid = v1 & v2
@@ -445,7 +445,7 @@ class EvenAspheric(Surface):
         return zc_lo, zc_hi
 
 
-    def _intersect_ray_sphere_centerz(self, o, d, zc, Rs_abs):
+    def _IntersectRaySphereCenterz(self, o, d, zc, Rs_abs):
         """
         Intersection t with a sphere centered at (0,0,zc), radius |Rs_abs|.
         Returns t (nearest side by sign rule) and a validity mask (discriminant>=0).
