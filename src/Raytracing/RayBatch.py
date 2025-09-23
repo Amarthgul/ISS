@@ -186,10 +186,10 @@ class RayBatch:
         return self
 
 
-    def RandomDrop(self, keeprate = 1):
+    def RandomDrop(self, dropRate = 0.0):
         """Randomly remove some of the rays in this raybatch."""
         rnd = RNG.rand(len(self.value))
-        keep_mask = rnd >= keeprate
+        keep_mask = (rnd >= dropRate)
 
         self.value = self.value[keep_mask]
 

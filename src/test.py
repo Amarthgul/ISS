@@ -171,7 +171,7 @@ def SpotTesting(lens, objectDistance = 500000, focusDistance = 1000, saveIterati
         iterationCount += 1
 
 
-def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, refIte=2, realTimeUpdate = True):
+def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, refIte=3, realTimeUpdate = True):
 
 
     source = PointsSource()
@@ -190,14 +190,11 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
         im = ax.imshow(ImageConversion(image))
 
     iterationCount = 0
-    powerCoef = 2 ** (refIte-2)
-    pupilSampleCount = int(256 / powerCoef)
     pupilSampleCount = 128
-    totalSampleIteration = imageMinSample*powerCoef
     print("Pupil sample per iter at ", pupilSampleCount)
 
-    while(iterationCount < totalSampleIteration):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(pupilSampleCount), 5, addSecondary=5)
+    while(iterationCount < imageMinSample):
+        mainRB = source.EmitSamplesToward(lens.GetFirstElementSamples(pupilSampleCount), 5, addSecondary=5)
 
         _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True, iteCount=refIte)
   
@@ -220,7 +217,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
         print("\n- Focusing ", focusDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased))
-        ProgressBar(iterationCount / totalSampleIteration, 100)
+        ProgressBar(iterationCount / imageMinSample, 100)
 
         iterationCount += 1
 
@@ -521,13 +518,15 @@ def main():
     #     5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     # ]
     
-    angleFieldX = bd.linspace(-20, 20, len(objectDistance))
-    angleFieldY = bd.linspace(-13, 13, len(objectDistance))
+    angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.9
+    angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.9
 
-    lens = Zhongyi50f095()
+    # lens = Zhongyi50f095()
     # lens = CanonEF50mmf12L()
     # lens = ZeissHologon15mmf8() #AoV 104
     # lens = Sonnar50mmF15()
+    # lens = CanonFD50mmf18()
+    lens = CanonEF50mmf12L()
 
     #ISO12233Test(lens, realTimeUpdate=True)
     SpotTesting(lens, realTimeUpdate=True)
@@ -542,14 +541,14 @@ def main():
     # for t in [ 0.9, 1.2, 1.5, 1.8, 2.2, 2.6, 3.]:
     #     PDATest(lens, t, AoV=38.75, imageDistance=100000, imageMinSample=2048, realTimeUpdate=False)
 
-    #for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
+    for ax, ay, d in zip(angleFieldX, angleFieldY, objectDistance):
     # #     ISO12233Test(lens, imageDistance=d, imageMinSample=512, realTimeUpdate=False)
     #
-        # position = bd.array([1000, 600, -o])
-        #position = AngleFieldToCartesian(ax, ay, -d)
+        # position = bd.array([1000, 600, -20000])
+        position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
-    #     #ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=4096, realTimeUpdate=False)
-        #ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=32, realTimeUpdate=True)
+        # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, imageMinSample=128, realTimeUpdate=True)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 

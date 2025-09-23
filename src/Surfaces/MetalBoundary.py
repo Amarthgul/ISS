@@ -66,7 +66,9 @@ class MetalBoundary(ClearBoundary):
         reflected = Reflect(reflectedRB.Direction(), normals)
         reflectedRB.SetDirection(reflected)
 
-        reflectedRB.RandomDrop(1 - self.absorption)
+        print("Before culling: ", reflectedRB.value.shape)
+        reflectedRB.RandomDrop(self.absorption)
+        print("After culling: ", reflectedRB.value.shape)
 
         return reflectedRB, _mask
 

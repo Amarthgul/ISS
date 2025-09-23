@@ -463,19 +463,34 @@ class EvenAspheric(Surface):
 
         disc = b * b - 4 * a * c
         valid = disc >= 0
+
         t = bd.full_like(a, bd.nan)
 
-        if valid.any():
+        # Make the “if” scalar-safe on CuPy:
+        if bool(valid.any()):
             sd = bd.sqrt(disc[valid])
             t0 = (-b[valid] - sd) / (2 * a[valid])
             t1 = (-b[valid] + sd) / (2 * a[valid])
-            # choose side consistent with signed radius (like Surface._SphericalIntersection)
-            # sign(Rs) != sign(dz) -> take far root t1; else near t0
-            mask_far = (bd.sign(self.boundingSurfaceF.radius) != bd.sign(dz[valid]))
-            t_sel = bd.where(mask_far, t1, t0)
-            # if both negative, keep the other
-            t_sel = bd.where(t_sel > 0, t_sel, bd.where(mask_far, t0, t1))
-            t = bd.where(valid, t_sel, t)
+
+            # For proxy bracketing, the most robust choice is:
+            # pick the nearest positive root (independent of dz and sign(Rs))
+            # This avoids side-dependent surprises for “backwards” rays.
+            t_near = bd.where(t0 > 0, t0, t1)
+            t_far = bd.where(t0 > 0, t1, t0)
+
+            # Alternatively, if near/far rule tied to dz & sign(Rs) is wanted, compute mask_far on the valid slice:
+            # mask_far = (bd.sign(self.boundingSurfaceF.radius) != bd.sign(dz[valid]))
+            # t_sel = bd.where(mask_far, t_far, t_near)
+            # Otherwise, just take the nearest positive:
+            t_sel = t_near
+
+            # If both roots are negative, keep NaN:
+            has_pos = (t_near > 0) | (t_far > 0)
+            t_sel = bd.where(has_pos, t_sel, bd.full_like(t_sel, bd.nan))
+
+            # ✅ masked assignment writes M values into N-slot vector
+            t = t.copy()
+            t[valid] = t_sel
 
         return t, valid
 

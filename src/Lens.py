@@ -74,7 +74,10 @@ class Lens:
         self.surfaces.append(inputSurface)
 
 
-    def AddRearGroup(self, rearGroup):
+    def AddRearGroup(self, rearGroup, rearGroupDistace=None):
+        """
+        Append a rear group
+        """
         if(len(rearGroup) == 0): return
 
         self.surfaces[len(self.surfaces)-1].thickness =  .2
@@ -819,7 +822,7 @@ class Lens:
         returnRB = RayBatch(None)
         
 
-        # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at 1
+        # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at index 1
         for i in range(1, len(self.surfaces)):
 
             # Find the rays that are in the current surface
