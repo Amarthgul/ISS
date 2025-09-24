@@ -57,39 +57,56 @@ def AsphTest():
     plt.show()
 
 
-def StereoImageTest():
-    targets = bd.array([
-        [1, 2, 25],
-        [2, 4, 25],
-        [-2, 3, 25],
-        [1, -2, 25]
-    ])
+def StereoImageTest(imageMinSample = 4096, realTimeUpdate = True):
 
     img = Image2DVariDepth()
-    img.imageDimensionOverride = 200
-    img.nearClipping = 200
-    img.zDepthMappingRange = bd.array([500, 1000])
+    # img.imageDimensionOverride = 200
+    # img.nearClipping = 200
+    img.zDepthMappingRange = bd.array([1500, 20000])
 
     img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
 
-    img.DrawImage()
+    #img.DrawImage()
+    #plt.show()
 
-    # RemoveBG()
-    # SetUnifScale(1000)
-    # plt.show()
 
     lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(50000))
+    imager = StdImager(lens.BestFocusBFD(5000))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty()
 
-    mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024)
-    mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-    mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-    # mainRP.Append(mainRB, _tir, _vig)
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
 
-    image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+    while (True):
 
+        mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024)
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+        if (realTimeUpdate):
+            im.set_data(ImageConversion(image))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elpased = time.time() - start
+        ProgressBar(iterationCount / imageMinSample, 100)
+        iterationCount += 1
+
+        if (iterationCount > imageMinSample):
+            image /= 100
+            global FrameCount
+            fn = r"Stereo test"
+            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
+            break
 
 def DoubleImgTest():
     targets = bd.array([
@@ -143,7 +160,7 @@ def MetalTest():
 
 
 def main():
-    AsphTest()
+    StereoImageTest()
 
 
 if __name__ == "__main__":

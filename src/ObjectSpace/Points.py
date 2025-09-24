@@ -91,8 +91,9 @@ class PointsSource:
         # Create a new source instance using the selected points 
         sourceDuplicate = PointsSource(self.value[selectedIndices])
 
-        # In case of spot testing, copy the Cartesian setting 
+        # Copy the coordinate and angle setting from this one to the children
         sourceDuplicate.isCartesian = self.isCartesian
+        sourceDuplicate.angleInRad = self.angleInRad
 
         # If the sources come from a vari depth image, the jitters may be a 1D array corresponding to each source
         if (bd.ndim(jitter) == 1): jitter = jitter[selectedIndices]

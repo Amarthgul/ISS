@@ -488,7 +488,7 @@ class EvenAspheric(Surface):
             has_pos = (t_near > 0) | (t_far > 0)
             t_sel = bd.where(has_pos, t_sel, bd.full_like(t_sel, bd.nan))
 
-            # ✅ masked assignment writes M values into N-slot vector
+            # masked assignment writes M values into N-slot vector
             t = t.copy()
             t[valid] = t_sel
 

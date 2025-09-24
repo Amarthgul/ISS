@@ -233,6 +233,7 @@ class Image2DVariDepth(Image2D):
         # Finally, create a new PointsSource with these points.
         self.pointSource = PointsSource(points)
         self.pointSource.isCartesian = False
+        self.pointSource.angleInRad = True
 
 
     def _zClipDistance(self, horizontalHalfRad, verticalHalfRad,
