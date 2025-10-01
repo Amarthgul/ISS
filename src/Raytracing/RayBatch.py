@@ -206,27 +206,36 @@ class RayBatch:
         return self 
 
 
-    def RadiantKill(self):
+    def RadiantKill(self, killThreshold = RADIANT_KILL):
         """
         Remove all the rays whose polarized radiance is below the threshold.
 
-        :return: this RayBatch object itself, which has been modidified.
+        :param killThreshold: threshold for ray kill.
+        :return: this RayBatch object itself, which has been modified.
         """
         
-        validMask = self.PolarizedRadiance() >= RADIANT_KILL
+        validMask = self.PolarizedRadiance() >= killThreshold
         self.Mask(validMask)
 
         return self
 
 
     def SurfaceKill(self, index):
+        """
+        Kill all the rays at a surface.
 
+        :param index: surface index at which the rays shall be killed.
+        """
         removeMask = self.SurfaceIndex() == index
         self.Mask(~removeMask)
 
 
     def TrimExitRays(self, index):
+        """
+        Trim out the rays facing at object space at a surface.
 
+        :param index: surface index at which the rays shall be examined and trimed.
+        """
         validMask = (self.value[:, 10] == index) & (self.value[:, 5] > 0)
 
         exitRB = RayBatch(bd.copy(self.value[validMask]))

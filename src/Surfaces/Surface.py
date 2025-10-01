@@ -326,7 +326,7 @@ class Surface:
         return _temp, TIR, boolVig 
 
 
-    def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False):
+    def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
         """
         Deal with all the reactions the rays have upon reaching the surface. This includes: 
         - Refraction. The main contributor to image formation. 
@@ -341,6 +341,8 @@ class Surface:
 
         :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
         """
+
+        # TODO: this should be spilt into
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
@@ -382,6 +384,7 @@ class Surface:
 
 
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+
         if(reflection):
             # These reflected are the reflected componenet form the refracted due to fresnel  
             reflected = Reflect(directions, normals)
@@ -404,7 +407,7 @@ class Surface:
             R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
             
 
-            # Accquire s and p direction for polarization, reflection and refraction 
+            # Acquire s and p direction for polarization, reflection and refraction
             senkrecht, parallel = SenkrechtUndParallel(directions, normals)
             
 
@@ -457,7 +460,10 @@ class Surface:
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
 
 
-            if( (self.clearBoundaryL is not None) and bd.any(boolVig) and (not inverted) ):
+            if( useClearBoundary and
+                    (self.clearBoundaryL is not None) and
+                    bd.any(boolVig) and
+                    (not inverted)):
 
                 vigReflRBL, _NonInterMask = self.clearBoundaryL.Trace(vigRB, previousRI[boolVig])
                 if(self.clearBoundaryT is not None and bd.any(_NonInterMask)):

@@ -180,8 +180,7 @@ class Lens:
 
         reflectedRB = RayBatch()
 
-        # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging. 
-        # If enabled, the reflected rays will be creted, recorded, and returned during the process. 
+        # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging.
         
         for i in range(len(self.surfaces)):
             if not isinstance(self.surfaces[i], Stop):
@@ -200,6 +199,7 @@ class Lens:
                 # The index of main RB is where they are after a surface
                 rayBatch.SetIndex(i)
 
+                # If reflection is enabled, the reflected rays will be created, recorded, and returned during the process.
                 if(reflection):
                     # For the reflected rays, the surface index means where they are before a surface
                     _reflectedRB.RadiantKill()
@@ -215,17 +215,20 @@ class Lens:
         
 
         if (reflection):
+
             reflectedRB.SurfaceKill(0)
+
             color = ["r", "b"]
             exitRB = RayBatch(None)
             for _c in range(iteCount):
                 #print("In ", _c, " th reflection iteration")
                 reflectedRB = self._BounceReflection(reflectedRB)
-                exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex)) 
+                exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex))
 
-
-            # After 3 times of reflection, these still facing negative Z might as well be dropped to save space 
+            # Register the total reflected rays
             reflectedRB.Merge(exitRB)
+
+
             reflectedRB = reflectedRB.GetRaysFacing()
             
             reflectedRB = self._PropagateReflectedThrough(reflectedRB)
@@ -506,12 +509,13 @@ class Lens:
         self.surfaces[_imageSideIndex].clearBoundaryL = boundary(_C2, _C3)
 
 
-    def _CreateClearBoundary(self) -> None:
+    def _CreateClearBoundary(self, createOuterBound=False) -> None:
         """Create clear boundaries for the lens. This includes the boundaries that connects surfaces and make each element sealed solids, and also mechanical parts lying in between the lens elements."""
 
         self._CreateClearBoundaryInnerGroup()
 
-        self._CreateClearBoundaryOuterGroup()
+        if (createOuterBound):
+            self._CreateClearBoundaryOuterGroup()
 
 
     def _CreateClearBoundaryInnerGroup(self) -> None:
@@ -817,7 +821,7 @@ class Lens:
 
     def _BounceReflection(self, reflectedRB):
         """
-        Iterate through each surface, calculate the reflection inside the surface. 
+        Iterate through each surface, calculate the reflection inside the surface, including the clear boundaries.
         """
         returnRB = RayBatch(None)
         
@@ -832,7 +836,8 @@ class Lens:
                 _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     inSurfaceRB, 
                     self._FindPreviousRI(i, inSurfaceRB), 
-                    reflection = True)
+                    reflection = True,
+                    useClearBoundary = True)
                 
                 # _surfaceRB are rays that are refracted into the previous space 
                 _surfaceRB.SetIndex(i-1)
@@ -866,6 +871,12 @@ class Lens:
         returnRB.SurfaceKill(0)
 
         return returnRB
+
+
+    def _BounceReflSurfaceOnly(self, reflectedRB):
+        """Iterate through each surface, calculate both reflection and refraction for the sake of bouncing all reflections caused by primary surfaces."""
+
+        pass
 
 
     def _PropagateReflectedThrough(self, reflectedRB):

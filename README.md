@@ -28,12 +28,8 @@ Detailed documentation
 ### Coding Conventions 
 
 I must admit that there are a lot of inconsistencies in the coding convention here. 
-
-For example, while I tried to stick to the `UpperCaseCamel`, it soon becomes clear that Python is supposed to be using the `under_score_format`.  Through the IDE I also learned that: 
-
-- Python `if` statement does not necessarily need the parenthesis. 
-
-- Function notes have more than one standard and `:param NAME:` is not to be taken as universal. 
+For example, I started the project defaulting to my normal `UpperCaseCamel` paradigm, but later I learned that that Python is supposed to be using the `under_score_format`. 
+Through the IDE I also learned that Python `if` statement does not necessarily need the parenthesis; function notes have more than one standard and `:param NAME:` is not to be taken as universal. 
 
 As a result, there are quite a lot of variations of method/variable names and commenting styles. 
 
