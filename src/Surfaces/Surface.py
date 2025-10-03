@@ -342,7 +342,7 @@ class Surface:
         :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
         """
 
-        # TODO: this should be spilt into
+        # TODO: this should be spilt into several smaller methods
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)

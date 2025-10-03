@@ -57,12 +57,25 @@ def AsphTest():
     plt.show()
 
 
-def StereoImageTest(imageMinSample = 4096, realTimeUpdate = True):
+def StereoImageDisplay(imageMinSample = 4096, realTimeUpdate = True):
+
+    img = Image2DVariDepth()
+    img.imageDimensionOverride = 200
+    # img.nearClipping = 200
+    img.zDepthMappingRange = bd.array([800, 10000])
+
+    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+
+    img.DrawImage()
+    plt.show()
+
+
+def StereoImageTest(imageMinSample = 10240, realTimeUpdate = False):
 
     img = Image2DVariDepth()
     # img.imageDimensionOverride = 200
     # img.nearClipping = 200
-    img.zDepthMappingRange = bd.array([1500, 20000])
+    img.zDepthMappingRange = bd.array([500, 10000])
 
     img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
 
@@ -71,7 +84,7 @@ def StereoImageTest(imageMinSample = 4096, realTimeUpdate = True):
 
 
     lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(5000))
+    imager = StdImager(lens.BestFocusBFD(1500))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty()
 
@@ -107,6 +120,7 @@ def StereoImageTest(imageMinSample = 4096, realTimeUpdate = True):
             fn = r"Stereo test"
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
+
 
 def DoubleImgTest():
     targets = bd.array([
@@ -161,6 +175,7 @@ def MetalTest():
 
 def main():
     StereoImageTest()
+    # StereoImageDisplay()
 
 
 if __name__ == "__main__":
