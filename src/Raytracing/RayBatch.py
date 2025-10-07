@@ -102,7 +102,7 @@ class RayBatch:
 
     def GetRaysAt(self, index, asRB=True):
         """
-        Accquire the rays whose index is at the given value. 
+        Acquire the rays whose index is at the given value.
 
         :param index: surface index. 
         :param asRB: when enabled, return as a RayBatch object.
@@ -118,7 +118,7 @@ class RayBatch:
         return val
 
 
-    def GetRaysFacing(self, facingPosZ=True):
+    def GetDirectionalRay(self, facingPosZ=True):
         """
         Select the rays that are facing the positive or negative z direction. 
         """
@@ -143,7 +143,9 @@ class RayBatch:
 
 
     def SetIndex(self, indices):
-
+        """
+        Set the surface index of this raybatch.
+        """
         self.value[:, 10] = indices
 
 
@@ -234,7 +236,7 @@ class RayBatch:
         """
         Trim out the rays facing at object space at a surface.
 
-        :param index: surface index at which the rays shall be examined and trimed.
+        :param index: surface index at which the rays shall be examined and trim.
         """
         validMask = (self.value[:, 10] == index) & (self.value[:, 5] > 0)
 
@@ -242,7 +244,6 @@ class RayBatch:
         self.Mask(~validMask)
 
         return exitRB
-
 
 
     def ToString(self, maxCount=50):
@@ -255,6 +256,34 @@ class RayBatch:
         
         result += "]"
         return result
+
+
+    def SurfaceDistributionInfo(self):
+        """
+        Return a string summary of how many rays belong to each surface index.
+        Format:
+            0: m
+            1: n
+            2: ...
+        """
+
+        if self.value is None or self.value.shape[0] == 0:
+            return "No rays in batch."
+
+        # Assume surface index is stored in column self.COL_SURFACE
+        surf_idx = bd.asarray(self.value[:, 10]).astype(int)
+
+        # Count occurrences of each unique surface index
+        unique_surfaces, counts = bd.unique(surf_idx, return_counts=True)
+
+        # Convert to CPU if backend is CuPy
+        if hasattr(unique_surfaces, "get"):
+            unique_surfaces = unique_surfaces.get()
+            counts = counts.get()
+
+        # Build formatted string
+        lines = [f"{int(s)}: {int(c)}" for s, c in zip(unique_surfaces, counts)]
+        return "\n".join(lines)
 
 
 

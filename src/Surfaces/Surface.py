@@ -336,8 +336,8 @@ class Surface:
 
         :param incidentRaybatch: main raybatch at question. 
         :param previousRI: array representing the RI of the surface before that, i.e., the RI of the medium the rays are currently in. 
-        :param inverted: bool for whether or not the rays are aiming from behind.
-        :param reflection: bool for whether or not to calculate refections. 
+        :param inverted: bool for whether the rays are aiming from behind.
+        :param reflection: bool for whether to calculate reflections.
 
         :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
         """
@@ -386,19 +386,17 @@ class Surface:
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 
         if(reflection):
-            # These reflected are the reflected componenet form the refracted due to fresnel  
+            # These reflected are the reflected component form the refracted due to fresnel
             reflected = Reflect(directions, normals)
 
             reflectedRB.SetPosition(intersections[~TIR])
             reflectedRB.SetDirection(reflected[~TIR])
-            # DrawRaybatch(reflectedRB, lineColor="g") # ======= Draw call
-            # TIR are the reverted selection 
+
+            # TIR are the reverted selection
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
             tirRB.SetPosition(intersections[TIR])
             tirRB.SetDirection(reflected[TIR])
 
-        
-            #print(tirRB.PolarizedRadiance())
 
             # ==============================================================
             # ========================= Polarization =======================
@@ -425,36 +423,9 @@ class Surface:
                 R_p
             )
 
-            # senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
-            # parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
-
-            # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
-            #     DrawEllipse(mat, pos)# ============ Draw call
-            
             refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
-
-
-            # for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-            #     DrawEllipse(mat, pos, lColor="m")# ============ Draw call
-
-            #print(reflectedRB.PolarizationMat())
             
             reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
-            # print(reflectedRB.PolarizationMat(), "\n\n")
-
-            # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
-            #     DrawEllipse(mat, pos)# ============ Draw call
-
-            # for pos, mat in zip(reflectedRB.Position(), reflectedRB.PolarizationMat()):
-            #     DrawEllipse(mat, pos, lColor="c")# ============ Draw call
-
-            # for pos, mat in zip(tirRB.Position(), tirRB.PolarizationMat()):
-            #     DrawEllipse(mat, pos, lColor="b")# ============ Draw call
-
-            # print(refractedRB.PolarizedRadiance())
-            # print(reflectedRB.value.shape)
-            # print(tirRB.value.shape)
-            # print("\n")
 
             # Copy the vignetted rays to prepare for clear boundary check 
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))

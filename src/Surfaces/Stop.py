@@ -8,6 +8,10 @@ from Material import Material
 
 
 class Stop(Surface):
+    """
+    Stop of the system.
+    Note that, although the stop in proactive may not be the aperture diaphragm, for practical reason we treat it as such.
+    """
     def __init__(self, t):
         self.thickness = t 
         self.bladeShape = None

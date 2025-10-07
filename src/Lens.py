@@ -9,6 +9,8 @@ from dask.dataframe.methods import boundary_slice
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import re
 
+from xarray.plot import surface
+
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
 from Util.Backend import constant
 from Util.Backend import backend as bd 
@@ -20,6 +22,7 @@ from Util.Sampling import RandomEllipticalDistribution
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import Surface
+from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
 from Surfaces.ClearBoundary import ClearBoundary
@@ -188,13 +191,6 @@ class Lens:
                     rayBatch, 
                     self._FindPreviousRI(i, rayBatch), 
                     reflection = reflection)
-                # print("At surface ", i)
-                #print("RI comparison at ", i, "th:  ", self._FindPreviousRI(i, rayBatch), " w ", self.surfaces[i].RI(rayBatch.Wavelength()))
-
-                # DrawRaybatch(rayBatch, lLength=2, lineColor="r")  # =========== Draw call
-                # plt.draw()
-                # plt.pause(0.1)
-                # print(i, "th surface TIR ", _tir)
 
                 # The index of main RB is where they are after a surface
                 rayBatch.SetIndex(i)
@@ -203,7 +199,6 @@ class Lens:
                 if(reflection):
                     # For the reflected rays, the surface index means where they are before a surface
                     _reflectedRB.RadiantKill()
-                    # _reflectedRB.SetIndex(i)
                     reflectedRB.Merge(_reflectedRB)
 
                 
@@ -216,12 +211,13 @@ class Lens:
 
         if (reflection):
 
+            print(reflectedRB.SurfaceDistributionInfo())
+
             reflectedRB.SurfaceKill(0)
 
             color = ["r", "b"]
             exitRB = RayBatch(None)
             for _c in range(iteCount):
-                #print("In ", _c, " th reflection iteration")
                 reflectedRB = self._BounceReflection(reflectedRB)
                 exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex))
 
@@ -229,7 +225,7 @@ class Lens:
             reflectedRB.Merge(exitRB)
 
 
-            reflectedRB = reflectedRB.GetRaysFacing()
+            reflectedRB = reflectedRB.GetDirectionalRay()
             
             reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
@@ -829,8 +825,8 @@ class Lens:
         # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at index 1
         for i in range(1, len(self.surfaces)):
 
-            # Find the rays that are in the current surface
-            inSurfaceRB = reflectedRB.GetRaysAt(i)
+            # Find the rays that are in the current surface space
+            inSurfaceRB = reflectedRB.GetRaysAt(i-1)
 
             if(not isinstance(self.surfaces[i], Stop)):
                 _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
@@ -840,14 +836,14 @@ class Lens:
                     useClearBoundary = True)
                 
                 # _surfaceRB are rays that are refracted into the previous space 
-                _surfaceRB.SetIndex(i-1)
+                _surfaceRB.SetIndex(self._PreviousSurfaceIndex(i))
                 # Keep only the rays that did not intersect with the previous surface 
                 inSurfaceRB.Merge(_surfaceRB)
                 inSurfaceRB.Merge(_reflectedRB)
 
                 # DrawRaybatch(_surfaceRB, lLength=2, lineColor="b") # =========== Draw call
                 # DrawRaybatch(_reflectedRB, lLength=2, lineColor="g") # =========== Draw call
-            # The ones that still faces back might as well be droped 
+            # The ones that still faces back might as well be dropped
 
             if((i+1 < len(self.surfaces)) and 
                (not isinstance(self.surfaces[i+1], Stop))):
@@ -873,15 +869,42 @@ class Lens:
         return returnRB
 
 
-    def _BounceReflSurfaceOnly(self, reflectedRB):
-        """Iterate through each surface, calculate both reflection and refraction for the sake of bouncing all reflections caused by primary surfaces."""
+    def _BounceReflectionAlt(self, reflectedRB):
+        """Iterate through each surface, calculate both reflection and refraction for the sake of bouncing all reflections caused by primary surfaces.
+        """
 
-        pass
+        returnRB = RayBatch(None)
+        BackwardRB = RayBatch(None)
+
+        for i in range(len(self.surfaces)-1, 1, -1):
+
+            # Skip this surface if it's a stop or other virtual surface type
+            if not self.IsPhysicalSurface(i): continue
+
+            inSurfaceRB = reflectedRB.GetRaysAt(i)
+
+            # ===========================================================
+            """================= Propagate backwards ================="""
+
+            # Get the rays facing backward
+            _inSurfaceBackwardRB = inSurfaceRB.GetDirectionalRay(False)
+            previousSurfaceIndex = self._PreviousSurfaceIndex(i)
+
+            _backwardRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                _inSurfaceBackwardRB, # Get the ones facing negative Z
+                self._FindPreviousRI(i, _inSurfaceBackwardRB),
+                inverted = True,
+                reflection=True,
+                useClearBoundary=False)
+
+            # The _backwardRB should have been propagated to the previous surface space, thus marking them to bear the index of that surface
+            _backwardRB.SetIndex(previousSurfaceIndex)
+
 
 
     def _PropagateReflectedThrough(self, reflectedRB):
         """
-        Propogate the rays in reflectedRB in each surface through the lens. 
+        Propagate the rays in reflectedRB in each surface through the lens.
         """
         returnRB = RayBatch(None)
 
@@ -889,8 +912,9 @@ class Lens:
 
             if(not isinstance(self.surfaces[i], Stop)):
 
-                # Find the rays that are in the current surface
-                inSurfaceRB = reflectedRB.GetRaysAt(i)
+                # Find the rays that are in the current surface space.
+                # Since the index means "which surface is the ray located after", a minus one is needed.
+                inSurfaceRB = reflectedRB.GetRaysAt(i-1)
                 returnRB.Merge(inSurfaceRB)
 
                 # Explicitly disable the reflection 
@@ -902,6 +926,15 @@ class Lens:
 
         return returnRB
 
+
+    def IsPhysicalSurface(self, index):
+        """
+        Quick check whether the given surface index corresponds to a physical surface.
+        """
+
+        givenSurface = self.surfaces[index]
+
+        return isinstance(givenSurface, Surface) or isinstance(givenSurface, EvenAspheric)
 
 
 

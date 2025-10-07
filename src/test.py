@@ -12,7 +12,7 @@ from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE, INFINITY
 from Util.MaterialLookup import FindClosestMaterials, ReadSheet
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15, CanonEF50mmf12L, Zhongyi50f095
+from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15, CanonEF50mmf12L, Zhongyi50f095, Industar50_50mmf35
 from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
 from Surfaces.Surface import Surface
@@ -106,7 +106,7 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, re
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 500000, focusDistance = 1000, saveIterationCount = 5120, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 1500, focusDistance = 1500, saveIterationCount = 5120, realTimeUpdate = False):
 
     print("Start spot testing")
     source = PointsSource()
@@ -125,7 +125,7 @@ def SpotTesting(lens, objectDistance = 500000, focusDistance = 1000, saveIterati
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    imager = StdImager(lens.BestFocusBFD(objectDistance)-1, horiPx=1920) #32.4
+    imager = StdImager(lens.BestFocusBFD(focusDistance) , horiPx=6000) #32.4
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
@@ -164,14 +164,14 @@ def SpotTesting(lens, objectDistance = 500000, focusDistance = 1000, saveIterati
             plt.pause(0.01)
 
         if(iterationCount > saveIterationCount):
-            fn = r"CanonEFLTestPlus"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"IndustarSpot"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
         iterationCount += 1
 
 
-def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, refIte=3, realTimeUpdate = True):
+def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample = 100, refIte=4, realTimeUpdate = True):
 
 
     source = PointsSource()
@@ -223,7 +223,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, imageMinSample =
 
     image /= 10.0
     global FrameCount
-    fn = r"SingleFlareDepth"+str(refIte)
+    fn = r"PriorSurface"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -522,14 +522,14 @@ def main():
     angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.9
 
     # lens = Zhongyi50f095()
-    # lens = CanonEF50mmf12L()
+    lens = Industar50_50mmf35()
     # lens = ZeissHologon15mmf8() #AoV 104
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
-    lens = CanonEF50mmf12L()
+    # lens = CanonEF50mmf12L()
 
     #ISO12233Test(lens, realTimeUpdate=True)
-    SpotTesting(lens, realTimeUpdate=True)
+    # SpotTesting(lens, saveIterationCount=512, realTimeUpdate=True)
 
 
     # lens.SetAperture(4)
