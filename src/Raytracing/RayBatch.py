@@ -48,7 +48,7 @@ class RayBatch:
             return bd.copy(self.value[:, 6])
     
 
-    def Radiannce(self):
+    def Radiance(self):
         """
         DO NOT USE
         """
@@ -65,7 +65,7 @@ class RayBatch:
 
         # For generalized purpose, this method is used for almost all radiance inquiries. However, calculating the polarized radiance brings a huge memory and speed loss, as such, an additional option is coded here to directly skip the ellipse calculation. 
         if(not polarized):
-            return self.Radiannce()
+            return self.Radiance()
 
         # Accquire eigen value and eigen vector 
         if(backend_name == "cupy"):

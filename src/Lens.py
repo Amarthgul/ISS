@@ -11,7 +11,7 @@ import re
 
 from xarray.plot import surface
 
-from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints
+from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR
@@ -210,24 +210,29 @@ class Lens:
         
 
         if (reflection):
+            AltMethod = True
+            if(AltMethod):
+                outRB = RayBatch(None)
+                for _c in range(iteCount):
+                    outRB.Merge(self._BounceReflection(reflectedRB))
+                    outRB.Merge(self._BounceReflectionAlt(reflectedRB))
+                reflectedRB = outRB.TrimExitRays(self._lastSurfaceIndex).GetDirectionalRay()
 
-            print(reflectedRB.SurfaceDistributionInfo())
+            else:
+                #print(reflectedRB.SurfaceDistributionInfo())
+                color = ["r", "b"]
+                exitRB = RayBatch(None)
 
-            reflectedRB.SurfaceKill(0)
+                for _c in range(iteCount):
+                    reflectedRB = self._BounceReflection(reflectedRB)
+                    exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex))
+                # Register the total reflected rays
+                reflectedRB.Merge(exitRB)
 
-            color = ["r", "b"]
-            exitRB = RayBatch(None)
-            for _c in range(iteCount):
-                reflectedRB = self._BounceReflection(reflectedRB)
-                exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex))
+                reflectedRB = reflectedRB.GetDirectionalRay()
+                reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
-            # Register the total reflected rays
-            reflectedRB.Merge(exitRB)
-
-
-            reflectedRB = reflectedRB.GetDirectionalRay()
-            
-            reflectedRB = self._PropagateReflectedThrough(reflectedRB)
+            print("Total rad: ", reflectedRB.PolarizedRadiance().sum())
 
         # print(rayBatch.SurfaceIndex())
 
@@ -769,10 +774,12 @@ class Lens:
         """
         Find the refractive index of the previous surface. 
         """
+
         if (index == 0 or isinstance(self.surfaces[index-1], Stop)):
             return self.env.RI(raybatch.Wavelength())
+
         else:
-            return self.surfaces[index -1].RI(raybatch.Wavelength())
+            return self.surfaces[self._PreviousSurfaceIndex(index)].RI(raybatch.Wavelength())
         
 
     def _PreviousSurfaceIndex(self, index):
@@ -870,35 +877,95 @@ class Lens:
 
 
     def _BounceReflectionAlt(self, reflectedRB):
-        """Iterate through each surface, calculate both reflection and refraction for the sake of bouncing all reflections caused by primary surfaces.
-        """
+        """Iterate through each surface, calculate both reflection and refractions."""
 
-        returnRB = RayBatch(None)
-        BackwardRB = RayBatch(None)
+        holderRB = RayBatch(None)
 
-        for i in range(len(self.surfaces)-1, 1, -1):
+        # Use this as a holder RB for iterations. I hate how things have to be this complicated and how Cupy likely will make a mess out of this variable due to their memory management...
+        iterRB = RayBatch(None)
+
+        """======================= Propagate backwards ======================="""
+        # From last surface back toward the first, carrying each surface's backward reflection into the previous surface's space by refraction.
+        for i in range(len(self.surfaces) - 1, 0, -1):
+
+            # Skip this surface if it's a stop or other virtual surface type
+            if not self.IsPhysicalSurface(i):
+                continue
+
+            # Get only the rays facing backward (toward previous surface) and merge them into the backward propagation RB
+            iterRB.Merge(reflectedRB.GetRaysAt(i).GetDirectionalRay(False))
+
+            previousSurfaceIndex = self._PreviousSurfaceIndex(i)
+
+            # Trace these rays at the previous surface, i.e., send them backward.
+            iterRB, _tir, _vig, _reflectedRB = self.surfaces[previousSurfaceIndex].Trace(
+                iterRB,
+                self._FindPreviousRI(previousSurfaceIndex, iterRB),
+                inverted=True,
+                reflection=True,
+                useClearBoundary=False
+            )
+
+            #print("Reflected in ", i ,"th surface: ", _reflectedRB.PolarizedRadiance().sum())
+
+            # The iterRB should now be in the previous surface space
+            iterRB.SetIndex(previousSurfaceIndex)
+
+            # Append the reflected rays in this surface into the return RB for record. During the backward propagation, holder is only used to hold the scatter reflections in each surface tracing.
+            holderRB.Merge(_reflectedRB)
+
+        # After the backward tracing is done, append the iterRB into the holder as well. holder now should have both the scattered reflections in each surface and the refracted rays that reached the first surface from the last.
+        holderRB.Merge(iterRB)
+
+        #print("Total rad forward: ", holderRB.GetDirectionalRay().PolarizedRadiance().sum())
+        #print("Total rad backward: ", holderRB.GetDirectionalRay(False).PolarizedRadiance().sum())
+
+        # Since iterRB is already appended into the main holder, it's safe to reset it for next iteration.
+        iterRB = RayBatch(None)
+
+        #print("Inside alt method: \n" + holderRB.SurfaceDistributionInfo())
+        #print(holderRB.value.shape)
+
+        #self.DrawLens() #Drawcall ========================================================================
+        #SetUnifScale(50)  # Drawcall ========================================================================
+        #AddXYZ()  # Drawcall ========================================================================
+        #RemoveBG()  # Drawcall ========================================================================
+
+
+        """======================= Propagate forwards ======================="""
+        # Starting from the first physical surface, carry the backward-reflected rays forward through the stack, together with any forward-facing content already present in reflectedRB at each surface.
+        for i in range(1, len(self.surfaces)):
 
             # Skip this surface if it's a stop or other virtual surface type
             if not self.IsPhysicalSurface(i): continue
 
-            inSurfaceRB = reflectedRB.GetRaysAt(i)
+            # Get rays in the currently surface space that are also facing to the image side, then merge these rays into the iterRB
+            iterRB.Merge(holderRB.GetRaysAt(i - 1).GetDirectionalRay())
+            iterRB.Merge(reflectedRB.GetRaysAt(i - 1).GetDirectionalRay())
 
-            # ===========================================================
-            """================= Propagate backwards ================="""
+            #print("=== Rad at ", i, " before forward prop size ", iterRB.GetRaysAt(i-1).value.shape, " with rad",  iterRB.GetRaysAt(i-1).PolarizedRadiance().sum())
+            #print("At surface index ", i)
 
-            # Get the rays facing backward
-            _inSurfaceBackwardRB = inSurfaceRB.GetDirectionalRay(False)
-            previousSurfaceIndex = self._PreviousSurfaceIndex(i)
 
-            _backwardRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
-                _inSurfaceBackwardRB, # Get the ones facing negative Z
-                self._FindPreviousRI(i, _inSurfaceBackwardRB),
-                inverted = True,
+            #DrawRaybatch(iterRB.GetRaysAt(i-1), lLength=1)#Drawcall ========================================================================
+
+            # Send the iterRB forward (towards image direction)
+            iterRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                iterRB,
+                self._FindPreviousRI(i, iterRB),
                 reflection=True,
-                useClearBoundary=False)
+                useClearBoundary=True
+            )
 
-            # The _backwardRB should have been propagated to the previous surface space, thus marking them to bear the index of that surface
-            _backwardRB.SetIndex(previousSurfaceIndex)
+            iterRB.SetIndex(i)
+
+            #DrawRaybatch(iterRB.GetRaysAt(i), lLength=1)#Drawcall ========================================================================
+            #plt.draw()#Drawcall ========================================================================
+            #plt.pause(10)#Drawcall ========================================================================
+
+            #print("    Rad at ", i, " after forward prop ", iterRB.GetRaysAt(i).value.shape, " with rad", iterRB.GetRaysAt(i).PolarizedRadiance().sum())
+
+        return iterRB
 
 
 
@@ -934,7 +1001,7 @@ class Lens:
 
         givenSurface = self.surfaces[index]
 
-        return isinstance(givenSurface, Surface) or isinstance(givenSurface, EvenAspheric)
+        return not isinstance(givenSurface, Stop)
 
 
 
