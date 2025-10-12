@@ -286,6 +286,24 @@ class RayBatch:
         return "\n".join(lines)
 
 
+    def IsNone(self):
+
+        return self.value is None
+
+
+    def Copy(self):
+        """
+        Return a deep of this RayBatch instance.
+
+        :return: A fully independent copy of the current object.
+        """
+
+        # Create a new RayBatch instance without sharing memory
+        new_rb = RayBatch(bd.copy(self.value))
+
+        return new_rb
+
+
 
 def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 

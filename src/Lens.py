@@ -212,11 +212,17 @@ class Lens:
         if (reflection):
             AltMethod = True
             if(AltMethod):
-                outRB = RayBatch(None)
+                reflectedRBC = reflectedRB.Copy()
+                holderRB = RayBatch(None)
                 for _c in range(iteCount):
-                    outRB.Merge(self._BounceReflection(reflectedRB))
-                    outRB.Merge(self._BounceReflectionAlt(reflectedRB))
-                reflectedRB = outRB.TrimExitRays(self._lastSurfaceIndex).GetDirectionalRay()
+                    outputRB, remainderRB = self._BounceReflectionAlt(reflectedRBC)
+                    holderRB.Merge(outputRB)
+
+                    reflectedRB, _ = self._BounceReflection(reflectedRB)
+
+                reflectedRB = self._PropagateReflectedThrough(reflectedRB)
+                reflectedRB = reflectedRB.GetDirectionalRay()
+                reflectedRB.Merge(holderRB)
 
             else:
                 #print(reflectedRB.SurfaceDistributionInfo())
@@ -224,13 +230,16 @@ class Lens:
                 exitRB = RayBatch(None)
 
                 for _c in range(iteCount):
-                    reflectedRB = self._BounceReflection(reflectedRB)
+                    reflectedRB, _ = self._BounceReflection(reflectedRB)
                     exitRB.Merge(reflectedRB.TrimExitRays(self._lastSurfaceIndex))
                 # Register the total reflected rays
                 reflectedRB.Merge(exitRB)
 
                 reflectedRB = reflectedRB.GetDirectionalRay()
                 reflectedRB = self._PropagateReflectedThrough(reflectedRB)
+
+            if(reflectedRB.PolarizedRadiance().sum() is None):
+                print("Somthing")
 
             print("Total rad: ", reflectedRB.PolarizedRadiance().sum())
 
@@ -827,53 +836,53 @@ class Lens:
         Iterate through each surface, calculate the reflection inside the surface, including the clear boundaries.
         """
         returnRB = RayBatch(None)
-        
+        holderRB = RayBatch(None)
 
         # For the reflected lights at the first surface (i=0), they are just gone and there is no point in trying to deal with them, thus starting at index 1
         for i in range(1, len(self.surfaces)):
 
+            # Placeholder to avoid scope error
+            _reflectedRB = RayBatch(None)
+
+            """========================================================================="""
             # Find the rays that are in the current surface space
             inSurfaceRB = reflectedRB.GetRaysAt(i-1)
 
-            if(not isinstance(self.surfaces[i], Stop)):
+            if(self.IsPhysicalSurface(i)):
                 _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                     inSurfaceRB, 
                     self._FindPreviousRI(i, inSurfaceRB), 
                     reflection = True,
                     useClearBoundary = True)
-                
-                # _surfaceRB are rays that are refracted into the previous space 
-                _surfaceRB.SetIndex(self._PreviousSurfaceIndex(i))
-                # Keep only the rays that did not intersect with the previous surface 
-                inSurfaceRB.Merge(_surfaceRB)
-                inSurfaceRB.Merge(_reflectedRB)
 
-                # DrawRaybatch(_surfaceRB, lLength=2, lineColor="b") # =========== Draw call
-                # DrawRaybatch(_reflectedRB, lLength=2, lineColor="g") # =========== Draw call
-            # The ones that still faces back might as well be dropped
+                # _surfaceRB would be the ones that entered surface i
+                _surfaceRB.SetIndex(i)
 
-            if((i+1 < len(self.surfaces)) and 
-               (not isinstance(self.surfaces[i+1], Stop))):
-                # Try to find the ones that will interact with the next surface  
-                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i+1].Trace(
-                    inSurfaceRB, 
-                    self._FindPreviousRI(i+1, inSurfaceRB), 
+                returnRB.Merge(_surfaceRB)
+
+            """========================================================================="""
+
+            # Reset inSurfaceRB and append the reflected rays if previous step generated any
+            inSurfaceRB = reflectedRB.GetRaysAt(i - 1)
+            if (not _reflectedRB.IsNone()): inSurfaceRB.Merge(_reflectedRB)
+
+            if(self.IsPhysicalSurface(i - 1)):
+                # Try to find the ones that will interact with the previous surface
+                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i - 1].Trace(
+                    inSurfaceRB,
+                    self._FindPreviousRI(i - 1, inSurfaceRB),
                     inverted = True,
-                    reflection = True)
+                    reflection = True,
+                    useClearBoundary = False)
                 
                 # _surfaceRB are rays that are refracted into the next space 
-                _surfaceRB.SetIndex(i+1)
-                inSurfaceRB.Merge(_surfaceRB)
-                # Add the reflected rays from previous surfaces. Given the implementation, TIR should already be included in the _reflectedRB
-                inSurfaceRB.Merge(_reflectedRB)
-                # These _reflectedRB rays should either intersect with the clear boundaries or become sequential again 
-            
-            returnRB.Merge(inSurfaceRB)
-            returnRB.RadiantKill()
+                _surfaceRB.SetIndex(i - 1)
 
-        returnRB.SurfaceKill(0)
+                returnRB.Merge(_surfaceRB)
+                returnRB.Merge(_reflectedRB)
 
-        return returnRB
+
+        return returnRB, None
 
 
     def _BounceReflectionAlt(self, reflectedRB):
@@ -931,7 +940,7 @@ class Lens:
         #AddXYZ()  # Drawcall ========================================================================
         #RemoveBG()  # Drawcall ========================================================================
 
-
+        remainRB = RayBatch(None)
         """======================= Propagate forwards ======================="""
         # Starting from the first physical surface, carry the backward-reflected rays forward through the stack, together with any forward-facing content already present in reflectedRB at each surface.
         for i in range(1, len(self.surfaces)):
@@ -959,13 +968,16 @@ class Lens:
 
             iterRB.SetIndex(i)
 
+            # Put the unused rays into remainRB
+            remainRB.Merge(_reflectedRB)
+
             #DrawRaybatch(iterRB.GetRaysAt(i), lLength=1)#Drawcall ========================================================================
             #plt.draw()#Drawcall ========================================================================
             #plt.pause(10)#Drawcall ========================================================================
 
             #print("    Rad at ", i, " after forward prop ", iterRB.GetRaysAt(i).value.shape, " with rad", iterRB.GetRaysAt(i).PolarizedRadiance().sum())
 
-        return iterRB
+        return iterRB, remainRB
 
 
 
