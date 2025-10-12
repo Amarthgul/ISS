@@ -191,7 +191,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
         im = ax.imshow(ImageConversion(image))
 
     iterationCount = 0
-    pupilSampleCount = 128
+    pupilSampleCount = 64
     print("Pupil sample per iter at ", pupilSampleCount)
 
     while(elpased < computeTime):
@@ -523,12 +523,12 @@ def main():
     angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.9
     angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.9
 
-    # lens = Zhongyi50f095()
+    lens = Zhongyi50f095()
     # lens = Industar50_50mmf35()
     # lens = ZeissHologon15mmf8() #AoV 104
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
-    lens = CanonEF50mmf12L()
+    # lens = CanonEF50mmf12L()
 
     #ISO12233Test(lens, realTimeUpdate=True)
     # SpotTesting(lens, saveIterationCount=512, realTimeUpdate=True)
@@ -550,7 +550,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
         # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=12*60*60, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=12*60*60, realTimeUpdate=True)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 

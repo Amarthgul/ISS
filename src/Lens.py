@@ -238,9 +238,6 @@ class Lens:
                 reflectedRB = reflectedRB.GetDirectionalRay()
                 reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
-            if(reflectedRB.PolarizedRadiance().sum() is None):
-                print("Somthing")
-
             print("Total rad: ", reflectedRB.PolarizedRadiance().sum())
 
         # print(rayBatch.SurfaceIndex())

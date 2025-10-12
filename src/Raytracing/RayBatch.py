@@ -68,11 +68,19 @@ class RayBatch:
             return self.Radiance()
 
         # Accquire eigen value and eigen vector 
-        if(backend_name == "cupy"):
-            pol = self.PolarizationMat()
-            val, vec = bd.linalg.eigh(pol)
-        else:
-            val, vec = bd.linalg.eig(self.PolarizationMat())
+        # if(backend_name == "cupy"):
+        #     pol = self.PolarizationMat()
+        #     val, vec = bd.linalg.eigh(pol)
+        # else:
+        #     val, vec = bd.linalg.eig(self.PolarizationMat())
+
+        pol = self.PolarizationMat()
+        # Use Hermitian eigensolver for symmetric 2x2; gives real, ordered eigenvalues
+        val, _ = bd.linalg.eigh(pol)
+        # Clamp to avoid negatives/zeros due to numerical noise
+        eps = 1e-12
+        val = bd.maximum(val, eps)
+
 
         # Semi axis of the polariztion ellipse 
         semi = ONE / bd.sqrt(val)
@@ -91,7 +99,37 @@ class RayBatch:
         part2 = sliced[:, 1:]  
 
         return bd.stack([part1, part2], axis=1)
-    
+
+
+    def SanitizePolarization(self, DefaultDiaTerm=0, DefaultTiltTerm=0.0):
+        """
+        Ensure the polarization terms (cols 7,8,9) are finite real numbers.
+        Replaces None/NaN/inf with defaults to prevent object-dtype pollution downstream.
+        """
+
+        pol = self.value[:, 7:10]
+        # Replace None with default using where "== None" is safe on object arrays;
+        # then coerce to float and fix nan/inf.
+        mask_none = (pol == None)
+
+        if mask_none.any():
+            # a, b, c (tilt)
+            pol[mask_none & bd.array([[True, False, False]])] = DefaultDiaTerm
+            pol[mask_none & bd.array([[False, True, False]])] = DefaultDiaTerm
+            pol[mask_none & bd.array([[False, False, True]])] = DefaultTiltTerm
+
+        pol = pol.astype(float, copy=False)
+        # Replace nan/inf
+        bad = ~bd.isfinite(pol)
+
+        if bad.any():
+            fix = bd.array([DefaultDiaTerm, DefaultDiaTerm, DefaultTiltTerm])
+            pol[bad] = fix[bd.where(bad)[1]]
+
+        self.value[:, 7:10] = pol
+
+        return self
+
 
     def SurfaceIndex(self):
         """

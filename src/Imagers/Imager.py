@@ -59,9 +59,6 @@ class Imager():
         return self._integralRays(baseImg=baseImg, valueClamp=valueClamp) 
 
 
-    
-
-
     # ==================================================================
     """ ============================================================ """
     # ==================================================================
@@ -125,6 +122,10 @@ class Imager():
         :param valueClamp: for spot simulation, normalization based on max can be inaccurate. This value is for manually override the max value for clamping. The higher it is, the darker the spot. 
         """
 
+        try:
+            self.rayBatch.SanitizePolarization()
+        except Exception: pass
+
         pxPitch = self.width / self.horizontalPx 
         pxOffset = bd.array([self.horizontalPx/2, self.verticalPx/2, 0])
 
@@ -138,9 +139,9 @@ class Imager():
         # Convert ray position into pixel position 
         rayPos = bd.floor(rayPos).astype(int)
         # Create pixel grid 
-        radiantGridR = bd.zeros( (self.horizontalPx, self.verticalPx) )
-        radiantGridG = bd.zeros( (self.horizontalPx, self.verticalPx) )
-        radiantGridB = bd.zeros( (self.horizontalPx, self.verticalPx) )
+        radiantGridR = bd.zeros( (self.horizontalPx, self.verticalPx) , dtype=bd.float64)
+        radiantGridG = bd.zeros( (self.horizontalPx, self.verticalPx) , dtype=bd.float64)
+        radiantGridB = bd.zeros( (self.horizontalPx, self.verticalPx) , dtype=bd.float64)
 
         # Find all wavelengths 
         wavelengths = bd.unique(rayWavelength)
