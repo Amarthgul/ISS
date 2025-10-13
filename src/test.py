@@ -191,7 +191,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
         im = ax.imshow(ImageConversion(image))
 
     iterationCount = 0
-    pupilSampleCount = 64
+    pupilSampleCount = 128
     print("Pupil sample per iter at ", pupilSampleCount)
 
     while(elpased < computeTime):
@@ -225,7 +225,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"EF5012Flare"+str(refIte)
+    fn = r"ZhongyiFlare"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -550,7 +550,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
         # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=12*60*60, realTimeUpdate=True)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=10*60*60, realTimeUpdate=False)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 

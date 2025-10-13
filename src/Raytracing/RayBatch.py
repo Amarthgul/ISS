@@ -101,32 +101,19 @@ class RayBatch:
         return bd.stack([part1, part2], axis=1)
 
 
-    def SanitizePolarization(self, DefaultDiaTerm=0, DefaultTiltTerm=0.0):
+    def SanitizePolarization(self):
         """
-        Ensure the polarization terms (cols 7,8,9) are finite real numbers.
-        Replaces None/NaN/inf with defaults to prevent object-dtype pollution downstream.
+        Drop rays whose polarization parameters (columns 7,8,9) are missing or non-finite.
+        Returns (self, removed_count).
         """
 
-        pol = self.value[:, 7:10]
-        # Replace None with default using where "== None" is safe on object arrays;
-        # then coerce to float and fix nan/inf.
-        mask_none = (pol == None)
+        rad = self.PolarizedRadiance()
 
-        if mask_none.any():
-            # a, b, c (tilt)
-            pol[mask_none & bd.array([[True, False, False]])] = DefaultDiaTerm
-            pol[mask_none & bd.array([[False, True, False]])] = DefaultDiaTerm
-            pol[mask_none & bd.array([[False, False, True]])] = DefaultTiltTerm
+        noneMask = bd.array([x is None for x in rad.get()])
+        good = rad >= 0 & rad <= 1
+        good = good & ~noneMask
 
-        pol = pol.astype(float, copy=False)
-        # Replace nan/inf
-        bad = ~bd.isfinite(pol)
-
-        if bad.any():
-            fix = bd.array([DefaultDiaTerm, DefaultDiaTerm, DefaultTiltTerm])
-            pol[bad] = fix[bd.where(bad)[1]]
-
-        self.value[:, 7:10] = pol
+        self.value = self.value[good]
 
         return self
 
