@@ -225,7 +225,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"ZhongyiFlare"+str(refIte)
+    fn = r"SonnarFlare"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -523,10 +523,10 @@ def main():
     angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.9
     angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.9
 
-    lens = Zhongyi50f095()
+    # lens = Zhongyi50f095()
     # lens = Industar50_50mmf35()
     # lens = ZeissHologon15mmf8() #AoV 104
-    # lens = Sonnar50mmF15()
+    lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
 

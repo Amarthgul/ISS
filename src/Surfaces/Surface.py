@@ -1,5 +1,5 @@
 
-
+b
 from enum import Enum
 import matplotlib.pyplot as plt
 
@@ -470,7 +470,6 @@ class Surface:
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-
     def _PlaneIntersection(self, incomingRaybatch):
         """
         Given a plane, calculate the intersection of the rays on the plane.
@@ -479,25 +478,34 @@ class Surface:
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
 
+        # 1) Ray–plane denominator (one per ray)
         denom = bd.dot(direction, self._axis)
-        
-        # Avoid division by zero for parallel vectors
+
+        # 2) Parallel (or numerically near-parallel) rays cannot hit
         parallel_mask = bd.isclose(denom, 0)
-        
-        # Compute t for each vector
+
+        # 3) Solve for parameter t along the ray
         t = bd.dot((self.frontVertex - position), self._axis) / denom
-        t[parallel_mask] = bd.nan  # Assign NaN for parallel vectors
-        
-        # Compute the intersection points
-        intersections = position + t[:, bd.newaxis] * direction
 
-        # Calculate the bool mask for valid intersections within the region 
-        fsMask = self._FieldStopMask(intersections)
+        # 4) Valid “forward” hits must have t >= 0 and not be parallel
+        forward_mask = (~parallel_mask) & (t >= 0)
 
-        # Note that just like the spherical case, the returned intersection contains only the ones that actually falls onto the surface, those outside of the clear semi-diameter are excluded
-        return intersections[fsMask], \
-            bd.zeros(intersections.shape[0]).astype(bd.bool_),\
-            parallel_mask | (~fsMask)
+        # 5) Compute all intersection points (some may be invalid)
+        intersections_all = position + t[:, bd.newaxis] * direction
+
+        # 6) Field-stop test at the geometric hit points
+        fsMask = self._FieldStopMask(intersections_all)
+
+        # 7) Final validity = forward & inside field stop
+        valid = forward_mask & fsMask
+
+        # 8) Return intersections for valid rays; vignette mask for all rays
+        #    (TIR mask is unused by callers; keep a sane shape anyway)
+        intersections = intersections_all[valid]
+        tir_mask = bd.zeros(intersections.shape[0]).astype(bd.bool_)  # unused placeholder
+        vig_mask = ~valid
+
+        return intersections, tir_mask, vig_mask
 
 
     def _SphericalIntersection(self, incomingRaybatch):

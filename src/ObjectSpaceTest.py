@@ -1,28 +1,17 @@
-﻿
-
-
-from PIL import Image
-import time
+﻿import time
 import matplotlib.pyplot as plt
-import OpenEXR
 
 from Util.Backend import backend as bd
-from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawAspherical, DrawAsphericalProfile, DrawNormal
-from Util.Sampling import CircularDistribution
-from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
-from Util.Globals import PRECISION_TYPE
-from Util.MaterialLookup import FindClosestMaterials, ReadSheet
+from Util.ImageIO import ImageConversion, SaveAsEXR
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawNormal
+from Util.Misc import ProgressBar
+from src.ZmxReader import LensFromZmx
 from Util.SpatialEllipse import SpatialCircle
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug
+from Util.Misc import RectPath
 from Imagers.Standard import StdImager
-from Imagers.PDA import PDA
-from ObjectSpace.Points import PointsSource
 from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
-from Raytracing.Emission import EmitField, EmitFieldMultispectral
-from Raytracing.Raypath import RayPath
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15
+from ExampleLenses import Biotar50mmf14
 from src.Surfaces.EvenAspheric import EvenAspheric
 from src.Util.Globals import INFINITY
 from Raytracing.Emission import EmitField
@@ -173,8 +162,14 @@ def MetalTest():
     plt.show()
 
 
+def ZmxParse():
+    print("=================Parse===============")
+    in_path = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
+
+
 def main():
-    StereoImageTest()
+    result = ZmxParse()
+    print(result)
     # StereoImageDisplay()
 
 
