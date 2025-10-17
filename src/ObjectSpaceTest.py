@@ -169,7 +169,7 @@ def ZmxParse():
 
 def main():
     result = ZmxParse()
-    print(result)
+
     # StereoImageDisplay()
 
 
