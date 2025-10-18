@@ -8,6 +8,7 @@ import OpenEXR
 from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
+from ZmxReader import LensFromZmx
 from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
 from Util.Globals import PRECISION_TYPE, INFINITY
@@ -225,7 +226,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"SonnarFlare"+str(refIte)
+    fn = r"Sigma50ARTFlare"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -529,6 +530,9 @@ def main():
     lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Sigma50ART.zmx"))
+    lens = reader.GetLens()
+    lens.UpdateLens()
 
     #ISO12233Test(lens, realTimeUpdate=True)
     # SpotTesting(lens, saveIterationCount=512, realTimeUpdate=True)
@@ -550,7 +554,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
         # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=10*60*60, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=60*60, realTimeUpdate=False)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 

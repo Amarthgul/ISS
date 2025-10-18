@@ -16,8 +16,7 @@ from Surfaces.Surface import Surface
 from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Stop import Stop
 from Lens import Lens
-from Util.Globals import INFINITY, ZERO
-
+from Util.Globals import INFINITY, ZERO, DEFAULT_MAT_NAME
 
 
 class LensFromZmx:
@@ -213,7 +212,8 @@ class LensFromZmx:
             material = d["GLAS"][0]
             return EvenAspheric(radius, thickness, clearSemi, material, ZERO, coef)
         else:
-            return EvenAspheric(radius, thickness, clearSemi, k=ZERO, A=coef)
+            # Pass in default material, whatever the Material class define the default is
+            return EvenAspheric(radius, thickness, clearSemi, DEFAULT_MAT_NAME, ZERO, coef)
 
 
 

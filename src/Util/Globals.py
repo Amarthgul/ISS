@@ -89,6 +89,8 @@ PER_POINT_MAX_SAMPLE = 100
 # This can be used to estimate and normalize the colors. 
 
 
+DEFAULT_MAT_NAME = "AIR"
+
 
 # ==================================================================
 """ ========================== Vectors ========================= """

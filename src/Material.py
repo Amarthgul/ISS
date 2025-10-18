@@ -9,7 +9,7 @@ import numbers
 import matplotlib.pyplot as plt
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import ZERO, ONE, TWO, LambdaLines
+from Util.Globals import ZERO, ONE, TWO, LambdaLines, DEFAULT_MAT_NAME
 from Util.Misc import RectPath
 
 
@@ -30,7 +30,7 @@ def MaterialClear():
 
 class Material:
 
-    def __init__(self, name = "AIR"):
+    def __init__(self, name = DEFAULT_MAT_NAME):
         self.name = name 
 
         self.category = None 

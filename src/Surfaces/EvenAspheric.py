@@ -97,7 +97,7 @@ class EvenAspheric(Surface):
         # (Optional) keep the envelope thickness for diagnostics
         self.proxyEnvelopeThickness = env['thickness']
 
-        print(self.GetInfo())
+        # print(self.GetInfo())
 
 
     def Intersection(self, incidentRaybatch):
