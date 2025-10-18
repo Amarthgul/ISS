@@ -164,7 +164,24 @@ def MetalTest():
 
 def ZmxParse():
     print("=================Parse===============")
-    in_path = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
+
+    exampleLens = reader.GetLens()
+
+    exampleLens.UpdateLens()
+
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+    print(exampleLens.GetInfo())
+    print(exampleLens.SurfaceReport())
+
+    exampleLens.DrawLens()
+    # exampleLens.entrancePupil.DrawSamplePoints()
+    # exampleLens.entrancePupil.DrawSurface()
+    # exampleLens.frontPincipalPlane.DrawSamplePoints()
+
+    plt.show()
 
 
 def main():
