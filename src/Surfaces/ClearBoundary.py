@@ -38,14 +38,14 @@ class ClearBoundary():
 
 
         """Describes the material at the other side. When set to None, treat it as Air; it can also be set to a constant float that represents IOR; alternatively it could be a material class. Note that if self.materialType is set to metal, this will not be used at all due to metal's preservation of the incidence."""
-        self.exteriorCoating = Material() 
+        self.exteriorCoating = Material("K-PSFN215")
 
 
         """Weight of [0, 1] that controls total diffuse and total mirror reflection. When set to 0, surface reflects as lambertian, when set to 1, reflects like mirror"""
         self.specularReflection = 0.9
         # This should be altered very carefully, too high of a change may result in reflected rays going beyond the surface
 
-        self.absorption = 0
+        self.absorption = 0.5
 
 
     def DrawSurface(self):

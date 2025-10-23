@@ -38,7 +38,13 @@ from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint
 class Lens:
     def __init__(self):
         self.fNumber = constant(2.0)
+
+        """The actual focal length of the lens."""
         self.focalLength = constant(50.0)
+
+        """The nominal focal length is what this lens claim to be, rather than the actual focal length.
+        This attribute will be used to set up the field of view. """
+        self.nominalFocalLength = constant(50.0)
 
         self.focalPoint = None 
 

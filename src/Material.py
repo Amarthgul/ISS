@@ -24,12 +24,17 @@ if(PreRead):
 
 
 def MaterialClear():
+    # I don't think this work at all...
     del GlassTable
 
 
 
 class Material:
-
+    """
+    Optical material.
+    When initialized with a string of material name, this class will try to find it among over 3000 available materials in the material catalog library. This can then be used to model the dispersion of light.
+    If nothing is passed in, this material will be treated as a default material, usually Air, with a constant RI of 1 regardless of wavelength.
+    """
     def __init__(self, name = DEFAULT_MAT_NAME):
         self.name = name 
 
