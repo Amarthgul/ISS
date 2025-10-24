@@ -42,10 +42,6 @@ class Lens:
         """The actual focal length of the lens."""
         self.focalLength = constant(50.0)
 
-        """The nominal focal length is what this lens claim to be, rather than the actual focal length.
-        This attribute will be used to set up the field of view. """
-        self.nominalFocalLength = constant(50.0)
-
         self.focalPoint = None 
 
         self.surfaces = []
@@ -321,6 +317,38 @@ class Lens:
             "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
             
         return info
+
+
+    def GetAoV(self, useNominal=None, unitInDegrees=True, halfAngle=True, w=36.0, h=24.0):
+        """
+        Acquire the angle of view of the lens on a given imager. By default, the imager is assumed to be the standard 135 format still photography dimension, i.e., 36mmx24mm.
+
+        :param useNominal: a nominal focal length, when provided, this will be used instead of the actual physical focal length.
+        :param unitInDegrees: whether to use units in degrees.
+        :param w: width of the imager.
+        :param h: height of the imager.
+
+        :return:  angle of view of the lens on the given imager.
+        """
+
+        if useNominal is not None:
+            f = useNominal
+        else:
+            f = self.focalLength
+
+        full_frame_diag = bd.hypot(w, h)
+
+        # Angle of view formula: 2 * arctan(sensor_diag / (2 * focal_length))
+        diag_rad = 2.0 * bd.arctan(full_frame_diag / (2.0 * f))
+        w_rad =  2.0 * bd.arctan(w / (2.0 * f))
+        h_rad = 2.0 * bd.arctan(h / (2.0 * f))
+
+        mult = 0.5 if halfAngle else 1.0
+
+        if unitInDegrees:
+            return bd.rad2deg(bd.array([w_rad, h_rad, diag_rad])) * mult
+        else:
+            return bd.array([w_rad, h_rad, diag_rad]) * mult
 
 
     def SurfaceReport(self):

@@ -107,14 +107,16 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, re
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 1500, focusDistance = 1500, saveIterationCount = 5120, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 50000, focusDistance = 1500, computeTime = 5120, realTimeUpdate = False):
+
+
 
     print("Start spot testing")
     source = PointsSource()
     source.isCartesian = False
-    ratio = 0.9
-    xAngle = 19*ratio
-    yAngle = 12*ratio
+    ratio = 0.925
+    xAngle = ratio * lens.GetAoV()[0] # 19*ratio
+    yAngle = ratio * lens.GetAoV()[1] #12*ratio
     sample = 9
     source.GenerateGridSpots(xAngle, yAngle, dist=objectDistance, sampleField=sample)
 
@@ -156,7 +158,7 @@ def SpotTesting(lens, objectDistance = 1500, focusDistance = 1500, saveIteration
 
         print("- Focusing ", focusDistance, " for obj at ", objectDistance,  
             "  \t\tAt ", str(iterationCount), "th iteration after ", str(elpased) )
-        ProgressBar(iterationCount / saveIterationCount, 100)
+        ProgressBar(elpased / computeTime, 100)
 
         if(realTimeUpdate):
             print("Max ", bd.max(image))
@@ -164,8 +166,8 @@ def SpotTesting(lens, objectDistance = 1500, focusDistance = 1500, saveIteration
             plt.draw()
             plt.pause(0.01)
 
-        if(iterationCount > saveIterationCount):
-            fn = r"IndustarSpot"+str(objectDistance)+"_"+str(FrameCount)
+        if(elpased > computeTime):
+            fn = r"nFD501.4Spot"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -226,7 +228,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"Sigma50ARTFlare"+str(refIte)
+    fn = r"CanonEF501.2L_HighRICoatAbsp_Flare"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -473,16 +475,22 @@ def MaterialLookUpTest():
     # Suppose you have n=1.5168 and V=64.1 for the 'd' line
     line = 'D'
     stats = [
-        [1.72 , 47.5],
-        [1.72 , 29.3],
-        [1.72 , 47.5]
+        [2.0509 , 26.9],
+        [1.95375,  32.3],
+        [1.80835,  22.6],
+        [1.80809,  22.8],
+        [2.0509 , 26.9],
+        [1.6707 , 19.3],
+        [1.9225 , 36],
+        [1.80835,  22.6],
+        [2.0509 , 26.9]
     ]
 
     for item in stats:
         n_val = item[0]
         v_val = item[1]
 
-        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=5)
+        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=5).to_string(index=False)
         print("Closest matches:")
         print(result_df)
 
@@ -527,15 +535,15 @@ def main():
     # lens = Zhongyi50f095()
     # lens = Industar50_50mmf35()
     # lens = ZeissHologon15mmf8() #AoV 104
-    lens = Sonnar50mmF15()
+    # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Sigma50ART.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonNFD50f1.4.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
 
     #ISO12233Test(lens, realTimeUpdate=True)
-    # SpotTesting(lens, saveIterationCount=512, realTimeUpdate=True)
+    SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
 
 
     # lens.SetAperture(4)
@@ -554,7 +562,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
         # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=60*60, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=12*60*60, realTimeUpdate=False)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 
