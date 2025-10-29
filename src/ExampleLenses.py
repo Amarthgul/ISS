@@ -14,9 +14,10 @@ from Surfaces.Stop import Stop
 from Lens import Lens 
 from Util.Globals import ZERO, ONE, INFINITY
 from Util.DataReadWrite import Save, Load
+from Util.Misc import RectPath
 from Util.Backend import backend_name
 from Util.PltPlot import Setup3Dplot, AddXYZ, SetUnifScale, DrawRaybatch, DrawSpherical, DrawPoints, DrawNormal, RemoveBG, DrawDisk
-
+from ZmxReader import LensFromZmx
 
 # When flagged, lenses will be loaded from file rather than calculated 
 LOAD_LENS_FROM_FILE = False
@@ -541,14 +542,17 @@ def main():
 
     #Industar50_50mmf35() #
     # exampleLens = CanonEF50mmf12L()
-    exampleLens = Industar50_50mmf35()
+    # exampleLens = Industar50_50mmf35()
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton50f1ASPH.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonRF45f1.2.zmx"))
 
+    exampleLens = reader.GetLens()
 
     # exampleLens.AddFrontGroup([
     #     Surface(200, 2, 20, "FD60"),
     #     Surface(INFINITY, 1, 20)
     # ])
-    # exampleLens.UpdateLens()
+    exampleLens.UpdateLens()
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

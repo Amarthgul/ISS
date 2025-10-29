@@ -4,6 +4,8 @@ This module is used to provide preliminary visuals for the project, it is not th
 In the future the project should consider switching to mayavi or better libaraies for scientific visulization. 
 """
 
+import matplotlib as mpl
+mpl.rcParams['axes3d.mouserotationstyle'] = 'azel'
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D

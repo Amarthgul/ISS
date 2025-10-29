@@ -203,18 +203,23 @@ class LensFromZmx:
 
         clearSemi = float(d["DIAM"][0])
 
+        if "CONI" in d:
+            conic = float(d["CONI"][0])
+        else:
+            conic = 0
+
         coef = []
         for i in d["PARMS"]:
             coef.append(float(i[1]))
 
-        #print(coef)
+        print(conic)
+        print(coef)
         if ("GLAS" in d):
             material = d["GLAS"][0]
-            return EvenAspheric(radius, thickness, clearSemi, material, ZERO, coef)
+            return EvenAspheric(radius, thickness, clearSemi, material, conic, coef)
         else:
             # Pass in default material, whatever the Material class define the default is
-            return EvenAspheric(radius, thickness, clearSemi, DEFAULT_MAT_NAME, ZERO, coef)
-
+            return EvenAspheric(radius, thickness, clearSemi, DEFAULT_MAT_NAME, conic, coef)
 
 
     def _PrintDictList(self, listOfDict):

@@ -668,7 +668,7 @@ class Lens:
                 self.surfaces[nextGroupFirstIndex].clearBoundaryT = MetalBoundary(C1, C2)
 
 
-    def _TraceEntrancePupil(self, stopSD=None, sampleCount=11, wavelength = LambdaLines['D']):
+    def _TraceEntrancePupil(self, stopSD=None, sampleCount=4, wavelength = LambdaLines['D']):
         """
         Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
 
@@ -712,11 +712,13 @@ class Lens:
                 targetOne, targetTwo, wavelength = wavelength)
             for p in bd.linspace(ZERO, stopSD, sampleCount)
         ]
+
         # for j in range(sampleCount):
         #     objectSideRPs[j].Append(objectSideRBs[j], None, None)
         #     DrawRaybatch(objectSideRBs[j])  # Draw call=========
-        
-        # Propogate through the surfaces 
+
+        # Propogate through the surfaces
+        self.DrawLens()
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
@@ -725,17 +727,19 @@ class Lens:
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
                         objectSideRBs[j], 
-                        self._FindPreviousRI(forwardIndex, objectSideRBs[j]), True
+                        self._FindPreviousRI(forwardIndex, objectSideRBs[j]),
+                        True
                         ) 
                     objectSideRPs[j].Append(objectSideRBs[j], _tirs[j], _vigs[j])
-                #DrawRaybatch(objectSideRBs[i])  # Draw call=========
-                #plt.draw()
-                #plt.pause(4)
+
+                DrawRaybatch(objectSideRBs[i])  # Draw call=========
+                plt.draw()
+                plt.pause(8)
 
         # for j in range(sampleCount):
         #     objectSideRPs[j].DrawPath(10, omitIncident=False, color=colors[j%len(colors)]) # Draw call=========
         # plt.draw()
-        # plt.pause(10)
+        # plt.pause(60)
 
         poss = [[]for i in range(sampleCount)]
         dirs = [[]for i in range(sampleCount)]
@@ -787,7 +791,7 @@ class Lens:
         # plt.pause(30) # Draw call =======
 
         frontRP = frontRP.PruneAll()
-        #frontRP.DrawPath(40) # Draw call =======
+        # frontRP.DrawPath(40) # Draw call =======
         
         pos, dir = frontRP.ExitingPairs()
         self.focalPoint = frontRP.FindConvergingPoint(pos, dir)

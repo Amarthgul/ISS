@@ -162,7 +162,7 @@ class Surface:
         return self.material.RI(wavelength)
 
 
-    def DrawSurface(self):
+    def DrawSurface(self, DrawBoundary=False):
 
         DrawSpherical(
             self.radius,
@@ -171,10 +171,10 @@ class Surface:
             surfaceColor=SURFACE_COLOR,
             )
         
-        if(self.clearBoundaryL is not None):
+        if(DrawBoundary and self.clearBoundaryL is not None):
             self.clearBoundaryL.DrawSurface()
 
-        if(self.clearBoundaryT is not None):
+        if(DrawBoundary and self.clearBoundaryT is not None):
             self.clearBoundaryT.DrawSurface()
 
 
@@ -302,7 +302,7 @@ class Surface:
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
         # DrawRaybatch(incidentRaybatch) # Draw call=========
-        # DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
+        DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
         # plt.draw() # Draw call=========
         # plt.pause(10) # Draw call=========
         

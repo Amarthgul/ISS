@@ -48,11 +48,11 @@ class EvenAspheric(Surface):
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])
         self._radiusDirection = self.frontVertex - self.radiusCenter
 
-        if(self.radius == INFINITY):
+        if(self.radius == INFINITY and self.K==0 and len(self.asphCoef)==0):
             # When r=inf, the cumulative thickness at the edge is the same as the cumulative thickness of the vertex.
             self.sdCumulative = cumulativeT
         else:
-            self.sdCumulative = cumulativeT + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
+            self.sdCumulative = cumulativeT + self._SagAsphereVec(self.clearSemiDiameter)
 
         self.PreComputeProxy()
 
@@ -353,16 +353,19 @@ class EvenAspheric(Surface):
     def _SagAsphereVec(self, r):
         """Vectorized even-asphere sag f(r) with R= self.radius, k=self.K, A=self.asphCoef."""
         r2 = r ** 2
+
         # base (conic)
         if bd.isinf(self.radius):
             base = bd.zeros_like(r2)
         else:
-            sqrt_term = bd.sqrt(1 - (1 + self.K) * r2 / self.radius ** 2)
+            sqrt_term = bd.sqrt(bd.maximum(0, 1 - (1 + self.K) * r2 / self.radius ** 2))
             base = r2 / (self.radius * (1 + sqrt_term))
+
         # even asphere terms starting at r^2 (A2, A4, ...)
         asph = bd.zeros_like(r2)
         for i, a in enumerate(self.asphCoef):
             asph += a * r2 ** (i + 1)
+
         return base + asph
 
 
@@ -423,7 +426,7 @@ class EvenAspheric(Surface):
         if bd.isinf(self.radius):
             d_base = bd.zeros_like(r)
         else:
-            sqrt_term = bd.sqrt(1 - (1 + self.K) * r2 / self.radius ** 2)
+            sqrt_term = bd.sqrt(bd.maximum(0, 1 - (1 + self.K) * r2 / self.radius ** 2))
             denom = (1 + sqrt_term) * sqrt_term
             d_base = (2 * r / self.radius) * (1 / (1 + sqrt_term) + (1 + self.K) * r2 / (self.radius ** 2 * denom))
 

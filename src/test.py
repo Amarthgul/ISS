@@ -29,9 +29,9 @@ FrameCount = 0
 # This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
 sampleMultiplier = 0.1
 
-def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, realTimeUpdate = False):
+def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdate = False):
     
-    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
+    print("New test w/ im Distance ", imageDistance)
 
     # AddRearGroup AddFrontGroup
     # lens.AddRearGroup([
@@ -48,9 +48,9 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, re
     image = imager.AccquireEmpty() 
 
     sourceImage = Image2DFlat()
-    sourceImage.horizontalAoV = AoV 
-    sourceImage.imageDimensionOverride = 1920 
     sourceImage.distance = imageDistance
+    sourceImage.horizontalAoV = lens.GetAoV()[0]*2
+    sourceImage.imageDimensionOverride = 1920
     sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
     # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
 
@@ -91,14 +91,14 @@ def ISO12233Test(lens, AoV=40, imageDistance = 200000, imageMinSample = 4096, re
 
         #print("End RB size: ", mainRB.value.shape)
         print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
-        ProgressBar(iterationCount / imageMinSample, 100)
+        ProgressBar(elpased / computeTime, 100)
 
         iterationCount += 1
         
-        if(iterationCount > imageMinSample):
+        if(elpased > computeTime):
             image /= 100 
             global FrameCount
-            fn = r"Canon501.2L_Asph_Test"+str(imageDistance)+"_"+str(FrameCount)
+            fn = r"LensSequenceTest"+str(imageDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
 
@@ -228,7 +228,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"CanonEF501.2L_HighRICoatAbsp_Flare"+str(refIte)
+    fn = r"Nokton50f1ASPH"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -538,12 +538,12 @@ def main():
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonNFD50f1.4.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton50f1ASPH.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
 
-    #ISO12233Test(lens, realTimeUpdate=True)
-    SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
+    ISO12233Test(lens, realTimeUpdate=True)
+    # SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
 
 
     # lens.SetAperture(4)
