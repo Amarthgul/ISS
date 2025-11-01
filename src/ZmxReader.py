@@ -206,6 +206,7 @@ class LensFromZmx:
         if "CONI" in d:
             conic = float(d["CONI"][0])
         else:
+            # By default, the conic is 0, and CONI is not going to appear
             conic = 0
 
         coef = []
