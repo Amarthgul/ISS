@@ -5,7 +5,7 @@ from Util.Backend import backend as bd
 from Util.ImageIO import ImageConversion, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawNormal
 from Util.Misc import ProgressBar
-from Util.DiaphragmSVG import DiaphragmBlades
+from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from src.ZmxReader import LensFromZmx
 from Util.SpatialEllipse import SpatialCircle
 from Util.Misc import RectPath
@@ -186,7 +186,7 @@ def ZmxParse():
 
 
 def BladeTest():
-    rot = DiaphragmBlades(RectPath(r"resources/diaphragm.svg"))
+    rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
     rot.DuplicateAroundCenter(2, 180)
     rot.RotateAllBlades(10)
     arr = rot.toArray()

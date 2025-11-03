@@ -1,4 +1,3 @@
-
 from xml.etree import ElementTree as ET
 from copy import deepcopy
 from typing import Optional, Tuple, Iterable
@@ -7,16 +6,18 @@ from PIL import Image, ImageDraw, ImageColor
 import math
 import matplotlib.pyplot as plt
 
-
 from .Backend import backend as bd
 from .Misc import RectPath
 
+
+# =================================================================================
+""" ============================== Util Methods =============================== """
+# =================================================================================
 
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 ET.register_namespace("", SVG_NS)
 ET.register_namespace("xlink", XLINK_NS)
-
 
 def _ns(tag: str) -> str:
     """Attach SVG namespace to a tag if it doesn't have one."""
@@ -55,14 +56,16 @@ def _find_point_coords(root: ET.Element, point_id: str) -> Tuple[float, float]:
         raise ValueError(f"Element with id='{point_id}' not found.")
 
     def _coords_on(el: ET.Element) -> Optional[Tuple[float, float]]:
-        cx = el.attrib.get("cx"); cy = el.attrib.get("cy")
+        cx = el.attrib.get("cx");
+        cy = el.attrib.get("cy")
         if cx is not None and cy is not None:
             try:
                 return (float(cx), float(cy))
             except ValueError:
                 pass
 
-        x = el.attrib.get("x"); y = el.attrib.get("y")
+        x = el.attrib.get("x");
+        y = el.attrib.get("y")
         if x is not None and y is not None:
             try:
                 return (float(x), float(y))
@@ -74,7 +77,8 @@ def _find_point_coords(root: ET.Element, point_id: str) -> Tuple[float, float]:
         if d:
             # very light-weight parse: look for first M or m followed by a pair of numbers
             import re
-            m = re.search(r"[Mm]\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*[, ]\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", d)
+            m = re.search(
+                r"[Mm]\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*[, ]\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", d)
             if m:
                 try:
                     return (float(m.group(1)), float(m.group(2)))
@@ -201,18 +205,18 @@ def _parse_transform(transform_str: str):
     # supports: matrix(a b c d e f), translate(tx[,ty]), scale(sx[,sy]), rotate(angle[, cx, cy])
     def matmul(A, B):
         return (
-            (A[0][0]*B[0][0] + A[0][1]*B[1][0] + A[0][2]*B[2][0],
-             A[0][0]*B[0][1] + A[0][1]*B[1][1] + A[0][2]*B[2][1],
-             A[0][0]*B[0][2] + A[0][1]*B[1][2] + A[0][2]*B[2][2]),
-            (A[1][0]*B[0][0] + A[1][1]*B[1][0] + A[1][2]*B[2][0],
-             A[1][0]*B[0][1] + A[1][1]*B[1][1] + A[1][2]*B[2][1],
-             A[1][0]*B[0][2] + A[1][1]*B[1][2] + A[1][2]*B[2][2]),
-            (A[2][0]*B[0][0] + A[2][1]*B[1][0] + A[2][2]*B[2][0],
-             A[2][0]*B[0][1] + A[2][1]*B[1][1] + A[2][2]*B[2][1],
-             A[2][0]*B[0][2] + A[2][1]*B[1][2] + A[2][2]*B[2][2]),
+            (A[0][0] * B[0][0] + A[0][1] * B[1][0] + A[0][2] * B[2][0],
+             A[0][0] * B[0][1] + A[0][1] * B[1][1] + A[0][2] * B[2][1],
+             A[0][0] * B[0][2] + A[0][1] * B[1][2] + A[0][2] * B[2][2]),
+            (A[1][0] * B[0][0] + A[1][1] * B[1][0] + A[1][2] * B[2][0],
+             A[1][0] * B[0][1] + A[1][1] * B[1][1] + A[1][2] * B[2][1],
+             A[1][0] * B[0][2] + A[1][1] * B[1][2] + A[1][2] * B[2][2]),
+            (A[2][0] * B[0][0] + A[2][1] * B[1][0] + A[2][2] * B[2][0],
+             A[2][0] * B[0][1] + A[2][1] * B[1][1] + A[2][2] * B[2][1],
+             A[2][0] * B[0][2] + A[2][1] * B[1][2] + A[2][2] * B[2][2]),
         )
 
-    I = ((1,0,0),(0,1,0),(0,0,1))
+    I = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
     if not transform_str:
         return I
 
@@ -222,14 +226,16 @@ def _parse_transform(transform_str: str):
     for kind, inside in tokens:
         nums = [float(v) for v in re.split(r'[,\s]+', inside.strip()) if v]
         if kind == 'matrix':
-            a,b,c,d,e,f = nums
-            T = ((a,c,e),(b,d,f),(0,0,1))
+            a, b, c, d, e, f = nums
+            T = ((a, c, e), (b, d, f), (0, 0, 1))
         elif kind == 'translate':
-            tx = nums[0]; ty = nums[1] if len(nums)>1 else 0.0
-            T = ((1,0,tx),(0,1,ty),(0,0,1))
+            tx = nums[0];
+            ty = nums[1] if len(nums) > 1 else 0.0
+            T = ((1, 0, tx), (0, 1, ty), (0, 0, 1))
         elif kind == 'scale':
-            sx = nums[0]; sy = nums[1] if len(nums)>1 else sx
-            T = ((sx,0,0),(0,sy,0),(0,0,1))
+            sx = nums[0];
+            sy = nums[1] if len(nums) > 1 else sx
+            T = ((sx, 0, 0), (0, sy, 0), (0, 0, 1))
         elif kind == 'rotate':
             ang = math.radians(nums[0])
             ca, sa = math.cos(ang), math.sin(ang)
@@ -237,27 +243,27 @@ def _parse_transform(transform_str: str):
                 cx, cy = nums[1], nums[2]
                 # translate(-cx,-cy) * R * translate(cx,cy)
                 T = matmul(
-                    matmul(((1,0,cx),(0,1,cy),(0,0,1)),
-                           ((ca,-sa,0),(sa,ca,0),(0,0,1))),
-                    ((1,0,-cx),(0,1,-cy),(0,0,1))
+                    matmul(((1, 0, cx), (0, 1, cy), (0, 0, 1)),
+                           ((ca, -sa, 0), (sa, ca, 0), (0, 0, 1))),
+                    ((1, 0, -cx), (0, 1, -cy), (0, 0, 1))
                 )
             else:
-                T = ((ca,-sa,0),(sa,ca,0),(0,0,1))
+                T = ((ca, -sa, 0), (sa, ca, 0), (0, 0, 1))
         M = matmul(M, T)
     return M
 
 
 def _apply_affine(M, x, y):
-    return (M[0][0]*x + M[0][1]*y + M[0][2],
-            M[1][0]*x + M[1][1]*y + M[1][2])
+    return (M[0][0] * x + M[0][1] * y + M[0][2],
+            M[1][0] * x + M[1][1] * y + M[1][2])
 
 
 def _circle_poly(cx, cy, r, n=128):
-    return [(cx + r*math.cos(2*math.pi*i/n), cy + r*math.sin(2*math.pi*i/n)) for i in range(n)]
+    return [(cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n)]
 
 
 def _ellipse_poly(cx, cy, rx, ry, n=128):
-    return [(cx + rx*math.cos(2*math.pi*i/n), cy + ry*math.sin(2*math.pi*i/n)) for i in range(n)]
+    return [(cx + rx * math.cos(2 * math.pi * i / n), cy + ry * math.sin(2 * math.pi * i / n)) for i in range(n)]
 
 
 def _path_to_poly(d: str, samples_per_unit=1.0, min_samples=8, max_samples=256):
@@ -277,41 +283,116 @@ def _path_to_poly(d: str, samples_per_unit=1.0, min_samples=8, max_samples=256):
     return pts
 
 
-class DiaphragmBlades:
-    def __init__(self, svg_path:str):
-        self.tree=ET.parse(svg_path)
-        self.root=self.tree.getroot()
+def _MultiplyCircle(img: bd.ndarray) -> bd.ndarray:
+    """
+    Given a square RGBA image array (H, W, 4), create a black image of the
+    same size, overlay a white circle (diameter = image size), and multiply
+    the two images elementwise for RGB channels. The alpha channel is
+    additive (logical OR): resulting alpha = 1 - (1 - a_img)*(1 - a_circle).
+
+    Returns a uint8 RGBA array.
+    """
+    h, w, c = img.shape
+    assert c == 4 and h == w, "Input must be a square RGBA image (H==W, 4 channels)."
+    n = h
+
+    # 1) Generate white circle mask (same size)
+    yy, xx = bd.ogrid[:n, :n]
+    cx = (n - 1) / 2.0
+    cy = (n - 1) / 2.0
+    r = n / 2.0
+    circle_mask = (xx - cx) ** 2 + (yy - cy) ** 2 <= r ** 2
+
+    # 2) Create the white circle RGBA image
+    circle_img = bd.zeros_like(img, dtype=bd.uint8)
+    circle_img[..., 0:3][circle_mask] = 255
+    circle_img[..., 3][~circle_mask] = 255
+
+    # 3) Multiply RGB channels (normalized)
+    result_rgb = (img[..., :3].astype(bd.uint16) * circle_img[..., :3].astype(bd.uint16)) // 255
+
+    # 4) Combine alpha channels additively (OR)
+    a_img = img[..., 3].astype(bd.float32) / 255.0
+    a_circle = circle_img[..., 3].astype(bd.float32) / 255.0
+    # logical OR in continuous form: a_out = 1 - (1 - a1)*(1 - a2)
+    a_out = 1.0 - (1.0 - a_img) * (1.0 - a_circle)
+    result_alpha = (a_out * 255.0).astype(bd.uint8)
+
+    # 5) Stack final RGBA
+    result = bd.zeros_like(img, dtype=bd.uint8)
+    result[..., :3] = result_rgb
+    result[..., 3] = result_alpha
+
+    return result
+
+
+# =================================================================================
+""" ============================ Diaphragm Classes ============================ """
+# =================================================================================
+
+class ApertureDiaphragm:
+    """Class interface for all diaphragm objects."""
+    def __init__(self, svg_path: str):
+        self.filePath = svg_path
+
+    def DuplicateAroundCenter(self, n: int, step: float,
+                              main_id="main", pivot_id="pivot",
+                              center_id="center", layer_id="generated_copies"):
+        pass
+
+    def RotateAllBlades(self, deg: float, pivot_id="pivot"):
+        pass
+
+    def toArray(self):
+        pass
+
+
+
+
+
+class SingleEndPinnedDiaphragm(ApertureDiaphragm):
+    """
+    This is for single-end pinned diaphragm only.
+    For this type of diaphragm, every blade is pinned on an end point and rotates around this end point.
+    """
+    def __init__(self, svg_path: str):
+        super().__init__(svg_path)
+        self.tree = ET.parse(svg_path)
+        self.root = self.tree.getroot()
         if not self.root.tag.endswith("svg"):
             raise ValueError("Not an SVG root")
 
-
-    def DuplicateAroundCenter(self,n:int,step:float,
-                                               main_id="main",pivot_id="pivot",
-                                               center_id="center",layer_id="generated_copies"):
-        if n<1: return
-        r=self.root
-        main=r.find(f".//*[@id='{main_id}']"); pivot=r.find(f".//*[@id='{pivot_id}']")
+    def DuplicateAroundCenter(self, n: int, step: float,
+                              main_id="main", pivot_id="pivot",
+                              center_id="center", layer_id="generated_copies"):
+        if n < 1: return
+        r = self.root
+        main = r.find(f".//*[@id='{main_id}']");
+        pivot = r.find(f".//*[@id='{pivot_id}']")
         if main is None or pivot is None: raise ValueError("main or pivot not found")
-        cx,cy=_find_point_coords(r,center_id)
-        _append_class(main,"rot_target"); _append_class(pivot,"rot_target")
-        layer=r.find(f".//*[@id='{layer_id}']")
+        cx, cy = _find_point_coords(r, center_id)
+        _append_class(main, "rot_target");
+        _append_class(pivot, "rot_target")
+        layer = r.find(f".//*[@id='{layer_id}']")
         if layer is None:
-            layer=ET.Element(_ns("g"),{"id":layer_id}); r.append(layer)
-        for i in range(1,n+1):
-            g=ET.Element(_ns("g"),{"id":f"pair_{i}"})
-            mc,pc=deepcopy(main),deepcopy(pivot)
-            mc.set("id",f"{main_id}_copy_{i}"); pc.set("id",f"{pivot_id}_copy_{i}")
-            _append_class(mc,"rot_target"); _append_class(pc,"rot_target")
-            g.extend([mc,pc])
-            _append_transform(g,f"rotate({i*step} {cx} {cy})")
+            layer = ET.Element(_ns("g"), {"id": layer_id});
+            r.append(layer)
+        for i in range(1, n + 1):
+            g = ET.Element(_ns("g"), {"id": f"pair_{i}"})
+            mc, pc = deepcopy(main), deepcopy(pivot)
+            mc.set("id", f"{main_id}_copy_{i}");
+            pc.set("id", f"{pivot_id}_copy_{i}")
+            _append_class(mc, "rot_target");
+            _append_class(pc, "rot_target")
+            g.extend([mc, pc])
+            _append_transform(g, f"rotate({i * step} {cx} {cy})")
             layer.append(g)
 
-
-    def RotateAllBlades(self,deg:float,pivot_id="pivot"):
-        px,py=_find_point_coords(self.root,pivot_id)
+    def RotateAllBlades(self, deg: float, pivot_id="pivot"):
+        px, py = _find_point_coords(self.root, pivot_id)
         for e in self.root.iter():
-            if "rot_target" in e.get("class","").split():
-                _append_transform(e,f"rotate({deg} {px} {py})")
+            if "rot_target" in e.get("class", "").split():
+                _append_transform(e, f"rotate({deg} {px} {py})")
 
 
     def toArray(self) -> bd.ndarray:
@@ -335,60 +416,69 @@ class DiaphragmBlades:
 
         # ----------------- PIL image target (transparent BG) ---
         # 0-255
-        img = Image.new("RGBA", (W, H), (0,0,0,0))
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         drw = ImageDraw.Draw(img)
 
         # ------------ recursive traversal to accumulate transforms ---
         def render_elem(el, M_parent, inherited_fill_rgba):
             # accumulate own transform
             M_local = _parse_transform(el.get("transform"))
+
             # M_total = M_parent * M_local
             # (matrix multiply defined in helper uses A*B order)
-            def matmul(A,B):
+            def matmul(A, B):
                 return (
-                    (A[0][0]*B[0][0] + A[0][1]*B[1][0] + A[0][2]*B[2][0],
-                     A[0][0]*B[0][1] + A[0][1]*B[1][1] + A[0][2]*B[2][1],
-                     A[0][0]*B[0][2] + A[0][1]*B[1][2] + A[0][2]*B[2][2]),
-                    (A[1][0]*B[0][0] + A[1][1]*B[1][0] + A[1][2]*B[2][0],
-                     A[1][0]*B[0][1] + A[1][1]*B[1][1] + A[1][2]*B[2][1],
-                     A[1][0]*B[0][2] + A[1][1]*B[1][2] + A[1][2]*B[2][2]),
-                    (A[2][0]*B[0][0] + A[2][1]*B[1][0] + A[2][2]*B[2][0],
-                     A[2][0]*B[0][1] + A[2][1]*B[1][1] + A[2][2]*B[2][1],
-                     A[2][0]*B[0][2] + A[2][1]*B[1][2] + A[2][2]*B[2][2]),
+                    (A[0][0] * B[0][0] + A[0][1] * B[1][0] + A[0][2] * B[2][0],
+                     A[0][0] * B[0][1] + A[0][1] * B[1][1] + A[0][2] * B[2][1],
+                     A[0][0] * B[0][2] + A[0][1] * B[1][2] + A[0][2] * B[2][2]),
+                    (A[1][0] * B[0][0] + A[1][1] * B[1][0] + A[1][2] * B[2][0],
+                     A[1][0] * B[0][1] + A[1][1] * B[1][1] + A[1][2] * B[2][1],
+                     A[1][0] * B[0][2] + A[1][1] * B[1][2] + A[1][2] * B[2][2]),
+                    (A[2][0] * B[0][0] + A[2][1] * B[1][0] + A[2][2] * B[2][0],
+                     A[2][0] * B[0][1] + A[2][1] * B[1][1] + A[2][2] * B[2][1],
+                     A[2][0] * B[0][2] + A[2][1] * B[1][2] + A[2][2] * B[2][2]),
                 )
+
             M = matmul(M_parent, M_local)
 
-            tag = el.tag.split('}',1)[-1]
+            tag = el.tag.split('}', 1)[-1]
 
             # --------- polygons from basic shapes ---
             poly = None
 
             if tag == "rect":
-                x = float(el.get("x", "0")); y = float(el.get("y", "0"))
-                w = float(el.get("width")); h = float(el.get("height"))
-                rect = [(x,y),(x+w,y),(x+w,y+h),(x,y+h)]
-                poly = [ _apply_affine(M, X,Y) for (X,Y) in rect ]
+                x = float(el.get("x", "0"));
+                y = float(el.get("y", "0"))
+                w = float(el.get("width"));
+                h = float(el.get("height"))
+                rect = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+                poly = [_apply_affine(M, X, Y) for (X, Y) in rect]
 
             elif tag == "circle":
-                cx = float(el.get("cx")); cy = float(el.get("cy")); r = float(el.get("r"))
+                cx = float(el.get("cx"));
+                cy = float(el.get("cy"));
+                r = float(el.get("r"))
                 circ = _circle_poly(cx, cy, r, n=128)
-                poly = [ _apply_affine(M, X,Y) for (X,Y) in circ ]
+                poly = [_apply_affine(M, X, Y) for (X, Y) in circ]
 
             elif tag == "ellipse":
-                cx = float(el.get("cx")); cy = float(el.get("cy"))
-                rx = float(el.get("rx")); ry = float(el.get("ry"))
+                cx = float(el.get("cx"));
+                cy = float(el.get("cy"))
+                rx = float(el.get("rx"));
+                ry = float(el.get("ry"))
                 ell = _ellipse_poly(cx, cy, rx, ry, n=128)
-                poly = [ _apply_affine(M, X,Y) for (X,Y) in ell ]
+                poly = [_apply_affine(M, X, Y) for (X, Y) in ell]
 
             elif tag == "polygon":
                 pts = el.get("points").replace(",", " ").split()
-                it = iter(pts); pg = [ (float(a), float(b)) for a,b in zip(it,it) ]
-                poly = [ _apply_affine(M, X,Y) for (X,Y) in pg ]
+                it = iter(pts);
+                pg = [(float(a), float(b)) for a, b in zip(it, it)]
+                poly = [_apply_affine(M, X, Y) for (X, Y) in pg]
 
             elif tag == "path":
                 d = el.get("d")
                 path_poly = _path_to_poly(d, samples_per_unit=1.0, min_samples=8, max_samples=256)
-                poly = [ _apply_affine(M, X,Y) for (X,Y) in path_poly ]
+                poly = [_apply_affine(M, X, Y) for (X, Y) in path_poly]
 
             # compute this element's effective fill (inherits from parent)
             current_fill_rgba = _compute_local_fill(el, inherited_fill_rgba)
@@ -396,71 +486,25 @@ class DiaphragmBlades:
             # --- rasterize polygon if present ---
             if poly and len(poly) >= 3:
                 # map from SVG coords to pixel coords via viewBox scaling
-                screen = [ ((X - vx)*sx, (Y - vy)*sy) for (X,Y) in poly ]
+                screen = [((X - vx) * sx, (Y - vy) * sy) for (X, Y) in poly]
                 # simple fill (black, fully opaque)
-                drw.polygon(screen, fill=(0,0,0,255))
+                drw.polygon(screen, fill=(0, 0, 0, 255))
 
             # recurse into children
             for child in el:
                 render_elem(child, M, current_fill_rgba)
 
         # start traversal
-        I = ((1,0,0),(0,1,0),(0,0,1))
+        I = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
         default_fill = (0, 0, 0, 255)
         render_elem(self.root, I, default_fill)
 
-
-
         arr = bd.array(img, dtype=bd.uint8)  # (H, W, 4)
 
-        arr = self._MultiplyCircle(arr)
+        arr = _MultiplyCircle(arr)
 
         return bd.asarray(arr)
-
 
     def DrawDiaphragm(self):
 
         pass
-
-
-    def _MultiplyCircle(self, img: bd.ndarray) -> bd.ndarray:
-        """
-        Given a square RGBA image array (H, W, 4), create a black image of the
-        same size, overlay a white circle (diameter = image size), and multiply
-        the two images elementwise for RGB channels. The alpha channel is
-        additive (logical OR): resulting alpha = 1 - (1 - a_img)*(1 - a_circle).
-
-        Returns a uint8 RGBA array.
-        """
-        h, w, c = img.shape
-        assert c == 4 and h == w, "Input must be a square RGBA image (H==W, 4 channels)."
-        n = h
-
-        # 1) Generate white circle mask (same size)
-        yy, xx = bd.ogrid[:n, :n]
-        cx = (n - 1) / 2.0
-        cy = (n - 1) / 2.0
-        r = n / 2.0
-        circle_mask = (xx - cx)**2 + (yy - cy)**2 <= r**2
-
-        # 2) Create the white circle RGBA image
-        circle_img = bd.zeros_like(img, dtype=bd.uint8)
-        circle_img[..., 0:3][circle_mask] = 255
-        circle_img[..., 3][~circle_mask] = 255
-
-        # 3) Multiply RGB channels (normalized)
-        result_rgb = (img[..., :3].astype(bd.uint16) * circle_img[..., :3].astype(bd.uint16)) // 255
-
-        # 4) Combine alpha channels additively (OR)
-        a_img = img[..., 3].astype(bd.float32) / 255.0
-        a_circle = circle_img[..., 3].astype(bd.float32) / 255.0
-        # logical OR in continuous form: a_out = 1 - (1 - a1)*(1 - a2)
-        a_out = 1.0 - (1.0 - a_img) * (1.0 - a_circle)
-        result_alpha = (a_out * 255.0).astype(bd.uint8)
-
-        # 5) Stack final RGBA
-        result = bd.zeros_like(img, dtype=bd.uint8)
-        result[..., :3] = result_rgb
-        result[..., 3] = result_alpha
-
-        return result

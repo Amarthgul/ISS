@@ -28,7 +28,7 @@ def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True
     return NumpyConversion(ary).astype(bd.uint8)
 
 
-def rgbFromRGBA(rgba: bd.ndarray, background=(0, 0, 0)) -> bd.ndarray:
+def rgbFromRGBA(rgba: bd.ndarray, background=(255, 255, 255)):
     """
     Convert an RGBA image array (H, W, 4) to an RGB array (H, W, 3),
     compositing transparency over a solid background color.
@@ -38,15 +38,16 @@ def rgbFromRGBA(rgba: bd.ndarray, background=(0, 0, 0)) -> bd.ndarray:
 
     :return: RGB image, dtype float32 normalized to [0,1] (ready for plt.imshow()).
     """
-    assert rgba.ndim == 3 and rgba.shape[2] == 4, "Input must be (H, W, 4) RGBA array."
-    # Normalize to [0,1]
-    rgb = rgba[..., :3].astype(bd.float32) / 255.0
-    alpha = rgba[..., 3:4].astype(bd.float32) / 255.0
-    bg = bd.array(background, dtype=bd.float32) / 255.0
+    import numpy as np
 
-    # Alpha blending: C_out = alpha * C_fg + (1 - alpha) * C_bg
-    out = alpha * rgb + (1 - alpha) * bg
-    return out  # shape (H, W, 3), float32 in [0,1]
+    rgba = np.asarray(rgba)  # ensure NumPy
+    rgb = rgba[..., :3].astype(np.float32) / 255.0
+    alpha = rgba[..., 3:4].astype(np.float32) / 255.0
+    bg = np.array(background, dtype=np.float32).reshape(1, 1, 3) / 255.0
+
+    out = alpha * rgb + (1.0 - alpha) * bg
+
+    return out
 
 
 def ImageConversionAverage(ary, bitDepth=8, modifier=2, rotate=True):

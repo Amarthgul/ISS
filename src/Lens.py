@@ -156,16 +156,17 @@ class Lens:
         return self.surfaces[self._lastSurfaceIndex].thickness
 
 
-    def SetAperture(self, aperture):
+    def SetAperture(self, fNumber):
         """
         Set the aperture of the lens. 
 
-        :param aperture: f-number of the lens.
+        :param fNumber: f-number of the lens.
         """
+
+
+        calculatedPupilDiameter = self.focalLength / fNumber # in millimeter or whatever the focal length is using
         
-        calculatedPupilSize = self.focalLength / aperture
-        
-        self.entrancePupil.SetPupilSize(calculatedPupilSize / TWO)
+        self.entrancePupil.SetPupilSize(calculatedPupilDiameter / TWO)
         
 
     def Propagate(self, rayBatch, recordPath=False, reflection=False, iteCount=2):
