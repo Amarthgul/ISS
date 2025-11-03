@@ -187,9 +187,11 @@ def ZmxParse():
 
 def BladeTest():
     rot = DiaphragmBlades(RectPath(r"resources/diaphragm.svg"))
-    rot.DuplicateAroundCenter(6, 60)
+    rot.DuplicateAroundCenter(2, 180)
     rot.RotateAllBlades(10)
-    plt.show(ImageConversion(rot.toArray(512, 512)))
+    arr = rot.toArray()
+    plt.imshow(bd.asnumpy(arr))
+    plt.show()
 
 
 def main():

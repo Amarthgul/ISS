@@ -28,9 +28,30 @@ def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True
     return NumpyConversion(ary).astype(bd.uint8)
 
 
+def rgbFromRGBA(rgba: bd.ndarray, background=(0, 0, 0)) -> bd.ndarray:
+    """
+    Convert an RGBA image array (H, W, 4) to an RGB array (H, W, 3),
+    compositing transparency over a solid background color.
+
+    :param rgba: bd.ndarray input image, dtype uint8, shape (H, W, 4).
+    :param background: Background color (R, G, B), default black.
+
+    :return: RGB image, dtype float32 normalized to [0,1] (ready for plt.imshow()).
+    """
+    assert rgba.ndim == 3 and rgba.shape[2] == 4, "Input must be (H, W, 4) RGBA array."
+    # Normalize to [0,1]
+    rgb = rgba[..., :3].astype(bd.float32) / 255.0
+    alpha = rgba[..., 3:4].astype(bd.float32) / 255.0
+    bg = bd.array(background, dtype=bd.float32) / 255.0
+
+    # Alpha blending: C_out = alpha * C_fg + (1 - alpha) * C_bg
+    out = alpha * rgb + (1 - alpha) * bg
+    return out  # shape (H, W, 3), float32 in [0,1]
+
+
 def ImageConversionAverage(ary, bitDepth=8, modifier=2, rotate=True):
     """
-    Convert the float reprensentation of an image to a uint8 image.
+    Convert the float representation of an image to a uint8 image.
     """
     emanVal = bd.median(ary)
 
