@@ -10,7 +10,7 @@ from Util.ImageIO import rgbFromRGBA
 def BladeTest():
     rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
     rot.DuplicateAroundCenter(10, 32.72)
-    rot.RotateAllBlades(-15)
+    rot.RotateAllBlades(-25)
     arr = rot.toArray()
 
     rgb = rgbFromRGBA(bd.asnumpy(arr))

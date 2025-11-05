@@ -16,9 +16,10 @@ from Util.Backend import constant
 from Util.Backend import backend as bd 
 from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR
 from Util.ColorWavelength import WavelengthToRGB
-from Util.Misc import AxialDistance, TransversalDistance
+from Util.Misc import AxialDistance, TransversalDistance, RectPath
 from Util.SpatialEllipse import SpatialCircle
 from Util.Sampling import RandomEllipticalDistribution
+from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import Surface
@@ -54,9 +55,10 @@ class Lens:
         self.rayPath = [] # Rays with only position info on each surface 
         
         self.entrancePupil = Pupil() 
-        self.frontPincipalPlane = PrincipalPlane() 
+        self.frontPrincipalPlane = PrincipalPlane()
+        self.diaphragm = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
 
-        """Index of stop amopng the lens surfaces for easier indexing"""
+        """Index of stop among the lens surfaces for easier indexing"""
         self.stopIndex = None 
 
         """Axial direction length of all the surfaces. From front vertex of the first surface to the last surface"""
@@ -314,7 +316,7 @@ class Lens:
         
         if(not self.isAfocal):
             info += "\n" +\
-            "Principal plane:\t" + str(self.frontPincipalPlane.GetInnerZ()) + "\n" +\
+            "Principal plane:\t" + str(self.frontPrincipalPlane.GetInnerZ()) + "\n" +\
             "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
             
         return info
@@ -733,9 +735,9 @@ class Lens:
                         ) 
                     objectSideRPs[j].Append(objectSideRBs[j], _tirs[j], _vigs[j])
 
-                DrawRaybatch(objectSideRBs[i])  # Draw call=========
-                plt.draw()
-                plt.pause(8)
+                # DrawRaybatch(objectSideRBs[i])  # Draw call=========
+                # plt.draw()
+                # plt.pause(8)
 
         # for j in range(sampleCount):
         #     objectSideRPs[j].DrawPath(10, omitIncident=False, color=colors[j%len(colors)]) # Draw call=========
@@ -774,7 +776,7 @@ class Lens:
 
         :param wavelength: the wavelength at which the calculations will be performed. 
         """
-        self.frontPincipalPlane.sampleWavelength = wavelength
+        self.frontPrincipalPlane.sampleWavelength = wavelength
 
         frontRB = EmitFromObjectSpace(self.entrancePupil.GetMaxPupilSize() / TWO, numRays=15, halfSide=True)
         frontRP = RayPath()
@@ -808,11 +810,11 @@ class Lens:
         intersections = bd.vstack([intersections, minPoint])
 
         # Now, with the on-axis point also created, add the updated intersection into the sample points of the principal plane
-        self.frontPincipalPlane.SetSamplePoints(intersections)
+        self.frontPrincipalPlane.SetSamplePoints(intersections)
         #self.frontPincipalPlane.DrawSamplePoints() # Draw call =======
 
         # Calculate the focal length 
-        self.focalLength = self.focalPoint[Axis.Z.value] - self.frontPincipalPlane.GetInnerZ()
+        self.focalLength = self.focalPoint[Axis.Z.value] - self.frontPrincipalPlane.GetInnerZ()
 
 
     def _FindPreviousRI(self, index, raybatch):

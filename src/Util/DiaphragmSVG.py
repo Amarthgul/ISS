@@ -346,7 +346,8 @@ class ApertureDiaphragm:
     def toArray(self):
         pass
 
-
+    def ShrinkToPercent(self, percent:float):
+        pass
 
 
 
@@ -361,6 +362,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         self.root = self.tree.getroot()
         if not self.root.tag.endswith("svg"):
             raise ValueError("Not an SVG root")
+
 
     def DuplicateAroundCenter(self, n: int, step: float,
                               main_id="main", pivot_id="pivot",
@@ -504,6 +506,11 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         arr = _MultiplyCircle(arr)
 
         return bd.asarray(arr)
+
+
+    def ShrinkToPercent(self, percent: float):
+        pass
+
 
     def DrawDiaphragm(self):
 
