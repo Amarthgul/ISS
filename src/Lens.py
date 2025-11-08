@@ -56,7 +56,9 @@ class Lens:
         
         self.entrancePupil = Pupil() 
         self.frontPrincipalPlane = PrincipalPlane()
+
         self.diaphragm = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
+        self.diaphragmBladeCt = 6
 
         """Index of stop among the lens surfaces for easier indexing"""
         self.stopIndex = None 

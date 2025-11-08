@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from .Backend import backend as bd
 from .Misc import RectPath
-
+from .ImageIO import rgbFromRGBA
 
 # =================================================================================
 """ ============================== Util Methods =============================== """
@@ -334,19 +334,27 @@ class ApertureDiaphragm:
     """Class interface for all diaphragm objects."""
     def __init__(self, svg_path: str):
         self.filePath = svg_path
+        self.bladeCount = 6
+        self.size = 512
+        self._centerRotate = 360.0 / self.bladeCount
 
-    def DuplicateAroundCenter(self, n: int, step: float,
-                              main_id="main", pivot_id="pivot",
+    def DuplicateAroundCenter(self, main_id="main", pivot_id="pivot",
                               center_id="center", layer_id="generated_copies"):
         pass
 
     def RotateAllBlades(self, deg: float, pivot_id="pivot"):
         pass
 
+    def Reset(self):
+        pass
+
     def toArray(self):
         pass
 
-    def ShrinkToPercent(self, percent:float):
+    def StopDownToRatio(self, percent:float):
+        pass
+
+    def CalculateRatio(self):
         pass
 
 
@@ -356,41 +364,55 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
     This is for single-end pinned diaphragm only.
     For this type of diaphragm, every blade is pinned on an end point and rotates around this end point.
     """
-    def __init__(self, svg_path: str):
-        super().__init__(svg_path)
-        self.tree = ET.parse(svg_path)
+    def __init__(self, svgPath: str):
+        super().__init__(svgPath)
+        self.path = svgPath
+        self.tree = ET.parse(self.path)
         self.root = self.tree.getroot()
+        self.size = 512
+        self._UpdateSize()
         if not self.root.tag.endswith("svg"):
             raise ValueError("Not an SVG root")
 
 
-    def DuplicateAroundCenter(self, n: int, step: float,
-                              main_id="main", pivot_id="pivot",
+    def DuplicateAroundCenter(self, main_id="main", pivot_id="pivot",
                               center_id="center", layer_id="generated_copies"):
-        if n < 1: return
+
         r = self.root
-        main = r.find(f".//*[@id='{main_id}']");
+        main = r.find(f".//*[@id='{main_id}']")
         pivot = r.find(f".//*[@id='{pivot_id}']")
-        if main is None or pivot is None: raise ValueError("main or pivot not found")
+
+        if main is None or pivot is None:
+            raise ValueError("main or pivot not found")
+
         cx, cy = _find_point_coords(r, center_id)
-        _append_class(main, "rot_target");
+        _append_class(main, "rot_target")
         _append_class(pivot, "rot_target")
         layer = r.find(f".//*[@id='{layer_id}']")
+
         if layer is None:
-            layer = ET.Element(_ns("g"), {"id": layer_id});
+            layer = ET.Element(_ns("g"), {"id": layer_id})
             r.append(layer)
-        for i in range(1, n + 1):
+
+        for i in range(1, self.bladeCount + 1):
             g = ET.Element(_ns("g"), {"id": f"pair_{i}"})
             mc, pc = deepcopy(main), deepcopy(pivot)
             mc.set("id", f"{main_id}_copy_{i}");
             pc.set("id", f"{pivot_id}_copy_{i}")
-            _append_class(mc, "rot_target");
+            _append_class(mc, "rot_target")
             _append_class(pc, "rot_target")
             g.extend([mc, pc])
-            _append_transform(g, f"rotate({i * step} {cx} {cy})")
+            _append_transform(g, f"rotate({i * self._centerRotate} {cx} {cy})")
             layer.append(g)
 
+
     def RotateAllBlades(self, deg: float, pivot_id="pivot"):
+        """
+        Rotate all blades around their respective pivots.
+        :param deg: degree to rotate. Positive is clock-wise.
+        :param pivot_id: name of the pivot as in the SVG file.
+        """
+
         px, py = _find_point_coords(self.root, pivot_id)
         for e in self.root.iter():
             if "rot_target" in e.get("class", "").split():
@@ -508,10 +530,86 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         return bd.asarray(arr)
 
 
-    def ShrinkToPercent(self, percent: float):
-        pass
+    def Reset(self):
+        self.tree = ET.parse(self.path)
+        self.root = self.tree.getroot()
+        self._UpdateSize()
 
 
-    def DrawDiaphragm(self):
+    def StopDownToRatio(self, ratio: float, eps:float=1e-3, angle:float = 0, step:float = -2):
+        """
+        Stop down the aperture to a certain ratio.
 
-        pass
+        :param ratio: target ratio.
+        :param eps: epsilon for error allowance. Defaults to 1e-3, which I think is a bit too harsh.
+        :param angle: angle in degrees. Defaults to 0.
+        :param step: step in degrees. Defaults to -2.
+
+        :return: a rotation angle that would satisfy the ratio.
+        """
+
+        currentRatio = self.CalculateRatio()
+        difference = currentRatio - ratio
+
+        if bd.abs(difference) < eps:
+            return angle
+
+        if difference > 0:
+            # Current ratio is bigger than desired ratio, need to stop down even more
+            if step < 0:
+                # Meaning it's on a continuing shrinking step
+                newStep = step
+            else:
+                # Meaning the last step was trying to correct overshoot
+                newStep = - step/2.0
+            self.Reset()
+            self.DuplicateAroundCenter()
+            self.RotateAllBlades(angle+newStep)
+            return self.StopDownToRatio(ratio, eps, angle+newStep, newStep)
+
+        else:
+            # Current ratio is smaller than desired, need to step up
+            if step > 0:
+                # meaning it's on a continuing expanding step
+                newStep =  step
+            else:
+                newStep = - step/2.0
+            self.Reset()
+            self.DuplicateAroundCenter()
+            self.RotateAllBlades(angle + newStep)
+            return self.StopDownToRatio(ratio, eps, angle + newStep, newStep)
+
+
+    def CalculateRatio(self):
+        """Calculate the current the pupil size compare to the full pupil size"""
+
+        # Proudly introduce my genius solution to cupy and numpy compatibility issue :D
+        currentImg = bd.array(rgbFromRGBA(bd.asnumpy(self.toArray())))
+
+
+        if currentImg.dtype == bd.uint8:
+            white_mask = bd.all(currentImg == bd.array(255), axis=2)
+        else:
+            white_mask = bd.all(currentImg >= bd.array(0.999), axis=2)
+
+        white_pixels = int(bd.count_nonzero(white_mask))
+
+        # Area of a circle whose diameter is self.size (in pixels)
+        r = self.size / 2.0
+        circle_area = math.pi * (r * r)
+
+        # This is highly unlikely to be exactly 1, it's always a bit smaller
+        return white_pixels / circle_area
+
+
+    def _UpdateSize(self):
+        vb = self.root.get("viewBox")
+        if vb:
+            vx, vy, vw, vh = [float(x) for x in vb.replace(",", " ").split()]
+            self.size = int(round(vw))
+        else:
+            self.size = int(float(self.root.get("width", "512")))
+
+
+
+

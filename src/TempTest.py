@@ -9,20 +9,37 @@ from Util.ImageIO import rgbFromRGBA
 
 def BladeTest():
     rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
-    rot.DuplicateAroundCenter(10, 32.72)
-    rot.RotateAllBlades(-25)
-    arr = rot.toArray()
 
-    rgb = rgbFromRGBA(bd.asnumpy(arr))
-    plt.imshow(rgb)
-    # plt.imshow(rgb)
-    # plt.imshow(bd.asnumpy(arr))
+    for i in range(25):
+        rot.Reset()
+        rot.DuplicateAroundCenter()
+        rot.RotateAllBlades(-i)
+        arr = rot.toArray()
+
+        rgb = rgbFromRGBA(bd.asnumpy(arr))
+        plt.imshow(rgb)
+
+        plt.draw()
+        plt.pause(1)
 
     plt.show()
 
 
+def BladeTune():
+    rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
+    rot.StopDownToRatio(0.25)
+
+    arr = rot.toArray()
+
+    rgb = rgbFromRGBA(bd.asnumpy(arr))
+    print(rot.CalculateRatio())
+
+    plt.imshow(rgb)
+    plt.show()
+
+
 def main():
-    BladeTest()
+    BladeTune()
     # StereoImageDisplay()
 
 
