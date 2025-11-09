@@ -107,14 +107,14 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 50000, focusDistance = 1500, computeTime = 5120, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 200000, focusDistance = 1000, computeTime = 5120, realTimeUpdate = False):
 
 
 
     print("Start spot testing")
     source = PointsSource()
     source.isCartesian = False
-    ratio = 0.925
+    ratio = 0.9
     xAngle = ratio * lens.GetAoV()[0] # 19*ratio
     yAngle = ratio * lens.GetAoV()[1] #12*ratio
     sample = 9
@@ -144,7 +144,7 @@ def SpotTesting(lens, objectDistance = 50000, focusDistance = 1500, computeTime 
         
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), sample*sample, addSecondary=9)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(8192), sample*sample, addSecondary=9)
 
         mainRB, mainRP, _ = lens.Propagate(mainRB)
 
@@ -167,7 +167,7 @@ def SpotTesting(lens, objectDistance = 50000, focusDistance = 1500, computeTime 
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = r"nFD501.4Spot"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"LeicaSummicronpot"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -228,7 +228,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"Nokton50f1ASPH"+str(refIte)
+    fn = r"Baltar50f2"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -529,8 +529,8 @@ def main():
     #     5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     # ]
     
-    angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.9
-    angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.9
+    angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.7
+    angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.7
 
     # lens = Zhongyi50f095()
     # lens = Industar50_50mmf35()
@@ -538,12 +538,13 @@ def main():
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton50f1ASPH.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedPanchro50f2.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
+    lens.SetAperture(4)
 
-    ISO12233Test(lens, realTimeUpdate=True)
-    # SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
+    # ISO12233Test(lens, realTimeUpdate=True)
+    SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
 
 
     # lens.SetAperture(4)
@@ -562,7 +563,7 @@ def main():
         position = AngleFieldToCartesian(ax, ay, -d)
     #     #print("Current origin position: ", position)
         # ReflectionSpotPositionOrig(lens, position, focusDistance=1500, imageMinSample=2048, realTimeUpdate=True)
-        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=12*60*60, realTimeUpdate=False)
+        ReflectionSpotTesting(lens, position, focusDistance=1500, computeTime=13*60*60, realTimeUpdate=False)
     #
     #SpotTesting(lens, realTimeUpdate=False)
 

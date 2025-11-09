@@ -334,7 +334,7 @@ class ApertureDiaphragm:
     """Class interface for all diaphragm objects."""
     def __init__(self, svg_path: str):
         self.filePath = svg_path
-        self.bladeCount = 6
+        self.bladeCount = 4
         self.size = 512
         self._centerRotate = 360.0 / self.bladeCount
 
@@ -349,6 +349,9 @@ class ApertureDiaphragm:
         pass
 
     def toArray(self):
+        pass
+
+    def toImage(self):
         pass
 
     def StopDownToRatio(self, percent:float):
@@ -377,6 +380,8 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
 
     def DuplicateAroundCenter(self, main_id="main", pivot_id="pivot",
                               center_id="center", layer_id="generated_copies"):
+
+        self._centerRotate = 360.0 / self.bladeCount
 
         r = self.root
         main = r.find(f".//*[@id='{main_id}']")
@@ -528,6 +533,11 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         arr = _MultiplyCircle(arr)
 
         return bd.asarray(arr)
+
+
+    def toImage(self):
+        arr = self.toArray()
+        return rgbFromRGBA(bd.asnumpy(arr))
 
 
     def Reset(self):

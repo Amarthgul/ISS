@@ -57,8 +57,7 @@ class Lens:
         self.entrancePupil = Pupil() 
         self.frontPrincipalPlane = PrincipalPlane()
 
-        self.diaphragm = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
-        self.diaphragmBladeCt = 6
+        self.diaphragm = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragmS.svg"))
 
         """Index of stop among the lens surfaces for easier indexing"""
         self.stopIndex = None 
@@ -160,17 +159,31 @@ class Lens:
         return self.surfaces[self._lastSurfaceIndex].thickness
 
 
-    def SetAperture(self, fNumber):
+    def SetAperture(self, fNumber, useDiaphragm=True):
         """
-        Set the aperture of the lens. 
+        Set the aperture of the lens.
+        Note that if there is a diaphragm, then this operation will make some attributes less useful.
 
         :param fNumber: f-number of the lens.
         """
 
 
-        calculatedPupilDiameter = self.focalLength / fNumber # in millimeter or whatever the focal length is using
-        
-        self.entrancePupil.SetPupilSize(calculatedPupilDiameter / TWO)
+        calculatedPupilDiameter = self.focalLength / fNumber
+        # in millimeter or whatever the focal length is using
+
+        fullPupilDiameter = self.entrancePupil.GetMaxPupilSize()
+
+        ratio = calculatedPupilDiameter**2 / fullPupilDiameter**2
+        if ratio < 1:
+            self.diaphragm.Reset()
+            self.diaphragm.DuplicateAroundCenter()
+            self.diaphragm.StopDownToRatio(ratio)
+        print("desired ratio: ", ratio)
+
+        if useDiaphragm:
+            self.entrancePupil.SetPupilShape(self.diaphragm.toImage(), ratio)
+        else:
+            self.entrancePupil.SetPupilSize(calculatedPupilDiameter / TWO)
         
 
     def Propagate(self, rayBatch, recordPath=False, reflection=False, iteCount=2):
@@ -723,7 +736,7 @@ class Lens:
         #     DrawRaybatch(objectSideRBs[j])  # Draw call=========
 
         # Propogate through the surfaces
-        self.DrawLens()
+        # self.DrawLens()
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
@@ -1018,7 +1031,6 @@ class Lens:
             #print("    Rad at ", i, " after forward prop ", iterRB.GetRaysAt(i).value.shape, " with rad", iterRB.GetRaysAt(i).PolarizedRadiance().sum())
 
         return iterRB, remainRB
-
 
 
     def _PropagateReflectedThrough(self, reflectedRB):

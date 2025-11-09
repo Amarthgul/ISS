@@ -302,7 +302,7 @@ class Surface:
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
         # DrawRaybatch(incidentRaybatch) # Draw call=========
-        DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
+        # DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
         # plt.draw() # Draw call=========
         # plt.pause(10) # Draw call=========
         

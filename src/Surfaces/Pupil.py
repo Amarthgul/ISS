@@ -2,7 +2,6 @@
 
 import warnings
 
-
 from Util.Globals import ZERO, RNG
 from Util.ColorWavelength import ColorTuplePLT, WavelengthToRGB
 from Util.Misc import Normalized, ArrayMagnitude, MovingAverageSmoothing, GaussianSmooth
@@ -40,6 +39,8 @@ class Pupil(VirtualSurface):
 
         # The sample pool of points for the pupil at current size 
         self._pupilPointSamples = None
+
+        self._alphaShape = None
 
 
     def AddSamplePoint(self, point):
@@ -102,9 +103,21 @@ class Pupil(VirtualSurface):
         self._ResetSamplePool()
 
 
+    def SetPupilShape(self, pupilShape, areaRatio=1):
+        """
+        Given an image representing the pupil shape, reset the pupil sample points to fit the image.
+
+        :param pupilShape: square RGB image array, with white meaning open, black indicating blacked.
+        """
+        self._alphaShape = pupilShape
+        self._ResetSamplePool(int(4096.0/areaRatio))
+        self._GenerateAccordingToAlphaShape()
+
+
+
     def GetMaxPupilSize(self):
         """
-        Get the maximum possible pupil size.
+        Get the maximum possible diameter in mm.
         """
         return self._maxPupilSD * 2
 
@@ -116,20 +129,25 @@ class Pupil(VirtualSurface):
 
         # Return all the samples if no sample count is stated 
         if(sampleCount is None):
+            print("Restarting with same sample")
             return self._pupilPointSamples
 
-        # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples. 
+        # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples.
         if(sampleCount > self._pupilPointSamples.shape[0]):
             # Same as self._ResetSamplePool()
-            pupilZdepth = bd.mean(self._workingDepth)
-            return RandomEllipticalDistribution(
-                major_axis=self.clearSemiDiameter,
-                minor_axis=self.clearSemiDiameter,
-                samplePoints=sampleCount, 
-                zDepth=pupilZdepth, 
-                groupByPoint=True)
+            # pupilZdepth = bd.mean(self._workingDepth)
+            # return RandomEllipticalDistribution(
+            #     major_axis=self.clearSemiDiameter,
+            #     minor_axis=self.clearSemiDiameter,
+            #     samplePoints=sampleCount,
+            #     zDepth=pupilZdepth,
+            #     groupByPoint=True)
+            print("Restarting with mew sample")
+            self._ResetSamplePool(4096)
+            self._GenerateAccordingToAlphaShape()
+            return self._pupilPointSamples
 
-
+        print("Restarting with normal sample")
         selectedIndices = RNG.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
 
         return self._pupilPointSamples[selectedIndices]
@@ -265,3 +283,43 @@ class Pupil(VirtualSurface):
         if(self._maxPupilSD > self._firstElementSD):
             self._maxPupilSD = self._firstElementSD
 
+
+    def _GenerateAccordingToAlphaShape(self):
+        # Convert to grayscale mask (0–1 range)
+        if self._alphaShape.ndim == 3:
+            gray = self._alphaShape[..., :3].mean(axis=-1)
+        else:
+            gray = self._alphaShape
+        gray = gray.astype(float)
+        gray /= gray.max() if gray.max() > 0 else 1.0
+
+        H, W = gray.shape
+        center = (W - 1) / 2.0
+        radius = W / 2.0  # diameter = image size
+
+        # Project each sample to image coordinates.
+        # Pupil samples are stored as (x,y,z); use x,y normalized to semi-diameter.
+        samples = self._pupilPointSamples
+        x = samples[:, 0]
+        y = samples[:, 1]
+
+        # Scale coordinates from physical units to pixel indices.
+        # clearSemiDiameter ↔ radius pixels.
+        u = (x / self.clearSemiDiameter) * radius + center
+        v = (-y / self.clearSemiDiameter) * radius + center  # flip y for image coordinates
+
+        # Round to nearest pixel and keep those within bounds.
+        ui = bd.clip(bd.round(u).astype(int), 0, W - 1)
+        vi = bd.clip(bd.round(v).astype(int), 0, H - 1)
+
+        # Determine openness from the grayscale mask.
+        # Points with value < 0.5 are considered blocked.
+        mask_val = gray[vi.get() if hasattr(vi, "get") else vi,
+        ui.get() if hasattr(ui, "get") else ui]
+        open_mask = mask_val > 0.5
+
+        # Filter out blocked points.
+        self._pupilPointSamples = samples[open_mask]
+
+        # Optionally update the effective clearSemiDiameter based on open region.
+        self.clearSemiDiameter = self._maxPupilSD
