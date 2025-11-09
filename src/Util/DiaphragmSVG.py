@@ -334,7 +334,7 @@ class ApertureDiaphragm:
     """Class interface for all diaphragm objects."""
     def __init__(self, svg_path: str):
         self.filePath = svg_path
-        self.bladeCount = 4
+        self.bladeCount = 8
         self.size = 512
         self._centerRotate = 360.0 / self.bladeCount
 
