@@ -27,7 +27,7 @@ class PDA(StdImager):
 
     def GetUVIR(self):
         """
-        Accquire the surfaces of the UVIR glass.
+        Acquire the surfaces of the UVIR glass.
         """
 
         diagonal = bd.sqrt((self.width/2.0)**2 + (self.height/2.0)**2) + 5

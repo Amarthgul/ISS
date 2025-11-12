@@ -38,6 +38,9 @@ def rgbFromRGBA(rgba: bd.ndarray, background=(255, 255, 255)):
 
     :return: RGB image, dtype float32 normalized to [0,1] (ready for plt.imshow()).
     """
+
+    # Apparently, cupy does not do well with some of these operations, I had to switch it to full numpy.
+    # But well, if someone is using this, it's probably not a
     import numpy as np
 
     rgba = np.asarray(rgba)  # ensure NumPy
