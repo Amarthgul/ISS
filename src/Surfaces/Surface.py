@@ -287,43 +287,55 @@ class Surface:
         Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned but not calculated. 
         """
 
-        # First find the intersections 
+        # 1) Geometric intersection and vignetting
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
 
-        #DrawPoints(intersections)
-        #self.DrawSurface() # Draw call=========
-        #DrawDirection(position, direction) # Draw call=========
+        # If everything is vignetted, just return an empty RayBatch
+        if intersections.shape[0] == 0:
+            emptyRB = RayBatch(None)
+            # No non-vignetted rays => TIR mask length 0
+            TIR = bd.zeros(0, dtype=bd.bool_)
+            return emptyRB, TIR, boolVig
 
-        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
-        
+        # 2) Normal orientation: make normals oppose incident z-direction
+        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig]
         normals = self.Normal(intersections)
-
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
-        # DrawRaybatch(incidentRaybatch) # Draw call=========
-        # DrawNormal(intersections, normals, lineWidths=1) # Draw call=========
-        # plt.draw() # Draw call=========
-        # plt.pause(10) # Draw call=========
-        
-        # Truncate the rays that are vignetted 
+        # 3) Restrict to non-vignetted rays
         directions = incidentRaybatch.Direction()[~boolVig]
         currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         previousRI = previousRI[~boolVig]
 
-        # If the ray hits from the behind, RI needs to be swapped 
-        if(inverted):
-            currentRI, previousRI = previousRI, currentRI 
+        # Swap indices if rays hit from the back side
+        if inverted:
+            currentRI, previousRI = previousRI, currentRI
 
-        # Only the non vignetted rays goes into refraction 
+        # 4) Snell refraction for non-vignetted rays
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
+        # TIR has shape (M,) where M = number of non-vignetted rays
 
-        # This _temp is for a different use from the _temp above 
-        _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        _temp.SetPosition(intersections[~TIR])
-        _temp.SetDirection(refracted)
+        # 5) Additional "vignetting": drop rays whose refracted z-component
+        #    flips sign relative to the incoming propagation direction.
+        incoming_sign_z = bd.sign(directions[~TIR][:, 2])
+        refracted_sign_z = bd.sign(refracted[:, 2])
+        flipped = incoming_sign_z != refracted_sign_z
 
-        return _temp, TIR, boolVig 
+        # Treat flipped rays as "bad" just like TIR
+        bad = TIR[~TIR] | flipped
+        good = ~bad
+
+        # 6) Build the outgoing ray batch from the good rays only
+        out_values = bd.copy(incidentRaybatch.value[~boolVig][~TIR][good])
+        outRB = RayBatch(out_values)
+        outRB.SetPosition(intersections[~TIR][good])
+        outRB.SetDirection(refracted[good])
+
+        # 7) Return:
+        #    - RayBatch for rays that refract forward and are not vignetted or TIR
+        #    - TIR-like mask for non-vignetted rays (now also marks flipped rays)
+        #    - geometric vignette mask for all incoming rays (unchanged length N)
+        return outRB, bad, boolVig
 
 
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
@@ -332,7 +344,7 @@ class Surface:
         - Refraction. The main contributor to image formation. 
         - Reflection. Including both mirror, specular, and diffuse reflection, also consider the polarization based on the Fresnel equation. 
         - Vignette. Rays that are vignetted from the main imaging surface may enter the lens barrel and absorbed, or reflected again by the clear boundaries. 
-        This is the main method that should be called when tracing rays through the lens to accquire an image.
+        This is the main method that should be called when tracing rays through the lens to acquire an image.
 
         :param incidentRaybatch: main raybatch at question. 
         :param previousRI: array representing the RI of the surface before that, i.e., the RI of the medium the rays are currently in. 

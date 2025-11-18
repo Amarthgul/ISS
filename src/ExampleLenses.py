@@ -543,7 +543,7 @@ def main():
     #Industar50_50mmf35() #
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton50f1ASPH.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton35f1.2VMIII.zmx"))
     # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonRF45f1.2.zmx"))
 
     exampleLens = reader.GetLens()
@@ -559,13 +559,15 @@ def main():
 
     print(exampleLens.GetInfo())
     print(exampleLens.SurfaceReport())
+    print("BFD ", exampleLens.BestFocusBFD(200000))
 
     exampleLens.DrawLens()
     # exampleLens.entrancePupil.DrawSamplePoints()
-    # exampleLens.entrancePupil.DrawSurface()
+    exampleLens.entrancePupil.DrawSurface()
     # exampleLens.frontPincipalPlane.DrawSamplePoints()
     
     plt.show()
+
 
     print("End of test")
 

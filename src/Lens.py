@@ -298,6 +298,8 @@ class Lens:
         lastPos = focusRP.position[lastIndex]
         lastDir = focusRP.direction[lastIndex]
 
+        print("Calculate point pos", focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value])
+
         # Subtract the z position of the best focus with the axial length of the lens, yielding the back focal length for best focus 
         return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength
 
@@ -810,6 +812,8 @@ class Lens:
 
         frontRP = frontRP.PruneAll()
         # frontRP.DrawPath(40) # Draw call =======
+        # plt.draw()
+        # plt.pause(10)
         
         pos, dir = frontRP.ExitingPairs()
         self.focalPoint = frontRP.FindConvergingPoint(pos, dir)
