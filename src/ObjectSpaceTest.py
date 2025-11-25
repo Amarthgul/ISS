@@ -35,7 +35,7 @@ def AsphTest():
 
     asphS.SetCumulative(2)
 
-    projectRB = EmitField(0, 10, sampleTargets=asphS.SampleFromSD())
+    projectRB = EmitField(0, 10, sampleTargets=asphS.SampleFromClearAperture())
 
     intersections = asphS.Intersection(projectRB)
     normals = asphS.Normal(intersections[0])
@@ -150,7 +150,7 @@ def MetalTest():
     e2 = SpatialCircle(5, 5)
     mb = MetalBoundary(e1, e2)
 
-    RB = EmitField(0, 0, 5000, sampleTargets=pseudoSurface.SampleFromSD())
+    RB = EmitField(0, 0, 5000, sampleTargets=pseudoSurface.SampleFromClearAperture())
 
     inters = mb.Intersection(RB)
     normals = mb.Normal(inters[0])

@@ -107,8 +107,8 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 200000, focusDistance = 1000, computeTime = 5120, realTimeUpdate = False):
-
+def SpotTesting(lens, objectDistance = 200000, focusDistance = 200000, computeTime = 5120, realTimeUpdate = False):
+    global FrameCount
 
 
     print("Start spot testing")
@@ -128,7 +128,8 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 1000, computeTime
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    imager = StdImager(lens.BestFocusBFD(focusDistance) , horiPx=6000) #32.4
+    # imager = StdImager(lens.BestFocusBFD(objectDistance) , horiPx=6000)
+    imager = StdImager(19.3-2, horiPx=6000)
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty() 
 
@@ -167,11 +168,14 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 1000, computeTime
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = r"LeicaSummicronpot"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"Nokton35"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
         iterationCount += 1
+
+
+    FrameCount +=1
 
 
 def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 300, refIte=4, realTimeUpdate = True):
@@ -475,15 +479,15 @@ def MaterialLookUpTest():
     # Suppose you have n=1.5168 and V=64.1 for the 'd' line
     line = 'D'
     stats = [
-        [2.0509 , 26.9],
-        [1.95375,  32.3],
-        [1.80835,  22.6],
-        [1.80809,  22.8],
-        [2.0509 , 26.9],
-        [1.6707 , 19.3],
-        [1.9225 , 36],
-        [1.80835,  22.6],
-        [2.0509 , 26.9]
+        [1.51633 ,  64.14],
+        [1.80835 ,  40.55],
+        [1.883   ,40.69],
+        [1.71736 ,  29.5],
+        [1.72825 ,  28.32],
+        [1.883   ,40.69],
+        [1.883   ,40.69],
+        [1.60342 ,  38.03],
+        [1.80835 ,  40.55]
     ]
 
     for item in stats:
@@ -538,15 +542,27 @@ def main():
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedPanchro50f2.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton35f1.2VMIII.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
-    lens.SetAperture(4)
+    # lens.SetAperture(4)
+    print(lens.GetInfo())
 
-    # ISO12233Test(lens, realTimeUpdate=True)
-    SpotTesting(lens, computeTime=15*60, realTimeUpdate=True)
+    SpotTesting(lens, computeTime=5 * 60, realTimeUpdate=True)
 
+    apertureValue = [1.43, 1.5, 1.8, 2, 2.5, 2.8, 3.2, 4, 4.8, 5.6, 6.3, 8, 9, 11]
+    interp_values = []
+    for i in range(len(apertureValue) - 1):
+        a = apertureValue[i]
+        b = apertureValue[i + 1]
+        midpoint = (a + b) / 2
+        interp_values.extend([a, midpoint])
+    interp_values.append(apertureValue[-1])
+    for a in interp_values:
+        lens.SetAperture(a)
+        SpotTesting(lens, computeTime=45*60, realTimeUpdate=False)
 
+    return
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
     # for o in objectDistance:

@@ -48,6 +48,13 @@ class RayBatch:
             return bd.copy(self.value[:, 6])
     
 
+    def RadianceTerms(self):
+        """
+        Get the 3 constituents of the polarized radiance.
+        """
+        return self.value[:, [7, 9, 8]]
+
+
     def Radiance(self):
         """
         DO NOT USE
@@ -177,6 +184,8 @@ class RayBatch:
     def SetPolarization(self, polarM):
         """
         Given the polarization matrices, decompose them and assign them to the raybatch.
+
+        :param polarM: polarization matrices, each entry is a 2x2 matrix.
         """
         a = polarM[:, 0, 0]
         c = polarM[:, 0, 1] # The tilt term 
@@ -185,6 +194,16 @@ class RayBatch:
         temp = bd.stack((a, b, c), axis=0).T
 
         self.value[:, 7:10] = temp
+
+
+    def SetRadianceTerms(self, radianceTerms):
+        """
+        Replace the radiance terms with the given ones.
+
+        :param radianceTerms: list of radiance terms, each as an array of shape (3).
+        """
+
+        self.value[:, [7, 9, 8]] = radianceTerms
 
 
     def SetPolarizationPerTerm(self, diag1=None, diag2=None, tilt=None):

@@ -240,7 +240,7 @@ class Surface:
             return ArrayNormalized(intersections - self.radiusCenter)
 
 
-    def SampleFromSD(self, sampleCount=32):
+    def SampleFromClearAperture(self, sampleCount=32):
         """
         Sample points uniformly over the circular clear aperture (radius = clearSemiDiameter), all lying on the plane z = self.sdCumulative.
         This method would be useful for either single surface testing or when the surface itself is treated as the pupil and sampled by the emission source.
