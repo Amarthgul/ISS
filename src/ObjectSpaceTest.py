@@ -48,15 +48,16 @@ def AsphTest():
 
 
 def StereoImageDisplay(imageMinSample = 4096, realTimeUpdate = True):
-
     img = Image2DVariDepth()
     img.imageDimensionOverride = 200
-    # img.nearClipping = 200
-    img.zDepthMappingRange = bd.array([800, 10000])
+    img.zDepthMappingRange = bd.array([500, 1000])
 
-    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+    img.LoadFromEXR(r"resources/allChannels.exr")
 
     img.DrawImage()
+
+    RemoveBG()
+    SetUnifScale(7000)
     plt.show()
 
 
@@ -195,8 +196,8 @@ def BladeTest():
 
 
 def main():
-    BladeTest()
-    # StereoImageDisplay()
+    # BladeTest()
+    StereoImageDisplay()
 
 
 if __name__ == "__main__":

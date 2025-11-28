@@ -3,7 +3,7 @@
 
 import PIL.Image
 import matplotlib.pyplot as plt
-import OpenEXR
+import OpenEXR, Imath
 
 import sys
 import os
@@ -31,6 +31,7 @@ from Raytracing.RayBatch import RayBatch
 class Image2DVariDepth(Image2D):
 
     def __init__(self):
+        """This extends from the flat image to contain varied depth."""
         super().__init__()
 
         """RGB array of the image"""
@@ -134,6 +135,74 @@ class Image2DVariDepth(Image2D):
         self.UpdateDepthRange()
 
 
+    def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "depth", "Depth.Z", "depth.Z"),
+                    alphaChannelNames=("A", "alpha", "Opacity")):
+
+
+        exrPath = RectPath(exrPath)
+
+        channelsFromEXR = self._ReadEXR(exrPath, depthChannelNames, alphaChannelNames)
+
+        rgb = channelsFromEXR["rgb"]
+        depth = channelsFromEXR["depth"]
+        alpha = channelsFromEXR["alpha"]
+
+        if rgb is None:
+            raise ValueError(
+                "EXR does not contain RGB channels ('R', 'G', 'B')."
+            )
+        if depth is None:
+            raise ValueError(
+                f"EXR does not contain any supported depth channels: {depthChannelNames}"
+            )
+
+        # ------------------------------------------------------------------
+        # Optional resize to match imageDimensionOverride (similar spirit to LoadFrom8bitRGB / LoadFrom8bitZ, but done in backend space).
+        # ------------------------------------------------------------------
+        if self.imageDimensionOverride is not None:
+            # rgb shape: (H, W, 3)
+            h, w, _ = rgb.shape
+            new_w = int(self.imageDimensionOverride)
+            new_h = int(h * (new_w / w))
+
+            y_idx = bd.linspace(0, h - 1, new_h).astype(bd.int64)
+            x_idx = bd.linspace(0, w - 1, new_w).astype(bd.int64)
+
+            # Nearest-neighbor resampling via advanced indexing
+            idx2d = bd.ix_(y_idx, x_idx)
+            rgb = rgb[idx2d]  # (new_h, new_w, 3)
+            depth = depth[idx2d]  # (new_h, new_w)
+            if alpha is not None:
+                alpha = alpha[idx2d]  # (new_h, new_w)
+
+        # ------------------------------------------------------------------
+        # Store RGB and depth in the same way 8-bit loader does, except EXR channels are already float. zArray is still in "0–1" depth-normalized space; physical distances will be computed by UpdateDepthRange().
+        # ------------------------------------------------------------------
+        self.rgbArray = rgb.astype(PRECISION_TYPE)
+        self.zArray = depth.astype(PRECISION_TYPE)
+
+        # ------------------------------------------------------------------
+        # Cull pixels with 0 alpha:
+        #   - set their RGB to 0
+        #   - set their depth to 0 (will map to near end of range)
+        # This effectively kills their contribution in the point cloud.
+        # ------------------------------------------------------------------
+        if alpha is not None:
+            alpha = alpha.astype(PRECISION_TYPE)
+            zero_mask = (alpha <= 0)
+
+            if bd.any(zero_mask):
+                # zero color
+                self.rgbArray[zero_mask] = 0
+                # zero depth in normalized range
+                self.zArray[zero_mask] = 0
+
+        # Keep the original EXR path as "master" reference, this is due to EXR does not really have an in-memory storage class like jpg and png has in Python.
+        self._fileMaster = exrPath
+
+        self.Refresh()
+
+
     def UpdateDepthRange(self, newRange=None):
         """
         Update the depth of the
@@ -173,9 +242,70 @@ class Image2DVariDepth(Image2D):
 
         return self.pointSource.EmitSamplesToward(targets, sampleCount, self.jitterPerPoint)
 
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+
+    def _ReadEXR(self, exrPath, depthChannelNames=("Z", "depth", "Depth.Z", "depth.Z"),
+                    alphaChannelNames=("A", "alpha", "Opacity")):
+        """
+        Read an EXR image and its channels.
+        """
+        # self.debug_show_exr_channels(exrPath)
+
+        exr = OpenEXR.InputFile(exrPath)
+        header = exr.header()
+        dw = header['dataWindow']
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        available = list(header["channels"].keys())
+
+        def read_channel(name):
+            """Return H×W float32 array, or None if missing."""
+            if name not in available:
+                return None
+            arr = bd.frombuffer(exr.channel(name, FLOAT), dtype=bd.float32)
+            return arr.reshape(height, width)
+
+        # -------------------------------- Read RGB --------------------------------
+        r = read_channel("R")
+        g = read_channel("G")
+        b = read_channel("B")
+
+        if r is not None and g is not None and b is not None:
+            rgb = bd.stack([r, g, b], axis=-1)  # (H, W, 3)
+        else:
+            rgb = None
+
+        # ----------- Read Depth (supports multiple naming conventions) -----------
+        depth = None
+        for dname in depthChannelNames:
+            d = read_channel(dname)
+            if d is not None:
+                depth = d
+                break
+
+        # ----------------------------Read Alpha/Opacity ---------------------------
+        alpha = None
+        for aname in alphaChannelNames:
+            a = read_channel(aname)
+            if a is not None:
+                alpha = a
+                break
+
+        return {
+            "rgb": rgb,
+            "r": r,
+            "g": g,
+            "b": b,
+            "alpha": alpha,
+            "depth": depth,
+            "channels": available,
+        }
 
 
     def _GeneratePolarPointSources(self):
@@ -295,6 +425,62 @@ class Image2DVariDepth(Image2D):
         return jitter_h_flat
 
 
+    def debug_show_exr_channels(self, exr_path):
+        """
+        Prints all channels in the EXR and displays each as an image.
+        Handles float and half precision.
+        """
+
+        print(f"\n--- Reading EXR: {exr_path} ---")
+
+        exr = OpenEXR.InputFile(exr_path)
+        header = exr.header()
+
+        channels = list(header["channels"].keys())
+        print("Found channels:")
+        for c in channels:
+            print(f"  • {c}")
+
+        # get image size
+        dw = header["dataWindow"]
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        # Display each channel
+        n = len(channels)
+        cols = 4
+        rows = int(bd.ceil(n / cols))
+
+        plt.figure(figsize=(4 * cols, 4 * rows))
+
+        for i, chan in enumerate(channels, start=1):
+
+            # Auto-detect pixel type
+            ch = header["channels"][chan]
+            if ch.type.v == Imath.PixelType(Imath.PixelType.FLOAT).v:
+                pixel_type = Imath.PixelType(Imath.PixelType.FLOAT)
+                dtype = bd.float32
+            else:
+                pixel_type = Imath.PixelType(Imath.PixelType.HALF)
+                dtype = bd.float16
+
+            # Read channel
+            arr = bd.frombuffer(exr.channel(chan, pixel_type), dtype=dtype)
+            arr = arr.reshape(height, width)
+
+            # Normalize for display
+            arr_disp = arr.astype(bd.float32)
+            if bd.any(arr_disp > 0):
+                arr_disp = arr_disp / bd.max(arr_disp)
+
+            ax = plt.subplot(rows, cols, i)
+            ax.imshow(arr_disp, cmap="viridis")
+            ax.set_title(chan)
+            ax.axis("off")
+
+        plt.tight_layout()
+        plt.show()
+
 
 def main():
     
@@ -307,9 +493,9 @@ def main():
 
     img = Image2DVariDepth()
     img.imageDimensionOverride = 200 
-    img.zDepthMappingRange = bd.array([500, 1000])
+    #img.zDepthMappingRange = bd.array([500, 1000])
 
-    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+    img.LoadFromEXR("allChannels.exr")
 
     img.DrawImage()
 

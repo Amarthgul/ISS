@@ -2,6 +2,8 @@
 
 import PIL.Image
 import matplotlib.pyplot as plt
+import Imath
+import OpenEXR
 
 import sys
 import os
@@ -18,15 +20,17 @@ from Util.Misc import Magnitude, ArrayRotate, RectPath
 from Raytracing.RayBatch import RayBatch
 
 
-# This class is very much an inherited class from PointSource 
-# But for easier implmentation they are still separated. 
+
 
 
 class Image2D:
     def __init__(self):
-        """RGB array directly decoded from the file represneting the image"""
-        self.rgbArray = None 
+        """RGB array directly decoded from the file representing the image"""
 
+        # This class is very much an inherited class from PointSource 
+        # But for easier implementation they are still separated. 
+        
+        self.rgbArray = None 
 
         """Original image file"""
         self._fileMaster = None 
@@ -138,6 +142,36 @@ class Image2DFlat(Image2D):
 
 
         self._GeneratePointSources()
+
+
+    def LoadFromEXR(self, imgPath):
+        """
+        Load only the RGB info from an EXR image. Other channels are ignored.
+        """
+        exr = OpenEXR.InputFile(imgPath)
+
+        # EXR header tells us the image size
+        header = exr.header()
+        dw = header['dataWindow']
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        # EXR stores channels as strings like "R", "G", "B"
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+
+        # Read raw channel strings
+        r_str = exr.channel('R', FLOAT)
+        g_str = exr.channel('G', FLOAT)
+        b_str = exr.channel('B', FLOAT)
+
+        # Convert to float32 NumPy arrays
+        r = bd.frombuffer(r_str, dtype=bd.float32).reshape((height, width))
+        g = bd.frombuffer(g_str, dtype=bd.float32).reshape((height, width))
+        b = bd.frombuffer(b_str, dtype=bd.float32).reshape((height, width))
+
+        # Stack to H×W×3
+        rgb = bd.stack([r, g, b], axis=-1)
+        self.rgbArray = bd.stack([r, g, b], axis=-1)
 
 
     # ==================================================================
