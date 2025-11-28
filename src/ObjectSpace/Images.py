@@ -65,7 +65,7 @@ class Image2D:
         """
         Draw the points sources in 3D space with corresponding colors.
         """
-        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.Color())
+        DrawPointsPerColor(self.pointSource.Position(), self.pointSource.DisplayColor())
 
 
 

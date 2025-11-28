@@ -161,9 +161,11 @@ def DrawPointsPerColor(points, color, ax=AX):
     if(backend_name == "cupy"):
         points = bd.asnumpy(points)
         color = ColorTuplePLT(color)
-    
+
+
+
     x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    ax.scatter3D(x, y, z, color=color, s=0.5)
+    ax.scatter3D(x, y, z, c=color, s=0.5)
 
 
 def Draw3D(x, y, z, ax=AX):

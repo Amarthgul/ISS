@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
-from Util.Misc import  GridNormalized, PolarToCartesian
+from Util.Misc import  GridNormalized, PolarToCartesian, ArrayNormalized
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
 from Raytracing.RayBatch import RayBatch
@@ -66,6 +66,13 @@ class PointsSource:
     
     def Color(self):
         return self.value[:, 3:]
+
+
+    def DisplayColor(self):
+        """Return an array of color that has been clipped.
+        Clipping is used due to most rendering are still within [0, 1] and the only higher values are highlights that do not present much direct visual information. """
+        colors = self.Color()
+        return bd.clip(colors, None, 1.0)
 
 
     def EmitSamplesToward(self, targets, sampleCount=64, jitter=None, addSecondary=None):

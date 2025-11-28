@@ -49,26 +49,27 @@ def AsphTest():
 
 def StereoImageDisplay(imageMinSample = 4096, realTimeUpdate = True):
     img = Image2DVariDepth()
-    img.imageDimensionOverride = 200
-    img.zDepthMappingRange = bd.array([500, 1000])
+    img.imageDimensionOverride = 100
+    #img.zDepthMappingRange = bd.array([500, 1000])
 
     img.LoadFromEXR(r"resources/allChannels.exr")
+    # img.UpdateDepthRange()
 
     img.DrawImage()
 
     RemoveBG()
-    SetUnifScale(7000)
+    SetUnifScale(10000)
     plt.show()
 
 
-def StereoImageTest(imageMinSample = 10240, realTimeUpdate = False):
+def StereoImageTest(imageMinSample = 10240, realTimeUpdate = True):
 
     img = Image2DVariDepth()
     # img.imageDimensionOverride = 200
     # img.nearClipping = 200
     img.zDepthMappingRange = bd.array([500, 10000])
 
-    img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+    img.LoadFromEXR(r"resources/allChannels.exr")
 
     #img.DrawImage()
     #plt.show()
@@ -84,7 +85,7 @@ def StereoImageTest(imageMinSample = 10240, realTimeUpdate = False):
     if (realTimeUpdate):
         plt.ion()  # Turn on interactive mode
         fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image))
+        im = ax.imshow(ImageConversion(image, flip=True))
 
     while (True):
 
@@ -96,7 +97,7 @@ def StereoImageTest(imageMinSample = 10240, realTimeUpdate = False):
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
         if (realTimeUpdate):
-            im.set_data(ImageConversion(image))
+            im.set_data(ImageConversion(image, flip=True))
             plt.draw()
             plt.pause(0.01)
 
@@ -197,7 +198,7 @@ def BladeTest():
 
 def main():
     # BladeTest()
-    StereoImageDisplay()
+    StereoImageTest()
 
 
 if __name__ == "__main__":

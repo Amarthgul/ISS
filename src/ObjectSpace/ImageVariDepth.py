@@ -35,17 +35,22 @@ class Image2DVariDepth(Image2D):
         super().__init__()
 
         """RGB array of the image"""
-        self.rgbArray = None 
+        self.rgbArray = None
+
+        """This is the distance calculated from zArray and zDepthMappingRange."""
+        self.zDistance = None
 
         """Z depth array of the image. This is the direct value of the image representing the z depth, not the acutal physical distance."""
-        self.zArray = None 
-        
-        """This is the distance calculated from zArray and zDepthMappingRange."""
-        self.zDistance = None 
+        self.zArray = None
+
+        """Alpha/opacity array of the image (optional, e.g. EXR)"""
+        self.alphaArray = None
+
+        """Flag: if True, zArray is already in physical units from EXR and should be used directly."""
+        self._usingEXRDirectDepth = False
 
         """Because this is a secondary imaging process, an angle of view of the image source is needed. Value is unsigned unit in degree. Default value 40 degrees, which is a 50mm on 135 format."""
         self.horizontalAoV = 40
-
 
         """Master image file. For EXR this could include the alpha and the z depth"""
         self._fileMaster = None 
@@ -111,6 +116,10 @@ class Image2DVariDepth(Image2D):
         # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
         self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
 
+        # 8-bit path: no alpha, and depth is NOT “direct EXR depth”
+        self.alphaArray = None
+        self._usingEXRDirectDepth = False
+
 
     def LoadFrom8bitZ(self, zImgPath):
 
@@ -138,7 +147,6 @@ class Image2DVariDepth(Image2D):
     def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "depth", "Depth.Z", "depth.Z"),
                     alphaChannelNames=("A", "alpha", "Opacity")):
 
-
         exrPath = RectPath(exrPath)
 
         channelsFromEXR = self._ReadEXR(exrPath, depthChannelNames, alphaChannelNames)
@@ -157,10 +165,9 @@ class Image2DVariDepth(Image2D):
             )
 
         # ------------------------------------------------------------------
-        # Optional resize to match imageDimensionOverride (similar spirit to LoadFrom8bitRGB / LoadFrom8bitZ, but done in backend space).
+        # Optional resize to match imageDimensionOverride (nearest neighbor).
         # ------------------------------------------------------------------
         if self.imageDimensionOverride is not None:
-            # rgb shape: (H, W, 3)
             h, w, _ = rgb.shape
             new_w = int(self.imageDimensionOverride)
             new_h = int(h * (new_w / w))
@@ -168,36 +175,36 @@ class Image2DVariDepth(Image2D):
             y_idx = bd.linspace(0, h - 1, new_h).astype(bd.int64)
             x_idx = bd.linspace(0, w - 1, new_w).astype(bd.int64)
 
-            # Nearest-neighbor resampling via advanced indexing
             idx2d = bd.ix_(y_idx, x_idx)
+
             rgb = rgb[idx2d]  # (new_h, new_w, 3)
             depth = depth[idx2d]  # (new_h, new_w)
             if alpha is not None:
                 alpha = alpha[idx2d]  # (new_h, new_w)
 
         # ------------------------------------------------------------------
-        # Store RGB and depth in the same way 8-bit loader does, except EXR channels are already float. zArray is still in "0–1" depth-normalized space; physical distances will be computed by UpdateDepthRange().
+        # Option B: use EXR depth directly (no [0,1] remapping).
+        # zArray now stores the EXR depth values; zDistance is just the
+        # signed version used by the ray system.
         # ------------------------------------------------------------------
         self.rgbArray = rgb.astype(PRECISION_TYPE)
+
+        # EXR depth is assumed to be a positive distance (camera space or
+        # near-plane space); system convention is negative toward object space.
         self.zArray = depth.astype(PRECISION_TYPE)
+        self.zDistance = -self.zArray
 
-        # ------------------------------------------------------------------
-        # Cull pixels with 0 alpha:
-        #   - set their RGB to 0
-        #   - set their depth to 0 (will map to near end of range)
-        # This effectively kills their contribution in the point cloud.
-        # ------------------------------------------------------------------
+        # Store alpha for later culling in _GeneratePolarPointSources
         if alpha is not None:
-            alpha = alpha.astype(PRECISION_TYPE)
-            zero_mask = (alpha <= 0)
+            self.alphaArray = alpha.astype(PRECISION_TYPE)
+        else:
+            self.alphaArray = None
 
-            if bd.any(zero_mask):
-                # zero color
-                self.rgbArray[zero_mask] = 0
-                # zero depth in normalized range
-                self.zArray[zero_mask] = 0
+        # Mark that this instance should *not* remap depth via zDepthMappingRange.
+        self._usingEXRDirectDepth = True
 
-        # Keep the original EXR path as "master" reference, this is due to EXR does not really have an in-memory storage class like jpg and png has in Python.
+        # Keep the original EXR path as "master" reference, this is due to
+        # EXR not having a simple in-memory storage class like jpg/png.
         self._fileMaster = exrPath
 
         self.Refresh()
@@ -205,9 +212,17 @@ class Image2DVariDepth(Image2D):
 
     def UpdateDepthRange(self, newRange=None):
         """
-        Update the depth of the
-
+        Update the depth of the scene for non-EXR (8-bit) sources.
+        For EXR Option B (direct depth), this method leaves zDistance alone.
         """
+
+        # If we are in EXR direct-depth mode, do NOT touch zDistance.
+        if getattr(self, "_usingEXRDirectDepth", False):
+            # zDistance is already set from EXR depth; just ensure sign convention:
+            self.zDistance = -self.zArray
+            return
+
+        # --- original behavior for normalized [0,1] zArray ---
         if(newRange is None):
             newRange = self.zDepthMappingRange
 
@@ -226,14 +241,21 @@ class Image2DVariDepth(Image2D):
 
     def Refresh(self):
         """
-        Manually refresh the parameters. Remap the depth and recreate the point sources. 
+        Manually refresh the parameters. Remap the depth (if needed) and recreate the point sources.
         """
 
-        # Object space in world coordinate is negative, thus need to make sure the near clip is also a negative number
-        if (self.nearClipping > 0 ):
+        # Object space in world coordinate is negative, thus need to make
+        # sure the near clip is also a negative number
+        if (self.nearClipping > 0):
             self.nearClipping = - self.nearClipping
 
-        self.UpdateDepthRange()
+        # For EXR Option B, zDistance already comes from EXR depth, so skip
+        # remapping; for 8-bit we still remap via zDepthMappingRange.
+        if not getattr(self, "_usingEXRDirectDepth", False):
+            self.UpdateDepthRange()
+        else:
+            # Ensure zDistance sign is consistent with current zArray
+            self.zDistance = -self.zArray
 
         self._GeneratePolarPointSources()
 
@@ -313,50 +335,65 @@ class Image2DVariDepth(Image2D):
         Generate point sources from the image where each pixel is represented 
         in polar coordinates: [theta_x, theta_y, D, R, G, B]. 
         Here, theta_x and theta_y are field angles (in radians) relative to the optical axis,
-        and D is the distance from the front vertex (a constant value, self.distance).
+        and D is the distance from the front vertex.
         """
         # Get image dimensions from the normalized RGB array.
-        sampleY, sampleX, _ = self.rgbArray.shape  # note: PIL images are (height, width, channels)
-        
+        sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, channels)
+
         # Create interpolation factors for horizontal (u) and vertical (v) directions.
         u = bd.linspace(0, 1, sampleX)
         v = bd.linspace(0, 1, sampleY)
-        
+
         # Create a meshgrid; use "ij" indexing so that U varies along width and V along height.
         U, V = bd.meshgrid(u, v, indexing="ij")  # U and V shape: (sampleX, sampleY)
-        
+
         # Convert the horizontal angle of view (in degrees) to radians.
         horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
         half_horizontal = horizontalAoV_rad / 2.0
-        
+
         # Compute vertical AoV from the image aspect ratio.
         verticalAoV_rad = horizontalAoV_rad * (sampleY / sampleX)
         half_vertical = verticalAoV_rad / 2.0
-        
+
         # For each pixel column, compute theta_x in the range [-half_horizontal, half_horizontal]
         theta_x = -half_horizontal + U * horizontalAoV_rad
         # For each pixel row, compute theta_y in the range [-half_vertical, half_vertical]
         theta_y = -half_vertical + V * verticalAoV_rad
 
-        # zClipDist is an array representing the
+        # Distance from pivot to the corresponding near-clip intersection
         zClipDist = self._zClipDistance(half_horizontal, half_vertical, sampleY, sampleX, self.nearClipping)
 
-        D = bd.swapaxes(self.zDistance, 0, 1) + zClipDist #self.nearClipping
+        # zDistance is stored as [height, width]; swap to match (sampleX, sampleY)
+        D = bd.swapaxes(self.zDistance, 0, 1) + zClipDist
 
+        # Jitter radius per point (still per-pixel before any alpha culling)
         self.jitterPerPoint = self._AngularJitter(half_horizontal, half_vertical, sampleY, sampleX, D)
 
         # Stack the three components into a (sampleX, sampleY, 3) array.
         coordinates = bd.stack([theta_x, theta_y, D], axis=-1)
 
-        # The grid was built with U, V of shape (sampleX, sampleY), but typically 
-        # we want the final list of points to be organized per pixel (row-major order).
-        # Swap axes if needed, then reshape to (sampleX*sampleY, 3)
-        coordinates = bd.swapaxes(coordinates, 0, 1)  # now shape: (sampleY, sampleX, 3)
+        # Reorder to (sampleY, sampleX, 3) and flatten to (N, 3)
+        coordinates = bd.swapaxes(coordinates, 0, 1)  # shape: (sampleY, sampleX, 3)
         coordinates = coordinates.reshape(sampleY * sampleX, 3)
-        
+
         # Get the RGB color for each pixel and reshape it accordingly.
         colors = self.rgbArray.reshape(sampleY * sampleX, 3)
-        
+
+        # ---------------------------------------------
+        # Alpha-based culling: drop pixels with alpha == 0
+        # ---------------------------------------------
+        if self.alphaArray is not None:
+            alpha_flat = self.alphaArray.reshape(sampleY * sampleX)
+            # Keep only pixels where alpha > 0
+            keep_mask = alpha_flat > 0
+
+            coordinates = coordinates[keep_mask]
+            colors      = colors[keep_mask]
+            self.jitterPerPoint = self.jitterPerPoint.reshape(sampleY * sampleX)[keep_mask]
+        else:
+            # Ensure jitterPerPoint is 1-D with same length as coordinates/colors
+            self.jitterPerPoint = self.jitterPerPoint.reshape(sampleY * sampleX)
+
         # Concatenate the polar coordinates and color channels:
         points = bd.concatenate([coordinates, colors], axis=1)
         
