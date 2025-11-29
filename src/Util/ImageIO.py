@@ -9,7 +9,7 @@ from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines
 
 
 
-def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True, flip=False):
+def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True, flipH=False, flipV=False):
     """
     Convert the float reprensentation of an image to a uint8 image.
     """
@@ -24,7 +24,10 @@ def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True
 
     if rotate:
         ary = bd.rot90(ary)
-    if flip:
+
+    if flipH:
+        ary = bd.flip(ary, axis=1)
+    if flipV:
         ary = bd.flip(ary, axis=0)
 
     return NumpyConversion(ary).astype(bd.uint8)

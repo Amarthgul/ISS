@@ -181,21 +181,22 @@ class Image2DFlat(Image2D):
     def _Update(self):
 
         # Resize the input if needed
-        if (self.imageDimensionOverride is not None):
+        if self.imageDimensionOverride is not None:
             newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
             imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
-            if(self._opacity is not None):
+            if self._opacity is not None:
                 opacityArray = self._opacity.resize((self.imageDimensionOverride, newHeight))
+                self._opacityArray = bd.array(opacityArray)
         else:
+            self.imageDimensionOverride = self._fileMaster.width
             imageFile = self._fileMaster
 
         # Convert into array format
         self.rgbArray = bd.array(imageFile)
-        if (self._opacity is not None):
-            self._opacityArray = bd.array(opacityArray)
 
         # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in
         self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+
 
         self._GeneratePointSources()
 

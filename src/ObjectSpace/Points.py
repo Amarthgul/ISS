@@ -222,7 +222,7 @@ class PointsSource:
 
         :param sampleSource: sample source as point source objects.
         :param targets: targets of 3D positions.
-        :param jitter: jittering amount, either a single float or a vector of floats corresponding to all the sample sources.
+        :param jitter: littering amount, either a single float or a vector of floats corresponding to all the sample sources.
         :param addSecondary: whether to add secondary spectrum into the wavelength or not.
         :param cosineFalloff: whether to consider cosine 4th power falloff.
 

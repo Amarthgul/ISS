@@ -16,7 +16,7 @@ from .Images import Image2D
 
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
+from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, ORIGIN
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor, RemoveBG
 from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
 from Raytracing.RayBatch import RayBatch
@@ -46,11 +46,11 @@ class Image2DVariDepth(Image2D):
         """Alpha/opacity array of the image (optional, e.g. EXR)"""
         self.alphaArray = None
 
-        """Flag: if True, zArray is already in physical units from EXR and should be used directly."""
-        self._usingEXRDirectDepth = False
-
         """Because this is a secondary imaging process, an angle of view of the image source is needed. Value is unsigned unit in degree. Default value 40 degrees, which is a 50mm on 135 format."""
         self.horizontalAoV = 40
+
+        """Flag: if True, zArray is already in physical units from EXR and should be used directly."""
+        self._usingEXRDirectDepth = False
 
         """Master image file. For EXR this could include the alpha and the z depth"""
         self._fileMaster = None 
@@ -66,7 +66,7 @@ class Image2DVariDepth(Image2D):
         self.imageDimensionOverride = None 
 
 
-        """Z depth read form the input are in the range of [0, 1]. However, for actual imaging, this apparently is a not a valid distance range. This attribute is used to map the z depth into a more realistic range. By default, the range is set to 1.5m to 500m, i.e., typicaly portrait distance to infinity"""
+        """Z depth read form the input are in the range of [0, 1]. However, for actual imaging, this apparently is a not a valid distance range. This attribute is used to map the z depth into a more realistic range. By default, the range is set to 1.5m to 500m, i.e., typically portrait distance to infinity"""
         self.zDepthMappingRange = bd.array([KNOB_DISTANCE, FAR_DISTANCE])
 
 
@@ -207,6 +207,10 @@ class Image2DVariDepth(Image2D):
         # EXR not having a simple in-memory storage class like jpg/png.
         self._fileMaster = exrPath
 
+        self.rgbArray = bd.flip(self.rgbArray, axis=(0,1))
+        self.zArray = bd.flip(self.zArray, axis=(0,1))
+        self.alphaArray = bd.flip(self.alphaArray, axis=(0,1))
+
         self.Refresh()
 
 
@@ -263,6 +267,92 @@ class Image2DVariDepth(Image2D):
     def EmitSamplesToward(self, targets, sampleCount=64):
 
         return self.pointSource.EmitSamplesToward(targets, sampleCount, self.jitterPerPoint)
+
+
+    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
+        """
+        Receive an incident RayBatch, cull it and merge it with emitted RayBatch from this one.
+
+        """
+
+        if incidents is None:
+            # When this is the furthest layer
+            return self.EmitSamplesToward(targets, sampleCount)
+
+        else:
+            # Note: when this is called, it is safe to assume that this image has alpha info. It is also safe to assume that all incident rays are located further than this image, so no cross-intersection between the layers
+            # Positions of incident rays (these are the source points on the
+            # further-away image layer in object space).
+            pos = incidents.Position()  # shape (N, 3)
+            px = pos[:, 0]
+            py = pos[:, 1]
+            pz = pos[:, 2]
+
+            # Origin of this secondary imaging system is the world origin.
+            ox, oy, oz = ORIGIN  # (0, 0, 0)
+
+            # Vector from origin to ray source (image pixel)
+            vx = px - ox
+            vy = py - oy
+            vz = pz - oz
+
+            # We want field angles relative to the -Z axis (object space at negative Z).
+            # A simple way: flip the Z component when computing atan2 so that
+            # "forward" is along -Z.
+            eps = bd.array(1e-8, dtype=PRECISION_TYPE)
+            vz_safe = bd.where(bd.abs(vz) < eps, eps, vz)
+
+            theta_x = bd.arctan2(vx, -vz_safe)  # note the minus sign
+            theta_y = bd.arctan2(vy, -vz_safe)  # note the minus sign
+
+            # Same FOV convention as _GeneratePolarPointSources
+            sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, 3)
+
+            horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
+            half_horizontal = horizontalAoV_rad / 2.0
+
+            verticalAoV_rad = horizontalAoV_rad * (sampleY / sampleX)
+            half_vertical = verticalAoV_rad / 2.0
+
+            # Rays whose angles fall outside the FOV cannot intersect this image
+            inside_fov = (
+                                 (theta_x >= -half_horizontal) & (theta_x <= half_horizontal)
+                         ) & (
+                                 (theta_y >= -half_vertical) & (theta_y <= half_vertical)
+                         )
+
+            # Map angles in [-half, half] → normalized [0, 1]
+            u = (theta_x + half_horizontal) / (horizontalAoV_rad + eps)
+            v = (theta_y + half_vertical) / (verticalAoV_rad + eps)
+
+            # Convert to pixel indices
+            x = (u * sampleX).astype(bd.int64)
+            y = (v * sampleY).astype(bd.int64)
+
+            # Clamp to valid range
+            x = bd.clip(x, 0, sampleX - 1)
+            y = bd.clip(y, 0, sampleY - 1)
+
+            # Look up alpha per incident ray
+            alpha_flat = bd.flip(self.alphaArray, axis=(0, 1))[y, x]
+
+            # Blocked if inside FOV and pixel is opaque (alpha > 0)
+            blocked = inside_fov & (alpha_flat > 0)
+            keep_mask = ~blocked
+
+            # Keep only rays that are not blocked by this layer
+            through = incidents.Copy()
+            through.Mask(keep_mask)
+
+            # ------------------------------------------------------------------
+            # 2. Emit new rays from this image toward the targets
+            # ------------------------------------------------------------------
+            emitted = self.EmitSamplesToward(targets, sampleCount)
+
+            # ------------------------------------------------------------------
+            # 3. Return union: surviving incident rays + newly emitted rays
+            # ------------------------------------------------------------------
+            return through.Merge(emitted)
 
 
     # ==================================================================
@@ -337,67 +427,58 @@ class Image2DVariDepth(Image2D):
         Here, theta_x and theta_y are field angles (in radians) relative to the optical axis,
         and D is the distance from the front vertex.
         """
-        # Get image dimensions from the normalized RGB array.
         sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, channels)
 
-        # Create interpolation factors for horizontal (u) and vertical (v) directions.
-        u = bd.linspace(0, 1, sampleX)
-        v = bd.linspace(0, 1, sampleY)
-
-        # Create a meshgrid; use "ij" indexing so that U varies along width and V along height.
-        U, V = bd.meshgrid(u, v, indexing="ij")  # U and V shape: (sampleX, sampleY)
-
-        # Convert the horizontal angle of view (in degrees) to radians.
+        # Field of view in radians
         horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
         half_horizontal = horizontalAoV_rad / 2.0
 
-        # Compute vertical AoV from the image aspect ratio.
         verticalAoV_rad = horizontalAoV_rad * (sampleY / sampleX)
         half_vertical = verticalAoV_rad / 2.0
 
-        # For each pixel column, compute theta_x in the range [-half_horizontal, half_horizontal]
-        theta_x = -half_horizontal + U * horizontalAoV_rad
-        # For each pixel row, compute theta_y in the range [-half_vertical, half_vertical]
-        theta_y = -half_vertical + V * verticalAoV_rad
+        # Pixel-center coordinates in [0,1]
+        x_idx = bd.arange(sampleX, dtype=PRECISION_TYPE)
+        y_idx = bd.arange(sampleY, dtype=PRECISION_TYPE)
 
-        # Distance from pivot to the corresponding near-clip intersection
-        zClipDist = self._zClipDistance(half_horizontal, half_vertical, sampleY, sampleX, self.nearClipping)
+        u = (x_idx + 0.5) / sampleX  # shape (sampleX,)
+        v = (y_idx + 0.5) / sampleY  # shape (sampleY,)
 
-        # zDistance is stored as [height, width]; swap to match (sampleX, sampleY)
-        D = bd.swapaxes(self.zDistance, 0, 1) + zClipDist
+        # Grid in (y, x) order so axis 0 = rows, axis 1 = columns
+        U, V = bd.meshgrid(u, v, indexing="xy")  # both (sampleY, sampleX)
 
-        # Jitter radius per point (still per-pixel before any alpha culling)
-        self.jitterPerPoint = self._AngularJitter(half_horizontal, half_vertical, sampleY, sampleX, D)
+        # Angles per pixel
+        theta_x = -half_horizontal + U * horizontalAoV_rad  # (sampleY, sampleX)
+        theta_y = -half_vertical + V * verticalAoV_rad  # (sampleY, sampleX)
 
-        # Stack the three components into a (sampleX, sampleY, 3) array.
-        coordinates = bd.stack([theta_x, theta_y, D], axis=-1)
+        # Distance: no swapaxes needed; keep same (sampleY, sampleX) layout
+        zClipDist = self._zClipDistance(
+            half_horizontal, half_vertical, sampleY, sampleX, self.nearClipping
+        )  # (sampleY, sampleX)
 
-        # Reorder to (sampleY, sampleX, 3) and flatten to (N, 3)
-        coordinates = bd.swapaxes(coordinates, 0, 1)  # shape: (sampleY, sampleX, 3)
+        D = self.zDistance + bd.swapaxes(zClipDist, 0, 1)  # (sampleY, sampleX)
+
+        # Jitter in same layout, then flatten
+        self.jitterPerPoint = self._AngularJitter(
+            half_horizontal, half_vertical, sampleY, sampleX, D
+        ).reshape(sampleY * sampleX)
+
+        # Stack [theta_x, theta_y, D] and flatten
+        coordinates = bd.stack([theta_x, theta_y, D], axis=-1)  # (sampleY, sampleX, 3)
         coordinates = coordinates.reshape(sampleY * sampleX, 3)
 
-        # Get the RGB color for each pixel and reshape it accordingly.
+        # Colors flattened in same order
         colors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
-        # ---------------------------------------------
-        # Alpha-based culling: drop pixels with alpha == 0
-        # ---------------------------------------------
         if self.alphaArray is not None:
             alpha_flat = self.alphaArray.reshape(sampleY * sampleX)
-            # Keep only pixels where alpha > 0
             keep_mask = alpha_flat > 0
 
             coordinates = coordinates[keep_mask]
-            colors      = colors[keep_mask]
-            self.jitterPerPoint = self.jitterPerPoint.reshape(sampleY * sampleX)[keep_mask]
-        else:
-            # Ensure jitterPerPoint is 1-D with same length as coordinates/colors
-            self.jitterPerPoint = self.jitterPerPoint.reshape(sampleY * sampleX)
+            colors = colors[keep_mask]
+            self.jitterPerPoint = self.jitterPerPoint[keep_mask]
 
-        # Concatenate the polar coordinates and color channels:
         points = bd.concatenate([coordinates, colors], axis=1)
-        
-        # Finally, create a new PointsSource with these points.
+
         self.pointSource = PointsSource(points)
         self.pointSource.isCartesian = False
         self.pointSource.angleInRad = True
@@ -444,6 +525,9 @@ class Image2DVariDepth(Image2D):
 
     def _AngularJitter(self, horizontalHalfRad, verticalHalfRad,
                        h_steps, v_steps, perPointDistance):
+        """
+        Calculating jitter based on their angular resolution and distance.
+        """
 
         # angular pitch of a single pixel
         #  (use max(n-1,1) to avoid division by zero on 1-pixel edges)
@@ -455,7 +539,7 @@ class Image2DVariDepth(Image2D):
         # jitter_v = perPointDistance * bd.tan(dtheta_v * 0.5)  # shape (v, h)
 
         # flatten to 1-D so index order matches the flattened point list
-        jitter_h_flat = bd.swapaxes(jitter_h, 0, 1).reshape(-1)
+        jitter_h_flat = jitter_h.reshape(-1)
         # jitter_v_flat = bd.swapaxes(jitter_v, 0, 1).reshape(-1)
 
         # Horizontal and vertical angular resolution should be the same, a single return should suffice in most cases.

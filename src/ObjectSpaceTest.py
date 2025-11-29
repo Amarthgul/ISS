@@ -47,11 +47,12 @@ def AsphTest():
     plt.show()
 
 
-def StereoImageDisplay(imageMinSample = 4096, realTimeUpdate = True):
+def StereoImageDisplay(imageMinSample = 128, realTimeUpdate = True):
+
+
+
     img = Image2DVariDepth()
     img.imageDimensionOverride = 100
-    #img.zDepthMappingRange = bd.array([500, 1000])
-
     img.LoadFromEXR(r"resources/allChannels.exr")
     # img.UpdateDepthRange()
 
@@ -62,21 +63,24 @@ def StereoImageDisplay(imageMinSample = 4096, realTimeUpdate = True):
     plt.show()
 
 
-def StereoImageTest(imageMinSample = 10240, realTimeUpdate = True):
+def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
+
+    bg = Image2DFlat()
+    bg.distance = 200000
+    bg.LoadFrom8BitPNG(r"resources/YourTaxReturn.png")
+
 
     img = Image2DVariDepth()
-    # img.imageDimensionOverride = 200
-    # img.nearClipping = 200
-    img.zDepthMappingRange = bd.array([500, 10000])
-
     img.LoadFromEXR(r"resources/allChannels.exr")
+    # img.zDepthMappingRange = [2000, 10000]
+    # img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
 
     #img.DrawImage()
     #plt.show()
 
 
     lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(1500))
+    imager = StdImager(lens.BestFocusBFD(5000))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty()
 
@@ -85,11 +89,17 @@ def StereoImageTest(imageMinSample = 10240, realTimeUpdate = True):
     if (realTimeUpdate):
         plt.ion()  # Turn on interactive mode
         fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flip=True))
+        im = ax.imshow(ImageConversion(image, flipH=True))
 
     while (True):
 
-        mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024)
+        mainRB = img.ReceiveAndEmitTowards(
+            lens.entrancePupil.GetSamplePoints(512),
+            bg.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024),
+            1024)
+
+        # mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512),1024)
+
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
@@ -97,7 +107,7 @@ def StereoImageTest(imageMinSample = 10240, realTimeUpdate = True):
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
         if (realTimeUpdate):
-            im.set_data(ImageConversion(image, flip=True))
+            im.set_data(ImageConversion(image, flipH=True, maxModifier=0.25))
             plt.draw()
             plt.pause(0.01)
 
@@ -109,8 +119,8 @@ def StereoImageTest(imageMinSample = 10240, realTimeUpdate = True):
         if (iterationCount > imageMinSample):
             image /= 100
             global FrameCount
-            fn = r"Stereo test"
-            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
+            fn = r"LayerTest"
+            SaveAsEXR(image, r"resources/Results", fn)
             break
 
 
