@@ -65,15 +65,18 @@ def StereoImageDisplay(imageMinSample = 128, realTimeUpdate = True):
 
 def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
 
-    bg = Image2DFlat()
+    #bg = Image2DFlat()
+    bg = Image2DVariDepth()
     bg.distance = 200000
-    bg.LoadFrom8BitPNG(r"resources/YourTaxReturn.png")
-
+    #bg.LoadFrom8BitPNG(r"resources/YourTaxReturn.png")
+    bg.LoadFromEXR(r"resources/DepthSceneBG.exr")
 
     img = Image2DVariDepth()
-    img.LoadFromEXR(r"resources/allChannels.exr")
+    #img.LoadFromEXR(r"resources/allChannels.exr")
+    img.LoadFromEXR(r"resources/DepthSceneMG2.exr")
     # img.zDepthMappingRange = [2000, 10000]
     # img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
+    print(img.GetAOVNames())
 
     #img.DrawImage()
     #plt.show()
@@ -117,6 +120,52 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
         iterationCount += 1
 
         if (iterationCount > imageMinSample):
+            image /= 100
+            global FrameCount
+            fn = r"LayerTest"
+            SaveAsEXR(image, r"resources/Results", fn)
+            break
+
+
+def StackTest(renderTime = 512, realTimeUpdate = True):
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+
+    stack = ExampleStack()
+
+    lens = Biotar50mmf14()
+    imager = StdImager(lens.BestFocusBFD(780))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AccquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 1024)
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+        if (realTimeUpdate):
+            im.set_data(ImageConversion(image, flipH=True, maxModifier=0.5))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        if (elapsed > renderTime):
             image /= 100
             global FrameCount
             fn = r"LayerTest"
@@ -209,6 +258,7 @@ def BladeTest():
 def main():
     # BladeTest()
     StereoImageTest()
+    # StackTest()
 
 
 if __name__ == "__main__":

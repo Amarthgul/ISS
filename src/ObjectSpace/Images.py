@@ -68,6 +68,11 @@ class Image2D:
         DrawPointsPerColor(self.pointSource.Position(), self.pointSource.DisplayColor())
 
 
+    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
+        """The base class has no implementation, it is only an interface for more advanced classes. """
+        pass
+
+
 
 class Image2DFlat(Image2D):
     def __init__(self):
@@ -148,6 +153,8 @@ class Image2DFlat(Image2D):
         """
         Load only the RGB info from an EXR image. Other channels are ignored.
         """
+        exrPath = RectPath(imgPath)
+
         exr = OpenEXR.InputFile(imgPath)
 
         # EXR header tells us the image size

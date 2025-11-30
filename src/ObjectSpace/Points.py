@@ -65,7 +65,18 @@ class PointsSource:
             
     
     def Color(self):
-        return self.value[:, 3:]
+        return self.value[:, 3:6]
+
+
+    def AOV(self):
+        """
+        Return additional AOV columns in each point row, or None if no AOV present.
+        PointsSource base format is:
+            [x, y, z, R, G, B, (optional AOV...)]
+        """
+        if self.value.shape[1] <= 6:
+            return None
+        return self.value[:, 6:]
 
 
     def DisplayColor(self):
@@ -215,110 +226,180 @@ class PointsSource:
         else: 
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
-
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
         """
-        Emit rays from all samples towards all targets. This creates a cross emission of MxN size where M is the number of samples and N is the number of targets.
-
-        :param sampleSource: sample source as point source objects.
-        :param targets: targets of 3D positions.
-        :param jitter: littering amount, either a single float or a vector of floats corresponding to all the sample sources.
-        :param addSecondary: whether to add secondary spectrum into the wavelength or not.
-        :param cosineFalloff: whether to consider cosine 4th power falloff.
-
-        :return: RayBatch object of the emitted rays.
+        Emit rays from all samples towards all targets. This creates a cross emission of MxN size where M is the number
+        of samples and N is the number of targets.
         """
 
+        # ------------------------------------------------------------------
+        # Geometry: expand source positions and directions
+        # ------------------------------------------------------------------
         sourcePos = bd.copy(sampleSource.Position())
-        sourcePos = sourcePos[:, bd.newaxis, :]
-        sourcePos = bd.tile(sourcePos, (1, targets.shape[0], 1))
-        if(jitter is not None):
+        n = sourcePos.shape[0]
+        m = targets.shape[0]
+
+        sourcePos = sourcePos[:, bd.newaxis, :]  # (n, 1, 3)
+        sourcePos = bd.tile(sourcePos, (1, m, 1))  # (n, m, 3)
+
+        if jitter is not None:
             RefreshRNG()
             if bd.ndim(jitter) == 0:  # scalar → broadcast
                 mag = bd.full(sourcePos.shape[:2], float(jitter))
-
             elif bd.ndim(jitter) == 1:  # 1-D, per source
                 if jitter.shape[0] != sourcePos.shape[0]:
                     raise ValueError("jitter 1-D length must equal number of sources")
-                mag = bd.tile(jitter[:, bd.newaxis], (1, targets.shape[0]))
+                mag = bd.tile(jitter[:, bd.newaxis], (1, m))
+            else:
+                raise ValueError("Unsupported jitter dimensionality")
 
             mag_xyz = mag[..., bd.newaxis] * bd.array([1, 1, 0])
             jitter_off = RNG.uniform(low=-mag_xyz, high=mag_xyz)
             sourcePos += jitter_off
 
-            # jitter = RNG.uniform(-jitter, jitter, (sourcePos.shape[0], targets.shape[0], 3)) * bd.array([1, 1, 0])
-            # sourcePos += jitter
+        targetsExpanded = targets[bd.newaxis, :, :]  # (1, m, 3)
 
-        # Expand the points to prepare crossing them
-        targetsExpanded = targets[bd.newaxis, :, :]  # Shape (1, m, 3)
-
-        # Compute the direction of acrossing the source and target
-        dirCross = targetsExpanded - sourcePos # Shape (n, m, 3)
+        dirCross = targetsExpanded - sourcePos  # (n, m, 3)
         dirCross = GridNormalized(dirCross)
 
+        # Base 6D ray data (position + direction)
+        base_pd = bd.concatenate([sourcePos, dirCross], axis=2)  # (n, m, 6)
 
-        appended = bd.concatenate([sourcePos, dirCross], axis=2)
-        # After applying the mask, appended is of shape (m*n', 6)
-
-        # Convert source color to wavelength
-        if (addSecondary is not None):
-            # Spot sim assumes source to be white, so add more spectrums
+        # ------------------------------------------------------------------
+        # Color → wavelength & radiant (brightness) mapping
+        # ------------------------------------------------------------------
+        if addSecondary is not None:
             wavelengths, radiants = RGBToWavelengthSpotSim(sampleSource.Color(), addCount=addSecondary)
         else:
             wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
 
+        # wavelengths: (n, n_lambda)
+        # radiants:    (n, n_lambda)  <-- may have entries > 1 now
 
-        # Expand the wavelength to match the pos/dir
-        wavelengths = wavelengths[:, bd.newaxis, :]
-        wavelengths = bd.tile(wavelengths, (1, dirCross.shape[1], 1))
-        # At this point the wavelengths should be of size (m, n, n_lambda)
-        # Where m is number of source point, n is number of target points
-        # and n_lambda is number of different wavelengths
+        # Expand wavelengths to match (n, m, n_lambda)
+        wavelengths = wavelengths[:, bd.newaxis, :]  # (n, 1, n_lambda)
+        wavelengths = bd.tile(wavelengths, (1, m, 1))  # (n, m, n_lambda)
 
-        # Accquire the number of wavelengths,
         wavelengthCount = wavelengths.shape[2]
 
-        # Spilt the wavelengths, copy and concatenate them to
-        wavelengths = bd.split(wavelengths, indices_or_sections=wavelengthCount, axis=2)
+        # Split wavelength cube into a list of (n, m, 1)
+        wavelength_slices = bd.split(wavelengths, indices_or_sections=wavelengthCount, axis=2)
 
-        appended = [bd.concatenate([appended, b], axis=2) for b in wavelengths]
-
-        # This creates a boolean mask whose filter ratio is based on the radiant of the corresponding wavelength
-        radiantMask = [
-            bd.random.random((sourcePos.shape[0], targets.shape[0])) < radiants[:, i][:, bd.newaxis]
-            for i in range(radiants.shape[1])
-            ]
-
-        if(cosineFalloff):
-            # 1. cosθ between each ray and +Z (= |z-component|, dirCross already normalised)
-            cosTheta = bd.abs(dirCross[..., 2]) ** 4 # shape (n,m)
-            # 2. same-size random array
+        # ------------------------------------------------------------------
+        # Cosine^4 falloff mask (independent from brightness)
+        # ------------------------------------------------------------------
+        if cosineFalloff:
+            cosTheta = bd.abs(dirCross[..., 2]) ** 4  # (n, m)
             randCos = bd.random.random(cosTheta.shape)
-            # 3. boolean acceptance by comparing randCos < cosTheta
-            angMask = randCos < cosTheta  # shape (n,m) boolean
-            # 4. combine with the wavelength radiant mask
-            radiantMask = [mask & angMask for mask in radiantMask]
+            angMask = randCos < cosTheta  # (n, m) boolean
+        else:
+            angMask = bd.ones(dirCross.shape[:2], dtype=bool)
 
+        # ------------------------------------------------------------------
+        # AOV grid (per point, per target) — same for all wavelengths
+        # ------------------------------------------------------------------
+        pointAOV = sampleSource.AOV()  # (n, k) or None
+        aov_grid = None
+        if pointAOV is not None:
+            k = pointAOV.shape[1]
+            aov_grid = pointAOV[:, bd.newaxis, :]  # (n, 1, k)
+            aov_grid = bd.tile(aov_grid, (1, m, 1))  # (n, m, k)
 
-        # Using the filter from last step to drop the elements.
-        # This is how RGB is created, note that such method rely heavily on large scale Monte Carlo to reduce randomness
-        appended = [appended[i][radiantMask[i]] for i in range(len(radiantMask))]
+        # ------------------------------------------------------------------
+        # Build rays for each wavelength, allowing radiants > 1
+        # and propagate AOVs in lockstep with rays
+        # ------------------------------------------------------------------
+        appended_all_rays = []  # list of (N_i, 7)
+        appended_all_aov = []  # list of (N_i, k), only if aov_grid is not None
 
+        for i in range(wavelengthCount):
+            # Rays for this wavelength before masking: (n, m, 7)
+            rays_i = bd.concatenate([base_pd, wavelength_slices[i]], axis=2)
 
-        # This yields a (w*m*n', 7) array, prime sign means it's smaller than w*m*n since some of them are just dropped out
-        appended = bd.concatenate(appended, axis=0)
+            # Expected ray count per source for this wavelength:
+            # L_j = radiants[j, i], possibly > 1
+            L = radiants[:, i]  # (n,)
+            base = bd.floor(L).astype(bd.int32)  # integer part
+            frac = L - base  # fractional part in [0, 1)
 
+            # Broadcast base & frac along targets dimension
+            base_b = base[:, bd.newaxis]  # (n, 1)
+            frac_b = frac[:, bd.newaxis]  # (n, 1)
+
+            # Per-wavelength accumulation
+            rays_list_i = []
+            aov_list_i = []
+
+            # Integer copies
+            max_base = int(bd.max(base)) if base.size > 0 else 0
+            if max_base > 0:
+                for kcopy in range(max_base):
+                    copy_mask = (base_b > kcopy) & angMask  # (n, m) boolean
+
+                    rays_copy = rays_i[copy_mask]  # (N_k, 7)
+                    if rays_copy.shape[0] == 0:
+                        continue
+
+                    rays_list_i.append(rays_copy)
+
+                    if aov_grid is not None:
+                        aov_copy = aov_grid[copy_mask]  # (N_k, k)
+                        aov_list_i.append(aov_copy)
+
+            # Fractional extra copy
+            if bd.any(frac > 0):
+                randFrac = bd.random.random(angMask.shape)  # (n, m)
+                frac_mask = (randFrac < frac_b) & angMask  # (n, m) boolean
+
+                rays_frac = rays_i[frac_mask]  # (N_frac, 7)
+                if rays_frac.shape[0] > 0:
+                    rays_list_i.append(rays_frac)
+                    if aov_grid is not None:
+                        aov_frac = aov_grid[frac_mask]  # (N_frac, k)
+                        aov_list_i.append(aov_frac)
+
+            # Collect for this wavelength
+            if len(rays_list_i) > 0:
+                appended_all_rays.append(bd.concatenate(rays_list_i, axis=0))
+                if aov_grid is not None:
+                    appended_all_aov.append(bd.concatenate(aov_list_i, axis=0))
+
+        # If no rays survived (e.g., very low brightness everywhere)
+        if len(appended_all_rays) == 0:
+            empty = bd.zeros((0, 11))
+            return RayBatch(empty)
+
+        # Concatenate all wavelengths
+        appended = bd.concatenate(appended_all_rays, axis=0)  # (#rays, 7)
+        if aov_grid is not None and len(appended_all_aov) > 0:
+            aov_appended = bd.concatenate(appended_all_aov, axis=0)  # (#rays, k)
+        else:
+            aov_appended = None
+
+        # ------------------------------------------------------------------
+        # Polarization / meta columns
+        # ------------------------------------------------------------------
         temp = bd.ones(4)
-        temp[0] = ONE    # Sagittal radiant
-        temp[1] = ONE    # Tangential radiant
-        temp[2] = INIT_ELLIPSE_TILT   # Phase difference
+        temp[0] = ONE  # Sagittal radiant
+        temp[1] = ONE  # Tangential radiant
+        temp[2] = INIT_ELLIPSE_TILT  # Phase difference
         temp[3] = bd.zeros_like(temp[3])  # Surface index
 
-        return RayBatch(
-            bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
-        )
+        core = bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
 
-        
+        # Append AOV data if available
+        if aov_appended is not None:
+            # aov_appended should match core rows exactly
+            if aov_appended.shape[0] != core.shape[0]:
+                raise RuntimeError(
+                    f"AOV replication mismatch: aov rows={aov_appended.shape[0]}, "
+                    f"core rows={core.shape[0]}"
+                )
+            core = bd.concatenate([core, aov_appended], axis=1)
+
+        return RayBatch(core)
+
+
     def _SelectLeastSampled(self, sampleCount):
         """
         Find all indices with the least amount of sample history.

@@ -40,14 +40,21 @@ class Image2DVariDepth(Image2D):
         """This is the distance calculated from zArray and zDepthMappingRange."""
         self.zDistance = None
 
-        """Z depth array of the image. This is the direct value of the image representing the z depth, not the acutal physical distance."""
+        """Z depth array of the image. 
+        This is the direct value of the image representing the z depth, not the actual physical distance used to calculate. Although in the case of EXR, zArray and zDistance is regarded as the same."""
         self.zArray = None
 
         """Alpha/opacity array of the image (optional, e.g. EXR)"""
         self.alphaArray = None
 
+        """Other channels when reading from an EXR file."""
+        self.AOVs = None
+
         """Because this is a secondary imaging process, an angle of view of the image source is needed. Value is unsigned unit in degree. Default value 40 degrees, which is a 50mm on 135 format."""
         self.horizontalAoV = 40
+
+        """Stores the calculated 3D Cartesian coordinates (X, Y, Z) of the opaque pixels."""
+        self.geometry3d = None
 
         """Flag: if True, zArray is already in physical units from EXR and should be used directly."""
         self._usingEXRDirectDepth = False
@@ -77,6 +84,7 @@ class Image2DVariDepth(Image2D):
 
         """An array of same size with the number of point sources. Each entry in this array corresponds to the """
         self.jitterPerPoint = None
+
 
 
     def LoadFrom8bit(self, rgbImgPath, zImgPath=None):
@@ -144,7 +152,7 @@ class Image2DVariDepth(Image2D):
         self.UpdateDepthRange()
 
 
-    def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "depth", "Depth.Z", "depth.Z"),
+    def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "Z.R", "depth", "Depth.Z", "depth.Z"),
                     alphaChannelNames=("A", "alpha", "Opacity")):
 
         exrPath = RectPath(exrPath)
@@ -154,6 +162,7 @@ class Image2DVariDepth(Image2D):
         rgb = channelsFromEXR["rgb"]
         depth = channelsFromEXR["depth"]
         alpha = channelsFromEXR["alpha"]
+        aov_dict = channelsFromEXR.get("AOVs", {})
 
         if rgb is None:
             raise ValueError(
@@ -177,39 +186,52 @@ class Image2DVariDepth(Image2D):
 
             idx2d = bd.ix_(y_idx, x_idx)
 
-            rgb = rgb[idx2d]  # (new_h, new_w, 3)
+            rgb = rgb[idx2d]    # (new_h, new_w, 3)
             depth = depth[idx2d]  # (new_h, new_w)
             if alpha is not None:
                 alpha = alpha[idx2d]  # (new_h, new_w)
 
+            # Resize all additional AOV channels the same way
+            resized_aovs = {}
+            for name, arr in aov_dict.items():
+                resized_aovs[name] = arr[idx2d]
+            aov_dict = resized_aovs
+
         # ------------------------------------------------------------------
-        # Option B: use EXR depth directly (no [0,1] remapping).
-        # zArray now stores the EXR depth values; zDistance is just the
-        # signed version used by the ray system.
+        # EXR depth is assumed to be in physical units already.
+        # zArray stores EXR depth; zDistance is signed (negative towards object).
         # ------------------------------------------------------------------
         self.rgbArray = rgb.astype(PRECISION_TYPE)
 
-        # EXR depth is assumed to be a positive distance (camera space or
-        # near-plane space); system convention is negative toward object space.
         self.zArray = depth.astype(PRECISION_TYPE)
         self.zDistance = -self.zArray
 
-        # Store alpha for later culling in _GeneratePolarPointSources
+        # Alpha for opacity
         if alpha is not None:
             self.alphaArray = alpha.astype(PRECISION_TYPE)
         else:
             self.alphaArray = None
 
-        # Mark that this instance should *not* remap depth via zDepthMappingRange.
+        # Additional AOVs (all channels except RGB, depth, alpha)
+        if aov_dict:
+            self.AOVs = {name: arr.astype(PRECISION_TYPE) for name, arr in aov_dict.items()}
+        else:
+            self.AOVs = None
+
+        # Mark direct-depth EXR mode
         self._usingEXRDirectDepth = True
 
-        # Keep the original EXR path as "master" reference, this is due to
-        # EXR not having a simple in-memory storage class like jpg/png.
+        # Keep the original EXR path as "master" reference
         self._fileMaster = exrPath
 
-        self.rgbArray = bd.flip(self.rgbArray, axis=(0,1))
-        self.zArray = bd.flip(self.zArray, axis=(0,1))
-        self.alphaArray = bd.flip(self.alphaArray, axis=(0,1))
+        # Flip vertically to match system indexing (y,x)
+        self.rgbArray = bd.flip(self.rgbArray, axis=(0, 1))
+        self.zArray = bd.flip(self.zArray, axis=(0, 1))
+        if self.alphaArray is not None:
+            self.alphaArray = bd.flip(self.alphaArray, axis=(0, 1))
+        if self.AOVs is not None:
+            for name in list(self.AOVs.keys()):
+                self.AOVs[name] = bd.flip(self.AOVs[name], axis=(0, 1))
 
         self.Refresh()
 
@@ -269,27 +291,24 @@ class Image2DVariDepth(Image2D):
         return self.pointSource.EmitSamplesToward(targets, sampleCount, self.jitterPerPoint)
 
 
-    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
+    def ReceiveAndEmitTowards(self, targets, incidents:RayBatch=None, sampleCount:int=64):
         """
         Receive an incident RayBatch, cull it and merge it with emitted RayBatch from this one.
 
         """
 
-        if incidents is None:
+        if (incidents is None) or (incidents.IsNoneType()):
             # When this is the furthest layer
             return self.EmitSamplesToward(targets, sampleCount)
 
         else:
-            # Note: when this is called, it is safe to assume that this image has alpha info. It is also safe to assume that all incident rays are located further than this image, so no cross-intersection between the layers
-            # Positions of incident rays (these are the source points on the
-            # further-away image layer in object space).
             pos = incidents.Position()  # shape (N, 3)
             px = pos[:, 0]
             py = pos[:, 1]
-            pz = pos[:, 2]
+            pz = pos[:, 2]  # The Z-position of the incident ray source (farther layer)
 
-            # Origin of this secondary imaging system is the world origin.
-            ox, oy, oz = ORIGIN  # (0, 0, 0)
+            # Origin of this secondary imaging system is the world origin (0, 0, 0)
+            ox, oy, oz = ORIGIN
 
             # Vector from origin to ray source (image pixel)
             vx = px - ox
@@ -297,15 +316,12 @@ class Image2DVariDepth(Image2D):
             vz = pz - oz
 
             # We want field angles relative to the -Z axis (object space at negative Z).
-            # A simple way: flip the Z component when computing atan2 so that
-            # "forward" is along -Z.
             eps = bd.array(1e-8, dtype=PRECISION_TYPE)
             vz_safe = bd.where(bd.abs(vz) < eps, eps, vz)
 
             theta_x = bd.arctan2(vx, -vz_safe)  # note the minus sign
             theta_y = bd.arctan2(vy, -vz_safe)  # note the minus sign
 
-            # Same FOV convention as _GeneratePolarPointSources
             sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, 3)
 
             horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
@@ -326,18 +342,61 @@ class Image2DVariDepth(Image2D):
             v = (theta_y + half_vertical) / (verticalAoV_rad + eps)
 
             # Convert to pixel indices
-            x = (u * sampleX).astype(bd.int64)
-            y = (v * sampleY).astype(bd.int64)
+            x_center = (u * sampleX).astype(bd.int64)
+            y_center = (v * sampleY).astype(bd.int64)
 
-            # Clamp to valid range
-            x = bd.clip(x, 0, sampleX - 1)
-            y = bd.clip(y, 0, sampleY - 1)
+            # --- START: Conservative 3x3 Check ---
 
-            # Look up alpha per incident ray
-            alpha_flat = bd.flip(self.alphaArray, axis=(0, 1))[y, x]
+            # Initialize a mask for blocked rays (Assume NOT blocked initially)
+            blocked = bd.zeros_like(inside_fov, dtype=bd.bool_)
 
-            # Blocked if inside FOV and pixel is opaque (alpha > 0)
-            blocked = inside_fov & (alpha_flat > 0)
+            # NOTE: We use the system's Z-convention: negative Z for object space.
+            # Incident ray position Pz is the ray source, on a farther layer.
+            # Stored Z-distance is self.zDistance (negative Z values).
+
+            # Loop over 3x3 neighborhood (dx, dy from -1 to 1)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    # Calculate neighbor pixel indices
+                    x_neighbor = bd.clip(x_center + dx, 0, sampleX - 1)
+                    y_neighbor = bd.clip(y_center + dy, 0, sampleY - 1)
+
+                    # 1. Sample Z-Depth at neighbor (self.zDistance is already negative)
+                    # We flip the array axes (0 and 1) to match the (y, x) indexing used for sampling
+                    z_dist_array = bd.flip(self.zDistance, axis=(0, 1))
+                    z_stored = z_dist_array[y_neighbor, x_neighbor]  # This is the stored Z (negative value)
+
+                    # 2. Sample Alpha at neighbor
+                    alpha_array = bd.flip(self.alphaArray, axis=(0, 1))
+                    alpha_stored = alpha_array[y_neighbor, x_neighbor]
+
+                    # Culling Condition Check:
+                    # Ray is blocked if:
+                    # a) It is inside the FOV
+                    # b) The ray's source Z (pz) is BEHIND (more negative) the stored Z (z_stored)
+                    # c) The pixel is opaque (alpha_stored > 0)
+
+                    # Since both pz and z_stored are negative:
+                    # pz < z_stored  (e.g., pz = -20, z_stored = -10, then -20 < -10 is TRUE)
+                    # This means the ray source is closer to the image, which is WRONG for culling.
+
+                    # Correct Culling Condition (Ray source is FARTHER than the stored depth):
+                    # pz > z_stored  (e.g., pz = -10, z_stored = -20, then -10 > -20 is TRUE)
+                    # pz is the current ray position (source) on a FARTHER layer.
+                    # z_stored is the surface of THIS layer.
+                    # If pz > z_stored, the ray passes *through* the stored surface.
+
+                    hit_and_opaque = (
+                            (
+                                        pz < z_stored) &  # The ray source Z must be MORE negative (farther) than the stored surface Z
+                            (alpha_stored > 0)
+                    )
+
+                    # Conservatively update the blocked mask: if *any* neighbor blocks it, the ray is blocked.
+                    blocked = blocked | (inside_fov & hit_and_opaque)
+
+            # --- END: Conservative 3x3 Check ---
+
             keep_mask = ~blocked
 
             # Keep only rays that are not blocked by this layer
@@ -355,18 +414,38 @@ class Image2DVariDepth(Image2D):
             return through.Merge(emitted)
 
 
+    def GetAOVNames(self):
+        """
+        Return all EXR channel names except the basic RGB ('R','G','B').
+        Used later when saving the rendered image (including depth, alpha, and other AOVs).
+        """
+        if self._fileMaster is None:
+            return []
+
+        try:
+            exr = OpenEXR.InputFile(self._fileMaster)
+        except Exception:
+            # Not an EXR master, or cannot be opened
+            return []
+
+        header = exr.header()
+        channels = list(header["channels"].keys())
+
+        # Exclude only the basic RGB channels
+        aov_names = [c for c in channels if c not in ("R", "G", "B")]
+        return aov_names
+
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
 
-    def _ReadEXR(self, exrPath, depthChannelNames=("Z", "depth", "Depth.Z", "depth.Z"),
-                    alphaChannelNames=("A", "alpha", "Opacity")):
+    def _ReadEXR(self, exrPath, depthChannelNames, alphaChannelNames):
         """
         Read an EXR image and its channels.
         """
-        # self.debug_show_exr_channels(exrPath)
-
         exr = OpenEXR.InputFile(exrPath)
         header = exr.header()
         dw = header['dataWindow']
@@ -395,19 +474,40 @@ class Image2DVariDepth(Image2D):
 
         # ----------- Read Depth (supports multiple naming conventions) -----------
         depth = None
+        depth_name_sel = None
         for dname in depthChannelNames:
             d = read_channel(dname)
             if d is not None:
                 depth = d
+                depth_name_sel = dname
                 break
 
         # ----------------------------Read Alpha/Opacity ---------------------------
         alpha = None
+        alpha_name_sel = None
         for aname in alphaChannelNames:
             a = read_channel(aname)
             if a is not None:
                 alpha = a
+                alpha_name_sel = aname
                 break
+
+        # ------------------------ Read additional AOV channels --------------------
+        used_names = set()
+        if r is not None and g is not None and b is not None:
+            used_names.update(["R", "G", "B"])
+        if depth is not None and depth_name_sel is not None:
+            used_names.add(depth_name_sel)
+        if alpha is not None and alpha_name_sel is not None:
+            used_names.add(alpha_name_sel)
+
+        aov_dict = {}
+        for ch_name in available:
+            if ch_name in used_names:
+                continue
+            arr = read_channel(ch_name)
+            if arr is not None:
+                aov_dict[ch_name] = arr  # H×W
 
         return {
             "rgb": rgb,
@@ -417,14 +517,17 @@ class Image2DVariDepth(Image2D):
             "alpha": alpha,
             "depth": depth,
             "channels": available,
+            "AOVs": aov_dict,
+            "depth_name": depth_name_sel,
+            "alpha_name": alpha_name_sel,
         }
 
 
     def _GeneratePolarPointSources(self):
         """
         Generate point sources from the image where each pixel is represented 
-        in polar coordinates: [theta_x, theta_y, D, R, G, B]. 
-        Here, theta_x and theta_y are field angles (in radians) relative to the optical axis,
+        in polar coordinates: [theta_x, theta_y, D, R, G, B, alpha, depth, AOV...].
+        theta_x and theta_y are field angles (in radians) relative to the optical axis,
         and D is the distance from the front vertex.
         """
         sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, channels)
@@ -457,7 +560,7 @@ class Image2DVariDepth(Image2D):
 
         D = self.zDistance + bd.swapaxes(zClipDist, 0, 1)  # (sampleY, sampleX)
 
-        # Jitter in same layout, then flatten
+        # Jitter in same layout, then flatten (pixel-wise)
         self.jitterPerPoint = self._AngularJitter(
             half_horizontal, half_vertical, sampleY, sampleX, D
         ).reshape(sampleY * sampleX)
@@ -469,15 +572,54 @@ class Image2DVariDepth(Image2D):
         # Colors flattened in same order
         colors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
+        # Prepare alpha, depth, and extra AOVs as flattened arrays
+        N = sampleY * sampleX
+
+        alpha_flat = None
         if self.alphaArray is not None:
-            alpha_flat = self.alphaArray.reshape(sampleY * sampleX)
+            alpha_flat = self.alphaArray.reshape(N)
+
+        depth_flat = self.zArray.reshape(N)  # EXR depth (or mapped depth for 8-bit)
+
+        extra_aov_flats = []
+        if self.AOVs is not None:
+            for name, arr in self.AOVs.items():
+                extra_aov_flats.append(arr.reshape(N))
+
+        # If alpha is present, cull transparent pixels and apply the same mask to all arrays
+        if alpha_flat is not None:
             keep_mask = alpha_flat > 0
 
             coordinates = coordinates[keep_mask]
             colors = colors[keep_mask]
             self.jitterPerPoint = self.jitterPerPoint[keep_mask]
 
-        points = bd.concatenate([coordinates, colors], axis=1)
+            alpha_flat = alpha_flat[keep_mask]
+            depth_flat = depth_flat[keep_mask]
+            for i in range(len(extra_aov_flats)):
+                extra_aov_flats[i] = extra_aov_flats[i][keep_mask]
+        else:
+            keep_mask = None  # not used, but kept for clarity
+
+        # Build AOV columns: alpha, depth, then all other AOVs
+        aov_cols = []
+
+        # alpha as first AOV column (if available)
+        if alpha_flat is not None:
+            aov_cols.append(alpha_flat.reshape(-1, 1))
+
+        # depth as second AOV column
+        aov_cols.append(depth_flat.reshape(-1, 1))
+
+        # other AOVs (in the order stored in self.AOVs)
+        for flat in extra_aov_flats:
+            aov_cols.append(flat.reshape(-1, 1))
+
+        if aov_cols:
+            aov_matrix = bd.concatenate(aov_cols, axis=1)  # (num_points, num_aovs)
+            points = bd.concatenate([coordinates, colors, aov_matrix], axis=1)
+        else:
+            points = bd.concatenate([coordinates, colors], axis=1)
 
         self.pointSource = PointsSource(points)
         self.pointSource.isCartesian = False
@@ -546,7 +688,7 @@ class Image2DVariDepth(Image2D):
         return jitter_h_flat
 
 
-    def debug_show_exr_channels(self, exr_path):
+    def _PrintChannels(self, exr_path):
         """
         Prints all channels in the EXR and displays each as an image.
         Handles float and half precision.
@@ -562,45 +704,8 @@ class Image2DVariDepth(Image2D):
         for c in channels:
             print(f"  • {c}")
 
-        # get image size
-        dw = header["dataWindow"]
-        width = dw.max.x - dw.min.x + 1
-        height = dw.max.y - dw.min.y + 1
 
-        # Display each channel
-        n = len(channels)
-        cols = 4
-        rows = int(bd.ceil(n / cols))
 
-        plt.figure(figsize=(4 * cols, 4 * rows))
-
-        for i, chan in enumerate(channels, start=1):
-
-            # Auto-detect pixel type
-            ch = header["channels"][chan]
-            if ch.type.v == Imath.PixelType(Imath.PixelType.FLOAT).v:
-                pixel_type = Imath.PixelType(Imath.PixelType.FLOAT)
-                dtype = bd.float32
-            else:
-                pixel_type = Imath.PixelType(Imath.PixelType.HALF)
-                dtype = bd.float16
-
-            # Read channel
-            arr = bd.frombuffer(exr.channel(chan, pixel_type), dtype=dtype)
-            arr = arr.reshape(height, width)
-
-            # Normalize for display
-            arr_disp = arr.astype(bd.float32)
-            if bd.any(arr_disp > 0):
-                arr_disp = arr_disp / bd.max(arr_disp)
-
-            ax = plt.subplot(rows, cols, i)
-            ax.imshow(arr_disp, cmap="viridis")
-            ax.set_title(chan)
-            ax.axis("off")
-
-        plt.tight_layout()
-        plt.show()
 
 
 def main():

@@ -12,7 +12,7 @@ class RayBatch:
     """
     Raybatch data are organized in the form of:
     [
-       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s], 
+       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s, (optional)AOV1, (optional)AOV2, ...],
        [...], [...], ...
     ]
     """
@@ -219,6 +219,22 @@ class RayBatch:
             self.value[:, 9] = tilt
 
 
+    def AppendAOV(self, values):
+        """
+        Append an AOV into this raybatch.
+        :param values: an array of AOV values whose first dimension must be the same as the value of the current raybatch.
+
+        :return: this RayBatch object.
+        """
+        if values.ndim == 1:
+            values = values.reshape(-1, 1)
+
+        # Directly concatenate along the feature / column axis
+        self.value = bd.concatenate((self.value, values), axis=1)
+
+        return self
+
+
     def Merge(self, input):
         """
         Merge this raybatch with another one. This raybatch will be modifed and also as a return value.
@@ -335,6 +351,14 @@ class RayBatch:
         return self.value is None
 
 
+    def IsNoneType(self):
+
+        if self.value is not None:
+            return len(self.value) == 0
+        else:
+            return True
+
+
     def Copy(self):
         """
         Return a deep of this RayBatch instance.
@@ -346,6 +370,8 @@ class RayBatch:
         new_rb = RayBatch(bd.copy(self.value))
 
         return new_rb
+
+
 
 
 
