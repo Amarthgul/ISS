@@ -16,7 +16,10 @@ from .Images import Image2D
 
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, ORIGIN
+from Util.Globals import (
+    ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE,
+    KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, ORIGIN, RNG
+)
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor, RemoveBG
 from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
 from Raytracing.RayBatch import RayBatch
@@ -68,6 +71,8 @@ class Image2DVariDepth(Image2D):
         """Point source object built from the image"""
         self.pointSource = None
 
+        """When using EXR, the unit in Z may not be the same."""
+        self.zUnitConversion = 10
 
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
@@ -203,7 +208,7 @@ class Image2DVariDepth(Image2D):
         # ------------------------------------------------------------------
         self.rgbArray = rgb.astype(PRECISION_TYPE)
 
-        self.zArray = depth.astype(PRECISION_TYPE)
+        self.zArray = depth.astype(PRECISION_TYPE) * self.zUnitConversion
         self.zDistance = -self.zArray
 
         # Alpha for opacity
@@ -225,65 +230,17 @@ class Image2DVariDepth(Image2D):
         self._fileMaster = exrPath
 
         # Flip vertically to match system indexing (y,x)
-        self.rgbArray = bd.flip(self.rgbArray, axis=(0, 1))
-        self.zArray = bd.flip(self.zArray, axis=(0, 1))
-        if self.alphaArray is not None:
-            self.alphaArray = bd.flip(self.alphaArray, axis=(0, 1))
-        if self.AOVs is not None:
-            for name in list(self.AOVs.keys()):
-                self.AOVs[name] = bd.flip(self.AOVs[name], axis=(0, 1))
+        # self.rgbArray = bd.flip(self.rgbArray, axis=0)
+        # self.zDistance = bd.flip(self.zDistance, axis=(0, 1))
+        #self.zArray = bd.flip(self.zArray, axis=(0, 1))
+        self.alphaArray = bd.flip(self.alphaArray, axis=(0, 1))
 
-        self.Refresh()
-
-
-    def UpdateDepthRange(self, newRange=None):
-        """
-        Update the depth of the scene for non-EXR (8-bit) sources.
-        For EXR Option B (direct depth), this method leaves zDistance alone.
-        """
-
-        # If we are in EXR direct-depth mode, do NOT touch zDistance.
-        if getattr(self, "_usingEXRDirectDepth", False):
-            # zDistance is already set from EXR depth; just ensure sign convention:
-            self.zDistance = -self.zArray
-            return
-
-        # --- original behavior for normalized [0,1] zArray ---
-        if(newRange is None):
-            newRange = self.zDepthMappingRange
-
-        if(newRange[0] > newRange[1]):
-            self.zDepthMappingRange = bd.array([newRange[1], newRange[0]])
-        else:
-            self.zDepthMappingRange = bd.array(newRange)
-
-        deltaRange = self.zDepthMappingRange[1] - self.zDepthMappingRange[0]
-
-        self.zDistance = self.zArray * deltaRange + self.zDepthMappingRange[0]
-
-        # Here the z Distance is unsigned, to make it work in the system, they need to be inverted. 
-        self.zDistance = -self.zDistance
-
-
-    def Refresh(self):
-        """
-        Manually refresh the parameters. Remap the depth (if needed) and recreate the point sources.
-        """
-
-        # Object space in world coordinate is negative, thus need to make
-        # sure the near clip is also a negative number
-        if (self.nearClipping > 0):
-            self.nearClipping = - self.nearClipping
-
-        # For EXR Option B, zDistance already comes from EXR depth, so skip
-        # remapping; for 8-bit we still remap via zDepthMappingRange.
-        if not getattr(self, "_usingEXRDirectDepth", False):
-            self.UpdateDepthRange()
-        else:
-            # Ensure zDistance sign is consistent with current zArray
-            self.zDistance = -self.zArray
+        # if self.AOVs is not None:
+        #     for name in list(self.AOVs.keys()):
+        #         self.AOVs[name] = bd.flip(self.AOVs[name], axis=(0, 1))
 
         self._GeneratePolarPointSources()
+
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
@@ -297,120 +254,17 @@ class Image2DVariDepth(Image2D):
 
         """
 
+        emitted = self.EmitSamplesToward(targets, sampleCount)
+
         if (incidents is None) or (incidents.IsNoneType()):
             # When this is the furthest layer
-            return self.EmitSamplesToward(targets, sampleCount)
+            return emitted
 
         else:
-            pos = incidents.Position()  # shape (N, 3)
-            px = pos[:, 0]
-            py = pos[:, 1]
-            pz = pos[:, 2]  # The Z-position of the incident ray source (farther layer)
+            through = self._CullSelfOcclusionVariDepth(incidents)
 
-            # Origin of this secondary imaging system is the world origin (0, 0, 0)
-            ox, oy, oz = ORIGIN
-
-            # Vector from origin to ray source (image pixel)
-            vx = px - ox
-            vy = py - oy
-            vz = pz - oz
-
-            # We want field angles relative to the -Z axis (object space at negative Z).
-            eps = bd.array(1e-8, dtype=PRECISION_TYPE)
-            vz_safe = bd.where(bd.abs(vz) < eps, eps, vz)
-
-            theta_x = bd.arctan2(vx, -vz_safe)  # note the minus sign
-            theta_y = bd.arctan2(vy, -vz_safe)  # note the minus sign
-
-            sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, 3)
-
-            horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
-            half_horizontal = horizontalAoV_rad / 2.0
-
-            verticalAoV_rad = horizontalAoV_rad * (sampleY / sampleX)
-            half_vertical = verticalAoV_rad / 2.0
-
-            # Rays whose angles fall outside the FOV cannot intersect this image
-            inside_fov = (
-                                 (theta_x >= -half_horizontal) & (theta_x <= half_horizontal)
-                         ) & (
-                                 (theta_y >= -half_vertical) & (theta_y <= half_vertical)
-                         )
-
-            # Map angles in [-half, half] → normalized [0, 1]
-            u = (theta_x + half_horizontal) / (horizontalAoV_rad + eps)
-            v = (theta_y + half_vertical) / (verticalAoV_rad + eps)
-
-            # Convert to pixel indices
-            x_center = (u * sampleX).astype(bd.int64)
-            y_center = (v * sampleY).astype(bd.int64)
-
-            # --- START: Conservative 3x3 Check ---
-
-            # Initialize a mask for blocked rays (Assume NOT blocked initially)
-            blocked = bd.zeros_like(inside_fov, dtype=bd.bool_)
-
-            # NOTE: We use the system's Z-convention: negative Z for object space.
-            # Incident ray position Pz is the ray source, on a farther layer.
-            # Stored Z-distance is self.zDistance (negative Z values).
-
-            # Loop over 3x3 neighborhood (dx, dy from -1 to 1)
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    # Calculate neighbor pixel indices
-                    x_neighbor = bd.clip(x_center + dx, 0, sampleX - 1)
-                    y_neighbor = bd.clip(y_center + dy, 0, sampleY - 1)
-
-                    # 1. Sample Z-Depth at neighbor (self.zDistance is already negative)
-                    # We flip the array axes (0 and 1) to match the (y, x) indexing used for sampling
-                    z_dist_array = bd.flip(self.zDistance, axis=(0, 1))
-                    z_stored = z_dist_array[y_neighbor, x_neighbor]  # This is the stored Z (negative value)
-
-                    # 2. Sample Alpha at neighbor
-                    alpha_array = bd.flip(self.alphaArray, axis=(0, 1))
-                    alpha_stored = alpha_array[y_neighbor, x_neighbor]
-
-                    # Culling Condition Check:
-                    # Ray is blocked if:
-                    # a) It is inside the FOV
-                    # b) The ray's source Z (pz) is BEHIND (more negative) the stored Z (z_stored)
-                    # c) The pixel is opaque (alpha_stored > 0)
-
-                    # Since both pz and z_stored are negative:
-                    # pz < z_stored  (e.g., pz = -20, z_stored = -10, then -20 < -10 is TRUE)
-                    # This means the ray source is closer to the image, which is WRONG for culling.
-
-                    # Correct Culling Condition (Ray source is FARTHER than the stored depth):
-                    # pz > z_stored  (e.g., pz = -10, z_stored = -20, then -10 > -20 is TRUE)
-                    # pz is the current ray position (source) on a FARTHER layer.
-                    # z_stored is the surface of THIS layer.
-                    # If pz > z_stored, the ray passes *through* the stored surface.
-
-                    hit_and_opaque = (
-                            (
-                                        pz < z_stored) &  # The ray source Z must be MORE negative (farther) than the stored surface Z
-                            (alpha_stored > 0)
-                    )
-
-                    # Conservatively update the blocked mask: if *any* neighbor blocks it, the ray is blocked.
-                    blocked = blocked | (inside_fov & hit_and_opaque)
-
-            # --- END: Conservative 3x3 Check ---
-
-            keep_mask = ~blocked
-
-            # Keep only rays that are not blocked by this layer
-            through = incidents.Copy()
-            through.Mask(keep_mask)
-
-            # ------------------------------------------------------------------
-            # 2. Emit new rays from this image toward the targets
-            # ------------------------------------------------------------------
             emitted = self.EmitSamplesToward(targets, sampleCount)
 
-            # ------------------------------------------------------------------
-            # 3. Return union: surviving incident rays + newly emitted rays
-            # ------------------------------------------------------------------
             return through.Merge(emitted)
 
 
@@ -436,10 +290,227 @@ class Image2DVariDepth(Image2D):
         return aov_names
 
 
+    def FloodDepth(self, value):
+        """
+        Flood-fill the depth buffer zArray and its derived zDistance
+        with a constant depth 'value'.
+
+        Useful for debugging mis-occlusion or alpha vs depth alignment.
+        """
+        if self.zArray is None:
+            return
+
+        # Fill zArray (the depth values in world Z units)
+        self.zArray[:] = bd.asarray(value, dtype=PRECISION_TYPE)
+
+        # Update zDistance = -zArray (your convention)
+        self.zDistance = -self.zArray
+
+        self._GeneratePolarPointSources()
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _CullSelfOcclusionVariDepth(self, incidents: RayBatch, iterStep: int = 3):
+        """
+        Cull self-occluded rays against this vari-depth image using a
+        volumetric alpha process, but fully vectorized over rays.
+
+        For each incident ray:
+          1. Find the segment [t0,t1] where the ray overlaps the image's z-range.
+          2. March along that segment in 'iterStep' samples (all rays in parallel).
+          3. For each sample, map to the image using AoV and bilinearly sample alpha.
+          4. Accumulate transmittance per ray: T = Π (1 - alpha_step).
+          5. Let alpha_acc = 1 - T in [0,1]. Interpret alpha_acc as the probability
+             to DROP the ray (self-occluded).
+          6. Monte Carlo: draw U ~ Uniform[0,1], drop if U < alpha_acc.
+
+        Returns a new RayBatch containing only the rays that survive.
+        """
+
+        # If no depth or alpha, nothing to cull.
+        if (self.zDistance is None) or (self.alphaArray is None):
+            return incidents.Copy()
+
+        alpha_eps = 1e-6
+
+        # Pixels that actually have some opacity.
+        # alpha_valid = self.alphaArray > alpha_eps
+        alpha_valid = bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps
+        if not bd.any(alpha_valid):
+            # Entire image effectively transparent
+            return incidents.Copy()
+
+        # Define z-slab using only alpha>0 pixels (ignores 99990-style sentinels from EXR).
+        z_valid = self.zDistance[alpha_valid]
+        z_min = bd.min(z_valid)
+        z_max = bd.max(z_valid)
+        # print("Depth min max at ", z_min, "  ", z_max)
+
+        if float(z_min) >= float(z_max):
+            # Degenerate z-range, nothing to intersect.
+            return incidents.Copy()
+
+        # ------------------------------------------------------------------
+        # Gather ray data
+        # ------------------------------------------------------------------
+        positions = incidents.Position()  # (N,3)
+        directions = incidents.Direction()  # (N,3)
+        N = positions.shape[0]
+
+        oz = positions[:, 2]
+        dz = directions[:, 2]
+
+        # Rays nearly parallel to the z-slab can't intersect it reliably.
+        dz_eps = 1e-8
+        valid_dz = bd.abs(dz) > dz_eps
+
+        # Parametric intersection with z-slab [z_min,z_max] for all rays:
+        # r(t) = o + t d,  z(o + t d) ∈ [z_min,z_max]
+        t_enter = (z_min - oz) / dz
+        t_exit = (z_max - oz) / dz
+
+        t0 = bd.minimum(t_enter, t_exit)
+        t1 = bd.maximum(t_enter, t_exit)
+
+        # Only care about forward segments (t>0), and we need t1>t0
+        has_seg = valid_dz & (t1 > 0)
+        # Clamp t0 to 0 for forward marching
+        t0 = bd.where(t0 < 0, bd.zeros_like(t0), t0)
+        has_seg = has_seg & (t1 > t0)
+
+        # If no ray overlaps the slab, just return.
+        if not bd.any(has_seg):
+            return incidents.Copy()
+
+        # ------------------------------------------------------------------
+        # Prepare AoV mapping constants
+        # ------------------------------------------------------------------
+        H, W = self.alphaArray.shape
+
+        horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
+        half_horizontal = horizontalAoV_rad / 2.0
+
+        # Vertical FoV derived from aspect ratio
+        verticalAoV_rad = horizontalAoV_rad * (H / W)
+        half_vertical = verticalAoV_rad / 2.0
+
+        # ------------------------------------------------------------------
+        # Vectorized marching: build (N,steps) sample parameters t_mid
+        # ------------------------------------------------------------------
+        steps = max(int(iterStep), 1)
+
+        length = t1 - t0  # (N,)
+        # For rays without segment, length may be garbage; mask them later.
+        # Normalized step centers in [0,1], shape (1,steps)
+        k = (bd.arange(steps, dtype=PRECISION_TYPE) + 0.5) / steps
+        k = k[None, :]  # (1,steps)
+
+        # Broadcast to (N,steps)
+        t_mid = t0[:, None] + length[:, None] * k  # (N,steps)
+
+        # For rays without a valid segment, force t_mid=0 so we ignore them later
+        t_mid = bd.where(has_seg[:, None], t_mid, bd.zeros_like(t_mid))
+
+        # ------------------------------------------------------------------
+        # Evaluate sample positions p(t) for all rays and steps
+        # ------------------------------------------------------------------
+        # Expand positions/directions to (N,1,3)
+        pos_exp = positions[:, None, :]  # (N,1,3)
+        dir_exp = directions[:, None, :]  # (N,1,3)
+
+        # Expand t_mid to (N,steps,1)
+        t_mid_exp = t_mid[..., None]  # (N,steps,1)
+
+        p = pos_exp + t_mid_exp * dir_exp  # (N,steps,3)
+        px = p[:, :, 0]
+        py = p[:, :, 1]
+        pz = p[:, :, 2]
+
+        # ------------------------------------------------------------------
+        # World -> image mapping, vectorized
+        # ------------------------------------------------------------------
+        # In your convention, camera at origin looking toward -Z, object space z<0.
+        vx = px
+        vy = py
+        vz = pz
+
+        # Points with vz >= 0 are outside the backward-looking FoV.
+        inside = vz < 0.0
+
+        # Angles
+        theta_x = bd.arctan2(vx, -vz)
+        theta_y = bd.arctan2(vy, -vz)
+
+        u = (theta_x + half_horizontal) / horizontalAoV_rad
+        v = (theta_y + half_vertical) / verticalAoV_rad
+
+        inside = inside & (u >= 0.0) & (u <= 1.0) & (v >= 0.0) & (v <= 1.0)
+
+        # Map to floating pixel coordinates
+        x_img = u * (W - 1)
+        y_img = v * (H - 1)
+
+        # ------------------------------------------------------------------
+        # Bilinear sampling of alpha for all samples
+        # ------------------------------------------------------------------
+        # Floor to indices
+        x0 = bd.floor(x_img).astype(bd.int64)
+        y0 = bd.floor(y_img).astype(bd.int64)
+
+        # Clamp to valid ranges
+        x0 = bd.clip(x0, 0, W - 1)
+        y0 = bd.clip(y0, 0, H - 1)
+
+        x1 = bd.clip(x0 + 1, 0, W - 1)
+        y1 = bd.clip(y0 + 1, 0, H - 1)
+
+        fx = x_img - x0
+        fy = y_img - y0
+
+        w00 = (1.0 - fx) * (1.0 - fy)
+        w10 = fx * (1.0 - fy)
+        w01 = (1.0 - fx) * fy
+        w11 = fx * fy
+
+        # Gather alpha taps; alphaArray is (H,W) → [row=y, col=x]
+        a00 = self.alphaArray[y0, x0]
+        a10 = self.alphaArray[y0, x1]
+        a01 = self.alphaArray[y1, x0]
+        a11 = self.alphaArray[y1, x1]
+
+        alpha_local = w00 * a00 + w10 * a10 + w01 * a01 + w11 * a11  # (N,steps)
+
+        # Mask out samples outside FoV or on rays without segments
+        alpha_local = bd.where(inside, alpha_local, bd.zeros_like(alpha_local))
+        alpha_local = bd.where(has_seg[:, None], alpha_local, bd.zeros_like(alpha_local))
+
+        # Ignore tiny alpha
+        alpha_local = bd.where(alpha_local > alpha_eps, alpha_local, bd.zeros_like(alpha_local))
+
+        # ------------------------------------------------------------------
+        # Volumetric accumulation: T = Π (1 - alpha_step) along steps
+        # ------------------------------------------------------------------
+        step_T = 1.0 - alpha_local
+        # Clip to [0,1] for numerical safety
+        step_T = bd.clip(step_T, 0.0, 1.0)
+
+        # Product over the step axis (axis=1) → final transmittance per ray
+        T_final = bd.prod(step_T, axis=1)  # (N,)
+
+        # Rays without segments have step_T==1 → T_final==1 → alpha_acc==0
+        alpha_acc = 1.0 - T_final
+        alpha_acc = bd.clip(alpha_acc, 0.0, 1.0)
+
+        # ------------------------------------------------------------------
+        # alpha_acc = probability to DROP
+        # ------------------------------------------------------------------
+        rnd = RNG.rand(N)
+        keep_mask = rnd >= alpha_acc
+
+        return RayBatch(incidents.value[keep_mask])
 
 
     def _ReadEXR(self, exrPath, depthChannelNames, alphaChannelNames):
@@ -523,7 +594,7 @@ class Image2DVariDepth(Image2D):
         }
 
 
-    def _GeneratePolarPointSources(self):
+    def _GeneratePolarPointSources(self, appendAOV=False):
         """
         Generate point sources from the image where each pixel is represented 
         in polar coordinates: [theta_x, theta_y, D, R, G, B, alpha, depth, AOV...].
@@ -572,48 +643,53 @@ class Image2DVariDepth(Image2D):
         # Colors flattened in same order
         colors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
-        # Prepare alpha, depth, and extra AOVs as flattened arrays
-        N = sampleY * sampleX
+        if appendAOV:
+            # Maybe sometimes AOV are not necessary to be included
+            # Prepare alpha, depth, and extra AOVs as flattened arrays
+            N = sampleY * sampleX
 
-        alpha_flat = None
-        if self.alphaArray is not None:
-            alpha_flat = self.alphaArray.reshape(N)
+            alpha_flat = None
+            if self.alphaArray is not None:
+                alpha_flat = self.alphaArray.reshape(N)
 
-        depth_flat = self.zArray.reshape(N)  # EXR depth (or mapped depth for 8-bit)
+            depth_flat = self.zArray.reshape(N)  # EXR depth (or mapped depth for 8-bit)
 
-        extra_aov_flats = []
-        if self.AOVs is not None:
-            for name, arr in self.AOVs.items():
-                extra_aov_flats.append(arr.reshape(N))
+            extra_aov_flats = []
+            if self.AOVs is not None:
+                for name, arr in self.AOVs.items():
+                    extra_aov_flats.append(arr.reshape(N))
 
-        # If alpha is present, cull transparent pixels and apply the same mask to all arrays
-        if alpha_flat is not None:
-            keep_mask = alpha_flat > 0
+            # If alpha is present, cull transparent pixels and apply the same mask to all arrays
+            if alpha_flat is not None:
+                keep_mask = alpha_flat > 0
 
-            coordinates = coordinates[keep_mask]
-            colors = colors[keep_mask]
-            self.jitterPerPoint = self.jitterPerPoint[keep_mask]
+                coordinates = coordinates[keep_mask]
+                colors = colors[keep_mask]
+                self.jitterPerPoint = self.jitterPerPoint[keep_mask]
 
-            alpha_flat = alpha_flat[keep_mask]
-            depth_flat = depth_flat[keep_mask]
-            for i in range(len(extra_aov_flats)):
-                extra_aov_flats[i] = extra_aov_flats[i][keep_mask]
+                alpha_flat = alpha_flat[keep_mask]
+                depth_flat = depth_flat[keep_mask]
+                for i in range(len(extra_aov_flats)):
+                    extra_aov_flats[i] = extra_aov_flats[i][keep_mask]
+            else:
+                keep_mask = None  # not used, but kept for clarity
+
+            # Build AOV columns: alpha, depth, then all other AOVs
+            aov_cols = []
+
+            # alpha as first AOV column (if available)
+            if alpha_flat is not None:
+                aov_cols.append(alpha_flat.reshape(-1, 1))
+
+            # depth as second AOV column
+            aov_cols.append(depth_flat.reshape(-1, 1))
+
+            # other AOVs (in the order stored in self.AOVs)
+            for flat in extra_aov_flats:
+                aov_cols.append(flat.reshape(-1, 1))
+
         else:
-            keep_mask = None  # not used, but kept for clarity
-
-        # Build AOV columns: alpha, depth, then all other AOVs
-        aov_cols = []
-
-        # alpha as first AOV column (if available)
-        if alpha_flat is not None:
-            aov_cols.append(alpha_flat.reshape(-1, 1))
-
-        # depth as second AOV column
-        aov_cols.append(depth_flat.reshape(-1, 1))
-
-        # other AOVs (in the order stored in self.AOVs)
-        for flat in extra_aov_flats:
-            aov_cols.append(flat.reshape(-1, 1))
+            aov_cols = []
 
         if aov_cols:
             aov_matrix = bd.concatenate(aov_cols, axis=1)  # (num_points, num_aovs)

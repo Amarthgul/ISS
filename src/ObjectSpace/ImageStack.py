@@ -61,8 +61,8 @@ def ExampleStack():
     MG2 = Image2DVariDepth()
     MG2.LoadFromEXR(r"resources/DepthSceneMG2.exr")
     BG = Image2DVariDepth()
-    # BG.distance = 200000
     BG.LoadFromEXR(r"resources/DepthSceneBG.exr")
+    BG.FloodDepth(2000000.0)
 
 
     exampleStack = ImageStack()

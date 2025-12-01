@@ -226,6 +226,7 @@ class PointsSource:
         else: 
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
+
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
         """
         Emit rays from all samples towards all targets. This creates a cross emission of MxN size where M is the number

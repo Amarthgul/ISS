@@ -12,6 +12,8 @@ from Util.Misc import RectPath
 from Imagers.Standard import StdImager
 from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
+from ObjectSpace.Attenuator import  DepthVisualizer
+from ObjectSpace.Fog import FogAttenuator
 from ExampleLenses import Biotar50mmf14
 from src.Surfaces.EvenAspheric import EvenAspheric
 from src.Util.Globals import INFINITY
@@ -127,13 +129,15 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
             break
 
 
-def StackTest(renderTime = 512, realTimeUpdate = True):
+def StackTest(renderTime = 900, focusDistance=7800, realTimeUpdate = True):
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
 
     stack = ExampleStack()
+    att = DepthVisualizer()
+    fog = FogAttenuator()
 
     lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(780))
+    imager = StdImager(lens.BestFocusBFD(7800))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty()
 
@@ -147,7 +151,10 @@ def StackTest(renderTime = 512, realTimeUpdate = True):
 
     while (True):
 
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 1024)
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(1024), 1024)
+        mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        # mainRB = att.Attenuate(mainRB)
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
@@ -156,7 +163,7 @@ def StackTest(renderTime = 512, realTimeUpdate = True):
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
         if (realTimeUpdate):
-            im.set_data(ImageConversion(image, flipH=True, maxModifier=0.5))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.5))
             plt.draw()
             plt.pause(0.01)
 
@@ -168,7 +175,7 @@ def StackTest(renderTime = 512, realTimeUpdate = True):
         if (elapsed > renderTime):
             image /= 100
             global FrameCount
-            fn = r"LayerTest"
+            fn = r"LayerTest4"
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -255,10 +262,18 @@ def BladeTest():
     plt.show()
 
 
+def ReadTest():
+    from ObjectSpace.VerifyEXR import Verify
+    Verify()
+
 def main():
+
+    distance = []
+
     # BladeTest()
-    StereoImageTest()
-    # StackTest()
+    # StereoImageTest()
+    # ReadTest()
+    StackTest()
 
 
 if __name__ == "__main__":
