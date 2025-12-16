@@ -3,16 +3,15 @@
 
 from src.Raytracing.RayBatch import RayBatch
 from Util.Backend import backend as bd
-from Util.Globals import RNG, LambdaLines
+from Util.Globals import RNG, LambdaLines, RefreshRNG
 from .Attenuator import Attenuator
-
 
 
 class FogAttenuator(Attenuator):
     """
     Simple homogeneous fog / haze model with optional ambient 'airlight'.
     """
-    def __init__(self, sl=500000, ms=8e-3,
+    def __init__(self, sl=500000, ms=1e-2,
                  extinction_length=500000,
                  ambient_level=64,
                  whitenLength = 500000,
@@ -58,6 +57,7 @@ class FogAttenuator(Attenuator):
             * ambient brightening (radiance)
             * spectral whitening (wavelength)
         """
+        RefreshRNG()
 
         if incidents is None or incidents.IsNoneType():
             return incidents

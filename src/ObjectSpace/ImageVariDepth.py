@@ -72,7 +72,7 @@ class Image2DVariDepth(Image2D):
         self.pointSource = None
 
         """When using EXR, the unit in Z may not be the same."""
-        self.zUnitConversion = 10
+        self.zUnitConversion = 1
 
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
@@ -781,6 +781,13 @@ class Image2DVariDepth(Image2D):
             print(f"  • {c}")
 
 
+    def _DrawMask(self):
+
+        condition = None
+
+        # TODO: use the condition to mask a certain channel in the EXR and plot it
+
+        pass
 
 
 
