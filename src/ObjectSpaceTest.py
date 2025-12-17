@@ -14,7 +14,7 @@ from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from ObjectSpace.Attenuator import  DepthVisualizer
 from ObjectSpace.Fog import FogAttenuator
-from ExampleLenses import Biotar50mmf14
+from ExampleLenses import Biotar50mmf14, CanonEF50mmf12L
 from src.Surfaces.EvenAspheric import EvenAspheric
 from src.Util.Globals import INFINITY
 from Raytracing.Emission import EmitField
@@ -129,15 +129,20 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
             break
 
 
-def StackTest(renderTime = 900, focusDistance=7800, realTimeUpdate = True):
+def StackTest(renderTime = 1500, focusDistance=20000, filename = r"NewZDepthFar", aperture=None, realTimeUpdate = True):
+
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
 
     stack = ExampleStack()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
-    lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(7800))
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AccquireEmpty()
 
@@ -152,15 +157,19 @@ def StackTest(renderTime = 900, focusDistance=7800, realTimeUpdate = True):
     while (True):
 
         mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(1024), 1024)
-        mainRB = fog.Attenuate(mainRB)
+        # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        # mainRB = att.Attenuate(mainRB)
+        #mainRBZ = att.Attenuate(mainRB)
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
         # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
 
         if (realTimeUpdate):
             im.set_data(ImageConversion(image, flipV=True, maxModifier=0.5))
@@ -175,8 +184,10 @@ def StackTest(renderTime = 900, focusDistance=7800, realTimeUpdate = True):
         if (elapsed > renderTime):
             image /= 100
             global FrameCount
-            fn = r"LayerTest4"
+            fn = filename
             SaveAsEXR(image, r"resources/Results", fn)
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
             break
 
 
@@ -268,7 +279,13 @@ def ReadTest():
 
 def main():
 
-    distance = []
+    distance = [200000, 7800, 5100, 2000, 2000,    2000,     2000]
+    aperture = [None,   None, None, None, 1.8,     2.8,      4]
+    name = ["BG",   "MG",     "FG", "MOD","MOD1.8","MOD2.8", "MOD4"  ]
+    # 11h = 39600s, 7 images, 5657 per image
+
+    # for i in range(7):
+    #     StackTest(5600, distance[i], name[i], aperture[i], False)
 
     # BladeTest()
     # StereoImageTest()

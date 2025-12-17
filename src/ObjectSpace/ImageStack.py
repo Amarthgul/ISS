@@ -55,7 +55,11 @@ class ImageStack:
 def ExampleStack():
 
     FG = Image2DVariDepth()
+    FG.zFarLimit = 1e3
     FG.LoadFromEXR(r"resources/DepthSceneFG.exr")
+
+    FG.DrawMask()
+
     MG = Image2DVariDepth()
     MG.LoadFromEXR(r"resources/DepthSceneMG.exr")
     MG2 = Image2DVariDepth()
@@ -64,6 +68,8 @@ def ExampleStack():
     BG.LoadFromEXR(r"resources/DepthSceneBG.exr")
     BG.FloodDepth(2000000.0)
 
+
+    # FG.DrawMask()
 
     exampleStack = ImageStack()
     exampleStack.AddImage(BG, "BG")

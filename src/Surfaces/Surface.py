@@ -162,7 +162,7 @@ class Surface:
         return self.material.RI(wavelength)
 
 
-    def DrawSurface(self, DrawBoundary=False):
+    def DrawSurface(self, DrawBoundary=True):
 
         DrawSpherical(
             self.radius,

@@ -72,7 +72,7 @@ class Image2DVariDepth(Image2D):
         self.pointSource = None
 
         """When using EXR, the unit in Z may not be the same."""
-        self.zUnitConversion = 1
+        self.zUnitConversion = 10
 
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
@@ -85,6 +85,10 @@ class Image2DVariDepth(Image2D):
         """For z-depth from rendered images, it typically means the distance from the object to the near clipping plane. To reconstruct the scene, it is thus needed to calculate the cone formed by the near clipping plane as well. 
         This property marks the distance from the near clipping plane to the camera, i.e.e, the (0, 0, 0) point. This should be an unsigned value."""
         self.nearClipping = 0
+
+
+        """Certain z depth are not possible but might be present due to numerical errors. This attribute help clips them by mandating a limit for the first distance in the image. """
+        self.zFarLimit = 1e6
 
 
         """An array of same size with the number of point sources. Each entry in this array corresponds to the """
@@ -309,6 +313,163 @@ class Image2DVariDepth(Image2D):
         self._GeneratePolarPointSources()
 
 
+    def DrawMask(self, alpha_eps=1e-6, show_zdistance=True, use_log=False, max_markers=2000):
+        """
+        Debug helper for the exact z_valid / z_min / z_max logic used in _CullSelfOcclusionVariDepth().
+
+        It reconstructs:
+            alpha_valid = bd.flip(self.alphaArray, axis=(0,1)) > alpha_eps   (same as cull)
+            z_valid     = self.zDistance[alpha_valid]
+            z_min/z_max = min/max(z_valid)
+
+        Then displays:
+          1) alphaArray (as stored)
+          2) alpha_valid used by the culler (after that extra flip)
+          3) depth (zDistance or zArray) masked by alpha_valid (NaN outside)
+          4) an outlier/min/max locator map (where masked depth equals min/max; plus optional outliers)
+
+        Params:
+          alpha_eps: threshold for alpha_valid
+          show_zdistance: if True visualize zDistance; else visualize zArray
+          use_log: if True, visualize log10(abs(depth)) for readability
+          max_markers: cap the number of highlighted pixels to keep plotting responsive
+        """
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        if self.alphaArray is None:
+            print("[_DrawMask] alphaArray is None")
+            return
+        if self.zDistance is None or self.zArray is None:
+            print("[_DrawMask] zDistance/zArray is None")
+            return
+
+        # --- backend->numpy conversion (cupy compatible)
+        def to_np(a):
+            try:
+                return a.get()
+            except Exception:
+                try:
+                    return bd.asnumpy(a)
+                except Exception:
+                    return np.asarray(a)
+
+        # Pick which depth channel to inspect
+        depth = self.zDistance if show_zdistance else self.zArray
+
+        # IMPORTANT: replicate the culler exactly
+        # _CullSelfOcclusionVariDepth currently does this: :contentReference[oaicite:2]{index=2}
+        # alpha_valid = bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps
+        alpha_valid = (bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps) & (bd.abs(self.zDistance) < self.zFarLimit*self.zUnitConversion)
+
+        # Create masked depth map in the SAME index space as depth (i.e., using alpha_valid directly)
+        depth_masked = bd.where(alpha_valid, depth, bd.nan)
+
+        # Extract z_valid exactly like the culler
+        z_valid = depth[alpha_valid]
+        if not bd.any(alpha_valid):
+            print("[_DrawMask] alpha_valid empty -> z_valid empty")
+            return
+
+        z_min = bd.min(z_valid)
+        z_max = bd.max(z_valid)
+
+        # Convert to numpy for plotting
+        alpha_np = to_np(self.alphaArray)
+        alpha_valid_np = to_np(alpha_valid).astype(np.float32)
+        depth_np = to_np(depth)
+        depth_masked_np = to_np(depth_masked)
+
+        # Helper for visualization scaling
+        def depth_vis(arr):
+            arr = arr.copy()
+            fin = np.isfinite(arr)
+            if use_log:
+                # log10 of absolute magnitude, preserve sign by reapplying sign later if needed
+                sgn = np.sign(arr[fin])
+                arr[fin] = np.log10(np.maximum(np.abs(arr[fin]), 1e-12)) * sgn
+            return arr
+
+        depth_vis_np = depth_vis(depth_np)
+        depth_masked_vis_np = depth_vis(depth_masked_np)
+
+        # Robust color limits
+        def robust_limits(arr):
+            fin = np.isfinite(arr)
+            if not fin.any():
+                return 0.0, 1.0
+            vmin = np.percentile(arr[fin], 1.0)
+            vmax = np.percentile(arr[fin], 99.0)
+            if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+                vmin = float(np.min(arr[fin]))
+                vmax = float(np.max(arr[fin]))
+            return vmin, vmax
+
+        vmin_raw, vmax_raw = robust_limits(depth_vis_np)
+        vmin_m, vmax_m = robust_limits(depth_masked_vis_np)
+
+        # Min/max location map inside alpha_valid
+        zmin_f = float(to_np(z_min))
+        zmax_f = float(to_np(z_max))
+
+        # Build locator maps: where masked depth equals min/max (exact compare can be noisy on floats;
+        # use a tolerance based on range)
+        masked_fin = np.isfinite(depth_masked_np)
+        if masked_fin.any():
+            rng = np.nanmax(depth_masked_np) - np.nanmin(depth_masked_np)
+            tol = max(1e-6, float(rng) * 1e-6)
+        else:
+            tol = 1e-6
+
+        is_min = masked_fin & (np.abs(depth_masked_np - zmin_f) <= tol)
+        is_max = masked_fin & (np.abs(depth_masked_np - zmax_f) <= tol)
+
+        locator = np.zeros_like(alpha_valid_np, dtype=np.float32)
+        locator[is_min] = 1.0  # min pixels
+        locator[is_max] = 2.0  # max pixels
+
+        # Cap marker density (optional)
+        if locator.sum() > max_markers:
+            # randomly subsample markers for visibility
+            ys, xs = np.where(locator > 0)
+            idx = np.random.choice(len(xs), size=max_markers, replace=False)
+            locator2 = np.zeros_like(locator)
+            locator2[ys[idx], xs[idx]] = locator[ys[idx], xs[idx]]
+            locator = locator2
+
+        # Plot
+        plt.figure(figsize=(14, 10))
+
+        plt.subplot(2, 2, 1)
+        plt.title("alphaArray (stored)")
+        plt.imshow(alpha_np)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(2, 2, 2)
+        plt.title("alpha_valid used by _CullSelfOcclusionVariDepth (flip+threshold)")
+        plt.imshow(alpha_valid_np)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(2, 2, 3)
+        chan = "zDistance" if show_zdistance else "zArray"
+        plt.title(f"{chan} masked by alpha_valid ({'log' if use_log else 'linear'})")
+        plt.imshow(depth_masked_vis_np, vmin=vmin_m, vmax=vmax_m)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(2, 2, 4)
+        plt.title("Min/Max locator inside z_valid (1=min, 2=max)")
+        plt.imshow(locator)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print the exact min/max the culler would use
+        print(f"[_DrawMask] z_valid count = {int(np.sum(alpha_valid_np > 0))}")
+        print(f"[_DrawMask] z_min = {zmin_f}, z_max = {zmax_f}, tol={tol}")
+
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
@@ -338,7 +499,7 @@ class Image2DVariDepth(Image2D):
 
         # Pixels that actually have some opacity.
         # alpha_valid = self.alphaArray > alpha_eps
-        alpha_valid = bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps
+        alpha_valid = (bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps) & (bd.abs(self.zDistance) < self.zFarLimit*self.zUnitConversion)
         if not bd.any(alpha_valid):
             # Entire image effectively transparent
             return incidents.Copy()
@@ -347,7 +508,7 @@ class Image2DVariDepth(Image2D):
         z_valid = self.zDistance[alpha_valid]
         z_min = bd.min(z_valid)
         z_max = bd.max(z_valid)
-        # print("Depth min max at ", z_min, "  ", z_max)
+        print("Depth min max at ", z_min, "  ", z_max)
 
         if float(z_min) >= float(z_max):
             # Degenerate z-range, nothing to intersect.
@@ -779,15 +940,6 @@ class Image2DVariDepth(Image2D):
         print("Found channels:")
         for c in channels:
             print(f"  • {c}")
-
-
-    def _DrawMask(self):
-
-        condition = None
-
-        # TODO: use the condition to mask a certain channel in the EXR and plot it
-
-        pass
 
 
 
