@@ -41,6 +41,9 @@ class Image2D:
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
 
+        """Modifiers that could alter the RayBatch"""
+        self.emissionModifier = []
+
 
     def EmitSamplesToward(self, targets, sampleCount=64):
 
@@ -59,6 +62,12 @@ class Image2D:
     def GetSampleRatios(self):
         
         return self.pointSource.GetSampleRatios()
+
+
+    def AttachModifier(self, modifier):
+
+
+        self.emissionModifier.append(modifier)
 
 
     def DrawImage(self):

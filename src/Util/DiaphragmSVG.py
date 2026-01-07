@@ -1,3 +1,4 @@
+
 from xml.etree import ElementTree as ET
 from copy import deepcopy
 from typing import Optional, Tuple, Iterable
@@ -9,6 +10,7 @@ import matplotlib.pyplot as plt
 from .Backend import backend as bd
 from .Misc import RectPath
 from .ImageIO import rgbFromRGBA
+from .Globals import RNG, RefreshRNG
 
 # =================================================================================
 """ ============================== Util Methods =============================== """
@@ -336,7 +338,15 @@ class ApertureDiaphragm:
         self.filePath = svg_path
         self.bladeCount = 8
         self.size = 512
+
+        """Linear randomization [a, b] in the form of ax+b for each blade."""
+        self.randCoef = [[1, 0]]
+
+        self.randRateMax = 0.02  # Maximum a term for randCoef
+        self.randOffsetMax = 0.5 # Maximum b term for randCoef in degree
+
         self._centerRotate = 360.0 / self.bladeCount
+
 
     def DuplicateAroundCenter(self, main_id="main", pivot_id="pivot",
                               center_id="center", layer_id="generated_copies"):
@@ -373,7 +383,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         self.tree = ET.parse(self.path)
         self.root = self.tree.getroot()
         self.size = 512
-        self._UpdateSize()
+        self._Update()
         if not self.root.tag.endswith("svg"):
             raise ValueError("Not an SVG root")
 
@@ -391,14 +401,27 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
             raise ValueError("main or pivot not found")
 
         cx, cy = _find_point_coords(r, center_id)
+        px, py = _find_point_coords(r, pivot_id)
+
+        # Mark template elements as rotatable.
         _append_class(main, "rot_target")
         _append_class(pivot, "rot_target")
+
+        # Apply the per-blade *fixed* offset once here (manufacturing bias in rest angle).
+        # IMPORTANT: this offset should NOT be applied again during later actuation rotations.
+        if self.randCoef and len(self.randCoef[0]) >= 2:
+            b0 = float(self.randCoef[0][1])
+            if abs(b0) > 0:
+                _append_transform(main, f"rotate({b0} {px} {py})")
+                _append_transform(pivot, f"rotate({b0} {px} {py})")
+
         layer = r.find(f".//*[@id='{layer_id}']")
 
         if layer is None:
             layer = ET.Element(_ns("g"), {"id": layer_id})
             r.append(layer)
 
+        # Create copies; each copy gets its own fixed offset b_i once, then is placed around center.
         for i in range(1, self.bladeCount + 1):
             g = ET.Element(_ns("g"), {"id": f"pair_{i}"})
             mc, pc = deepcopy(main), deepcopy(pivot)
@@ -406,9 +429,21 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
             pc.set("id", f"{pivot_id}_copy_{i}")
             _append_class(mc, "rot_target")
             _append_class(pc, "rot_target")
+
+            # Fixed per-blade offset (applied once)
+            if self.randCoef and len(self.randCoef[0]) >= 2:
+                bi = i
+                if bi >= len(self.randCoef):
+                    bi = bi % max(len(self.randCoef), 1)
+                b = float(self.randCoef[bi][1])
+                if abs(b) > 0:
+                    _append_transform(mc, f"rotate({b} {px} {py})")
+                    _append_transform(pc, f"rotate({b} {px} {py})")
+
             g.extend([mc, pc])
             _append_transform(g, f"rotate({i * self._centerRotate} {cx} {cy})")
             layer.append(g)
+
 
 
     def RotateAllBlades(self, deg: float, pivot_id="pivot"):
@@ -419,9 +454,38 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         """
 
         px, py = _find_point_coords(self.root, pivot_id)
+
+        import re
+
+        def _blade_index(el: ET.Element) -> int:
+            """Infer blade index from element id.
+
+            - original blade (e.g. id='main' / 'pivot') -> 0
+            - copies (e.g. id='main_copy_3') -> 3
+            """
+            eid = el.get("id", "")
+            m = re.search(r"_copy_(\d+)$", eid)
+            if m:
+                try:
+                    return int(m.group(1))
+                except ValueError:
+                    return 0
+            return 0
+
+        # Apply per-blade linear jitter: angle' = a*deg + b
+        # self.randCoef[bladeIdx] = [a, b]
         for e in self.root.iter():
-            if "rot_target" in e.get("class", "").split():
-                _append_transform(e, f"rotate({deg} {px} {py})")
+            if "rot_target" not in e.get("class", "").split():
+                continue
+
+            bi = _blade_index(e)
+            # Be defensive in case SVG/template count and bladeCount mismatch.
+            if bi >= len(self.randCoef):
+                bi = bi % max(len(self.randCoef), 1)
+
+            a, b = self.randCoef[bi]
+            deg_jittered = (a * deg)
+            _append_transform(e, f"rotate({deg_jittered} {px} {py})")
 
 
     def toArray(self) -> bd.ndarray:
@@ -543,7 +607,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
     def Reset(self):
         self.tree = ET.parse(self.path)
         self.root = self.tree.getroot()
-        self._UpdateSize()
+        self._Update()
 
 
     def StopDownToRatio(self, ratio: float, eps:float=1e-3, angle:float = 0, step:float = -2):
@@ -612,7 +676,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         return white_pixels / circle_area
 
 
-    def _UpdateSize(self):
+    def _Update(self):
         vb = self.root.get("viewBox")
         if vb:
             vx, vy, vw, vh = [float(x) for x in vb.replace(",", " ").split()]
@@ -620,6 +684,11 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
         else:
             self.size = int(float(self.root.get("width", "512")))
 
+        RefreshRNG()
+        a = 1.0 + (RNG.rand(self.bladeCount) * 2.0 - 1.0) * float(self.randRateMax)
+        b = (RNG.rand(self.bladeCount) * 2.0 - 1.0) * float(self.randOffsetMax)
 
+        # Store as plain Python list for simplicity/JSON-ability.
+        self.randCoef = [[float(ai), float(bi)] for ai, bi in zip(a.tolist(), b.tolist())]
 
 

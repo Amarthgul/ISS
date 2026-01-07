@@ -23,7 +23,9 @@ from Util.Globals import (
 from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
 from Raytracing.RayBatch import RayBatch
 
-
+"""
+Only for verification purpose, not used. 
+"""
 
 
 def read_exr_channel(path, channel_name):

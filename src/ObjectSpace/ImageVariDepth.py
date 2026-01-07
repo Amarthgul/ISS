@@ -508,7 +508,7 @@ class Image2DVariDepth(Image2D):
         z_valid = self.zDistance[alpha_valid]
         z_min = bd.min(z_valid)
         z_max = bd.max(z_valid)
-        print("Depth min max at ", z_min, "  ", z_max)
+        # print("Depth min max at ", z_min, "  ", z_max)
 
         if float(z_min) >= float(z_max):
             # Degenerate z-range, nothing to intersect.

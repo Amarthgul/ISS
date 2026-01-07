@@ -9,6 +9,7 @@ from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from src.ZmxReader import LensFromZmx
 from Util.SpatialEllipse import SpatialCircle
 from Util.Misc import RectPath
+
 from Imagers.Standard import StdImager
 from ObjectSpace.Images import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
@@ -129,7 +130,7 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
             break
 
 
-def StackTest(renderTime = 1500, focusDistance=20000, filename = r"NewZDepthFar", aperture=None, realTimeUpdate = True):
+def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthClose9hr", aperture=None, realTimeUpdate = False):
 
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
 
@@ -264,33 +265,24 @@ def ZmxParse():
     plt.show()
 
 
-def BladeTest():
-    rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragm.svg"))
-    rot.DuplicateAroundCenter(2, 180)
-    rot.RotateAllBlades(10)
-    arr = rot.toArray()
-    plt.imshow(bd.asnumpy(arr))
-    plt.show()
 
-
-def ReadTest():
-    from ObjectSpace.VerifyEXR import Verify
-    Verify()
 
 def main():
 
-    distance = [200000, 7800, 5100, 2000, 2000,    2000,     2000]
+    # 21 entries
+    distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
+    rendertime = 8 * 60 * 60
     aperture = [None,   None, None, None, 1.8,     2.8,      4]
-    name = ["BG",   "MG",     "FG", "MOD","MOD1.8","MOD2.8", "MOD4"  ]
     # 11h = 39600s, 7 images, 5657 per image
 
-    # for i in range(7):
-    #     StackTest(5600, distance[i], name[i], aperture[i], False)
+    # i = 20
+    # StackTest(rendertime, distance[i], "Focus"+str(distance[i]), realTimeUpdate=False)
+    # i = 21
+    # StackTest(rendertime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 
     # BladeTest()
     # StereoImageTest()
-    # ReadTest()
-    StackTest()
+    # StackTest()
 
 
 if __name__ == "__main__":

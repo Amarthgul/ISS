@@ -58,7 +58,7 @@ def ExampleStack():
     FG.zFarLimit = 1e3
     FG.LoadFromEXR(r"resources/DepthSceneFG.exr")
 
-    FG.DrawMask()
+    # FG.DrawMask()
 
     MG = Image2DVariDepth()
     MG.LoadFromEXR(r"resources/DepthSceneMG.exr")
