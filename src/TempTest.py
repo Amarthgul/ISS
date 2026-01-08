@@ -37,6 +37,16 @@ def BladeTest():
 
 
 def DifTest():
+    from ObjectSpace.Images import Image2DFlat
+    from Util.ImageIO import ImageConversion
+
+    image = Image2DFlat()
+    image.LoadFromEXR(RectPath(r"resources/Focus8000.exr"))
+    # image.LoadFrom8bit(RectPath(r"resources/ISO12233.jpg"))
+
+    #plt.imshow(image.Show2D(show=False))
+
+
     rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragmL.svg"))
     rot.bladeCount = 8
     rot.randOffsetMax = 1.5
@@ -45,12 +55,16 @@ def DifTest():
     rot.RotateAllBlades(-35)
     rgb = rot.toImage()
 
-    sensor = SensorSpec(36, 24, 6000, 4000)
+    sensor = SensorSpec(36, 24, 1920, 1280)
 
     dif = Diffraction(rgb[:, :, 0], sensor)
-    psfs = dif.PSF([0, 5, 10])
 
-    plt.imshow(NumpyConversion(psfs[2]*32000))
+    # psfs = dif.PSF([0, 5, 10])
+    difImage = dif.ApplyDiffraction(image.Show2D(show=False), 0.8, 0)
+
+    plt.imshow(ImageConversion(difImage, flipH=True, flipV=True))
+
+    # plt.imshow(NumpyConversion(psfs[2]*32000))
 
     plt.show()
 

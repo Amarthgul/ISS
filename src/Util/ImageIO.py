@@ -11,13 +11,11 @@ from Util.Globals import RNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines
 
 def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True, flipH=False, flipV=False):
     """
-    Convert the float reprensentation of an image to a uint8 image.
+    Convert the float representation of an image to an uint8 image.
     """
     # print(bd.max(ary))
     maxValue = bd.max(ary) * maxModifier 
 
-
-    #maxValue = 256
     bits = 2.0**bitDepth-1
     scaleRatio = bits / (maxValue if (normalizer is None) else normalizer + NEAR_ZERO)
     ary = bd.clip(ary*scaleRatio, 0, bits) 

@@ -77,6 +77,50 @@ class Image2D:
         DrawPointsPerColor(self.pointSource.Position(), self.pointSource.DisplayColor())
 
 
+    def Show2D(self, ax=None, show=True, title=None):
+        """
+        Display the 2D image using matplotlib imshow.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            Existing axes to draw into. If None, a new figure is created.
+        show : bool
+            Whether to call plt.show() automatically.
+        title : str, optional
+            Title of the plot.
+        """
+
+        if self.rgbArray is None:
+            raise RuntimeError("Image2D.Show2D(): rgbArray is empty. Load an image first.")
+
+        # Convert backend array to NumPy for matplotlib if needed
+        img = self.rgbArray
+        if hasattr(img, "get"):  # CuPy → NumPy
+            img = img.get()
+
+        # Handle optional opacity
+        if self._opacityArray is not None:
+            alpha = self._opacityArray
+            if hasattr(alpha, "get"):
+                alpha = alpha.get()
+            img = bd.concatenate([img, alpha[..., None]], axis=-1)
+
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        ax.imshow(img, origin="upper")
+        ax.axis("off")
+
+        if title is not None:
+            ax.set_title(title)
+
+        if show:
+            plt.show()
+
+        return img
+
+
     def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
         """The base class has no implementation, it is only an interface for more advanced classes. """
         pass
