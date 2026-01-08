@@ -31,6 +31,15 @@ def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True
     return NumpyConversion(ary).astype(bd.uint8)
 
 
+def CleanDisplay(rgbArray):
+    import matplotlib.pyplot as plt
+
+    plt.close('all')  # kill all existing figures (optional but safe)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)  # IMPORTANT: no projection='3d'
+    plt.imshow(rgbArray)
+
+
 def rgbFromRGBA(rgba: bd.ndarray, background=(255, 255, 255)):
     """
     Convert an RGBA image array (H, W, 4) to an RGB array (H, W, 3),

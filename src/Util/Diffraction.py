@@ -135,9 +135,6 @@ class Diffraction:
         if img.ndim != 3 or img.shape[2] != 3:
             raise ValueError("targetImage must have shape (H,W,3).")
 
-        if self.sensor is None:
-            raise ValueError("SensorSpec is required to apply diffraction in pixel units. Call SetSensor().")
-
         # Extract highlight layer
         lum = img[..., 0] * self.luma_weights[0] + img[..., 1] * self.luma_weights[1] + img[..., 2] * self.luma_weights[2]
         mask = lum > float(highlightThreshold)
@@ -395,26 +392,40 @@ class Diffraction:
     # -------------------- Convolution --------------------
 
     def _fft_convolve2d(self, image2d, kernel2d):
-        """FFT-based convolution (same output size as image)."""
+        """
+        FFT-based *linear* convolution (same output size as image).
+        Zero-pads to avoid circular wrap-around artifacts.
+        """
         img = image2d
         ker = kernel2d
 
         H, W = int(img.shape[0]), int(img.shape[1])
         kh, kw = int(ker.shape[0]), int(ker.shape[1])
 
-        # Pad kernel to image size, centered
-        ker_padded = bd.zeros((H, W), dtype=img.dtype)
-        cy, cx = kh // 2, kw // 2
+        # Pad to size needed for linear convolution
+        P = H + kh - 1
+        Q = W + kw - 1
 
-        # Place kernel into padded array with wrap-around (ifftshift style)
-        # This ensures correct alignment for FFT convolution.
-        ker_shifted = self._ifftshift(ker)
-        ker_padded[:kh, :kw] = ker_shifted
+        # Zero-pad image (place in top-left)
+        img_pad = bd.zeros((P, Q), dtype=img.dtype)
+        img_pad[:H, :W] = img
 
-        F_img = self._fft2(img)
-        F_ker = self._fft2(ker_padded)
-        out = bd.real(self._ifft2(F_img * F_ker))
-        return out
+        # Zero-pad kernel (place in top-left)
+        # FIX: Do NOT ifftshift here. Just place the kernel normally.
+        ker_pad = bd.zeros((P, Q), dtype=ker.dtype)
+        ker_pad[:kh, :kw] = ker
+
+        # Convolve in frequency domain
+        F_img = self._fft2(img_pad)
+        F_ker = self._fft2(ker_pad)
+        out_full = bd.real(self._ifft2(F_img * F_ker))
+
+        # FIX: The result is now shifted by the kernel center (kh//2, kw//2).
+        # We must crop the valid middle region.
+        start_y = kh // 2
+        start_x = kw // 2
+
+        return out_full[start_y: start_y + H, start_x: start_x + W]
 
     # -------------------- Helpers --------------------
 

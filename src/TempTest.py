@@ -38,13 +38,13 @@ def BladeTest():
 
 def DifTest():
     from ObjectSpace.Images import Image2DFlat
-    from Util.ImageIO import ImageConversion
+    from Util.ImageIO import ImageConversion, CleanDisplay
 
     image = Image2DFlat()
-    image.LoadFromEXR(RectPath(r"resources/Focus8000.exr"))
+    image.LoadFromEXR(RectPath(r"resources/CanonEFLSpotTest.exr"))
     # image.LoadFrom8bit(RectPath(r"resources/ISO12233.jpg"))
 
-    #plt.imshow(image.Show2D(show=False))
+    # plt.imshow(image.Show2D(show=False))
 
 
     rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragmL.svg"))
@@ -52,19 +52,23 @@ def DifTest():
     rot.randOffsetMax = 1.5
     rot.Reset()
     rot.DuplicateAroundCenter()
-    rot.RotateAllBlades(-35)
+    rot.RotateAllBlades(-40)
     rgb = rot.toImage()
+    # CleanDisplay(rgb)
 
     sensor = SensorSpec(36, 24, 1920, 1280)
 
     dif = Diffraction(rgb[:, :, 0], sensor)
 
-    # psfs = dif.PSF([0, 5, 10])
-    difImage = dif.ApplyDiffraction(image.Show2D(show=False), 0.8, 0)
+    psfs = dif.PSF([0, 5, 10])
 
-    plt.imshow(ImageConversion(difImage, flipH=True, flipV=True))
+    # CleanDisplay(NumpyConversion(psfs[2]*100000))
 
-    # plt.imshow(NumpyConversion(psfs[2]*32000))
+    difImage = dif.ApplyDiffraction(image.Show2D(show=False), 0.1, 0)
+
+    plt.imshow(ImageConversion(difImage, flipH=True, flipV=True, maxModifier=0.00001))
+
+
 
     plt.show()
 
