@@ -63,6 +63,7 @@ class Pupil(VirtualSurface):
         """
         self._zDepth = points[:, 2]
         self._height = bd.linalg.norm(points[:, :2], axis=1)
+        self.vertex = points[0]
 
         # Since this method reset all sample points, the max pupil size is copied from the theoretical maxmimum size, this could be changed later if pupil size is changed. 
         self.clearSemiDiameter = bd.max(self._height)

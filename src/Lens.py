@@ -321,8 +321,10 @@ class Lens:
             str(len(self.lenses)) + " lenses arranged in " + str(len(self.groups)) + " groups"
         
         if(not self.isAfocal):
+            epp = self.entrancePupil.vertex[2]
             info +=  "\nFocal Length:   \t" + str(self.focalLength) +"\n" +\
             "Max working N:  \tf/" + str(self.focalLength / self.entrancePupil.GetMaxPupilSize())
+            info += "\nPupil Position:   \t" + str(epp)
 
         info += "\n" +\
             "Max pupil dia:  \t" + str(self.entrancePupil.GetMaxPupilSize()) + "\n" +\
@@ -685,7 +687,7 @@ class Lens:
                 self.surfaces[nextGroupFirstIndex].clearBoundaryT = MetalBoundary(C1, C2)
 
 
-    def _TraceEntrancePupil(self, stopSD=None, sampleCount=4, wavelength = LambdaLines['D']):
+    def _TraceEntrancePupil(self, stopSD=None, sampleCount=8, wavelength = LambdaLines['d']):
         """
         Start rays from the center of the stop, casting forward and trace the size and location of the entrance pupil. 
 
@@ -839,10 +841,14 @@ class Lens:
         """
 
         if (index == 0 or isinstance(self.surfaces[index-1], Stop)):
+            # Initial surface or immediately after the STOP
             return self.env.RI(raybatch.Wavelength())
 
         else:
-            return self.surfaces[self._PreviousSurfaceIndex(index)].RI(raybatch.Wavelength())
+            previousIndex = self._PreviousSurfaceIndex(index)
+
+
+            return self.surfaces[previousIndex].RI(raybatch.Wavelength())
         
 
     def _PreviousSurfaceIndex(self, index):
