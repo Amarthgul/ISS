@@ -232,7 +232,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
 
     image /= 10.0
     global FrameCount
-    fn = r"Baltar50f2"+str(refIte)
+    fn = r"Batis85StoppedDown"+str(refIte)
     SaveAsEXR(image, r"resources/Results/SpotTestng", fn)
 
     FrameCount += 1
@@ -296,60 +296,6 @@ def ReflectionSpotPositionOrig(lens, position, focusDistance = 5000, imageMinSam
 
     FrameCount += 1
    
-
-def MugReflectionSpotTesting(position, lens=Mug(), sampleSize=512, saveIterationCount = 100, realTimeUpdate = True):
-
-    imager = StdImager(2, w = 45, h  =45, horiPx=1920) 
-    #32.4
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
-
-    source = PointsSource()
-    source.GenerateFixPoint(position)
-
-    start = time.time()
-
-    if(realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image))
-
-    iterationCount = 0
-
-    while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(sampleSize), 5, addSecondary=5)
-        
-
-
-        _mainRB, mainRP, mainRB = lens.Propagate(mainRB, reflection=True)
-        # mainRB.Merge(_mainRB)
-        print("highest r: ", bd.max(mainRB.PolarizedRadiance()), "\t average: ", bd.mean(mainRB.PolarizedRadiance()))
-        
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
-        image = imager.IntegralRays(mainRB, baseImg=image, overExpNoiseRemoval=None)
-
-        if(realTimeUpdate):
-            print("Max ", bd.max(image))
-            im.set_data(ImageConversion(image, maxModifier=1)) #0.002
-            plt.draw()
-            plt.pause(0.01)
-        
-        #print(source.sampleRecord)
-        elpased = time.time() - start
-
-        print("\nAt ", str(iterationCount), "th iteration after ", str(elpased))
-        ProgressBar(iterationCount / saveIterationCount, 100)
-
-        if(iterationCount > saveIterationCount):
-            image /= 10.
-            SaveAsEXR(image, r"resources/Results/mugShot", "exrTest")
-            break
-
-        iterationCount += 1
-
 
 def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, realTimeUpdate = False):
 
@@ -533,8 +479,8 @@ def main():
     #     5000, 6000, 7000, 8000, 10000, 12500, 15000, 20000, 30000, 50000, 75000, 100000
     # ]
     
-    angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.7
-    angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.7
+    angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.3
+    angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.3
 
     # lens = Zhongyi50f095()
     # lens = Industar50_50mmf35()
@@ -542,11 +488,14 @@ def main():
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Nokton35f1.2VMIII.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Batis85f1.8.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
-    # lens.SetAperture(4)
+    lens.SetAperture(5.6)
     print(lens.GetInfo())
+
+    ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
+    return
 
     SpotTesting(lens, computeTime=5 * 60, realTimeUpdate=True)
 
@@ -562,7 +511,7 @@ def main():
         lens.SetAperture(a)
         SpotTesting(lens, computeTime=45*60, realTimeUpdate=False)
 
-    return
+    # return
     # lens.SetAperture(4)
     #RayPathTesting(lens, AoV=40)
     # for o in objectDistance:

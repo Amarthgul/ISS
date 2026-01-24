@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+
 
 from Util.Backend import backend as bd
 from Util.Misc import RectPath
@@ -7,6 +7,8 @@ from Util.Diffraction import Diffraction, SensorSpec
 from Util.Misc import NumpyConversion
 
 def BladeTest():
+    import matplotlib.pyplot as plt
+
     rot = SingleEndPinnedDiaphragm(RectPath(r"resources/diaphragmL.svg"))
     rot.bladeCount = 8
     rot.randOffsetMax = 1.5
@@ -40,6 +42,7 @@ def BladeTest():
 def DifTest():
     from ObjectSpace.Images import Image2DFlat
     from Util.ImageIO import ImageConversion, CleanDisplay
+    import matplotlib.pyplot as plt
 
     image = Image2DFlat()
     image.LoadFromEXR(RectPath(r"resources/CanonEFLSpotTest.exr"))
@@ -78,6 +81,7 @@ def CentroidTest():
     from Util.Centroid import Centroid
     from ObjectSpace.Images import Image2DFlat
     from Util.ImageIO import ImageConversion, CleanDisplay
+    import matplotlib.pyplot as plt
 
     image = Image2DFlat()
     image.LoadFromEXR(RectPath(r"resources/CanonEFLSpotTest.exr"))
@@ -100,11 +104,29 @@ def CentroidTest():
     plt.show()
 
 
+def DistTest():
+    from Analysis import Analysis
+    from ZmxReader import LensFromZmx
+    from Imagers.Standard import StdImager
+
+    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx"))
+    lens = reader.GetLens()
+    lens.UpdateLens()
+
+    imager = StdImager(lens.BestFocusBFD(200000), horiPx=6000)
+    imager.SetLensLength(lens.totalAxialLength)
+
+    ansys = Analysis(lens, imager)
+    sth = ansys.Distortion(200000, samplePoints=7)
+    print(ansys.distortionData)
+    ansys.PlotDistortionPercentage()
+
 
 def main():
-    #DifTest()
-    CentroidTest()
+    # DifTest()
+    # CentroidTest()
     # StereoImageDisplay()
+    DistTest()
 
 
 if __name__ == "__main__":

@@ -134,15 +134,19 @@ class LensFromZmx:
         lens = Lens()
 
         # I cannot guarantee the correctness of these rules, you (whoever not me that's using this) might need to check with the Zemax version you're working with and see if your ZMX files use the same kind of notation.
+        sCounter = -1
 
         for d in self._SurfDict:
             #print("\nNext:\n")
             #self._PrintDict(d)
+            sCounter += 1
+
+            isObjectImage = (sCounter == 0 ) or (sCounter == len(self._SurfDict)-1)
 
             if "STOP" in d:
                 # Surface type in ZMX tend to be marked with a key "STOP"
                 currentS = self._ParseStop(d)
-            elif float(d["CURV"][0]) == 0:
+            elif float(d["CURV"][0]) == 0 and isObjectImage:
                 # Start surface is usually object space, which is not of any concern here. Object space will have a clear semi-diameter of infinity, thus a curvature of 0. Use this trait to judge if it's the object space, if so, ski
                 continue
 
@@ -156,6 +160,7 @@ class LensFromZmx:
                 continue
 
             lens.AddSurface(currentS)
+
 
         self.lens = lens
         return lens

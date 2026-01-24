@@ -23,6 +23,10 @@ class Centroid:
         """
         self.centroidAngle = None
 
+        """X and Y position of the centroid as a ratio of the entire imager, assuming middle of the image is (0, 0)"""
+        self.centroidPositionRatio = None
+
+
         self.Update()
 
 
@@ -64,6 +68,9 @@ class Centroid:
         # Pixel displacement from optical axis
         dx = xc - x0
         dy = yc - y0
+
+        self.centroidPositionRatio = (dx / W, dy / H)
+
 
         # Compute the maximum possible radius (distance to the farthest corner) from the optical axis
         rx = max(x0, (W - 1) - x0)

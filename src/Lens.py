@@ -295,7 +295,7 @@ class Lens:
         lastPos = focusRP.position[lastIndex]
         lastDir = focusRP.direction[lastIndex]
 
-        print("Calculate point pos", focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value])
+        # print("Calculate point pos", focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value])
 
         # Subtract the z position of the best focus with the axial length of the lens, yielding the back focal length for best focus 
         return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength

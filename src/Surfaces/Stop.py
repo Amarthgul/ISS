@@ -39,7 +39,12 @@ class Stop(Surface):
         self.clearSemiDiameter = sd 
 
 
-    def DrawSurface(self):
+    def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
+
+        pass
+
+
+    def DrawSurface(self, DrawBoundary=True):
         """
         Stop does not have a surface to draw.
         """
