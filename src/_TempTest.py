@@ -109,17 +109,20 @@ def DistTest():
     from ZmxReader import LensFromZmx
     from Imagers.Standard import StdImager
 
-    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
+    print(lens.GetInfo())
+    print(lens.SurfaceReport())
 
-    imager = StdImager(lens.BestFocusBFD(200000), horiPx=6000)
+    imager = StdImager(lens.BestFocusBFD(200000), w=40, h=40, horiPx=6000)
     imager.SetLensLength(lens.totalAxialLength)
 
     ansys = Analysis(lens, imager)
-    sth = ansys.Distortion(200000, samplePoints=7)
-    print(ansys.distortionData)
-    ansys.PlotDistortionPercentage()
+    # sth = ansys.Distortion(2000, samplePoints=7)
+    # print(ansys.distortionData)
+    # ansys.PlotDistortionPercentage()
+    ansys.PlotThroughFocusDistortion([900, 1000, 1200, 1500, 2000, 5000, 10000, 20000, 50000, 200000], samplePoints=15)
 
 
 def main():

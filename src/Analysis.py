@@ -15,6 +15,9 @@ class Analysis():
         self.lens = lens
         self.imager = imager
 
+        self.imagerNominalHeight = 24
+        self.imagerNominalWidth = 36
+
         self.distortionData = None
 
 
@@ -35,8 +38,8 @@ class Analysis():
         aovHori, aovVert, aovDiag = self.lens.GetAoV(
             unitInDegrees=True,
             halfAngle=True,
-            w=self.imager.width,
-            h=self.imager.height,
+            w=self.imagerNominalWidth,
+            h=self.imagerNominalHeight,
         )
 
         if maxFieldAngleX is None or maxFieldAngleX == 0:
@@ -77,6 +80,7 @@ class Analysis():
         # Used to place object points at a given field angle for finite object distances.
         obj_to_H = float(objectT) + float(H)
 
+
         for tx, ty in zip(thetaX_deg, thetaY_deg):
             tx_f = float(tx)
             ty_f = float(ty)
@@ -106,17 +110,26 @@ class Analysis():
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             image = self.imager.IntegralRays(mainRB)
 
+            # from Util.ImageIO import ImageConversion, CleanDisplay
+            # import matplotlib.pyplot as plt
+            # CleanDisplay(image.get() * 100.0)
+            # plt.draw()
+            # plt.pause(5)
+
             currentCent = Centroid(image)
 
-            # Real centroid position (imager coordinates; optical axis is (0,0))
+            # Real centroid position in mm on the *actual* imager (so enlarging it works)
             cRatioX, cRatioY = currentCent.centroidPositionRatio
-            cx, cy = cRatioX*self.imager.width, cRatioY*self.imager.height
+            cx = float(cRatioX) * float(self.imager.width)
+            cy = float(cRatioY) * float(self.imager.height)
 
+            # --- Normalize distortion by NOMINAL half-diagonal (since cx,cy are centered coords)
+            r_max = math.hypot(0.5 * float(self.imagerNominalWidth),
+                               0.5 * float(self.imagerNominalHeight))
 
-            # Compute radial distortion (fraction)
-            r_max = math.hypot(self.imager.width, self.imager.height)
             r_id = math.hypot(x_id, y_id)
-            r_rl = math.hypot(float(cx), float(cy))
+            r_rl = math.hypot(cx, cy)
+
             if r_id == 0.0:
                 d = 0.0
             else:
@@ -144,7 +157,10 @@ class Analysis():
                 "maxFieldAngleY_deg": float(maxFieldAngleY),
                 "samplePoints": int(samplePoints),
                 "targetSamplePerField": int(targetSample),
-                "mapping": "rectilinear (r = f*tan(theta))",
+                "nominalWidth": float(self.imagerNominalWidth),
+                "nominalHeight": float(self.imagerNominalHeight),
+                "normalization": "r_max = nominal half-diagonal",
+                "aovBasis": "nominal imager size"
             },
         }
 
@@ -208,4 +224,90 @@ class Analysis():
 
         plt.tight_layout()
         plt.show()
+
+
+    def PlotThroughFocusDistortion(self, objectTs, maxFieldAngleX=0, maxFieldAngleY=0, samplePoints=10):
+        """
+        Plot multiple distortion curves (distortion % vs field angle) for different object distances.
+
+        :param objectTs: iterable of object distances (same units your system uses; object is at z=-objectT)
+        :param maxFieldAngleX: max field angle X (deg), 0 -> auto from lens AoV
+        :param maxFieldAngleY: max field angle Y (deg), 0 -> auto from lens AoV
+        :param samplePoints: number of field samples per curve
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        distortionDataSet = []
+
+        # --- Compute distortion for each object distance
+        for objectDistance in objectTs:
+            # IMPORTANT: correct argument order
+            self.Distortion(objectDistance, maxFieldAngleX=maxFieldAngleX, maxFieldAngleY=maxFieldAngleY,
+                            samplePoints=samplePoints)
+
+            dd = self.distortionData
+
+            # X axis: distortion in percent
+            x = np.asarray(dd.get("distortion_percent", []), dtype=float)
+            if x.size == 0:
+                x = np.asarray(dd.get("distortion", []), dtype=float) * 100.0
+
+            # Y axis: radial field angle in degrees (robust for diagonal or 2D sampling)
+            fx = np.asarray(dd.get("fieldAngleX_deg", []), dtype=float)
+            fy = np.asarray(dd.get("fieldAngleY_deg", []), dtype=float)
+
+            if fx.size == 0:
+                y = np.abs(fy)
+            elif fy.size == 0:
+                y = np.abs(fx)
+            else:
+                y = np.sqrt(fx * fx + fy * fy)
+
+            # Sort by field angle so each curve is drawn bottom->top cleanly
+            order = np.argsort(y)
+            y = y[order]
+            x = x[order]
+
+            distortionDataSet.append((float(objectDistance), x, y))
+
+        # --- Determine global plot bounds (consistent axes across curves)
+        all_x = np.concatenate([d[1] for d in distortionDataSet])
+        max_abs = float(np.max(np.abs(all_x))) if all_x.size else 1.0
+        if max_abs < 1e-9:
+            max_abs = 1.0
+        pad = 0.10 * max_abs
+        xlim = (-max_abs - pad, max_abs + pad)
+
+        all_y = np.concatenate([d[2] for d in distortionDataSet])
+        ymax = float(np.max(all_y)) if all_y.size else 1.0
+
+        # --- Plot
+        plt.figure(figsize=(6.0, 6.5), dpi=150)
+
+        for objectDistance, x, y in distortionDataSet:
+            # Label with object distance; you can customize formatting if you have units
+            plt.plot(x, y, linewidth=1.0, label=f"ObjectT={objectDistance:g}")
+
+        # Center 0% line
+        plt.axvline(0.0, linewidth=0.5, c="k")
+
+        # Grid styling
+        plt.grid(True, which="major", linestyle="-", linewidth=0.8, alpha=0.35)
+        plt.minorticks_on()
+        plt.grid(True, which="minor", linestyle="-", linewidth=0.5, alpha=0.15)
+
+        plt.xlim(*xlim)
+        plt.ylim(0.0, ymax)
+
+        plt.xlabel("Percent")
+        plt.ylabel("Field Angle (deg)")
+        plt.title("Through-Focus Distortion")
+
+        # Legend (many curves -> keep it compact)
+        plt.legend(loc="best", fontsize=8, framealpha=0.85)
+
+        plt.tight_layout()
+        plt.show()
+
 
