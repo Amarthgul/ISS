@@ -182,11 +182,19 @@ class LensFromZmx:
 
         clearSemi = float(d["DIAM"][0])
 
+        innerDia  = None
+        if ("CLAP" in d):
+            innerDia = float(d["CLAP"][0])
+
         if("GLAS" in d):
             material = d["GLAS"][0]
-            return Surface(radius, thickness, clearSemi, material)
+            s = Surface(radius, thickness, clearSemi, material)
+            s.minAperture = innerDia
+            return s
         else:
-            return Surface(radius, thickness, clearSemi)
+            s = Surface(radius, thickness, clearSemi)
+            s.minAperture = innerDia
+            return s
 
 
     def _ParseStop(self, d):

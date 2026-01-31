@@ -31,7 +31,7 @@ def Reflect(incident, normal):
 
 def LambertianReflect(normal, outputPer=1):
     """
-    Pure Lambertian reflection evenly reflcts the ray back and no incident infomation is needed. 
+    Pure Lambertian reflection evenly reflects the ray back and no incident information is needed.
 
     :param normal: normal direction at the point where this reflection happens (shape: Nx3). 
     :param outputPer: number of output directions per normal. It is suggested to keep this as 1, otherwise the calculation and memory useage could increase dramatically. 

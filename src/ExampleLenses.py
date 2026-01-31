@@ -308,13 +308,13 @@ def _ZeissHologon15mmf8Data():
 
     _temp =         Surface(INFINITY,	0,          0.8)
     _temp.disableBoundaryL = True
-    _temp.fieldStopOnly = True
+    _temp.stopOnly = True
     lens.AddSurface(_temp)
 
     lens.AddSurface(Stop(               0))
 
     _temp =         Surface(INFINITY,	3.48,       0.8,     "H-LAK7")
-    _temp.fieldStopOnly = True
+    _temp.stopOnly = True
     lens.AddSurface(_temp)
 
     _temp =         Surface(-5.508,	    2.4045,     3.5)
@@ -543,7 +543,7 @@ def main():
     #Industar50_50mmf35() #
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
     # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonRF45f1.2.zmx"))
 
     exampleLens = reader.GetLens()

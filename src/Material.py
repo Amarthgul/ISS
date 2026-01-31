@@ -96,8 +96,8 @@ class Material:
         # TODO: the read table and lookup turned out to be the 
         # slowest part of the entire program, find a way to accelerate this 
 
-        if(self.name == "AIR"):
-            return 
+        if(self.name == "AIR" or self.name == "MIRROR"):
+            return
         else:
             if(PreRead):
                 # Pre read to save open-close time 

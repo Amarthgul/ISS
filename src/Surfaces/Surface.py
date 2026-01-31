@@ -69,9 +69,11 @@ class Surface:
         self.disableBoundaryL = disableL
 
 
-        """When flagged, this surface will only act as a field stop and no longer alters the direction of the incident rays """
-        self.fieldStopOnly = False
+        """When flagged, this surface will only act as a stop and no longer alters the direction of the incident rays """
+        self.stopOnly = False
 
+        """Some surfaces might have a hole in the middle, minAperture is reserved for that case. It is effective the inner semi-clear-diameter"""
+        self.minAperture = None
 
         """Whether this surface share the same optical axis as the lens"""
         self.IsOnAxis = True
@@ -96,7 +98,7 @@ class Surface:
         self._axis = OBJ_FACING
         # By default, it is parallel to Z and facing object side
 
-        """Vector poinring from radius center to the front vertex"""
+        """Vector pointing from radius center to the front vertex"""
         self._radiusDirection = None
 
         """Inverse transform matrix to offset the incident when the surface is off axis"""
@@ -287,6 +289,11 @@ class Surface:
         Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned but not calculated. 
         """
 
+        if (self.material is "MIRROR"):
+            rayBatch, _tir, _vig, _reflectedRB = self.TraceMirror(incidentRaybatch, previousRI, inverted, False)
+            # TODO: add return
+
+
         # 1) Geometric intersection and vignetting
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
 
@@ -350,16 +357,19 @@ class Surface:
         :param previousRI: array representing the RI of the surface before that, i.e., the RI of the medium the rays are currently in. 
         :param inverted: bool for whether the rays are aiming from behind.
         :param reflection: bool for whether to calculate reflections.
+        :param useClearBoundary: bool for whether to consider clear boundaries in tracing.
 
-        :return: a raybatch of refracted rays, bool array indicating TIR, bool array indicating vignetted, and a raybatch that contains all the rays that becomes non-sequential
+        :return: a raybatch of primary imaging rays (typically refracted), a bool array indicating TIR, a bool array indicating vignetted, and a raybatch that contains all the stray rays
         """
 
-        # TODO: this should be spilt into several smaller methods
+        if (self.material is "MIRROR"):
+            return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
+
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
 
-        if(self.fieldStopOnly):
+        if(self.stopOnly):
             incidentRaybatch = incidentRaybatch.Mask(~boolVig)
             TIR = bd.zeros_like(incidentRaybatch.Wavelength()).astype(bool)
             return incidentRaybatch, TIR, boolVig, None
@@ -390,19 +400,19 @@ class Surface:
 
         # DrawDirection(intersections, reflected, lineColor="b") # ======= Draw call
 
-        refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        refractedRB.SetPosition(intersections[~TIR])
-        refractedRB.SetDirection(refracted)
+        mainRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        mainRB.SetPosition(intersections[~TIR])
+        mainRB.SetDirection(refracted)
 
 
-        reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 
         if(reflection):
             # These reflected are the reflected component form the refracted due to fresnel
             reflected = Reflect(directions, normals)
 
-            reflectedRB.SetPosition(intersections[~TIR])
-            reflectedRB.SetDirection(reflected[~TIR])
+            strayRB.SetPosition(intersections[~TIR])
+            strayRB.SetDirection(reflected[~TIR])
 
             # TIR are the reverted selection
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
@@ -435,9 +445,9 @@ class Surface:
                 R_p
             )
 
-            refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
+            mainRB = PolarizeRB(mainRB, senkrecht, parallel)
             
-            reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
+            strayRB = ResidueRB(strayRB, senkrecht, parallel)
 
             # Copy the vignetted rays to prepare for clear boundary check 
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
@@ -458,12 +468,38 @@ class Surface:
                     vigReflRBL = vigReflRBL.Merge(vigReflRBT)
 
                 # These clear boundary reflections may also contain their own TIR
-                reflectedRB = reflectedRB.Merge(vigReflRBL)
+                strayRB = strayRB.Merge(vigReflRBL)
                 
-            reflectedRB = reflectedRB.Merge(tirRB)
+            strayRB = strayRB.Merge(tirRB)
 
-        return refractedRB, TIR, boolVig, reflectedRB
-    
+        return mainRB, TIR, boolVig, strayRB
+
+
+    def TraceMirror(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
+        """
+        Simple mirror trace:
+        - Find intersections
+        - Mask rays outside clear semi-diameter (handled by Intersection -> _FieldStopMask)
+        - Reflect valid rays and return
+        """
+
+        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+
+        normals = self.Normal(intersections)
+
+        directions = incidentRaybatch.Direction()[~boolVig]
+
+        reflected = Reflect(directions, normals)
+
+        out_values = bd.copy(incidentRaybatch.value[~boolVig])
+        mainRB = RayBatch(out_values)
+        mainRB.SetPosition(intersections)
+        mainRB.SetDirection(reflected)
+
+        # No TIR when surface is literally a mirror
+        TIR = bd.zeros(mainRB.Wavelength().shape[0], dtype=bd.bool_)
+
+        return mainRB, TIR, boolVig, None
 
     def GetInfo(self):
         """
