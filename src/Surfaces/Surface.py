@@ -8,7 +8,7 @@ from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
-from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary
+from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
 from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
@@ -166,11 +166,20 @@ class Surface:
 
     def DrawSurface(self, DrawBoundary=True):
 
-        DrawSpherical(
-            self.radius,
-            self.clearSemiDiameter,
-            self.cumulativeThickness, 
-            surfaceColor=SURFACE_COLOR,
+        if self.minAperture is None:
+            DrawSpherical(
+                self.radius,
+                self.clearSemiDiameter,
+                self.cumulativeThickness,
+                surfaceColor=SURFACE_COLOR,
+                )
+        else:
+            DrawSphericalInner(
+                self.radius,
+                self.clearSemiDiameter,
+                self.minAperture,
+                self.cumulativeThickness,
+                surfaceColor=SURFACE_COLOR,
             )
         
         if(DrawBoundary and self.clearBoundaryL is not None):
@@ -501,6 +510,7 @@ class Surface:
 
         return mainRB, TIR, boolVig, None
 
+
     def GetInfo(self):
         """
         Get the information of this surface.
@@ -542,7 +552,7 @@ class Surface:
         intersections_all = position + t[:, bd.newaxis] * direction
 
         # 6) Field-stop test at the geometric hit points
-        fsMask = self._FieldStopMask(intersections_all)
+        fsMask = self._ApertureMask(intersections_all)
 
         # 7) Final validity = forward & inside field stop
         valid = forward_mask & fsMask
@@ -598,7 +608,7 @@ class Surface:
         #DrawPoints(p)
 
         # Among the spherical intersections, some will be outside of this surface, select only the ones that do land on the surface based on the clear semi diameter 
-        clear = self._FieldStopMask(p)
+        clear = self._ApertureMask(p)
 
         # Vector and line are different, it might happen that the line intersect with the sphere but the vector does not. Here t1 and t2 are used to judge if the vector itself actually does not intersect 
         clear &= ~((t1[intersetIndices]<0) & (t2[intersetIndices]<0))
@@ -612,12 +622,17 @@ class Surface:
             ~intersetIndices
 
 
-    def _FieldStopMask(self, intersections):
+    def _ApertureMask(self, intersections):
         """
-        Given the intersections, filter out the ones that are outside of the field stop. 
+        Given the intersections, filter out the ones that are outside the clear aperture. If there is an inner aperture then add that into the calculation as well.
         """
         # TODO: add tilt shift handling here
-        return bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+        result = bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+
+        if self.minAperture is not None:
+            result &= bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) > self.minAperture
+
+        return result
 
 
 

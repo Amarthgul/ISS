@@ -17,7 +17,7 @@ from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Stop import Stop
 from Lens import Lens
 from Util.Globals import INFINITY, ZERO, DEFAULT_MAT_NAME
-
+from Material import Material
 
 class LensFromZmx:
     def __init__(self, path):
@@ -200,8 +200,21 @@ class LensFromZmx:
     def _ParseStop(self, d):
 
         thickness = float(d["DISZ"][0])
+        s = Stop(thickness)
 
-        return Stop(thickness)
+        if ("CLAP" in d):
+            s.minAperture = float(d["CLAP"][0])
+            s.clearSemiDiameter = float(d["CLAP"][1])
+
+        if ("GLAS" in d):
+
+            s.material = Material(d["GLAS"][0])
+
+        curvature = float(d["CURV"][0])
+        if (curvature != 0):
+            s.radius = 1.0 / curvature
+
+        return s
 
 
     def _ParseEvenasph(self, d):

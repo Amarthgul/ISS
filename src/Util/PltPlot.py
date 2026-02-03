@@ -308,7 +308,7 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
     :surfaceColor: color of the surface. 
     """
     if(RENDER_MODE):
-        return 
+        return
     
 
     if(radius == INFINITY):
@@ -334,6 +334,73 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
         z = bd.asnumpy(z)
 
     ax.plot_surface(x, y, z, color = surfaceColor, alpha =opacity)
+
+
+def DrawSphericalInner(radius, maxAperture, minAperture, cumulativeThickness,
+                       numPoints=THETA_DIV, surfaceColor="k", opacity=0.1, ax=AX):
+    """
+    Draw a spherical surface along the z axis, but with a hole in the middle.
+    The hole is defined by minAperture (inner radius), and the outer edge by maxAperture.
+
+    This is a parallel of DrawSpherical(), except it draws only the annulus region.
+    """
+    if (RENDER_MODE):
+        return
+
+    if radius == INFINITY:
+        DrawDiskInner(maxAperture, minAperture, cumulativeThickness, numPoints, surfaceColor)
+
+    CheckAX()
+
+    # Safety clamps
+    if minAperture < 0:
+        minAperture = 0.0
+    if maxAperture < minAperture:
+        maxAperture = minAperture
+
+    # Flat surface: draw an annulus on a plane at z=cumulativeThickness
+    if (radius == INFINITY):
+        theta = bd.linspace(0, 2 * bd.pi, int(numPoints / 1))
+        r = bd.linspace(minAperture, maxAperture, int(numPoints / 1))
+        Theta, R = bd.meshgrid(theta, r)
+
+        x = R * bd.cos(Theta)
+        y = R * bd.sin(Theta)
+        z = bd.full_like(x, cumulativeThickness)
+
+        if (backend_name == "cupy"):
+            x = bd.asnumpy(x)
+            y = bd.asnumpy(y)
+            z = bd.asnumpy(z)
+
+        ax.plot_surface(x, y, z, color=surfaceColor, alpha=opacity)
+        return
+
+    # Finite radius: spherical annulus cap
+    unsignedRadius = radius * bd.sign(radius)  # == abs(radius)
+    # Clamp apertures so arcsin() stays valid
+    maxA = bd.minimum(maxAperture, unsignedRadius * 0.999999)
+    minA = bd.minimum(minAperture, unsignedRadius * 0.999999)
+
+    # Convert radial limits into polar-angle limits on the sphere
+    phi_min = bd.arcsin(minA / unsignedRadius)
+    phi_max = bd.arcsin(maxA / unsignedRadius)
+
+    theta = bd.linspace(0, 2 * bd.pi, int(numPoints / 1))
+    phi = bd.linspace(phi_min, phi_max, int(numPoints / 1))
+
+    theta, phi = bd.meshgrid(theta, phi)
+
+    x = radius * bd.sin(phi) * bd.cos(theta)
+    y = radius * bd.sin(phi) * bd.sin(theta)
+    z = -bd.sign(radius) * (unsignedRadius * bd.cos(phi) - unsignedRadius) + cumulativeThickness
+
+    if (backend_name == "cupy"):
+        x = bd.asnumpy(x)
+        y = bd.asnumpy(y)
+        z = bd.asnumpy(z)
+
+    ax.plot_surface(x, y, z, color=surfaceColor, alpha=opacity)
 
 
 def DrawAspherical(radius, k, A, clearSemiDiameter, cumulativeThickness,
@@ -521,6 +588,42 @@ def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=AX)
 
     # Plot the disk
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=0.2)
+
+
+def DrawDiskInner(maxAperture, minAperture, cumulativeThickness,
+                  numPoints=THETA_DIV, surfaceColor="k", opacity=0.1, ax=AX):
+    """
+    Draw an annular disk (a disk with a hole), centered on optical axis (z),
+    located at z = cumulativeThickness.
+
+    maxAperture: outer radius
+    minAperture: inner radius (hole)
+    """
+    if (RENDER_MODE):
+        return
+
+    CheckAX()
+
+    # Safety clamps
+    if minAperture < 0:
+        minAperture = 0.0
+    if maxAperture < minAperture:
+        maxAperture = minAperture
+
+    theta = bd.linspace(0, 2 * bd.pi, int(numPoints / 1))
+    r = bd.linspace(minAperture, maxAperture, int(numPoints / 1))
+    Theta, R = bd.meshgrid(theta, r)
+
+    x = R * bd.cos(Theta)
+    y = R * bd.sin(Theta)
+    z = bd.full_like(x, cumulativeThickness)
+
+    if (backend_name == "cupy"):
+        x = bd.asnumpy(x)
+        y = bd.asnumpy(y)
+        z = bd.asnumpy(z)
+
+    ax.plot_surface(x, y, z, color=surfaceColor, alpha=opacity)
 
 
 def DrawClearBoundary(E1, E2, surfaceColor="k", opacity=0.1, ax=AX):

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import re
 
+from xarray.plot import surface
+
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 
@@ -67,6 +69,9 @@ class Lens:
 
         self.isAfocal = False 
 
+
+        self._hasMirrorElement = False
+
         self.TestAttr = 0 
 
         self._lastSurfaceIndex = 0
@@ -115,6 +120,9 @@ class Lens:
         currentT = constant(0.0)
 
         for i in range(len(self.surfaces)):
+            if self.surfaces[i].material.name == "MIRROR":
+                self._hasMirrorElement = True
+
             self.surfaces[i].SetCumulative(bd.copy(currentT))
 
             if(i != len(self.surfaces)-1):
@@ -129,12 +137,18 @@ class Lens:
 
         # Total axial length, counting from the first surface vertex to the last  
         self.totalAxialLength = currentT
+
+        # Grouping and boundary makes little sense when the lens becomes catadioptric... might as well switching the update to something entirely different
+        if self._hasMirrorElement:
+            self._UpdateCatadioptric()
+            return
+
         self._PartitionGroups()
         self._CreateClearBoundary()
 
         # Afocal system does not have a principal plane and the entrance pupil is the first stop 
         if(self.isAfocal):
-            self._UpdateAfocal()
+            self._SetFirstElementPupil()
             return 
         
         self.entrancePupil.SetFirstElementSD(self.surfaces[0].clearSemiDiameter) 
@@ -148,8 +162,7 @@ class Lens:
         Iterate through the surfaces and draw them.
         """
         for i in range(len(self.surfaces)):
-            if not isinstance(self.surfaces[i], Stop):
-                self.surfaces[i].DrawSurface()
+            self.surfaces[i].DrawSurface()
 
 
     def BFD(self):
@@ -395,12 +408,13 @@ class Lens:
     # ==================================================================
 
 
-    def _UpdateAfocal(self):
+    def _SetFirstElementPupil(self):
         """
         This method is for updating an afocal lens, which does not have a focal length. 
         """
         firstSD = 0
 
+        # Set first element semi diameter to be whatever the first non-stop element has
         for i in range(len(self.surfaces)):
             if (not isinstance(self.surfaces[i], Stop)):
                 firstSD = self.surfaces[i].clearSemiDiameter
@@ -415,6 +429,11 @@ class Lens:
         ])
 
         self.entrancePupil.SetSamplePoints(pupilPoint)
+
+
+    def _UpdateCatadioptric(self):
+        self._SetFirstElementPupil()
+        # self._TraceFocalPrincipal()
 
 
     def _PartitionGroups(self):
@@ -741,7 +760,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                #print("At surface ", forwardIndex)
+                print("At surface ", forwardIndex)
                 #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
@@ -1075,6 +1094,8 @@ class Lens:
         return not isinstance(givenSurface, Stop)
 
 
+    def IsMirrorSurface(self, index):
+        return self.surfaces[index].material.name == "MIRROR"
 
 
 def main():

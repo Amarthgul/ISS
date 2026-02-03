@@ -557,13 +557,13 @@ def main():
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
 
-    print(exampleLens.GetInfo())
+    #print(exampleLens.GetInfo())
     print(exampleLens.SurfaceReport())
-    print("BFD ", exampleLens.BestFocusBFD(200000))
+    #print("BFD ", exampleLens.BestFocusBFD(200000))
 
     exampleLens.DrawLens()
     # exampleLens.entrancePupil.DrawSamplePoints()
-    exampleLens.entrancePupil.DrawSurface()
+    # exampleLens.entrancePupil.DrawSurface()
     # exampleLens.frontPincipalPlane.DrawSamplePoints()
     
     plt.show()
