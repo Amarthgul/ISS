@@ -371,12 +371,15 @@ class Surface:
         :return: a raybatch of primary imaging rays (typically refracted), a bool array indicating TIR, a bool array indicating vignetted, and a raybatch that contains all the stray rays
         """
 
-        if (self.material is "MIRROR"):
+        if (self.material == "MIRROR"):
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+
+        DrawPoints(intersections)
+
 
         if(self.stopOnly):
             incidentRaybatch = incidentRaybatch.Mask(~boolVig)

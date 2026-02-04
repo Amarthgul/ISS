@@ -17,7 +17,7 @@ class PointsSource:
     Point sources are organized in the form of:
     [[x, y, z, R, G, B], 
        [...], [...], ...]
-    RGB must be float number in the range of [0, 1]. 
+    RGB should be float number in the range of [0, 1].
     Alternatively, it may also be using field angle representation:
     [[θ_x, θ_y, D, R, G, B], 
        [...], [...], ...]] 

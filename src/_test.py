@@ -417,6 +417,46 @@ def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320,
     return elpased
 
 
+def CatadioptricTest():
+    from Surfaces.Stop import Stop
+    from Lens import Lens
+    from Material import Material
+
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
+    s1 = Surface(-147.6, 10.1, 32, "E-FEL2")
+    s1.minAperture = 12
+    s2 = Stop(-10.1)
+    s2.radius = -228.3
+    s2.clearSemiDiameter = 32
+    s2.minAperture = 12
+    s2.material = Material("MIRROR")
+    s3 = Surface(-147.6, 10.1, 32)
+    s3.minAperture = 12
+
+    cata = Lens()
+    cata.AddSurface(s1)
+    cata.AddSurface(s2)
+    cata.AddSurface(s3)
+    cata.UpdateLens()
+    cata.DrawLens()
+
+    point = PointsSource(bd.array([[0, 0, -5000, 1, 1, 1]]))
+    RB = point.EmitSamplesToward(cata.GetFirstElementSamples(32), 1)
+
+    pRI = Material("AIR").RI(RB.Wavelength())
+    RB, _TIR, _BoolVig, _Stray = cata.surfaces[0].Trace(RB, pRI)
+    DrawRaybatch(RB)
+
+    pRI = cata.surfaces[0].material.RI(RB.Wavelength())
+    RB, _TIR, _BoolVig, _Stray = cata.surfaces[1].Trace(RB, pRI)
+
+    DrawRaybatch(RB)
+
+    plt.show()
+
 
 def MaterialLookUpTest():
     # Example usage:
@@ -554,4 +594,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    CatadioptricTest()
