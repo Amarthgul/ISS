@@ -45,7 +45,7 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4 lens.BestFocusBFD(imageDistance)
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AcquireEmpty()
 
     sourceImage = Image2DFlat()
     sourceImage.distance = imageDistance
@@ -107,7 +107,7 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 200000, focusDistance = 200000, computeTime = 5120, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime = 5120, realTimeUpdate = False):
     global FrameCount
 
 
@@ -128,10 +128,10 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 200000, computeTi
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    # imager = StdImager(lens.BestFocusBFD(objectDistance) , horiPx=6000)
-    imager = StdImager(19.3-2, horiPx=6000)
+    imager = StdImager(78 , horiPx=1920)
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AcquireEmpty()
 
     start = time.time()
 
@@ -145,12 +145,18 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 200000, computeTi
         
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(8192), sample*sample, addSecondary=9)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), sample*sample, addSecondary=9)
 
         mainRB, mainRP, _ = lens.Propagate(mainRB)
 
+        print("Size of exiting RB: ", mainRB.value.shape)
+
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         # mainRP.Append(mainRB, _tir, _vig)
+
+        # DrawRaybatch(mainRB)
+        # plt.draw()
+        # plt.pause(5)
 
         image = imager.IntegralRays(mainRB, baseImg=image)
         
@@ -168,7 +174,7 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 200000, computeTi
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = r"Nokton35"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"Tamron500"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -187,7 +193,7 @@ def ReflectionSpotTesting(lens, position, focusDistance = 5000, computeTime = 30
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) 
     #32.4
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty(dataType=PRECISION_TYPE) 
+    image = imager.AcquireEmpty(dataType=PRECISION_TYPE)
 
     start = time.time()
     elpased = time.time() - start
@@ -249,7 +255,7 @@ def ReflectionSpotPositionOrig(lens, position, focusDistance = 5000, imageMinSam
     imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920) 
     #32.4
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AcquireEmpty()
 
     start = time.time()
 
@@ -309,7 +315,7 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AcquireEmpty()
 
     start = time.time()
 
@@ -349,7 +355,7 @@ def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320,
     imager.BFD = lens.BestFocusBFD(imageDistance)
     imager.Update()
     print("Best focus: ", imager.BFD)
-    image = imager.AccquireEmpty()
+    image = imager.AcquireEmpty()
 
     # lens.DrawLens()
     # SetUnifScale(50)
@@ -502,6 +508,7 @@ def AsphericTest():
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
+
 def main():
 
     objectDistance = [
@@ -530,14 +537,15 @@ def main():
     # lens = Sonnar50mmF15()
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Batis85f1.8.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
-    lens.SetAperture(5.6)
+    # lens.SetAperture(5.6)
     print(lens.GetInfo())
 
-    ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
-    return
+    # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
+    # return
 
     SpotTesting(lens, computeTime=5 * 60, realTimeUpdate=True)
 
@@ -596,4 +604,4 @@ def main():
 
 
 if __name__ == "__main__":
-    CatadioptricTest()
+    main()

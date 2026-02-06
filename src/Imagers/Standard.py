@@ -96,7 +96,7 @@ class StdImager(Surface):
         DrawPlane(self.gatePoints, color='black')
 
 
-    def AccquireEmpty(self, dataType=OUTPUT_TYPE):
+    def AcquireEmpty(self, dataType=OUTPUT_TYPE):
         """
         Accquire an empty image array. When converted, this will be a black and blank image. 
         """
@@ -145,7 +145,7 @@ class StdImager(Surface):
 
         # Translate the intersections from 3D image space to 2D pixel-based space
         rayPos = intersectRayBatch.Position()[rayHitMask] / pxPitch + pxOffset
-        rayWavelength = intersectRayBatch.Wavelength()[rayHitMask] 
+        rayWavelength = intersectRayBatch.Wavelength()[rayHitMask]
 
         # Convert ray position into pixel position 
         rayPos = bd.floor(rayPos).astype(int)
@@ -170,18 +170,27 @@ class StdImager(Surface):
                 intersectRayBatch.Position()[rayHitIsolate & wavelengthIsolate] / pxPitch + pxOffset).astype(int)[:, :2]
             
 
-            radiantsChannel = intersectRayBatch.PolarizedRadiance(polarized)[rayHitIsolate & wavelengthIsolate]
-            #print("radiantsChannel max: ", bd.max(radiantsChannel), "\t\t mean", bd.mean(radiantsChannel), "\t\t std ", bd.std(radiantsChannel))
+            radiantChannel = intersectRayBatch.PolarizedRadiance(polarized)[rayHitIsolate & wavelengthIsolate]
 
-            # Try to remove the outlier over-exposured pixels (maybe caused by float error?)
+            # Masking out the rays outside of imager area, avoiding the numpy negative index from shifting the rays...
+            in_bounds = (
+                    (rayPosChannel[:, 0] >= 0) & (rayPosChannel[:, 0] < self.horizontalPx) &
+                    (rayPosChannel[:, 1] >= 0) & (rayPosChannel[:, 1] < self.verticalPx)
+            )
+            rayPosChannel = rayPosChannel[in_bounds]
+            radiantChannel = radiantChannel[in_bounds]
+
+            #print("radiantChannel max: ", bd.max(radiantChannel), "\t\t mean", bd.mean(radiantChannel), "\t\t std ", bd.std(radiantChannel))
+
+            # Try to remove the outlier over-exposed pixels (maybe caused by float error?)
             if((overExpNoiseRemoval is not None) and 
-               (bd.max(radiantsChannel) > bd.mean(radiantsChannel))):
+               (bd.max(radiantChannel) > bd.mean(radiantChannel))):
                 # TODO: add a second condition for automatic check if both mean and max are the same
-                radiantsChannel = self._PruneHighOutliers(radiantsChannel, overExpNoiseRemoval)
+                radiantChannel = self._PruneHighOutliers(radiantChannel, overExpNoiseRemoval)
 
-            rChannel = radiantsChannel * RGB[0]
-            gChannel = radiantsChannel * RGB[1]
-            bChannel = radiantsChannel * RGB[2]
+            rChannel = radiantChannel * RGB[0]
+            gChannel = radiantChannel * RGB[1]
+            bChannel = radiantChannel * RGB[2]
 
             bd.add.at(radiantGridR, (rayPosChannel[:, 0], rayPosChannel[:, 1]), rChannel)
             bd.add.at(radiantGridG, (rayPosChannel[:, 0], rayPosChannel[:, 1]), gChannel)

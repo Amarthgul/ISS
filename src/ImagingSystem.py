@@ -73,7 +73,7 @@ def main():
     imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
     # Assemble the imaging system 
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty() 
+    image = imager.AcquireEmpty()
 
     sourceImage = Image2D()
     sourceImage.horizontalAoV = 40

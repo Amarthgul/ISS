@@ -299,11 +299,19 @@ class Lens:
 
         focusRP.Append(focusRB, None, None)
 
-        for i in range(len(self.surfaces)):
-            if not isinstance(self.surfaces[i], Stop):
+        if (self._hasMirrorElement):
+            for i in range(len(self.surfaces)):
+                previousRI, isAfterMirror = self._FindPreviousRICata(i, focusRB)
+                focusRB, _tir, _vig = self.surfaces[i].NaiveTrace(
+                    focusRB,
+                    previousRI)
+                focusRP.Append(focusRB, _tir, _vig)
+
+        else:
+            for i in range(len(self.surfaces)):
                 focusRB, _tir, _vig = self.surfaces[i].NaiveTrace(
                     focusRB, self._FindPreviousRI(i, focusRB))
-                
+
                 focusRP.Append(focusRB, _tir, _vig)
 
         # Accquring the position and direction of the exiting rays 
@@ -311,7 +319,7 @@ class Lens:
         lastPos = focusRP.position[lastIndex]
         lastDir = focusRP.direction[lastIndex]
 
-        # print("Calculate point pos", focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value])
+        print("Calculate point pos", focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value])
 
         # Subtract the z position of the best focus with the axial length of the lens, yielding the back focal length for best focus 
         return focusRP.FindConvergingPoint(lastPos, lastDir)[Axis.Z.value] - self.totalAxialLength
@@ -419,11 +427,11 @@ class Lens:
         propagatingForward = True
 
         for i in range(len(self.surfaces)):
+            previousRI, isAfterMirror = self._FindPreviousRICata(i, rayBatch)
 
             rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
                 rayBatch,
-                previousRI = self._FindPreviousRICata(i, rayBatch),
-                inverted = not propagatingForward)
+                previousRI)
 
             if (self.surfaces[i].material.name == MIRROR):
                 # Invert direction whenever encountering a mirror surface
@@ -431,7 +439,6 @@ class Lens:
 
             # The index of main RB is where they are after a surface
             rayBatch.SetIndex(i)
-
 
         return rayBatch, self.rayPath, None
 
@@ -848,15 +855,17 @@ class Lens:
 
         if (self._hasMirrorElement):
             propagatingForward = True
+
             for i in range(len(self.surfaces)):
-                print("At ", i, " th surface propagating " + (">>>>>" if propagatingForward else "<<<<<"))
+                # print("At ", i, " th surface propagating " + (">>>>>" if propagatingForward else "<<<<<"))
+                previousRI, isAfterMirror = self._FindPreviousRICata(i, frontRB)
+
                 frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
                     frontRB,
-                    self._FindPreviousRICata(i, frontRB),
-                    inverted = not propagatingForward)
+                    previousRI)
                 if self.surfaces[i].material.name == MIRROR:
                     propagatingForward = not propagatingForward
-                    print("Direction inverted")
+                    # print("    Direction just inverted")
                 # self.surfaces[i].DrawSurface()  # Draw call =====================
                 # DrawRaybatch(frontRB)# Draw call =====================
                 # plt.draw()# Draw call =====================
@@ -875,8 +884,8 @@ class Lens:
         # plt.pause(30) # Draw call =======
 
         frontRP = frontRP.PruneAll()
-        frontRP.DrawPath(40) # Draw call =======
-        plt.draw()
+        # frontRP.DrawPath(40) # Draw call =======
+        # plt.draw()
         # plt.pause(10)
         
         pos, dir = frontRP.ExitingPairs()
@@ -932,14 +941,16 @@ class Lens:
 
         if (index == 0):
             # Initial surface returns environment material
-            return self.env.RI(raybatch.Wavelength())
+            return self.env.RI(raybatch.Wavelength()), False
         else:
             previousIndex = self._PreviousSurfaceIndex(index)
             if self.surfaces[previousIndex].material.name == MIRROR:
+                # print("    RI lookup: Last surface is mirror")
                 # if last surface is a mirror, get the one before it
-                return self._FindPreviousRI(previousIndex, raybatch)
+                pPrevious = self._PreviousSurfaceIndex(previousIndex)
+                return self.surfaces[pPrevious].RI(raybatch.Wavelength()), True
             else:
-                return self._FindPreviousRI(index, raybatch)
+                return self.surfaces[previousIndex].RI(raybatch.Wavelength()), False
 
 
     def _PreviousSurfaceIndex(self, index):
@@ -948,7 +959,7 @@ class Lens:
             return 0
 
         else:
-            if(isinstance(self.surfaces[index-1], Stop)):
+            if(isinstance(self.surfaces[index-1], Stop) and (not self._hasMirrorElement)):
                 return self._PreviousSurfaceIndex(index - 1)
             else:
                 return index-1

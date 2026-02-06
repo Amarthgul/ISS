@@ -88,7 +88,7 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
     lens = Biotar50mmf14()
     imager = StdImager(lens.BestFocusBFD(5000))
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty()
+    image = imager.AcquireEmpty()
 
     iterationCount = 0
     start = time.time()
@@ -145,7 +145,7 @@ def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthCl
 
     imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AccquireEmpty()
+    image = imager.AcquireEmpty()
 
     iterationCount = 0
     start = time.time()

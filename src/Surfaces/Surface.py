@@ -318,6 +318,8 @@ class Surface:
         normals = self.Normal(intersections)
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
+        # DrawNormal(intersections, normals) # Draw call ======================
+
         # 3) Restrict to non-vignetted rays
         directions = incidentRaybatch.Direction()[~boolVig]
         currentRI = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
@@ -325,7 +327,10 @@ class Surface:
 
         # Swap indices if rays hit from the back side
         if inverted:
+            # print("    Is inverted")
             currentRI, previousRI = previousRI, currentRI
+
+        # print("    RI comparison current: ", currentRI[0], " previous: ", previousRI[0])
 
         # 4) Snell refraction for non-vignetted rays
         refracted, TIR, _temp = Refract(directions, normals, previousRI, currentRI)
@@ -371,7 +376,7 @@ class Surface:
         :return: a raybatch of primary imaging rays (typically refracted), a bool array indicating TIR, a bool array indicating vignetted, and a raybatch that contains all the stray rays
         """
 
-        if (self.material == MIRROR):
+        if (self.material.name == MIRROR):
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
 
