@@ -7,7 +7,7 @@ from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
-from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR, MIRROR
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
@@ -298,9 +298,9 @@ class Surface:
         Given a raybatch, deal with the primary reaction this surface has. For an refractive element, only calculate the refractions, vingette and TIR are returned but not calculated. 
         """
 
-        if (self.material is "MIRROR"):
+        if (self.material.name == "MIRROR"):
             rayBatch, _tir, _vig, _reflectedRB = self.TraceMirror(incidentRaybatch, previousRI, inverted, False)
-            # TODO: add return
+            return rayBatch, _tir, _vig
 
 
         # 1) Geometric intersection and vignetting
@@ -371,14 +371,12 @@ class Surface:
         :return: a raybatch of primary imaging rays (typically refracted), a bool array indicating TIR, a bool array indicating vignetted, and a raybatch that contains all the stray rays
         """
 
-        if (self.material == "MIRROR"):
+        if (self.material == MIRROR):
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
-
-        DrawPoints(intersections)
 
 
         if(self.stopOnly):

@@ -544,7 +544,7 @@ def main():
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonRF45f1.2.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
 
     exampleLens = reader.GetLens()
 
@@ -557,7 +557,7 @@ def main():
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")
 
-    #print(exampleLens.GetInfo())
+    print(exampleLens.GetInfo())
     print(exampleLens.SurfaceReport())
     #print("BFD ", exampleLens.BestFocusBFD(200000))
 

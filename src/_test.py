@@ -444,14 +444,16 @@ def CatadioptricTest():
     cata.DrawLens()
 
     point = PointsSource(bd.array([[0, 0, -5000, 1, 1, 1]]))
-    RB = point.EmitSamplesToward(cata.GetFirstElementSamples(32), 1)
+    RB = point.EmitSamplesToward(cata.GetFirstElementSamples(64), 1)
 
-    pRI = Material("AIR").RI(RB.Wavelength())
-    RB, _TIR, _BoolVig, _Stray = cata.surfaces[0].Trace(RB, pRI)
-    DrawRaybatch(RB)
+    # pRI = Material("AIR").RI(RB.Wavelength())
+    # RB, _TIR, _BoolVig, _Stray = cata.surfaces[0].Trace(RB, pRI)
+    #
+    # pRI = cata.surfaces[0].material.RI(RB.Wavelength())
+    # RB, _TIR, _BoolVig, _Stray = cata.surfaces[1].Trace(RB, pRI)
 
-    pRI = cata.surfaces[0].material.RI(RB.Wavelength())
-    RB, _TIR, _BoolVig, _Stray = cata.surfaces[1].Trace(RB, pRI)
+    RB, _, ref = cata.Propagate(RB)
+
 
     DrawRaybatch(RB)
 

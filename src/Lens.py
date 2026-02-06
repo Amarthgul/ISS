@@ -13,7 +13,7 @@ from xarray.plot import surface
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR
+from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR, MIRROR
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance, RectPath
 from Util.SpatialEllipse import SpatialCircle
@@ -120,7 +120,7 @@ class Lens:
         currentT = constant(0.0)
 
         for i in range(len(self.surfaces)):
-            if self.surfaces[i].material.name == "MIRROR":
+            if self.surfaces[i].material.name == MIRROR:
                 self._hasMirrorElement = True
 
             self.surfaces[i].SetCumulative(bd.copy(currentT))
@@ -206,6 +206,9 @@ class Lens:
         
         :return: primary imaging RB, ray path if recorded, and the reflected RB. 
         """
+
+        if self._hasMirrorElement:
+            return self._CatadioptricPropagate(rayBatch)
 
         if(recordPath):
             self.rayPath = RayPath()
@@ -388,13 +391,16 @@ class Lens:
         index = 1
         for i in self.surfaces:
             if(isinstance(i, Stop)):
-                info += "  STOP \t\t\t\t\t" + "{:.3f}".format(i.thickness) + "\n"
+                info += ("STOP" +
+                         " \t{:.4f}".format(i.radius) +
+                         " \t{:.3f}".format(i.thickness) +
+                         "  \t\t\t\t" + str(i.material.name)+"\n")
             else:
                 info += ("  " + str(index) + ":" +
                          " \t" +  "{:.4f}".format(i.radius) +
                          " \t\t" + "{:.3f}".format(i.thickness) +
-                         " \t" + str(i.material.category) +
-                         " \t"  + str(i.material.name) + "\n")
+                         "   \t" + str(i.material.category) +
+                         " \t\t"  + str(i.material.name) + "\n")
 
             index += 1
 
@@ -406,6 +412,28 @@ class Lens:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+
+    def _CatadioptricPropagate(self, rayBatch):
+
+        propagatingForward = True
+
+        for i in range(len(self.surfaces)):
+
+            rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                rayBatch,
+                previousRI = self._FindPreviousRICata(i, rayBatch),
+                inverted = not propagatingForward)
+
+            if (self.surfaces[i].material.name == MIRROR):
+                # Invert direction whenever encountering a mirror surface
+                propagatingForward = not propagatingForward
+
+            # The index of main RB is where they are after a surface
+            rayBatch.SetIndex(i)
+
+
+        return rayBatch, self.rayPath, None
 
 
     def _SetFirstElementPupil(self):
@@ -433,7 +461,7 @@ class Lens:
 
     def _UpdateCatadioptric(self):
         self._SetFirstElementPupil()
-        # self._TraceFocalPrincipal()
+        self._TraceFocalPrincipal()
 
 
     def _PartitionGroups(self):
@@ -760,7 +788,7 @@ class Lens:
         for i in range(len(self.surfaces)):
             forwardIndex = self.stopIndex - i - 1
             if(forwardIndex >= 0):
-                print("At surface ", forwardIndex)
+                # print("At surface ", forwardIndex)
                 #self.surfaces[forwardIndex].DrawSurface() # Draw call=========
                 for j in range(sampleCount):
                     objectSideRBs[j], _tirs[j], _vigs[j] = self.surfaces[forwardIndex].NaiveTrace(
@@ -817,24 +845,50 @@ class Lens:
         frontRP = RayPath()
         frontRP.Append(frontRB, None, None)
 
-        for i in range(len(self.surfaces)):
-            if(not isinstance(self.surfaces[i], Stop)):
+
+        if (self._hasMirrorElement):
+            propagatingForward = True
+            for i in range(len(self.surfaces)):
+                print("At ", i, " th surface propagating " + (">>>>>" if propagatingForward else "<<<<<"))
                 frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
-                    frontRB, self._FindPreviousRI(i, frontRB))   
-                frontRP.Append(frontRB, _tir, _vig)  
-                # self.surfaces[i].DrawSurface() # Draw call =======
+                    frontRB,
+                    self._FindPreviousRICata(i, frontRB),
+                    inverted = not propagatingForward)
+                if self.surfaces[i].material.name == MIRROR:
+                    propagatingForward = not propagatingForward
+                    print("Direction inverted")
+                # self.surfaces[i].DrawSurface()  # Draw call =====================
+                # DrawRaybatch(frontRB)# Draw call =====================
+                # plt.draw()# Draw call =====================
+                # plt.pause(1)# Draw call =====================
+                frontRP.Append(frontRB, _tir, _vig)
+        else:
+            for i in range(len(self.surfaces)):
+                frontRB, _tir, _vig = self.surfaces[i].NaiveTrace(
+                    frontRB, self._FindPreviousRI(i, frontRB))
+                frontRP.Append(frontRB, _tir, _vig)
+
+
 
         # frontRP.DrawPath(40) # Draw call =======
         # plt.draw() # Draw call =======
         # plt.pause(30) # Draw call =======
 
         frontRP = frontRP.PruneAll()
-        # frontRP.DrawPath(40) # Draw call =======
-        # plt.draw()
+        frontRP.DrawPath(40) # Draw call =======
+        plt.draw()
         # plt.pause(10)
         
         pos, dir = frontRP.ExitingPairs()
-        self.focalPoint = frontRP.FindConvergingPoint(pos, dir)
+
+        pos_m = pos.copy()
+        dir_m = dir.copy()
+        pos_m[:, 1] *= -1  # mirror y position
+        dir_m[:, 1] *= -1  # mirror y direction
+        pos_out = np.vstack([pos, pos_m])
+        dir_out = np.vstack([dir, dir_m])
+
+        self.focalPoint = frontRP.FindConvergingPoint(pos_out, dir_out)
         # DrawPoint(self.focalPoint) # Draw call =======
 
         intersections = frontRP.EndToEndIntersection() 
@@ -868,7 +922,25 @@ class Lens:
 
 
             return self.surfaces[previousIndex].RI(raybatch.Wavelength())
-        
+
+
+    def _FindPreviousRICata(self, index, raybatch):
+        """
+        Find the refractive index of the previous surface. This method is specifically for catadioptric optics, which has a mirror material that requires a repetition of the surface in front of it.
+        """
+
+
+        if (index == 0):
+            # Initial surface returns environment material
+            return self.env.RI(raybatch.Wavelength())
+        else:
+            previousIndex = self._PreviousSurfaceIndex(index)
+            if self.surfaces[previousIndex].material.name == MIRROR:
+                # if last surface is a mirror, get the one before it
+                return self._FindPreviousRI(previousIndex, raybatch)
+            else:
+                return self._FindPreviousRI(index, raybatch)
+
 
     def _PreviousSurfaceIndex(self, index):
 

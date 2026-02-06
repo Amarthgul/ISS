@@ -39,6 +39,7 @@ def Setup3Dplot():
     
     global fig 
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_proj_type('ortho')
     return ax 
     
 if(DEVELOPER_MODE):

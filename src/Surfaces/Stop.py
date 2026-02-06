@@ -1,6 +1,9 @@
-import matplotlib.pyplot as plt
+
+
+
+
 from Util.Backend import backend as bd
-from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR, DEFAULT_MAT_NAME
+from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR, DEFAULT_MAT_NAME, MIRROR
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, DrawEllipse, DrawClearBoundary, DrawSphericalInner
 from .Surface import Surface
 from Material import Material
@@ -35,9 +38,15 @@ class Stop(Surface):
         # The local optical axis remains the same as OBJ FACING 
         self.cumulativeThickness = cumulativeT
         self.frontVertex = bd.array([ZERO, ZERO, cumulativeT])
-        self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT]) 
+        self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])
+        self._radiusDirection = self.frontVertex - self.radiusCenter
 
-        # The front vertex and the radius center are the same for a stop. 
+        if (self.radius == INFINITY):
+            # When r=inf, the cumulative thickness at the edge is the same as the cumulative thickness of the vertex.
+            self.sdCumulative = cumulativeT
+        else:
+            self.sdCumulative = cumulativeT + self.radius + bd.sqrt(
+                self.radius ** TWO - self.clearSemiDiameter ** TWO) * bd.sign(-self.radius)
 
 
     def EnforceSemiDiameter(self, sd):
@@ -66,16 +75,24 @@ class Stop(Surface):
             )
 
 
+    def NaiveTrace(self, incidentRaybatch, previousRI, inverted=False):
+        RB, _TIR, _vig, _stray = self.Trace(incidentRaybatch, previousRI, inverted)
+        return RB, _TIR, _vig
+
 
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
 
-        if (self.material == "MIRROR"):
+        # If the stop is a traditional stop that has no refraction or reflection, just pass the rays directly through
+        if self.clearSemiDiameter == INFINITY:
+            # TODO: add aperture clipping of incident rays
+            incidentLength = incidentRaybatch.value.shape[0]
+            return incidentRaybatch, bd.zeros(incidentLength, dtype=bd.bool_), bd.zeros(incidentLength, dtype=bd.bool_), RayBatch()
+
+        if (self.material.name == MIRROR):
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
         # First find the intersections
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
-
-        DrawPoints(intersections)
 
 
         if (self.stopOnly):
