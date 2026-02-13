@@ -12,7 +12,7 @@ class RayBatch:
     """
     Raybatch data are organized in the form of:
     [
-       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s, (optional)AOV1, (optional)AOV2, ...],
+       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s, C, (optional)AOV1, (optional)AOV2, ...],
        [...], [...], ...
     ]
     """
@@ -23,6 +23,8 @@ class RayBatch:
     # i_Φ:              Polarized Radiance term 2   (8)
     # b:                Polarization ellipse tilt   (9)
     # s:                Surface index               (10)
+    # C:                Color channel of RGB        (11)
+    # Optional AoVs                                 (12+)
 
     def __init__(self, value=None):
         self.value = value
@@ -132,6 +134,10 @@ class RayBatch:
         return self.value[:, 10]
 
 
+    def Channel(self):
+        return  self.value[:, 11]
+
+
     def GetRaysAt(self, index, asRB=True):
         """
         Acquire the rays whose index is at the given value.
@@ -217,6 +223,10 @@ class RayBatch:
             self.value[:, 8] = diag2
         if(tilt is not None):
             self.value[:, 9] = tilt
+
+
+    def GetAoV(self):
+        return self.value[:, 11:]
 
 
     def AppendAOV(self, values):

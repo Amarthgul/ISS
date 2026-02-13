@@ -275,6 +275,80 @@ class RayPath():
         return intersections
 
 
+    def MirrorPath(self, axis="Y"):
+        """
+        Duplicate the raypath and mirror the duplicated copy about the given axis
+        by flipping the corresponding coordinate component (position and direction).
+
+        Example:
+            axis="Y" => y -> -y and v_y -> -v_y for the mirrored copy.
+        The returned RayPath has twice as many rays at every recorded step.
+        """
+
+        # Resolve axis index
+        if isinstance(axis, Axis):
+            ax = axis.value
+        else:
+            a = str(axis).strip().upper()
+            ax_map = {"X": 0, "Y": 1, "Z": 2}
+            if a not in ax_map:
+                raise ValueError(f"MirrorPath axis must be 'X', 'Y', 'Z' (or Axis enum), got: {axis}")
+            ax = ax_map[a]
+
+        out = RayPath()
+
+        # Helper: concat original + mirrored for an (N, ...) array
+        def _dup_and_flip(arr):
+            if arr is None:
+                return None
+            arr0 = bd.asarray(arr)
+            arr1 = bd.copy(arr0)
+            # flip selected component for mirrored copy
+            arr1[:, ax] = -arr1[:, ax]
+            return bd.concatenate((arr0, arr1), axis=0)
+
+        # Helper for boolean masks (N,) or (N,1) etc.
+        def _dup_mask(mask):
+            if mask is None:
+                return None
+            m0 = bd.asarray(mask).astype(bd.bool_)
+            return bd.concatenate((m0, bd.copy(m0)), axis=0)
+
+        # self.position/self.direction might be stored either as list-of-arrays or single array
+        pos_list = self.position if isinstance(self.position, list) else [self.position]
+        dir_list = self.direction if isinstance(self.direction, list) else [self.direction]
+        ref_list = self.reflected if isinstance(self.reflected, list) else [self.reflected]
+        vig_list = self.vignetted if isinstance(self.vignetted, list) else [self.vignetted]
+
+        n_steps = max(len(pos_list), len(dir_list), len(ref_list), len(vig_list))
+
+        out.position = []
+        out.direction = []
+        out.reflected = []
+        out.vignetted = []
+
+        for i in range(n_steps):
+            p = pos_list[i] if i < len(pos_list) else None
+            d = dir_list[i] if i < len(dir_list) else None
+            r = ref_list[i] if i < len(ref_list) else None
+            v = vig_list[i] if i < len(vig_list) else None
+
+            # Positions and directions: duplicate + flip chosen component
+            p2 = _dup_and_flip(p)
+            d2 = _dup_and_flip(d)
+
+            # Masks: duplicate (no flipping needed)
+            r2 = _dup_mask(r)
+            v2 = _dup_mask(v)
+
+            out.position.append(p2)
+            out.direction.append(d2)
+            out.reflected.append(r2)
+            out.vignetted.append(v2)
+
+        return out
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================

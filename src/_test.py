@@ -128,8 +128,8 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    imager = StdImager(78 , horiPx=1920)
-    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
+    imager = StdImager(73 , horiPx=6000)
+    # imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
 
@@ -538,7 +538,7 @@ def main():
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
     # lens.SetAperture(5.6)
@@ -547,7 +547,7 @@ def main():
     # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
     # return
 
-    SpotTesting(lens, computeTime=5 * 60, realTimeUpdate=True)
+    SpotTesting(lens, computeTime=15 * 60, realTimeUpdate=False)
 
     apertureValue = [1.43, 1.5, 1.8, 2, 2.5, 2.8, 3.2, 4, 4.8, 5.6, 6.3, 8, 9, 11]
     interp_values = []
