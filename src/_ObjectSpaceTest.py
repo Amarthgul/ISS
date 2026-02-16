@@ -275,8 +275,8 @@ def main():
     aperture = [None,   None, None, None, 1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
-    # i = 20
-    # StackTest(rendertime, distance[i], "Focus"+str(distance[i]), realTimeUpdate=False)
+    i = 7
+    StackTest(rendertime, distance[i], "Focus"+str(distance[i]), realTimeUpdate=False)
     # i = 21
     # StackTest(rendertime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 

@@ -7,6 +7,7 @@ from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, L
 from Util.Misc import  GridNormalized, PolarToCartesian, ArrayNormalized
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
 from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
+from Util.ColorPDF import ColorPDF
 from Raytracing.RayBatch import RayBatch
 
 
@@ -37,7 +38,13 @@ class PointsSource:
         self.angleInRad = False
 
 
-        self.sampleRecord = None 
+        self.sampleRecord = None
+
+
+        # Whether to use probability density function for wavelength generation, or direct Fraunhofer line replacement
+        self._usePDF = True
+
+
         self._ResetSampleRecord()
 
 
@@ -228,6 +235,15 @@ class PointsSource:
 
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
+
+        if self._usePDF:
+            return self._SamplesToTargetsEmissionChannelBased(sampleSource, targets, jitter, cosineFalloff)
+
+        else:
+            return self._SamplesToTargetsEmissionFraunhoferLine(sampleSource, targets, jitter, addSecondary, cosineFalloff)
+
+
+    def _SamplesToTargetsEmissionFraunhoferLine(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
         """
         Emit rays from all samples towards all targets. This creates a cross emission of MxN size where M is the number
         of samples and N is the number of targets.
@@ -270,12 +286,12 @@ class PointsSource:
         # Color → wavelength & radiant (brightness) mapping
         # ------------------------------------------------------------------
         if addSecondary is not None:
-            wavelengths, radiants = RGBToWavelengthSpotSim(sampleSource.Color(), addCount=addSecondary)
+            wavelengths, radiant = RGBToWavelengthSpotSim(sampleSource.Color(), addCount=addSecondary)
         else:
-            wavelengths, radiants = RGBToWavelengthSameD(sampleSource.Color())
+            wavelengths, radiant = RGBToWavelengthSameD(sampleSource.Color())
 
         # wavelengths: (n, n_lambda)
-        # radiants:    (n, n_lambda)  <-- may have entries > 1 now
+        # radiant:    (n, n_lambda)  <-- may have entries > 1 now
 
         # Expand wavelengths to match (n, m, n_lambda)
         wavelengths = wavelengths[:, bd.newaxis, :]  # (n, 1, n_lambda)
@@ -307,7 +323,7 @@ class PointsSource:
             aov_grid = bd.tile(aov_grid, (1, m, 1))  # (n, m, k)
 
         # ------------------------------------------------------------------
-        # Build rays for each wavelength, allowing radiants > 1
+        # Build rays for each wavelength, allowing radiant > 1
         # and propagate AOVs in lockstep with rays
         # ------------------------------------------------------------------
         appended_all_rays = []  # list of (N_i, 7)
@@ -318,8 +334,8 @@ class PointsSource:
             rays_i = bd.concatenate([base_pd, wavelength_slices[i]], axis=2)
 
             # Expected ray count per source for this wavelength:
-            # L_j = radiants[j, i], possibly > 1
-            L = radiants[:, i]  # (n,)
+            # L_j = radiant[j, i], possibly > 1
+            L = radiant[:, i]  # (n,)
             base = bd.floor(L).astype(bd.int32)  # integer part
             frac = L - base  # fractional part in [0, 1)
 
@@ -399,6 +415,127 @@ class PointsSource:
             core = bd.concatenate([core, aov_appended], axis=1)
 
         return RayBatch(core)
+
+
+    def _SamplesToTargetsEmissionChannelBased(self, sampleSource, targets, jitter=None, cosineFalloff=True):
+
+
+
+        # ------------------------------------------------------------------
+        # Geometry: expand source positions and directions (same as _SamplesToTargetsEmission)
+        # ------------------------------------------------------------------
+        sourcePos = bd.copy(sampleSource.Position())
+        n = sourcePos.shape[0]
+        m = targets.shape[0]
+
+        sourcePos = sourcePos[:, bd.newaxis, :]  # (n, 1, 3)
+        sourcePos = bd.tile(sourcePos, (1, m, 1))  # (n, m, 3)
+
+        if jitter is not None:
+            RefreshRNG()
+            if bd.ndim(jitter) == 0:
+                mag = bd.full(sourcePos.shape[:2], float(jitter))  # (n, m)
+            else:
+                # by contract: jitter is either scalar or per-source 1D
+                mag = bd.tile(jitter[:, bd.newaxis], (1, m))  # (n, m)
+
+            mag_xyz = mag[..., bd.newaxis] * bd.array([1, 1, 0])
+            jitter_off = RNG.uniform(low=-mag_xyz, high=mag_xyz)
+            sourcePos += jitter_off
+
+        targetsExpanded = targets[bd.newaxis, :, :]  # (1, m, 3)
+
+        dirCross = targetsExpanded - sourcePos  # (n, m, 3)
+        dirCross = GridNormalized(dirCross)
+
+        base_pd = bd.concatenate([sourcePos, dirCross], axis=2)  # (n, m, 6)
+
+        # ------------------------------------------------------------------
+        # Cosine^4 falloff mask
+        # ------------------------------------------------------------------
+        if cosineFalloff:
+            cosTheta = bd.abs(dirCross[..., 2]) ** 4  # (n, m)
+            randCos = RNG.rand(*cosTheta.shape)
+            angMask = randCos < cosTheta
+        else:
+            angMask = bd.ones(dirCross.shape[:2], dtype=bool)
+
+        # ------------------------------------------------------------------
+        # AOV grid (per point, per target)
+        # ------------------------------------------------------------------
+        pointAOV = sampleSource.AOV()  # (n, k) or None
+        aov_grid = None
+        if pointAOV is not None:
+            k = pointAOV.shape[1]
+            aov_grid = pointAOV[:, bd.newaxis, :]  # (n, 1, k)
+            aov_grid = bd.tile(aov_grid, (1, m, 1))  # (n, m, k)
+
+        # ------------------------------------------------------------------
+        # Build rays per source using channel-tagged wavelength samples
+        # (PDF already handles channel intensity → sample density)
+        # ------------------------------------------------------------------
+        appended_all = []  # list of (#, 12) or (#, 12+k) blocks
+
+        # polarization/meta columns template
+        temp = bd.ones(4)
+        temp[0] = ONE  # Sagittal radiant
+        temp[1] = ONE  # Tangential radiant
+        temp[2] = INIT_ELLIPSE_TILT  # Phase difference
+        temp[3] = bd.zeros_like(temp[3])  # Surface index
+
+        colorConverter = ColorPDF()
+        colors = sampleSource.Color()  # (n, 3)
+
+        for si in range(n):
+            # wlch: (q, 2) where col0=λ, col1=channel index (0/1/2)
+            wlch = colorConverter.ColorToWavelength(colors[si:si + 1, :])  # per-source
+            if wlch.shape[0] == 0:
+                continue
+
+            # Base rays for this source to all targets: (m, 6)
+            base_i = base_pd[si]  # (m, 6)
+            mask_i = angMask[si]  # (m,)
+            if bd.any(mask_i) == False:
+                continue
+
+            # AOV slice (m, k) if any
+            aov_i = aov_grid[si] if aov_grid is not None else None
+
+            # For each sampled wavelength-channel pair, create rays to all targets
+            for j in range(wlch.shape[0]):
+                lam = wlch[j, 0]
+                ch = wlch[j, 1]
+
+                lam_col = bd.full((m, 1), lam, dtype=base_i.dtype)  # (m, 1)
+                rays7 = bd.concatenate([base_i, lam_col], axis=1)  # (m, 7)
+
+                # Apply angle mask
+                rays7 = rays7[mask_i]  # (N, 7)
+                if rays7.shape[0] == 0:
+                    continue
+
+                # Core 11 cols: pos(3) dir(3) λ(1) + 4 meta
+                core11 = bd.concatenate([rays7, bd.tile(temp, (rays7.shape[0], 1))], axis=1)  # (N, 11)
+
+                # Append channel at index 11 (12th column)
+                ch_col = bd.full((core11.shape[0], 1), ch, dtype=core11.dtype)  # (N, 1)
+                core12 = bd.concatenate([core11, ch_col], axis=1)  # (N, 12)
+
+                # Append AOV after channel (keeps channel at col index 11)
+                if aov_i is not None:
+                    aov_sel = aov_i[mask_i]  # (N, k)
+                    core12 = bd.concatenate([core12, aov_sel], axis=1)
+
+                appended_all.append(core12)
+
+        if len(appended_all) == 0:
+            # Empty RayBatch with correct column count:
+            # core 12 (includes channel) + optional AOV
+            col_count = 12 + (pointAOV.shape[1] if pointAOV is not None else 0)
+            return RayBatch(bd.zeros((0, col_count)))
+
+        out = bd.concatenate(appended_all, axis=0)
+        return RayBatch(out)
 
 
     def _SelectLeastSampled(self, sampleCount):

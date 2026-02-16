@@ -40,7 +40,9 @@ class StdImager(Surface):
         # If gate points are not set, then assume it is flat and perpendicular to the optical axis, then use the 2 following properties to calculate the gate points
         self._lensLength = 0 # Length of the lens in front of the imager
         self._zPos = 0
-        
+
+        # Whether to use probability density function for wavelength generation, or direct Fraunhofer line replacement
+        self._usePDF = True
 
         self._Start()
 
@@ -121,8 +123,18 @@ class StdImager(Surface):
 
         return ~(heightMask | widthMask)
 
-    
-    def _integralRays(self, intersectRayBatch, bitDepth=8, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+
+    def _integralRays(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+
+        if self._usePDF:
+            return self._integralRaysChannelBased(intersectRayBatch, baseImg, overExpNoiseRemoval,polarized)
+
+        else:
+            return self._integralRaysFraunhoferLine(intersectRayBatch, baseImg, overExpNoiseRemoval, polarized)
+
+
+
+    def _integralRaysFraunhoferLine(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
         """
         Taking integral over the rays arriving at the image plane. 
 
@@ -201,6 +213,67 @@ class StdImager(Surface):
         
         # Monte Carlo addition 
         if(baseImg is not None):
+            rgb_image = baseImg + rgb_image
+
+        return rgb_image
+
+
+    def _integralRaysChannelBased(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+        """
+        Channel-based integral:
+          - Uses rayBatch.Channel() (0=R, 1=G, 2=B) to directly deposit energy
+          - Uses PolarizedRadiance(polarized=...) for intensity (same as _integralRays)
+          - Optionally prunes over-exposed outliers (same idea as _integralRays)
+          - Optionally adds onto baseImg (Monte Carlo accumulation)
+        """
+
+        pxPitch = self.width / self.horizontalPx
+        pxOffset = bd.array([self.horizontalPx / 2, self.verticalPx / 2, 0])
+
+        # Rays that arrived at the image plane
+        rayHitMask = bd.isclose(intersectRayBatch.value[:, 2], self._zPos)
+
+        # Convert hit positions to pixel coords
+        rayPos = bd.floor(intersectRayBatch.Position()[rayHitMask] / pxPitch + pxOffset).astype(int)[:, :2]
+
+        # Radiance + channel id per ray
+        radiant = intersectRayBatch.PolarizedRadiance(polarized)[rayHitMask]
+        chan = intersectRayBatch.Channel()[rayHitMask].astype(int)
+
+        # Mask out hits outside the imager area (avoid negative indexing issues)
+        in_bounds = (
+                (rayPos[:, 0] >= 0) & (rayPos[:, 0] < self.horizontalPx) &
+                (rayPos[:, 1] >= 0) & (rayPos[:, 1] < self.verticalPx)
+        )
+        rayPos = rayPos[in_bounds]
+        radiant = radiant[in_bounds]
+        chan = chan[in_bounds]
+
+        # Create pixel grids
+        radiantGridR = bd.zeros((self.horizontalPx, self.verticalPx))
+        radiantGridG = bd.zeros((self.horizontalPx, self.verticalPx))
+        radiantGridB = bd.zeros((self.horizontalPx, self.verticalPx))
+
+        # Deposit per channel (and prune outliers per-channel, like the wavelength loop did)
+        for c, grid in ((0, radiantGridR), (1, radiantGridG), (2, radiantGridB)):
+            m = (chan == c)
+            if not bd.any(m):
+                continue
+
+            pos_c = rayPos[m]
+            rad_c = radiant[m]
+
+            # Try to remove the outlier over-exposed rays (same condition style as _integralRays)
+            if (overExpNoiseRemoval is not None) and (bd.max(rad_c) > bd.mean(rad_c)):
+                rad_c = self._PruneHighOutliers(rad_c, overExpNoiseRemoval)
+
+            bd.add.at(grid, (pos_c[:, 0], pos_c[:, 1]), rad_c)
+
+        # Stack to RGB image
+        rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
+
+        # Monte Carlo accumulation
+        if baseImg is not None:
             rgb_image = baseImg + rgb_image
 
         return rgb_image

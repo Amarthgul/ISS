@@ -28,7 +28,7 @@ class ColorPDF:
         self.alphaB = 0
 
 
-    def ColorToWavelength(self, colors, perChannelSample=2048):
+    def ColorToWavelength(self, colors, perChannelSample=2):
         """
         Convert many colors into a batch of wavelengths.
 
@@ -98,7 +98,7 @@ class ColorPDF:
         return bd.concatenate(parts, axis=0)
 
 
-    def WavelengthAggregation(self):
+    def WavelengthAggregation(self, anotherPDF):
 
         pass
 
@@ -107,6 +107,10 @@ class ColorPDF:
 
         PlotWavelengthHistogram(inputWavelengths)
 
+
+# ==================================================================
+""" ======================= End of class ======================= """
+# ==================================================================
 
 
 def PlotWavelengthHistogram(wavelength_ch, bin_nm=10.0, lam_min=380.0, lam_max=780.0):

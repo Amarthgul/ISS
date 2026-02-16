@@ -133,6 +133,7 @@ class Pupil(VirtualSurface):
             return self._pupilPointSamples
 
         # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples.
+        # A year later: actually no let's just set the default to be really small and return a new one every time...
         if(sampleCount > self._pupilPointSamples.shape[0]):
             if self._alphaShape is not None:
                 self._ResetSamplePool(4096)
@@ -248,7 +249,7 @@ class Pupil(VirtualSurface):
         self._workingDepth = bd.concatenate([self._zDepth[:insert_index], bd.array([self._workingDepth])])
         
 
-    def _ResetSamplePool(self, poolSize=2048):
+    def _ResetSamplePool(self, poolSize=128):
         """
         Regenerate the sample pool of points for the pupil based on the current pupil shape and size.
 

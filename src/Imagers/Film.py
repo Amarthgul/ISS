@@ -1,10 +1,10 @@
 
 
-from .Imager import * 
+from .Standard import StdImager
 
 
 
-class Film(Imager):
+class Film(StdImager):
     def __init__(self):
         ISO = 100 
 

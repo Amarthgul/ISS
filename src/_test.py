@@ -107,7 +107,7 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     return elpased 
 
 
-def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime = 5120, realTimeUpdate = False):
+def SpotTesting(lens, objectDistance = 13500, focusDistance = 13500, computeTime = 5120, realTimeUpdate = False):
     global FrameCount
 
 
@@ -129,7 +129,7 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime
     # print(lens.GetInfo())
 
     imager = StdImager(73 , horiPx=6000)
-    # imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
 
@@ -145,7 +145,7 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime
         
 
     while(True):
-        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(4096), sample*sample, addSecondary=9)
+        mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(2048), sample*sample, addSecondary=9)
 
         mainRB, mainRP, _ = lens.Propagate(mainRB)
 
@@ -174,7 +174,7 @@ def SpotTesting(lens, objectDistance = 200000, focusDistance = 5000, computeTime
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = r"Tamron500"+str(objectDistance)+"_"+str(FrameCount)
+            fn = r"JupiterInFocus"+str(objectDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results", fn)
             break
 
@@ -508,6 +508,7 @@ def AsphericTest():
 
 def NewWavelengthTest():
     from Util.ColorPDF import ColorPDF
+    from ObjectSpace.Points import PointsSource
 
     colorData = bd.array([[1, 0, 0]])
 
@@ -553,7 +554,7 @@ def main():
     # lens = CanonFD50mmf18()
     # lens = CanonEF50mmf12L()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    # reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Jupiter-12.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
     # lens.SetAperture(5.6)
@@ -562,7 +563,7 @@ def main():
     # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
     # return
 
-    SpotTesting(lens, computeTime=15 * 60, realTimeUpdate=False)
+    SpotTesting(lens, computeTime=30 * 60, realTimeUpdate=False)
 
     apertureValue = [1.43, 1.5, 1.8, 2, 2.5, 2.8, 3.2, 4, 4.8, 5.6, 6.3, 8, 9, 11]
     interp_values = []
@@ -619,4 +620,4 @@ def main():
 
 
 if __name__ == "__main__":
-    NewWavelengthTest()
+    main()
