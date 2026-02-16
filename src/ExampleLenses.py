@@ -544,7 +544,7 @@ def main():
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    # reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonFD85f2.8SoftFocus.zmx"))
 
     exampleLens = reader.GetLens()
 

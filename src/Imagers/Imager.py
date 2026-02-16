@@ -201,6 +201,12 @@ class Imager():
         return rgb_image
 
 
+        def _integralRaysChannelBased(self, bitDepth = 8, plotResult = False, baseImg=None, valueClamp=None):
+
+
+            pass
+
+
 
 def main():
     imager = Imager() 

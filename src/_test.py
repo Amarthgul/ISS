@@ -505,6 +505,21 @@ def RefDepthTest():
 def AsphericTest():
     from Surfaces.EvenAspheric import EvenAspheric
 
+
+def NewWavelengthTest():
+    from Util.ColorPDF import ColorPDF
+
+    colorData = bd.array([[1, 0, 0]])
+
+    converter = ColorPDF()
+    wa = converter.ColorToWavelength(colorData, perChannelSample=64)
+
+    print(wa)
+    converter.WavelengthVis(wa)
+
+
+
+
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
@@ -604,4 +619,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    NewWavelengthTest()

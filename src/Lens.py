@@ -884,7 +884,9 @@ class Lens:
         # plt.pause(30) # Draw call =======
 
         frontRP = frontRP.PruneAll()
-        # frontRP.DrawPath(40) # Draw call =======
+
+        # mirrorRP = frontRP.MirrorPath()
+        # mirrorRP.DrawPath(40) # Draw call =======
         # plt.draw()
         # plt.pause(10)
         

@@ -18,7 +18,7 @@ class RayBatch:
     """
     # x, y, z:          Root position of the ray    (0, 1, 2)
     # v_x, v_y, v_z:    Direction of the ray        (3, 4, 5)
-    # λ:                Wavelength of the ray       (6)
+    # λ:                Wavelength of the ray in nm (6)
     # Φ:                Polarized Radiance term 1   (7)
     # i_Φ:              Polarized Radiance term 2   (8)
     # b:                Polarization ellipse tilt   (9)
