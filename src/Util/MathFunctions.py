@@ -2,7 +2,7 @@
 
 
 from Util.Backend import backend as bd 
-
+from Util.Globals import ONE
 
 
 def NewtonSolver(f, df, x0, tol=1e-6, max_iter=100):
@@ -30,3 +30,28 @@ def NewtonSolver(f, df, x0, tol=1e-6, max_iter=100):
             return x_new
         x = x_new
     return x
+
+
+
+def Erf(x):
+    """
+    erf approximation (Abramowitz-Stegun 7.1.26), bd-friendly (NumPy/CuPy)
+    """
+    # constants
+    p = 0.3275911
+    a1 = 0.254829592
+    a2 = -0.284496736
+    a3 = 1.421413741
+    a4 = -1.453152027
+    a5 = 1.061405429
+
+    sign = bd.sign(x)
+    ax = bd.abs(x)
+    t = ONE / (ONE + p * ax)
+
+    # Horner polynomial
+    poly = (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t)
+    y = ONE - poly * bd.exp(-ax * ax)
+
+    return sign * y
+
