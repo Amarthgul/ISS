@@ -171,25 +171,33 @@ class ColorPDF:
 
         import numpy as np
         import matplotlib.pyplot as plt
+        from Util.Backend import backend_name
 
         # Visible-ish range
-        x = np.linspace(380.0, 780.0, 2000)
+        x = bd.linspace(380.0, 780.0, 2000)
 
-        muR = float(LambdaLines[self.lineR])
-        muG = float(LambdaLines[self.lineG])
-        muB = float(LambdaLines[self.lineB])
+        muR = LambdaLines[self.lineR]
+        muG = LambdaLines[self.lineG]
+        muB = LambdaLines[self.lineB]
 
-        sigR = float(self.sigmaR)
-        sigG = float(self.sigmaG)
-        sigB = float(self.sigmaB)
+        sigR = self.sigmaR
+        sigG = self.sigmaG
+        sigB = self.sigmaB
 
-        aR = float(self.alphaR)
-        aG = float(self.alphaG)
-        aB = float(self.alphaB)
+        aR = self.alphaR
+        aG = self.alphaG
+        aB = self.alphaB
 
         yR = SkewNormPDF(x, muR, sigR, aR) * self.normGainR
         yG = SkewNormPDF(x, muG, sigG, aG) * self.normGainG
         yB = SkewNormPDF(x, muB, sigB, aB) * self.normGainB
+
+        # Plt, again, does not accept cupy
+        if backend_name == "cupy":
+            x = x.get()
+            yR = yR.get()
+            yG = yG.get()
+            yB = yB.get()
 
         plt.figure()
         plt.plot(x, yR, color=(1.0, 0.0, 0.0), label=f"R: μ={muR:.2f}nm σ={sigR:g} α={aR:g}")

@@ -166,7 +166,7 @@ def StackTest(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aper
 
     while (True):
         recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
@@ -233,7 +233,11 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
         lens.SetAperture(aperture)
 
     sr = ColorPDF()
-    sr.normGainB = 1.25
+    #sr.gainR = 1.75
+    sr.gainG = 0.75
+    #sr.sigmaG = 50
+    #sr.sigmaB = 50
+    sr.gainB = 1.75
     imager = Film(sr, lens.BestFocusBFD(focusDistance))
     #imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
@@ -249,7 +253,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 
     while (True):
         recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
@@ -331,7 +335,7 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
 
     while (True):
         recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
@@ -459,14 +463,14 @@ def main():
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
-    rendertime = 3 * 60 * 60
+    rendertime = 2 * 60
     aperture = [None,   None, None, None, 1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTest(rendertime, distance[i], "newPDFSeriesFilm", realTimeUpdate=True)
-    StackTestFilmBalance(rendertime, distance[i], "newPDFSeriesBlue", realTimeUpdate=True)
-    StackTestDigital(rendertime, distance[i], "newPDFSeriesStd", realTimeUpdate=True)
+    #StackTest(rendertime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
+    StackTestFilmBalance(rendertime, distance[i], "WitGainChangeB", realTimeUpdate=False)
+    # StackTestDigital(rendertime, distance[i], "newPDFSeriesStd", realTimeUpdate=True)
     # i = 21
     # StackTest(rendertime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 

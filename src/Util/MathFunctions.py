@@ -1,7 +1,8 @@
 
 
 
-from Util.Backend import backend as bd 
+from Util.Backend import backend as bd
+from Util.Backend import backend_name
 from Util.Globals import ONE, TWO
 
 
@@ -69,5 +70,4 @@ def SkewNormPDF(x, mu, sigma, alpha):
     phi = (ONE / bd.sqrt(TWO * bd.pi)) * bd.exp(-0.5 * z * z)
     p = Phi(bd.array(alpha) * z)
     return (TWO / bd.array(sigma)) * phi * p
-
 

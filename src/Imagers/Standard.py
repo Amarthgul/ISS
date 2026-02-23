@@ -225,6 +225,12 @@ class StdImager(Surface):
           - Uses PolarizedRadiance(polarized=...) for intensity (same as _integralRays)
           - Optionally prunes over-exposed outliers (same idea as _integralRays)
           - Optionally adds onto baseImg (Monte Carlo accumulation)
+
+        Extension hooks (no-ops in StdImager, override in subclasses):
+          - _ApplyIncidentRayEffects: modify per-ray (rayPos/radiant/chan/wavelength) before deposition
+          - _ApplyColorPDF: modify per-ray radiance using wavelength/channel (Film-like behavior)
+          - _ApplyHalation: image-domain effect needing incident information (e.g. halation bloom)
+          - _ApplyGrainAndNoise: image-domain noise/grain effect needing radiance image
         """
 
         pxPitch = self.width / self.horizontalPx
@@ -236,9 +242,10 @@ class StdImager(Surface):
         # Convert hit positions to pixel coords
         rayPos = bd.floor(intersectRayBatch.Position()[rayHitMask] / pxPitch + pxOffset).astype(int)[:, :2]
 
-        # Radiance + channel id per ray
+        # Per-ray radiance + channel id + wavelength
         radiant = intersectRayBatch.PolarizedRadiance(polarized)[rayHitMask]
         chan = intersectRayBatch.Channel()[rayHitMask].astype(int)
+        wavelength = intersectRayBatch.Wavelength()[rayHitMask]
 
         # Mask out hits outside the imager area (avoid negative indexing issues)
         in_bounds = (
@@ -248,6 +255,27 @@ class StdImager(Surface):
         rayPos = rayPos[in_bounds]
         radiant = radiant[in_bounds]
         chan = chan[in_bounds]
+        wavelength = wavelength[in_bounds]
+
+        # =================================================================================================
+        # Hook: allow subclasses to alter rays before deposition (e.g. CFA shift, lateral scattering, etc.)
+        rayPos, radiant, chan, wavelength = self._ApplyIncidentRayEffects(
+            intersectRayBatch=intersectRayBatch,
+            rayPos=rayPos,
+            radiant=radiant,
+            chan=chan,
+            wavelength=wavelength
+        )
+
+        # =================================================================================================
+        # Hook: spectral / channel weighting (default identity in StdImager)
+        radiant = self._ApplyColorPDF(
+            intersectRayBatch=intersectRayBatch,
+            rayPos=rayPos,
+            radiant=radiant,
+            wavelength=wavelength,
+            chan=chan
+        )
 
         # Create pixel grids
         radiantGridR = bd.zeros((self.horizontalPx, self.verticalPx))
@@ -265,7 +293,7 @@ class StdImager(Surface):
 
             # Try to remove the outlier over-exposed rays (same condition style as _integralRays)
             if (overExpNoiseRemoval is not None) and (bd.max(rad_c) > bd.mean(rad_c)):
-                print(self._IncidentStats(intersectRayBatch))
+                # print(self._IncidentStats(intersectRayBatch))
                 rad_c = self._PruneHighOutliers(rad_c, overExpNoiseRemoval)
 
             bd.add.at(grid, (pos_c[:, 0], pos_c[:, 1]), rad_c)
@@ -273,10 +301,63 @@ class StdImager(Surface):
         # Stack to RGB image
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
 
+        # =================================================================================================
+        # Hook: image-domain effects that may require incident info (e.g. halation)
+        rgb_image = self._ApplyHalation(
+            intersectRayBatch=intersectRayBatch,
+            rgb_image=rgb_image
+        )
+
+        # =================================================================================================
+        # Hook: image-domain noise/grain
+        rgb_image = self._ApplyGrainAndNoise(
+            rgb_image=rgb_image
+        )
+
         # Monte Carlo accumulation
         if baseImg is not None:
             rgb_image = baseImg + rgb_image
 
+        return rgb_image
+
+
+    def _ApplyIncidentRayEffects(self, intersectRayBatch, rayPos, radiant, chan, wavelength):
+        """Hook for per-ray manipulations before deposition.
+
+        Use this for effects that need the incident rays, e.g.:
+          - CFA-induced spatial color shift / channel mixing
+          - lateral scattering / pre-blur approximations
+          - per-ray clipping / masking based on direction / angle, etc.
+
+        Must return (rayPos, radiant, chan, wavelength).
+        """
+        return rayPos, radiant, chan, wavelength
+
+
+    def _ApplyColorPDF(self, intersectRayBatch, rayPos, radiant, wavelength, chan):
+        """Hook for spectral/channel weighting (Film override point).
+
+        Default: identity (no spectral weighting).
+        Must return radiant (same shape as input).
+        """
+        return radiant
+
+
+    def _ApplyHalation(self, intersectRayBatch, rgb_image):
+        """Hook for image-domain halation / bloom-like effects.
+
+        Default: identity.
+        Must return rgb_image.
+        """
+        return rgb_image
+
+
+    def _ApplyGrainAndNoise(self, rgb_image):
+        """Hook for image-domain grain/noise.
+
+        Default: identity.
+        Must return rgb_image.
+        """
         return rgb_image
 
 
