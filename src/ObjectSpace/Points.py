@@ -1,12 +1,12 @@
 
-
+import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized, PolarToCartesian, ArrayNormalized
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
-from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG
+from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG, LambdaLines, ZERO, COLOR_PDF
 from Util.ColorPDF import ColorPDF
 from Raytracing.RayBatch import RayBatch
 
@@ -120,6 +120,8 @@ class PointsSource:
         sourceDuplicate.isCartesian = self.isCartesian
         sourceDuplicate.angleInRad = self.angleInRad
 
+        #print("Sample min/max on master:", bd.min(self.sampleRecord), bd.max(self.sampleRecord))
+
         # If the sources come from a vari depth image, the jitters may be a 1D array corresponding to each source
         if (bd.ndim(jitter) == 1): jitter = jitter[selectedIndices]
 
@@ -222,6 +224,42 @@ class PointsSource:
         return result
 
 
+    def Stats(self):
+        if self.value is None or self.value.shape[0] == 0:
+            return "No points."
+
+        colors = self.Color()
+        if colors is None or colors.size == 0:
+            return "No color data."
+
+        def _cpu(x):
+            # CuPy arrays have .get(); NumPy arrays/scalars don't.
+            return x.get() if hasattr(x, "get") else x
+
+        # Global min/max across all RGB entries
+        cmin = _cpu(bd.min(colors))
+        cmax = _cpu(bd.max(colors))
+
+        # Per-channel mean/std (RGB)
+        mean_rgb = _cpu(bd.mean(colors, axis=0))
+        std_rgb = _cpu(bd.std(colors, axis=0))
+
+        # Ensure plain Python floats for nicer formatting
+        cmin = float(cmin)
+        cmax = float(cmax)
+
+        mr, mg, mb = (float(mean_rgb[0]), float(mean_rgb[1]), float(mean_rgb[2]))
+        sr, sg, sb = (float(std_rgb[0]), float(std_rgb[1]), float(std_rgb[2]))
+
+        return (
+            "PointsSource Color Stats:\n"
+            f"  Min: {cmin:.6g}\n"
+            f"  Max: {cmax:.6g}\n"
+            f"  Mean (R,G,B): [{mr:.6g}, {mg:.6g}, {mb:.6g}]\n"
+            f"  Std  (R,G,B): [{sr:.6g}, {sg:.6g}, {sb:.6g}]"
+        )
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
@@ -236,7 +274,7 @@ class PointsSource:
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
 
-        if self._usePDF:
+        if COLOR_PDF:
             return self._SamplesToTargetsEmissionChannelBased(sampleSource, targets, jitter, cosineFalloff)
 
         else:
@@ -419,8 +457,6 @@ class PointsSource:
 
     def _SamplesToTargetsEmissionChannelBased(self, sampleSource, targets, jitter=None, cosineFalloff=True):
 
-
-
         # ------------------------------------------------------------------
         # Geometry: expand source positions and directions (same as _SamplesToTargetsEmission)
         # ------------------------------------------------------------------
@@ -428,26 +464,20 @@ class PointsSource:
         n = sourcePos.shape[0]
         m = targets.shape[0]
 
-        sourcePos = sourcePos[:, bd.newaxis, :]  # (n, 1, 3)
-        sourcePos = bd.tile(sourcePos, (1, m, 1))  # (n, m, 3)
+        sourcePos = bd.tile(sourcePos[:, bd.newaxis, :], (1, m, 1))  # (n, m, 3)
 
         if jitter is not None:
-            RefreshRNG()
+            # NOTE: do NOT reseed RNG here; let it advance naturally.
             if bd.ndim(jitter) == 0:
                 mag = bd.full(sourcePos.shape[:2], float(jitter))  # (n, m)
             else:
-                # by contract: jitter is either scalar or per-source 1D
                 mag = bd.tile(jitter[:, bd.newaxis], (1, m))  # (n, m)
 
             mag_xyz = mag[..., bd.newaxis] * bd.array([1, 1, 0])
             jitter_off = RNG.uniform(low=-mag_xyz, high=mag_xyz)
             sourcePos += jitter_off
 
-        targetsExpanded = targets[bd.newaxis, :, :]  # (1, m, 3)
-
-        dirCross = targetsExpanded - sourcePos  # (n, m, 3)
-        dirCross = GridNormalized(dirCross)
-
+        dirCross = GridNormalized(targets[bd.newaxis, :, :] - sourcePos)  # (n, m, 3)
         base_pd = bd.concatenate([sourcePos, dirCross], axis=2)  # (n, m, 6)
 
         # ------------------------------------------------------------------
@@ -466,76 +496,126 @@ class PointsSource:
         pointAOV = sampleSource.AOV()  # (n, k) or None
         aov_grid = None
         if pointAOV is not None:
-            k = pointAOV.shape[1]
-            aov_grid = pointAOV[:, bd.newaxis, :]  # (n, 1, k)
-            aov_grid = bd.tile(aov_grid, (1, m, 1))  # (n, m, k)
+            aov_grid = bd.tile(pointAOV[:, bd.newaxis, :], (1, m, 1))  # (n, m, k)
 
         # ------------------------------------------------------------------
-        # Build rays per source using channel-tagged wavelength samples
-        # (PDF already handles channel intensity → sample density)
+        # Vectorized wavelength sampling + emission build (multi-sample per channel)
         # ------------------------------------------------------------------
-        appended_all = []  # list of (#, 12) or (#, 12+k) blocks
-
-        # polarization/meta columns template
-        temp = bd.ones(4)
-        temp[0] = ONE  # Sagittal radiant
-        temp[1] = ONE  # Tangential radiant
-        temp[2] = INIT_ELLIPSE_TILT  # Phase difference
-        temp[3] = bd.zeros_like(temp[3])  # Surface index
-
         colorConverter = ColorPDF()
         colors = sampleSource.Color()  # (n, 3)
 
-        for si in range(n):
-            # wlch: (q, 2) where col0=λ, col1=channel index (0/1/2)
-            wlch = colorConverter.ColorToWavelength(colors[si:si + 1, :])  # per-source
-            if wlch.shape[0] == 0:
-                continue
+        # No per-point normalization. Use raw RGB as expected multiplier.
+        wR = bd.maximum(colors[:, 0] * bd.array(colorConverter.normGainR), ZERO)
+        wG = bd.maximum(colors[:, 1] * bd.array(colorConverter.normGainG), ZERO)
+        wB = bd.maximum(colors[:, 2] * bd.array(colorConverter.normGainB), ZERO)
 
-            # Base rays for this source to all targets: (m, 6)
-            base_i = base_pd[si]  # (m, 6)
-            mask_i = angMask[si]  # (m,)
-            if bd.any(mask_i) == False:
-                continue
+        muR = LambdaLines[colorConverter.lineR]
+        muG = LambdaLines[colorConverter.lineG]
+        muB = LambdaLines[colorConverter.lineB]
 
-            # AOV slice (m, k) if any
-            aov_i = aov_grid[si] if aov_grid is not None else None
+        # meta columns (radiance stays ONE; we increase sample count instead)
+        temp = bd.ones(4)
+        temp[0] = ONE  # Sagittal radiant
+        temp[1] = ONE  # Tangential radiant
+        temp[2] = INIT_ELLIPSE_TILT
+        temp[3] = bd.zeros_like(temp[3])
 
-            # For each sampled wavelength-channel pair, create rays to all targets
-            for j in range(wlch.shape[0]):
-                lam = wlch[j, 0]
-                ch = wlch[j, 1]
+        blocks = []
 
-                lam_col = bd.full((m, 1), lam, dtype=base_i.dtype)  # (m, 1)
-                rays7 = bd.concatenate([base_i, lam_col], axis=1)  # (m, 7)
+        def _append_core_from_flat(base_flat, lam_flat, ch_idx, aov_flat=None):
+            # base_flat: (N,6), lam_flat: (N,)
+            rays7 = bd.concatenate([base_flat, lam_flat[:, bd.newaxis]], axis=1)
+            core11 = bd.concatenate([rays7, bd.tile(temp, (rays7.shape[0], 1))], axis=1)
+            ch_col = bd.full((core11.shape[0], 1), bd.array(float(ch_idx)), dtype=core11.dtype)
+            core12 = bd.concatenate([core11, ch_col], axis=1)
+            if aov_flat is not None:
+                core12 = bd.concatenate([core12, aov_flat], axis=1)
+            blocks.append(core12)
 
-                # Apply angle mask
-                rays7 = rays7[mask_i]  # (N, 7)
-                if rays7.shape[0] == 0:
-                    continue
+        def _emit_integer_sheet(keep_src_mask, lam_per_src, ch_idx):
+            # This keeps your existing integer-copy behavior:
+            # one wavelength per source, replicated across all targets, masked by angMask.
+            if not bd.any(keep_src_mask):
+                return
 
-                # Core 11 cols: pos(3) dir(3) λ(1) + 4 meta
-                core11 = bd.concatenate([rays7, bd.tile(temp, (rays7.shape[0], 1))], axis=1)  # (N, 11)
+            base_c = base_pd[keep_src_mask]  # (ns, m, 6)
+            mask_c = angMask[keep_src_mask]  # (ns, m)
+            ns = base_c.shape[0]
 
-                # Append channel at index 11 (12th column)
-                ch_col = bd.full((core11.shape[0], 1), ch, dtype=core11.dtype)  # (N, 1)
-                core12 = bd.concatenate([core11, ch_col], axis=1)  # (N, 12)
+            base_flat = bd.reshape(base_c, (ns * m, 6))
+            mask_flat = bd.reshape(mask_c, (ns * m,))
+            base_flat = base_flat[mask_flat]
 
-                # Append AOV after channel (keeps channel at col index 11)
-                if aov_i is not None:
-                    aov_sel = aov_i[mask_i]  # (N, k)
-                    core12 = bd.concatenate([core12, aov_sel], axis=1)
+            lam_rep = bd.repeat(lam_per_src[keep_src_mask], m)
+            lam_rep = lam_rep[mask_flat]
 
-                appended_all.append(core12)
+            aov_flat = None
+            if aov_grid is not None:
+                aov_c = aov_grid[keep_src_mask]
+                aov_flat = bd.reshape(aov_c, (ns * m, aov_c.shape[2]))
+                aov_flat = aov_flat[mask_flat]
 
-        if len(appended_all) == 0:
-            # Empty RayBatch with correct column count:
-            # core 12 (includes channel) + optional AOV
+            _append_core_from_flat(base_flat, lam_rep, ch_idx, aov_flat)
+
+        def _emit_fractional_nm(frac_mask_nm, lam_nm, ch_idx):
+            # Fraunhofer-like fractional behavior:
+            # per (source,target) mask AND per (source,target) wavelength.
+            if not bd.any(frac_mask_nm):
+                return
+
+            base_flat = base_pd[frac_mask_nm]  # (N,6)
+            lam_flat = lam_nm[frac_mask_nm]  # (N,)
+
+            aov_flat = None
+            if aov_grid is not None:
+                aov_flat = aov_grid[frac_mask_nm]  # (N,k)
+
+            _append_core_from_flat(base_flat, lam_flat, ch_idx, aov_flat)
+
+        # Safety cap to prevent extreme HDR values (e.g., 1000+) from exploding memory.
+        MAX_COPIES_PER_SRC = 256
+
+        def _emit_weighted(w, mu, sigma, ch_idx):
+            k = bd.floor(w).astype(int)
+            frac = w - bd.array(k, dtype=w.dtype)
+
+            # Determine loop count on CPU (works for numpy/cupy)
+            kmax = bd.max(k)
+            if hasattr(kmax, "get"):
+                kmax = int(kmax.get())
+            else:
+                kmax = int(kmax)
+
+            kmax = min(kmax, MAX_COPIES_PER_SRC)
+
+            # Integer copies (unchanged)
+            for rep in range(kmax):
+                keep = k > rep
+                lam = bd.clip(bd.array(mu) + bd.array(sigma) * RNG.randn(n), 380.0, 780.0)
+                _emit_integer_sheet(keep, lam, ch_idx)
+
+            # Fractional copy (CHANGED to per-(n,m), Fraunhofer-like)
+            # - per-target decision avoids coherent "sheet" speckles
+            # - per-target wavelength avoids identical-wavelength pupil sheets
+            frac_b = bd.clip(frac[:, bd.newaxis], ZERO, ONE)  # (n,1)
+            randFrac = RNG.rand(n, m)  # (n,m)
+            frac_mask_nm = (randFrac < frac_b) & angMask  # (n,m)
+
+            lam_nm = bd.clip(
+                bd.array(mu) + bd.array(sigma) * RNG.randn(n, m),
+                380.0, 780.0
+            )
+            _emit_fractional_nm(frac_mask_nm, lam_nm, ch_idx)
+
+        _emit_weighted(wR, muR, colorConverter.sigmaR, 0)
+        _emit_weighted(wG, muG, colorConverter.sigmaG, 1)
+        _emit_weighted(wB, muB, colorConverter.sigmaB, 2)
+
+        if len(blocks) == 0:
             col_count = 12 + (pointAOV.shape[1] if pointAOV is not None else 0)
             return RayBatch(bd.zeros((0, col_count)))
 
-        out = bd.concatenate(appended_all, axis=0)
-        return RayBatch(out)
+        return RayBatch(bd.concatenate(blocks, axis=0))
 
 
     def _SelectLeastSampled(self, sampleCount):

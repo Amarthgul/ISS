@@ -6,7 +6,7 @@ from Surfaces.Surface import FieldStopType, Surface
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
-from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis, OUTPUT_TYPE
+from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis, OUTPUT_TYPE, COLOR_PDF
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import PointsInTriangle, NumpyConversion
 
@@ -41,8 +41,6 @@ class StdImager(Surface):
         self._lensLength = 0 # Length of the lens in front of the imager
         self._zPos = 0
 
-        # Whether to use probability density function for wavelength generation, or direct Fraunhofer line replacement
-        self._usePDF = True
 
         self._Start()
 
@@ -108,6 +106,9 @@ class StdImager(Surface):
         return imgAry
 
 
+
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
@@ -126,12 +127,11 @@ class StdImager(Surface):
 
     def _integralRays(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
 
-        if self._usePDF:
+        if COLOR_PDF:
             return self._integralRaysChannelBased(intersectRayBatch, baseImg, overExpNoiseRemoval,polarized)
 
         else:
             return self._integralRaysFraunhoferLine(intersectRayBatch, baseImg, overExpNoiseRemoval, polarized)
-
 
 
     def _integralRaysFraunhoferLine(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
@@ -265,6 +265,7 @@ class StdImager(Surface):
 
             # Try to remove the outlier over-exposed rays (same condition style as _integralRays)
             if (overExpNoiseRemoval is not None) and (bd.max(rad_c) > bd.mean(rad_c)):
+                print(self._IncidentStats(intersectRayBatch))
                 rad_c = self._PruneHighOutliers(rad_c, overExpNoiseRemoval)
 
             bd.add.at(grid, (pos_c[:, 0], pos_c[:, 1]), rad_c)
@@ -297,7 +298,180 @@ class StdImager(Surface):
         return arr
 
 
+    def _IncidentStats(self, intersectRayBatch):
+        """
+        Examine whether some rays are disrupted during propagation.
 
+        Reports:
+          - basic sanity checks (NaN/Inf) on position, direction, wavelength
+          - polarization term stats (Φ, i_Φ, b)
+          - validity of the 2x2 polarization ellipse matrix [[Φ, b],[b, i_Φ]]
+            using SPD checks (a>0, d>0, det>0)
+          - a fast "polarized radiance" proxy computed from closed-form eigenvalues
+            (avoids bd.linalg.eigh to keep this diagnostic cheap)
+
+        Returns a multi-line string (safe to print).
+        """
+
+        rb = intersectRayBatch
+        if rb is None or getattr(rb, "value", None) is None:
+            return "[IncidentStats] RayBatch is None."
+
+        val = rb.value
+        if val.shape[0] == 0:
+            return "[IncidentStats] RayBatch is empty."
+
+        # ---------- helpers ----------
+        def _to_cpu(x):
+            # works for numpy scalars/arrays and cupy
+            try:
+                return x.get()
+            except Exception:
+                return x
+
+        def _scalar(x):
+            # convert backend scalar to python float
+            x = _to_cpu(x)
+            try:
+                return float(x)
+            except Exception:
+                # fallback for 0-d arrays
+                return float(getattr(x, "item", lambda: x)())
+
+        def _istat(arr):
+            arr = bd.asarray(arr)
+            # Note: avoid errors for all-invalid arrays by masking finite values
+            finite = bd.isfinite(arr)
+            if not bd.any(finite):
+                return {"min": None, "max": None, "mean": None, "std": None, "finite_n": 0}
+            a = arr[finite]
+            return {
+                "min": _scalar(bd.min(a)),
+                "max": _scalar(bd.max(a)),
+                "mean": _scalar(bd.mean(a)),
+                "std": _scalar(bd.std(a)),
+                "finite_n": int(_scalar(bd.sum(finite))),
+            }
+
+        n = val.shape[0]
+
+        # ---------- core fields ----------
+        pos = val[:, 0:3]
+        direc = val[:, 3:6]
+        wl = val[:, 6]
+
+        # polarization terms: Φ (col 7), i_Φ (col 8), b (col 9)
+        Phi = val[:, 7]
+        iPhi = val[:, 8]
+        b = val[:, 9]
+
+        # channel (optional, but your RayBatch defines it at col 11)
+        chan = None
+        if val.shape[1] > 11:
+            try:
+                chan = val[:, 11].astype(int)
+            except Exception:
+                chan = None
+
+        # ---------- finiteness checks ----------
+        pos_bad = ~bd.isfinite(pos).all(axis=1)
+        dir_bad = ~bd.isfinite(direc).all(axis=1)
+        wl_bad = ~bd.isfinite(wl)
+
+        pol_bad = ~(bd.isfinite(Phi) & bd.isfinite(iPhi) & bd.isfinite(b))
+
+        bad_any = pos_bad | dir_bad | wl_bad | pol_bad
+
+        # ---------- polarization matrix validity / near-singularity ----------
+        # Matrix M = [[a, c],[c, d]] with a=Phi, d=iPhi, c=b
+        a = Phi
+        d = iPhi
+        c = b
+
+        # SPD conditions (necessary & sufficient for symmetric 2x2):
+        # a > 0, d > 0, det = a*d - c^2 > 0
+        det = a * d - c * c
+
+        eps_det = 1e-12
+        eps_eig = 1e-12
+
+        neg_diag = (a <= 0) | (d <= 0)
+        bad_det = det <= eps_det
+
+        # closed-form eigenvalues for symmetric 2x2
+        tr = a + d
+        disc = bd.sqrt((a - d) * (a - d) + 4 * c * c)
+
+        # eigenvalues: (tr +/- disc)/2
+        eig1 = (tr + disc) / 2
+        eig2 = (tr - disc) / 2
+        min_eig = bd.minimum(eig1, eig2)
+
+        near_singular = min_eig <= eps_eig
+
+        pol_invalid = pol_bad | neg_diag | bad_det | near_singular
+
+        # ---------- radiance proxy (same structure as RayBatch.PolarizedRadiance) ----------
+        # semi-axis = 1/sqrt(eig); radiance = (semi1 + semi2)/2
+        # clamp eigenvalues to avoid inf/nan from numerical noise
+        eig1c = bd.maximum(eig1, eps_eig)
+        eig2c = bd.maximum(eig2, eps_eig)
+        rad_proxy = (1 / bd.sqrt(eig1c) + 1 / bd.sqrt(eig2c)) / 2
+
+        rad_stats = _istat(rad_proxy)
+        phi_stats = _istat(Phi)
+        iphi_stats = _istat(iPhi)
+        b_stats = _istat(b)
+        det_stats = _istat(det)
+        mineig_stats = _istat(min_eig)
+
+        # ---------- counts ----------
+        def _count(mask):
+            return int(_scalar(bd.sum(mask)))
+
+        cnt_pos_bad = _count(pos_bad)
+        cnt_dir_bad = _count(dir_bad)
+        cnt_wl_bad = _count(wl_bad)
+        cnt_pol_bad = _count(pol_bad)
+        cnt_bad_any = _count(bad_any)
+
+        cnt_neg_diag = _count(neg_diag)
+        cnt_bad_det = _count(bad_det)
+        cnt_near_sing = _count(near_singular)
+        cnt_pol_invalid = _count(pol_invalid)
+
+        # ---------- formatting ----------
+        lines = []
+        lines.append(f"[IncidentStats] backend={backend_name}, rays={n}")
+        lines.append(
+            f"  non-finite: pos={cnt_pos_bad}, dir={cnt_dir_bad}, wl={cnt_wl_bad}, pol_terms={cnt_pol_bad}, any={cnt_bad_any}"
+        )
+        lines.append(
+            f"  pol-matrix issues: neg_diag={cnt_neg_diag}, det<=eps={cnt_bad_det}, min_eig<=eps={cnt_near_sing}, invalid_any={cnt_pol_invalid}"
+        )
+
+        def _fmt_stat(name, s):
+            if s["finite_n"] == 0:
+                return f"  {name}: (no finite values)"
+            return (f"  {name}: min={s['min']:.6g}, max={s['max']:.6g}, "
+                    f"mean={s['mean']:.6g}, std={s['std']:.6g}, finite_n={s['finite_n']}")
+
+        lines.append(_fmt_stat("radiance_proxy", rad_stats))
+        lines.append(_fmt_stat("Phi(Φ)", phi_stats))
+        lines.append(_fmt_stat("iPhi(i_Φ)", iphi_stats))
+        lines.append(_fmt_stat("tilt(b)", b_stats))
+        lines.append(_fmt_stat("det(Φ*i_Φ-b^2)", det_stats))
+        lines.append(_fmt_stat("min_eig", mineig_stats))
+
+        # Optional: per-channel radiance proxy stats (if channel exists)
+        if chan is not None:
+            for c_id, cname in ((0, "R"), (1, "G"), (2, "B")):
+                m = (chan == c_id)
+                if bd.any(m):
+                    s = _istat(rad_proxy[m])
+                    lines.append(_fmt_stat(f"radiance_proxy[{cname}]", s))
+
+        return "\n".join(lines)
 
 
 

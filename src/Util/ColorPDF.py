@@ -7,7 +7,7 @@ Probability Density Function for color-wavelength conversion.
 
 from Util.Backend import backend as bd
 from Util.Globals import RNG, RefreshRNG, NEAR_ZERO, AXIAL_ZERO, ZERO, ONE, TWO, LambdaLines
-from Util.MathFunctions import Erf
+from Util.MathFunctions import Erf, SkewNormPDF
 
 
 def sample_skew_normal(mu, sigma, alpha, shape):
@@ -56,24 +56,30 @@ class ColorPDF:
         self.gainG = 1
         self.gainB = 1
 
-        self._normGainR = 1
-        self._normGainG = 1
-        self._normGainB = 1
+        self.normGainR = 1
+        self.normGainG = 1
+        self.normGainB = 1
+
+        # Gaussian distribution at the given wavelengths tend to reduce the max value to around 0.13-0.2, which may disrupt the existing radiance expectations, so a global scalar multiple is applied for spectral resposne.
+        self._unitScalar = 60.
 
         self._Update()
 
 
-    def ColorToWavelength(self, colors, perChannelSample=1):
+    def ColorToWavelength(self, colors, perChannelSample=4, fastGaussian=True):
         """
         Convert many colors into a batch of wavelengths.
 
         :param colors: array of RGB colors in shape (m, 3), values in range [0, inf]
+        :param fastGaussian: whether to ignore per channel sample and skew. When enabled, directly use a standard Gaussian with per channel sample as 1.
         :param perChannelSample: number of samples per color channel.
 
         :return: array of wavelengths in shape (k, 2), with:
                  col 0 = wavelength (nm)
                  col 1 = channel index (0=R, 1=G, 2=B)
         """
+        if fastGaussian:
+            return self._FastGaussian(colors)
 
         m = colors.shape[0]
 
@@ -84,49 +90,16 @@ class ColorPDF:
 
         muR, muG, muB = LambdaLines[self.lineR], LambdaLines[self.lineG], LambdaLines[self.lineB]
 
-
         # ------------------------------------------------------------------
         #    Keep probability includes normalized gain:
         #    lower gain => more pruning (fewer emitted wavelengths in that channel)
         # ------------------------------------------------------------------
-        pR = bd.clip(colors_n[:, 0] * bd.array(self._normGainR), ZERO, ONE)
-        pG = bd.clip(colors_n[:, 1] * bd.array(self._normGainG), ZERO, ONE)
-        pB = bd.clip(colors_n[:, 2] * bd.array(self._normGainB), ZERO, ONE)
+        pR = bd.clip(colors_n[:, 0] * bd.array(self.normGainR), ZERO, ONE)
+        pG = bd.clip(colors_n[:, 1] * bd.array(self.normGainG), ZERO, ONE)
+        pB = bd.clip(colors_n[:, 2] * bd.array(self.normGainB), ZERO, ONE)
 
         # ------------------------------------------------------------------
-        #    Fast path: perChannelSample == 1 (common case)
-        # ------------------------------------------------------------------
-        if perChannelSample == 1:
-            lamR = sample_skew_normal(muR, self.sigmaR, self.alphaR, (m,))
-            lamG = sample_skew_normal(muG, self.sigmaG, self.alphaG, (m,))
-            lamB = sample_skew_normal(muB, self.sigmaB, self.alphaB, (m,))
-
-            keepR = RNG.rand(m) < pR
-            keepG = RNG.rand(m) < pG
-            keepB = RNG.rand(m) < pB
-
-            selR = lamR[keepR]
-            selG = lamG[keepG]
-            selB = lamB[keepB]
-
-            def pack1d(lams_1d, ch_idx):
-                if lams_1d.size == 0:
-                    return None
-                ch = bd.full((lams_1d.shape[0],), bd.array(ch_idx), dtype=lams_1d.dtype)
-                return bd.stack([lams_1d, ch], axis=1)
-
-            arrR = pack1d(selR, 0.0)
-            arrG = pack1d(selG, 1.0)
-            arrB = pack1d(selB, 2.0)
-
-            parts = [a for a in (arrR, arrG, arrB) if a is not None]
-            if len(parts) == 0:
-                return bd.zeros((0, 2), dtype=bd.float64)
-
-            return bd.concatenate(parts, axis=0)
-
-        # ------------------------------------------------------------------
-        # 4) General path: perChannelSample > 1
+        #    General path: perChannelSample > 1
         # ------------------------------------------------------------------
         lamR = sample_skew_normal(muR, self.sigmaR, self.alphaR, (m, perChannelSample))
         lamG = sample_skew_normal(muG, self.sigmaG, self.alphaG, (m, perChannelSample))
@@ -158,7 +131,7 @@ class ColorPDF:
         return bd.concatenate(parts, axis=0)
 
 
-    def SpectralResponse(self, channel, wavelength):
+    def SpectralResponse(self, wavelength, channel):
         """
         Return scalars representing spectral responses intensity of a given wavelength assigned to a given channel.
 
@@ -167,19 +140,6 @@ class ColorPDF:
 
         :return: an array of spectral responses, size (m).
         """
-
-        def _Phi(x):
-            # Standard normal CDF: 0.5*(1 + erf(x/sqrt(2)))
-            inv_sqrt2 = 0.7071067811865475
-            return 0.5 * (ONE + Erf(x * inv_sqrt2))
-
-        def _skewnorm_pdf(x, mu, sigma, alpha):
-            # Azzalini skew-normal PDF:
-            # f(x) = (2/σ) * φ(z) * Φ(α z), z=(x-μ)/σ
-            z = (x - bd.array(mu)) / bd.array(sigma)
-            phi = (ONE / bd.sqrt(TWO * bd.pi)) * bd.exp(-0.5 * z * z)
-            Phi = _Phi(bd.array(alpha) * z)
-            return (TWO / bd.array(sigma)) * phi * Phi
 
         # Output
         resp = bd.zeros_like(wavelength, dtype=bd.float64)
@@ -191,18 +151,18 @@ class ColorPDF:
 
         # Evaluate per-channel skew-normal pdf and apply *non-normalized* gains
         if bd.any(mR):
-            resp[mR] = _skewnorm_pdf(wavelength[mR], LambdaLines[self.lineR], self.sigmaR, self.alphaR) * bd.array(
+            resp[mR] = SkewNormPDF(wavelength[mR], LambdaLines[self.lineR], self.sigmaR, self.alphaR) * bd.array(
                 self.gainR)
 
         if bd.any(mG):
-            resp[mG] = _skewnorm_pdf(wavelength[mG], LambdaLines[self.lineG], self.sigmaG, self.alphaG) * bd.array(
+            resp[mG] = SkewNormPDF(wavelength[mG], LambdaLines[self.lineG], self.sigmaG, self.alphaG) * bd.array(
                 self.gainG)
 
         if bd.any(mB):
-            resp[mB] = _skewnorm_pdf(wavelength[mB], LambdaLines[self.lineB], self.sigmaB, self.alphaB) * bd.array(
+            resp[mB] = SkewNormPDF(wavelength[mB], LambdaLines[self.lineB], self.sigmaB, self.alphaB) * bd.array(
                 self.gainB)
 
-        return resp
+        return resp * self._unitScalar
 
 
     def PlotDistribution(self):
@@ -211,18 +171,6 @@ class ColorPDF:
 
         import numpy as np
         import matplotlib.pyplot as plt
-        from math import sqrt
-        import scipy
-
-        # --- Skew-normal PDF (Azzalini) ---
-        # f(x) = (2/σ) * φ(z) * Φ(α z), z=(x-μ)/σ
-        # where φ is standard normal pdf, Φ is standard normal cdf
-        def skewnorm_pdf(x, mu, sigma, alpha):
-            z = (x - mu) / sigma
-            phi = (1.0 / np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * z * z)
-            # Φ(t) = 0.5 * (1 + erf(t / sqrt(2)))
-            Phi = 0.5 * (1.0 + scipy.special.erf((alpha * z) / np.sqrt(2.0)))
-            return (2.0 / sigma) * phi * Phi
 
         # Visible-ish range
         x = np.linspace(380.0, 780.0, 2000)
@@ -239,9 +187,9 @@ class ColorPDF:
         aG = float(self.alphaG)
         aB = float(self.alphaB)
 
-        yR = skewnorm_pdf(x, muR, sigR, aR) * self._normGainR
-        yG = skewnorm_pdf(x, muG, sigG, aG) * self._normGainG
-        yB = skewnorm_pdf(x, muB, sigB, aB) * self._normGainB
+        yR = SkewNormPDF(x, muR, sigR, aR) * self.normGainR
+        yG = SkewNormPDF(x, muG, sigG, aG) * self.normGainG
+        yB = SkewNormPDF(x, muB, sigB, aB) * self.normGainB
 
         plt.figure()
         plt.plot(x, yR, color=(1.0, 0.0, 0.0), label=f"R: μ={muR:.2f}nm σ={sigR:g} α={aR:g}")
@@ -268,9 +216,103 @@ class ColorPDF:
 
     def _Update(self):
         maxGain= bd.max(bd.array([self.gainR, self.gainG, self.gainB]))
-        self._normGainR = self.gainR / maxGain
-        self._normGainG = self.gainG / maxGain
-        self._normGainB = self.gainB / maxGain
+        self.normGainR = self.gainR / maxGain
+        self.normGainG = self.gainG / maxGain
+        self.normGainB = self.gainB / maxGain
+
+
+    def _FastGaussian(self, colors, perChannelSample=1):
+        """
+        Fast emission sampler:
+          - Ignores alpha (no skew); uses standard Gaussian N(mu, sigma^2)
+          - Defaults perChannelSample=1; if >1, will sample that many but still stays Gaussian-only
+          - Keeps gain-based pruning via _normGain*
+        """
+
+        m = colors.shape[0]
+
+        # Normalize colors row-wise into [0,1]
+        row_max = bd.max(colors, axis=1, keepdims=True)
+        denom = bd.maximum(row_max, ONE)
+        colors_n = bd.clip(colors / denom, ZERO, ONE)
+
+        muR, muG, muB = LambdaLines[self.lineR], LambdaLines[self.lineG], LambdaLines[self.lineB]
+
+        # Keep probability includes normalized gain
+        pR = bd.clip(colors_n[:, 0] * bd.array(self.normGainR), ZERO, ONE)
+        pG = bd.clip(colors_n[:, 1] * bd.array(self.normGainG), ZERO, ONE)
+        pB = bd.clip(colors_n[:, 2] * bd.array(self.normGainB), ZERO, ONE)
+
+        # ------------------------------------------------------------------
+        # perChannelSample == 1 fast path (common)
+        # ------------------------------------------------------------------
+        if perChannelSample == 1:
+            lamR = bd.array(muR) + bd.array(self.sigmaR) * RNG.randn(m)
+            lamG = bd.array(muG) + bd.array(self.sigmaG) * RNG.randn(m)
+            lamB = bd.array(muB) + bd.array(self.sigmaB) * RNG.randn(m)
+
+            lamR = bd.clip(lamR, 380.0, 780.0)
+            lamG = bd.clip(lamG, 380.0, 780.0)
+            lamB = bd.clip(lamB, 380.0, 780.0)
+
+            keepR = RNG.rand(m) < pR
+            keepG = RNG.rand(m) < pG
+            keepB = RNG.rand(m) < pB
+
+            selR = lamR[keepR]
+            selG = lamG[keepG]
+            selB = lamB[keepB]
+
+            def pack1d(lams_1d, ch_idx):
+                if lams_1d.size == 0:
+                    return None
+                ch = bd.full((lams_1d.shape[0],), bd.array(ch_idx), dtype=lams_1d.dtype)
+                return bd.stack([lams_1d, ch], axis=1)
+
+            arrR = pack1d(selR, 0.0)
+            arrG = pack1d(selG, 1.0)
+            arrB = pack1d(selB, 2.0)
+
+            parts = [a for a in (arrR, arrG, arrB) if a is not None]
+            if len(parts) == 0:
+                return bd.zeros((0, 2), dtype=bd.float64)
+
+            return bd.concatenate(parts, axis=0)
+
+        # ------------------------------------------------------------------
+        # Optional: perChannelSample > 1 (still Gaussian-only)
+        # ------------------------------------------------------------------
+        lamR = bd.array(muR) + bd.array(self.sigmaR) * RNG.randn(m, perChannelSample)
+        lamG = bd.array(muG) + bd.array(self.sigmaG) * RNG.randn(m, perChannelSample)
+        lamB = bd.array(muB) + bd.array(self.sigmaB) * RNG.randn(m, perChannelSample)
+
+        lamR = bd.clip(lamR, 380.0, 780.0)
+        lamG = bd.clip(lamG, 380.0, 780.0)
+        lamB = bd.clip(lamB, 380.0, 780.0)
+
+        keepR = RNG.rand(m, perChannelSample) < pR[:, bd.newaxis]
+        keepG = RNG.rand(m, perChannelSample) < pG[:, bd.newaxis]
+        keepB = RNG.rand(m, perChannelSample) < pB[:, bd.newaxis]
+
+        selR = lamR[keepR]
+        selG = lamG[keepG]
+        selB = lamB[keepB]
+
+        def pack(lams_1d, ch_idx):
+            if lams_1d.size == 0:
+                return None
+            ch = bd.full((lams_1d.shape[0],), bd.array(ch_idx), dtype=lams_1d.dtype)
+            return bd.stack([lams_1d, ch], axis=1)
+
+        arrR = pack(selR, 0.0)
+        arrG = pack(selG, 1.0)
+        arrB = pack(selB, 2.0)
+
+        parts = [a for a in (arrR, arrG, arrB) if a is not None]
+        if len(parts) == 0:
+            return bd.zeros((0, 2), dtype=bd.float64)
+
+        return bd.concatenate(parts, axis=0)
 
 
 # ==================================================================

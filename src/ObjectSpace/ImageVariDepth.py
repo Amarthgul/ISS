@@ -469,6 +469,9 @@ class Image2DVariDepth(Image2D):
         print(f"[_DrawMask] z_min = {zmin_f}, z_max = {zmax_f}, tol={tol}")
 
 
+    def Stats(self):
+        return self.pointSource.Stats()
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

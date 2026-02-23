@@ -69,7 +69,7 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
     while(True):
 
 
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays)
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 20480)
         # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
         # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
 
@@ -98,7 +98,7 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
         if(elpased > computeTime):
             image /= 100 
             global FrameCount
-            fn = r"LensSequenceTest"+str(imageDistance)+"_"+str(FrameCount)
+            fn = r"NewPDFTest"+str(imageDistance)+"_"+str(FrameCount)
             SaveAsEXR(image, r"resources/Results/ISO12233", fn)
             break
 
@@ -544,6 +544,9 @@ def NewWavelengthTest():
     colorData = bd.array([[1, 0, 0],
                           [0, 1, 0],
                           [0, 0, 1],
+                          [1, 0, 0],
+                          [0, 1, 0],
+                          [0, 0, 1],
                           [1, .5, 0],
                           [.5, 1, .5],
                           [0, .5, 1]])
@@ -552,9 +555,9 @@ def NewWavelengthTest():
     wa = converter.ColorToWavelength(colorData, perChannelSample=64)
 
     # print(wa)
-    RGBack = converter.SpectralResponse(wa[:, 1], wa[:, 0])
+    RGBack = converter.SpectralResponse(wa[:, 0], wa[:, 1])
     print(bd.sort(RGBack))
-    #converter.PlotDistribution()
+    converter.PlotDistribution()
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -597,8 +600,8 @@ def main():
 
     # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
     # return
-
-    SpotTesting(lens, computeTime=30 * 60, realTimeUpdate=False)
+    ISO12233Test(lens, computeTime=10*60, realTimeUpdate=False)
+    # SpotTesting(lens, computeTime=30 * 60, realTimeUpdate=False)
 
     return
 
@@ -657,4 +660,4 @@ def main():
 
 
 if __name__ == "__main__":
-    NewWavelengthTest()
+    main()

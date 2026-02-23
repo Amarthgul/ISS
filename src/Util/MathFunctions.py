@@ -2,7 +2,7 @@
 
 
 from Util.Backend import backend as bd 
-from Util.Globals import ONE
+from Util.Globals import ONE, TWO
 
 
 def NewtonSolver(f, df, x0, tol=1e-6, max_iter=100):
@@ -54,4 +54,20 @@ def Erf(x):
     y = ONE - poly * bd.exp(-ax * ax)
 
     return sign * y
+
+
+def Phi(x):
+    # Standard normal CDF: 0.5*(1 + erf(x/sqrt(2)))
+    inv_sqrt2 = 0.7071067811865475
+    return 0.5 * (ONE + Erf(x * inv_sqrt2))
+
+
+def SkewNormPDF(x, mu, sigma, alpha):
+    # Azzalini skew-normal PDF:
+    # f(x) = (2/σ) * φ(z) * Φ(α z), z=(x-μ)/σ
+    z = (x - bd.array(mu)) / bd.array(sigma)
+    phi = (ONE / bd.sqrt(TWO * bd.pi)) * bd.exp(-0.5 * z * z)
+    p = Phi(bd.array(alpha) * z)
+    return (TWO / bd.array(sigma)) * phi * p
+
 

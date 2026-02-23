@@ -22,6 +22,10 @@ DEVELOPER_MODE = True
 RENDER_MODE=False
 
 
+# When flagged, use color pdf to generate and integral rays
+COLOR_PDF = True
+
+
 # Gloabl flag if the ray path feature is enabled
 ENABLE_RAYPATH = True
 # Recommend to turn this off for image propagation to save space. 

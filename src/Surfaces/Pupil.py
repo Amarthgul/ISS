@@ -134,24 +134,23 @@ class Pupil(VirtualSurface):
 
         # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples.
         # A year later: actually no let's just set the default to be really small and return a new one every time...
-        if(sampleCount > self._pupilPointSamples.shape[0]):
-            if self._alphaShape is not None:
-                self._ResetSamplePool(4096)
-                self._GenerateAccordingToAlphaShape()
-                return self._pupilPointSamples
-            else:
-                # Same as self._ResetSamplePool()
-                pupilZdepth = bd.mean(self._workingDepth)
-                return RandomEllipticalDistribution(
-                    major_axis=self.clearSemiDiameter,
-                    minor_axis=self.clearSemiDiameter,
-                    samplePoints=sampleCount,
-                    zDepth=pupilZdepth,
-                    groupByPoint=True)
+        # if(sampleCount > self._pupilPointSamples.shape[0]):
+        if self._alphaShape is not None:
+            self._ResetSamplePool(4096)
+            self._GenerateAccordingToAlphaShape()
+            return self._pupilPointSamples
+        else:
+            # Same as self._ResetSamplePool()
+            pupilZdepth = bd.mean(self._workingDepth)
+            return RandomEllipticalDistribution(
+                major_axis=self.clearSemiDiameter,
+                minor_axis=self.clearSemiDiameter,
+                samplePoints=sampleCount,
+                zDepth=pupilZdepth,
+                groupByPoint=True)
 
-        selectedIndices = RNG.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
-
-        return self._pupilPointSamples[selectedIndices]
+        # selectedIndices = RNG.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
+        # return self._pupilPointSamples[selectedIndices]
 
 
     def GetEvenSamplePoints(self):

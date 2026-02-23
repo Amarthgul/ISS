@@ -62,11 +62,19 @@ def ExampleStack():
 
     MG = Image2DVariDepth()
     MG.LoadFromEXR(r"resources/DepthSceneMG.exr")
+    print("MG Stats ======================")
+    print(MG.Stats())
+
     MG2 = Image2DVariDepth()
     MG2.LoadFromEXR(r"resources/DepthSceneMG2.exr")
+    print("MG2 Stats ======================")
+    print(MG2.Stats())
+
     BG = Image2DVariDepth()
     BG.LoadFromEXR(r"resources/DepthSceneBG.exr")
     BG.FloodDepth(2000000.0)
+    print("BG Stats ======================")
+    print(BG.Stats())
 
 
     # FG.DrawMask()

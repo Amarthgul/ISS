@@ -2,10 +2,12 @@
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
+from Util.Backend import backend_name
 from Util.ImageIO import ImageConversion, SaveAsEXR
 from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG, DrawNormal
 from Util.Misc import ProgressBar
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
+from src.Util.ColorPDF import ColorPDF
 from src.ZmxReader import LensFromZmx
 from Util.SpatialEllipse import SpatialCircle
 from Util.Misc import RectPath
@@ -130,9 +132,13 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
             break
 
 
-def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthClose9hr", aperture=None, realTimeUpdate = False):
+def StackTest(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
 
     stack = ExampleStack()
     att = DepthVisualizer()
@@ -143,6 +149,174 @@ def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthCl
     if aperture is not None:
         lens.SetAperture(aperture)
 
+    sr = ColorPDF()
+    # sr.normGainB = 1.25
+    imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    #imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
+        # mainRP.Append(mainRB, _tir, _vig)
+        #print(mainRB.ToString(30))
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn)
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
+
+
+def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    stack = ExampleStack()
+    att = DepthVisualizer()
+    fog = FogAttenuator()
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    sr = ColorPDF()
+    sr.normGainB = 1.25
+    imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    #imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
+        # mainRP.Append(mainRB, _tir, _vig)
+        #print(mainRB.ToString(30))
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn)
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
+
+def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    stack = ExampleStack()
+    att = DepthVisualizer()
+    fog = FogAttenuator()
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    #sr = ColorPDF()
+    #sr.normGainB = 1.25
+    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
     imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
@@ -156,24 +330,33 @@ def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthCl
 
 
     while (True):
-
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(1024), 1024)
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
         mainRB, _tir, _vig = imager.IntersectRays(mainRB)
 
         #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
         #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
         # mainRP.Append(mainRB, _tir, _vig)
+        #print(mainRB.ToString(30))
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
         #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
 
         if (realTimeUpdate):
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.5))
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
             plt.draw()
             plt.pause(0.01)
 
@@ -181,6 +364,9 @@ def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthCl
         elapsed = time.time() - start
         ProgressBar(elapsed / renderTime, 100)
         iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
 
         if (elapsed > renderTime):
             image /= 100
@@ -190,6 +376,8 @@ def StackTest(renderTime = 9*60*60, focusDistance=5000, filename = r"NewZDepthCl
             #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
 
             break
+
+        recorder = time.time()
 
 
 def DoubleImgTest():
@@ -271,12 +459,14 @@ def main():
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
-    rendertime = 8 * 60 * 60
+    rendertime = 3 * 60 * 60
     aperture = [None,   None, None, None, 1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTest(rendertime, distance[i], "Focus"+str(distance[i]), realTimeUpdate=False)
+    StackTest(rendertime, distance[i], "newPDFSeriesFilm", realTimeUpdate=True)
+    StackTestFilmBalance(rendertime, distance[i], "newPDFSeriesBlue", realTimeUpdate=True)
+    StackTestDigital(rendertime, distance[i], "newPDFSeriesStd", realTimeUpdate=True)
     # i = 21
     # StackTest(rendertime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 
