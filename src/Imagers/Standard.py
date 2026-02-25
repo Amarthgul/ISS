@@ -36,6 +36,7 @@ class StdImager(Surface):
 
         self.rayPath = None 
 
+        self.image = None
 
         # If gate points are not set, then assume it is flat and perpendicular to the optical axis, then use the 2 following properties to calculate the gate points
         self._lensLength = 0 # Length of the lens in front of the imager
@@ -106,7 +107,82 @@ class StdImager(Surface):
         return imgAry
 
 
+    def ImageStats(self, inputImage=None):
+        """Return basic statistics about an RGB image.
 
+        Priority: inputImage > self.image
+
+        Returns a dict:
+            {
+              "backend": backend_name,
+              "shape": (...),
+              "channels": {
+                   "R": {"min":..., "max":..., "mean":..., "std":..., "finite_n":...},
+                   "G": {...},
+                   "B": {...}
+              }
+            }
+
+        If no image is available, returns None.
+        """
+
+        img = inputImage if inputImage is not None else self.image
+        if img is None:
+            return None
+
+        img = bd.asarray(img)
+
+        # Accept (H, W) grayscale, (H, W, 1), or (H, W, 3)
+        if img.ndim == 2:
+            img = img[:, :, None]
+        if img.ndim != 3:
+            raise ValueError(f"Expect image of shape (H, W, C). Got {img.shape}")
+
+        c = img.shape[-1]
+        if c == 1:
+            # Treat single channel as all three for reporting consistency
+            img = bd.repeat(img, 3, axis=-1)
+        elif c < 3:
+            raise ValueError(f"Expect at least 3 channels (RGB). Got {img.shape}")
+
+        # Only take first 3 channels (RGB) if more are present
+        img = img[:, :, :3]
+
+        def _to_py_scalar(x):
+            # Works for numpy/cupy scalars and 0-d arrays
+            try:
+                x = x.get()
+            except Exception:
+                pass
+            try:
+                return float(x)
+            except Exception:
+                return float(getattr(x, "item", lambda: x)())
+
+        labels = ("R", "G", "B")
+        stats = {}
+        for i, lab in enumerate(labels):
+            ch = img[:, :, i]
+            finite = bd.isfinite(ch)
+            if bd.any(finite):
+                chf = ch[finite]
+                stats[lab] = {
+                    "min": _to_py_scalar(bd.min(chf)),
+                    "max": _to_py_scalar(bd.max(chf)),
+                    "mean": _to_py_scalar(bd.mean(chf)),
+                    "std": _to_py_scalar(bd.std(chf)),
+                    "finite_n": int(_to_py_scalar(bd.sum(finite))),
+                }
+            else:
+                stats[lab] = {"min": None, "max": None, "mean": None, "std": None, "finite_n": 0}
+
+        shape = tuple(int(s) for s in img.shape)
+
+        return {
+            "backend": backend_name,
+            "shape": shape,
+            "channels": stats
+        }
 
 
     # ==================================================================
@@ -310,7 +386,7 @@ class StdImager(Surface):
 
         # =================================================================================================
         # Hook: image-domain noise/grain
-        rgb_image = self._ApplyGrainAndNoise(
+        rgb_image = self.ApplyGrainAndNoise(
             rgb_image=rgb_image
         )
 
@@ -352,7 +428,7 @@ class StdImager(Surface):
         return rgb_image
 
 
-    def _ApplyGrainAndNoise(self, rgb_image):
+    def ApplyGrainAndNoise(self, rgb_image):
         """Hook for image-domain grain/noise.
 
         Default: identity.

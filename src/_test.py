@@ -559,6 +559,30 @@ def NewWavelengthTest():
     print(bd.sort(RGBack))
     converter.PlotDistribution()
 
+
+def FilmTest():
+    from Imagers.Film import Film
+    from ObjectSpace.Images import Image2DFlat
+    from Util.Misc import RectPath
+
+
+    im = Image2DFlat()
+    im.LoadFromEXR(RectPath(r"resources/Results/NewZDepthClose9hr.exr"))
+    im.rgbArray = im.rgbArray/128
+
+    f = Film()
+
+    print(f.ImageStats(im.rgbArray))
+
+    im.rgbArray = f.ApplyGrainAndNoise(im.rgbArray)
+
+    print(f.ImageStats(im.rgbArray))
+    #im.Show2D()
+
+    SaveAsEXR(im.rgbArray, r"resources/Results", "Film test")
+
+
+
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
@@ -660,4 +684,4 @@ def main():
 
 
 if __name__ == "__main__":
-    NewWavelengthTest()
+    FilmTest()

@@ -294,7 +294,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
             image /= 100
             global FrameCount
             fn = filename
-            SaveAsEXR(image, r"resources/Results", fn)
+            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
             #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
 
             break
@@ -376,7 +376,7 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
             image /= 100
             global FrameCount
             fn = filename
-            SaveAsEXR(image, r"resources/Results", fn)
+            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
             #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
 
             break
@@ -463,16 +463,17 @@ def main():
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
-    rendertime = 2 * 60
+    renderTime = 3 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
     aperture = [None,   None, None, None, 1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    #StackTest(rendertime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
-    StackTestFilmBalance(rendertime, distance[i], "WitGainChangeB", realTimeUpdate=False)
-    # StackTestDigital(rendertime, distance[i], "newPDFSeriesStd", realTimeUpdate=True)
+    #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
+    # StackTestFilmBalance(renderTime, distance[i], "WitGainChangeB", realTimeUpdate=False)
+    for i in [3, 4, 5]:
+        StackTestDigital(renderTime, distance[i], "HayesFocusRacking", realTimeUpdate=False)
     # i = 21
-    # StackTest(rendertime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
+    # StackTest(renderTime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 
     # BladeTest()
     # StereoImageTest()
