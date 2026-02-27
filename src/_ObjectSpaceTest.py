@@ -238,6 +238,10 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
     #sr.sigmaG = 50
     #sr.sigmaB = 50
     sr.gainB = 1.75
+
+    # sr.PlotDistribution()
+    # plt.show()
+
     imager = Film(sr, lens.BestFocusBFD(focusDistance))
     #imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
@@ -469,10 +473,12 @@ def main():
 
     i = 7
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
-    # StackTestFilmBalance(renderTime, distance[i], "WitGainChangeB", realTimeUpdate=False)
-    for i in [3, 4, 5]:
+    #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
+
+    for i in [10, 11, 12]:
         StackTestDigital(renderTime, distance[i], "HayesFocusRacking", realTimeUpdate=False)
-    # i = 21
+    #
+
     # StackTest(renderTime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 
     # BladeTest()

@@ -38,6 +38,9 @@ class StdImager(Surface):
 
         self.image = None
 
+        """When enabled, grain will be added in the image instead of being an optional pass"""
+        self.buildInGrain = False
+
         # If gate points are not set, then assume it is flat and perpendicular to the optical axis, then use the 2 following properties to calculate the gate points
         self._lensLength = 0 # Length of the lens in front of the imager
         self._zPos = 0
@@ -386,9 +389,8 @@ class StdImager(Surface):
 
         # =================================================================================================
         # Hook: image-domain noise/grain
-        rgb_image = self.ApplyGrainAndNoise(
-            rgb_image=rgb_image
-        )
+        if self.buildInGrain:
+            rgb_image = self.ApplyGrainAndNoise(rgb_image=rgb_image)
 
         # Monte Carlo accumulation
         if baseImg is not None:

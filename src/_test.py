@@ -569,17 +569,19 @@ def FilmTest():
     im = Image2DFlat()
     im.LoadFromEXR(RectPath(r"resources/Results/NewZDepthClose9hr.exr"))
     im.rgbArray = im.rgbArray/128
+    #im.Show2D()
 
     f = Film()
 
     print(f.ImageStats(im.rgbArray))
 
     im.rgbArray = f.ApplyGrainAndNoise(im.rgbArray)
+    im.rgbArray = f.DensityCurve(im.rgbArray)
 
     print(f.ImageStats(im.rgbArray))
-    #im.Show2D()
+    # im.Show2D()
 
-    SaveAsEXR(im.rgbArray, r"resources/Results", "Film test")
+    SaveAsEXR(im.rgbArray, r"resources/Results", "FilmCurveTest")
 
 
 

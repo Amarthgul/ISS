@@ -42,8 +42,8 @@ class Film(StdImager):
         self.dyeCloudColorBalance = 0.1 # Color 1 <---> 0 Monochrome
 
 
-
         # ==================================================================
+        # ============================= Grain ==============================
 
         self.bleachByPassRatio = 0.55
         self.silverGrainsPerMP = 1280000.0
@@ -83,12 +83,156 @@ class Film(StdImager):
         self._grain_grid_H = -1
         self._grain_grid_W = -1
 
-        # self.UpdateGrid()
+
+        # ==================================================================
+        # ============================= Curve ==============================
+        # Enable/disable the curve stage.
+        self.curveEnable = True
+
+        # Middle gray anchor (linear). If your pipeline is calibrated, keep this at 0.18; otherwise expose so that your intended midtone sits here.
+        self.curveMidGray = 0.5
+
+        # Exposure offset in stops. Positive => brighter / faster (moves curve left).
+        self.curveExposureOffsetStops = -2
+
+        # Midtone contrast control. Larger => steeper straight-line region.
+        self.curveContrast = 1
+
+        # Richards asymmetry parameter (nu). 1.0 => standard logistic.
+        # >1 biases toward a longer toe and a more compressed shoulder;
+        # <1 biases toward a snappier toe and longer shoulder.
+        self.curveAsymmetry = 1.0
+
+        # Base+fog density and maximum density. These define the transmittance range:
+        #   Tmax = 10^(-Dmin), Tmin = 10^(-Dmax)
+        self.curveDmin = 0.10
+        self.curveDmax = 2.80
+
+        # Optional soft highlight compression before the log domain.
+        # If curveSoftClipEnable is True, values above "white" roll off smoothly:
+        #   E' = white * E / (E + white)
+        self.curveSoftClipEnable = True
+
+        # Define "white" either directly in linear units, or as stops above mid-gray.
+        # If curveWhitePoint is None, curveWhitePointStops will be used.
+        self.curveWhitePoint = None
+        self.curveWhitePointStops = 10.0  # white ~= midGray * 2^stops
+
+        # Per-channel optional trims (stops and contrast multipliers).
+        self.curveChannelOffsetStops = [0.0, .25, .5]
+        self.curveChannelContrastMul = [1.0, 1.0, 1.0]
+
+        # Numerical stability.
+        self.curveEps = 1e-12
+
+        # ==================================================================
+        # ============================ Halation ============================
+
+        self.halationIsOptical = False
 
 
     def UpdateGrid(self):
 
         self._GenerateGrains()
+
+
+    def DensityCurve(self, rgb_image):
+        if not getattr(self, 'curveEnable', True):
+            return rgb_image
+
+        rgb = bd.asarray(rgb_image)
+
+        # Accept (H,W) or (H,W,1) by promoting to RGB for consistency.
+        if rgb.ndim == 2:
+            rgb = rgb[:, :, None]
+        if rgb.shape[-1] == 1:
+            rgb = bd.repeat(rgb, 3, axis=-1)
+        if rgb.ndim != 3 or rgb.shape[-1] < 3:
+            raise ValueError(f"Expect rgb_image of shape (H, W, 3). Got {rgb.shape}")
+
+        rgb = rgb[..., :3]
+        rgb = bd.maximum(rgb, 0)
+
+        mid = max(self.curveMidGray, self.curveEps)
+
+        # Resolve soft-clip white point.
+        white = getattr(self, 'curveWhitePoint', None)
+        if white is None:
+            wp_stops = float(getattr(self, 'curveWhitePointStops', 7.0))
+            white = mid * (2.0 ** wp_stops)
+        white = float(white)
+        white = max(white, self.curveEps)
+
+        if getattr(self, 'curveSoftClipEnable', True):
+            # Softly limit outliers / fireflies without a hard clamp.
+            rgb = (white * rgb) / (rgb + white)
+
+        # log2 helper (numpy/cupy both provide log2, but keep a fallback).
+        if hasattr(bd, 'log2'):
+            s = bd.log2((rgb + self.curveEps) / mid)
+        else:
+            s = bd.log((rgb + self.curveEps) / mid) / bd.log(2.0)
+
+        # Global exposure offset in stops.
+        s = s + float(getattr(self, 'curveExposureOffsetStops', 0.0))
+
+        # Per-channel trims.
+        ch_off = getattr(self, 'curveChannelOffsetStops', [0.0, 0.0, 0.0])
+        if ch_off is not None:
+            try:
+                off = bd.asarray(ch_off, dtype=rgb.dtype).reshape((1, 1, 3))
+                s = s + off
+            except Exception:
+                # If backend dtype/shape handling fails for any reason, ignore trims.
+                pass
+
+        # Richards logistic in stops-space.
+        k0 = float(getattr(self, 'curveContrast', 1.15))
+        nu = float(getattr(self, 'curveAsymmetry', 1.0))
+        nu = max(nu, 1e-6)
+
+        # Optional per-channel contrast multipliers.
+        k_mul = getattr(self, 'curveChannelContrastMul', [1.0, 1.0, 1.0])
+        try:
+            km = bd.asarray(k_mul, dtype=rgb.dtype).reshape((1, 1, 3))
+        except Exception:
+            km = 1.0
+
+        k = k0 * km
+
+        # Center point s0=0 (mid-gray). Any shift is handled by exposure offsets above.
+        x = -k * s
+        # y = (1 + nu * exp(x))^(-1/nu)
+        y = bd.power(1.0 + nu * bd.exp(x), -1.0 / nu)
+
+        # Map to density, then to transmittance.
+        dmin = float(getattr(self, 'curveDmin', 0.10))
+        dmax = float(getattr(self, 'curveDmax', 2.60))
+        if dmax < dmin:
+            dmax, dmin = dmin, dmax
+
+        D = dmin + (dmax - dmin) * y
+
+        # Transmittance T = 10^(-D)
+        T = bd.power(10.0, -D)
+
+        # Clamp to a sane range for downstream grading.
+        T = bd.clip(T, 0.0, 1.0)
+
+        return T
+
+
+    def ApplyGrainAndNoise(self, rgb_image):
+        """Hook for image-domain grain/noise.
+
+        Default: identity.
+        Must return rgb_image.
+        """
+
+        dye = self._DyeCloud(rgb_image)
+        silver = self._ApplySilverGrain(rgb_image)
+
+        return silver * self.bleachByPassRatio + dye * (1.0 - self.bleachByPassRatio)
 
 
     # ==================================================================
@@ -153,34 +297,16 @@ class Film(StdImager):
         return radiant * film_w
 
 
-    def ApplyGrainAndNoise(self, rgb_image):
-        """Hook for image-domain grain/noise.
-
-        Default: identity.
-        Must return rgb_image.
-        """
-
-        dye = self._DyeCloud(rgb_image)
-        silver = self._ApplySilverGrain(rgb_image)
-
-        return silver * self.bleachByPassRatio + dye * (1.0 - self.bleachByPassRatio)
-
-
     def _ApplyHalation(self, intersectRayBatch, rgb_image):
         """Optional halation hook.
 
-        Left as identity by default. Subclasses / future work can implement:
-          - back-plate bounce / scattering using `self.backPlateDistance`
-          - per-layer absorption using `self.emulsionOrder`
-
-        If you implement `_HalationBounce`, you can call it here.
         """
-        # Placeholder: no halation yet
-        return rgb_image
 
+        if self.halationIsOptical:
+            return self._HalationOptical(intersectRayBatch)
+        else:
+            return self._Halation2D(rgb_image)
 
-    def _DensityCurve(self, rgb_image):
-        pass
 
 
     def _ApplySilverGrain(self, rgb_image):
@@ -638,6 +764,14 @@ class Film(StdImager):
         resultIm = self._blend_bw_color(rgb_noisy, self.dyeCloudColorBalance)
 
         return bd.maximum(resultIm, 0)
+
+
+    def _HalationOptical(self, intersectRayBatch):
+        pass
+
+
+    def _Halation2D(self, rgb_image):
+        pass
 
 
     # ==================================================================
