@@ -46,42 +46,94 @@ class Film(StdImager):
         # ============================= Grain ==============================
 
         self.bleachByPassRatio = 0.55
+        # Mix between silver grain and color dye grain.
+        # 0 = pure dye-cloud grain, 1 = pure silver-halide grain.
+        # Values around 0.5 simulate partial bleach bypass look.
+
         self.silverGrainsPerMP = 1280000.0
+        # Number of latent silver grains per megapixel.
+        # Controls grain density (higher = finer / more numerous grains).
+
         self.grainSizeMu = [.45, .65, .45]
+        # Log-normal mean (per RGB layer) for grain radius distribution (in pixels).
+        # Determines typical grain size for each emulsion layer.
+
         self.grainSizeSigma = [.75, .75, .75]
+        # Log-normal standard deviation (per RGB layer) for grain radius.
+        # Higher = wider size variation and more irregular grain structure.
+
         self.silverPhotonScale = 2048.0
+        # Exposure-to-photon scaling factor for Poisson development.
+        # Larger = cleaner (less shot noise); smaller = higher effective ISO.
 
         self.silverThresh0 = 2.0
+        # Base latent image threshold for grain activation (minimum photon count).
+
         self.silverThreshR0 = 1.5
+        # Reference grain radius used in threshold scaling.
+
         self.silverThreshBeta = 1.0
+        # Controls how activation threshold scales with grain size.
+        # 1.0 = linear scaling with radius.
+
         self.silverThreshJitter = 0.75
+        # Random threshold perturbation per grain to simulate emulsion irregularity.
 
         self.silverGrowGamma = 0.5
+        # Post-threshold growth rate of developed grain.
+        # Higher = faster opacity ramp once threshold is exceeded.
+
         self.silverAmax = 1.0
+        # Maximum opacity / density contribution of a fully developed grain.
 
         self.silverPowerAlpha = 1.0
+        # Weighting factor in power-Voronoi distance.
+        # Higher = larger grains dominate more territory.
+
         self.silverEdgeSoftPx = 1.25
+        # Radial edge softening (in pixels) for grain boundaries.
+        # Smaller = sharper grain edges.
 
         self.silverGrainStrength = 0.35
+        # Overall multiplier for silver grain contribution before density curve.
+
         self.silverGrainColorBalance = 0.5  # 0 mono, 1 RGB
+        # Blend between monochrome grain and per-channel grain.
+        # 0 = B&W-style silver grain, 1 = independent RGB emulsion grain.
 
         self.silverGrainClump = True
+        # Enable neighbor-based development bias (grain clumping).
+
         self.silverGrainClumpRadiusPx = 1
+        # Spatial radius (in pixels) for grain interaction during clumping stage.
 
         self.silverSensSigma = 0.25
+        # Log-normal spread of per-grain sensitivity multipliers.
+        # Higher = more uneven crystal response.
 
         self.silverPolygonalEdges = True
+        # Use polygonal (Voronoi-based) grain boundaries instead of radial disks.
+
         # softness in "power distance" units (≈ pixels^2). Larger => softer border transition.
         self.silverPolygonalEdgeSoft = 4.0
+        # Controls smoothing width at Voronoi cell borders.
+        # Smaller = crisp, faceted silver grains.
 
         # Optional: mix back a little bit of radial shaping (0 = fully polygonal, 1 = fully radial/circular)
         self.silverRadialEdgeMix = 0.0
+        # Blends polygonal edges with circular falloff.
+        # Useful for slightly rounded crystal appearance.
 
         self.GrainGridR = None
         self.GrainGridG = None
         self.GrainGridB = None
+        # Cached latent grain lists (per emulsion layer).
+        # Avoids regenerating grains unless resolution changes.
+
         self._grain_grid_H = -1
         self._grain_grid_W = -1
+        # Resolution used for current cached grain grids.
+        # If image size changes, grids must be regenerated.
 
 
         # ==================================================================
@@ -128,7 +180,40 @@ class Film(StdImager):
         # ==================================================================
         # ============================ Halation ============================
 
-        self.halationIsOptical = False
+        # Image-domain halation (2D) controls
+        self.halation2DStrength = 1.6  # overall amount added back (linear domain)
+        self.halation2DRadiusPx = 48  # max radius in pixels (kernel radius)
+        self.halation2DFalloffPower = .1  # >1 tighter core, larger => faster decay
+        self.halation2DThreshold = 0.7  # linear threshold; only highlights above contribute
+        self.halation2DSoftKnee = 0.1  # smooth threshold width (linear)
+        self.halation2DSeedGamma = 1  # highlight shaping (>=1 makes only hottest areas seed)
+        self.halation2DNormalizeKernel = False  # keep kernel energy = 1
+        self.halation2DClampNonNegative = True  # avoid negative ringing from FFT numerical noise
+
+        # --- Floor clamp (kills "halo dust everywhere" even if kernel not normalized) ---
+        self.halation2DFloorClamp = 1e-3  # linear units; larger => more aggressive clamp
+        self.halation2DFloorUseSeedH = True  # True: clamp uses thresholded seed_h; False: uses raw seed
+
+        # --- Value-dependent radius (multi-scale blend) ---
+        self.halation2DVariableRadius = True
+        self.halation2DRadiusPxMin = 6
+        self.halation2DRadiusPxMax = self.halation2DRadiusPx  # treat existing as max by default
+        self.halation2DRadiusValueRef = 2  # seed_h value where radius reaches max
+        self.halation2DRadiusGamma = 0.7  # <1 ramps early, >1 ramps late
+        self.halation2DRadiusLevels = 3  # 3 = min/mid/max (recommended)
+
+        # How much each emulsion layer receives (front, middle, back along emulsionOrder)
+        # Default: back layer dominates (red by default).
+        self.halation2DLayerReceive = [0.10, 0.10, 1.00]
+
+        # Which channels seed the halo (RGB weights). Default: use luma-ish seed.
+        self.halation2DSeedRGB = [0.25, 0.65, 0.10]
+
+        # Optional cap to avoid insane halos on extreme HDR values (None disables).
+        self.halation2DMaxAdd = None
+
+        # Internal cache
+        self._halation2d_cache = {}
 
 
     def UpdateGrid(self):
@@ -235,6 +320,222 @@ class Film(StdImager):
         return silver * self.bleachByPassRatio + dye * (1.0 - self.bleachByPassRatio)
 
 
+    def Halation2D(self, rgb_image):
+        """
+        Image-domain (2D) halation approximation.
+
+        - Seeds from highlights (threshold + soft knee)
+        - Convolves with a radially-symmetric diffusion-like kernel (power-exponential)
+        - Adds back mostly into the last emulsion layer (default red) and lightly into others
+
+        Parameters
+        ----------
+        rgb_image : (H, W, 3) array
+            Linear RGB image (can be HDR).
+
+        Returns
+        -------
+        out : (H, W, 3) array
+            Linear RGB with halation added.
+        """
+
+        if rgb_image is None:
+            return rgb_image
+
+        H, W, C = rgb_image.shape
+
+        # --- Controls (hard defaults, overridable via attributes) ---
+        if self.halation2DStrength  <= 0.0:
+            return rgb_image
+
+        radius_px = self.halation2DRadiusPx
+
+        falloff_p = self.halation2DFalloffPower
+
+        thr = self.halation2DThreshold
+        knee = self.halation2DSoftKnee
+
+        seed_gamma = self.halation2DSeedGamma
+        seed_rgb = bd.array(self.halation2DSeedRGB)
+        layer_recv = self.halation2DLayerReceive
+
+        # normalize_kernel = self.halation2DNormalizeKernel
+        clamp_nonneg = self.halation2DClampNonNegative
+        max_add = self.halation2DMaxAdd
+
+        # --- Build receive weights mapped through emulsionOrder ---
+        # emulsionOrder is axial order (front->back). We want "back" to receive most.
+        # Default emulsionOrder = [B, G, R], so receives become B:0.10, G:0.25, R:1.00.
+        recv_rgb = bd.zeros((3,), dtype=rgb_image.dtype)
+        try:
+            order = [x.value for x in self.emulsionOrder]  # Channels are likely ints/enums
+            if len(order) == 3:
+                recv_rgb[order[0]] = layer_recv[0]
+                recv_rgb[order[1]] = layer_recv[1]
+                recv_rgb[order[2]] = layer_recv[2]
+            else:
+                # fallback
+                recv_rgb[:] = bd.asarray([0.10, 0.1, 1.00], dtype=rgb_image.dtype)
+        except Exception:
+            recv_rgb[:] = bd.asarray([1.00, 0.1, 0.10], dtype=rgb_image.dtype)
+
+        recv_rgb = recv_rgb.reshape((1, 1, 3))
+
+        # --- Seed map from highlights ---
+        # Weighted seed (luma-like) so halation is not purely "red comes from red".
+        x = bd.maximum(rgb_image, 0)
+
+        seed = (x * seed_rgb).sum(axis=2)  # (H, W)
+
+        # Soft-knee threshold: smoothly bring in highlights above thr
+        # y = max(0, seed - thr), with knee smoothing
+        if knee > 0.0:
+            # smoothstep-ish knee: y = log(1 + exp((seed-thr)/knee)) * knee
+            # (stable enough for HDR; avoids hard edge)
+            y = (seed - thr) / (knee + NEAR_ZERO)
+            # Softplus: log(1+exp(y))
+            y = bd.log1p(bd.exp(y))
+            seed_h = y * knee
+        else:
+            seed_h = bd.maximum(seed - thr, 0)
+
+        # Emphasize hottest highlights if desired
+        if seed_gamma != 1.0:
+            seed_h = bd.power(seed_h, seed_gamma)
+
+        # --- Kernel + FFT convolution (cached) ---
+        # Cache keyed by (H,W,radius,falloff,normalize,dtype)
+        cache = self._halation2d_cache
+        if cache is None:
+            self._halation2d_cache = {}
+            cache = self._halation2d_cache
+
+        key = (int(H), int(W), int(radius_px), float(falloff_p), self.halation2DNormalizeKernel, str(rgb_image.dtype))
+        K_fft = cache.get(key, None)
+
+        if K_fft is None:
+            r = radius_px
+            size = 2 * r + 1
+
+            yy = bd.arange(-r, r + 1, dtype=rgb_image.dtype).reshape((size, 1))
+            xx = bd.arange(-r, r + 1, dtype=rgb_image.dtype).reshape((1, size))
+            rr = bd.sqrt(xx * xx + yy * yy)
+
+            # Power-exponential falloff: exp(-(r/R)^p), clipped to radius
+            R = bd.asarray(float(r), dtype=rgb_image.dtype)
+            k = bd.exp(-bd.power(rr / (R + NEAR_ZERO), falloff_p))
+            k = k * (rr <= (R + 1e-6))  # hard radius cut
+
+            if self.halation2DNormalizeKernel:
+                ksum = bd.sum(k) + NEAR_ZERO
+                k = k / ksum
+
+            # Embed into (H,W) and shift so kernel center is at (0,0) for FFT convolution
+            K = bd.zeros((H, W), dtype=rgb_image.dtype)
+            K[:size, :size] = k
+            K = bd.roll(K, shift=-r, axis=0)
+            K = bd.roll(K, shift=-r, axis=1)
+
+            K_fft = bd.fft.fft2(K)
+            cache[key] = K_fft
+
+        # Convolve: halo = ifft2( fft2(seed_h) * K_fft )
+        S = bd.fft.fft2(seed_h)
+
+        def _fft_halo_for_radius(seed_map_2d, r_px):
+            """Return halo = conv(seed_map_2d, kernel(r_px)). Uses cached FFT kernel."""
+            r = int(max(1, r_px))
+            key = (int(H), int(W), int(r), float(falloff_p), self.halation2DNormalizeKernel, str(rgb_image.dtype))
+            K_fft_local = cache.get(key, None)
+
+            if K_fft_local is None:
+                size = 2 * r + 1
+                yy = bd.arange(-r, r + 1, dtype=rgb_image.dtype).reshape((size, 1))
+                xx = bd.arange(-r, r + 1, dtype=rgb_image.dtype).reshape((1, size))
+                rr = bd.sqrt(xx * xx + yy * yy)
+
+                R = bd.asarray(float(r), dtype=rgb_image.dtype)
+                k = bd.exp(-bd.power(rr / (R + NEAR_ZERO), falloff_p))
+                k = k * (rr <= (R + 1e-6))
+
+                if self.halation2DNormalizeKernel:
+                    ksum = bd.sum(k) + NEAR_ZERO
+                    k = k / ksum
+
+                K = bd.zeros((H, W), dtype=rgb_image.dtype)
+                K[:size, :size] = k
+                K = bd.roll(K, shift=-r, axis=0)
+                K = bd.roll(K, shift=-r, axis=1)
+
+                K_fft_local = bd.fft.fft2(K)
+                cache[key] = K_fft_local
+
+            S_local = bd.fft.fft2(seed_map_2d)
+            h = bd.fft.ifft2(S_local * K_fft_local).real
+            if clamp_nonneg:
+                h = bd.maximum(h, 0)
+            return h
+
+        # --- Value-dependent radius blend ---
+        use_var_r = bool(getattr(self, "halation2DVariableRadius", False))
+        if use_var_r:
+            rmin = int(getattr(self, "halation2DRadiusPxMin", max(1, radius_px // 4)))
+            rmax = int(getattr(self, "halation2DRadiusPxMax", radius_px))
+            rmin = max(1, min(rmin, rmax))
+            rmax = max(rmin, rmax)
+
+            # per-pixel t in [0,1] based on seed_h magnitude
+            vref = float(getattr(self, "halation2DRadiusValueRef", 8.0))
+            rgam = float(getattr(self, "halation2DRadiusGamma", 1.0))
+            vref = max(vref, NEAR_ZERO)
+            rgam = max(rgam, 1e-3)
+
+            t = bd.clip(seed_h / vref, 0.0, 1.0)
+            t = bd.power(t, rgam)
+
+            # 3-level blend: rmin, rmid, rmax
+            rmid = int((rmin + rmax) * 0.5)
+
+            halo_min = _fft_halo_for_radius(seed_h, rmin)
+            halo_mid = _fft_halo_for_radius(seed_h, rmid)
+            halo_max = _fft_halo_for_radius(seed_h, rmax)
+
+            # Smooth weights (quadratic): w0=(1-t)^2, w2=t^2, w1=1-w0-w2
+            w0 = bd.power(1.0 - t, 2.0)
+            w2 = bd.power(t, 2.0)
+            w1 = bd.clip(1.0 - w0 - w2, 0.0, 1.0)
+
+            halo = halo_min * w0 + halo_mid * w1 + halo_max * w2
+        else:
+            halo = _fft_halo_for_radius(seed_h, radius_px)
+
+        # --- Hard floor clamp via "support" map ---
+        floor_c = float(getattr(self, "halation2DFloorClamp", 0.0))
+        if floor_c > 0.0:
+            use_seed_h = bool(getattr(self, "halation2DFloorUseSeedH", True))
+            base_map = seed_h if use_seed_h else seed
+
+            support = _fft_halo_for_radius(base_map, radius_px if not use_var_r else int(
+                getattr(self, "halation2DRadiusPxMax", radius_px)))
+            # turn support into [0..1] multiplier; where support is tiny -> multiplier ~0
+            # this kills the "elevated floor" without needing kernel normalization
+            support_mask = support / (support + floor_c)
+            halo = halo * support_mask
+
+        # --- Add back into channels (mostly the back layer / red by default) ---
+        #add = halo[:, :, None] * recv_rgb * self.halation2DStrength
+        dst = (bd.maximum(rgb_image, 0) * seed_rgb.reshape(1, 1, 3)).sum(axis=2)
+        # darker pixels get more halo; brighter get less
+        gate = bd.clip(1.0 - (dst / (dst + thr + NEAR_ZERO)), 0.0, 1.0)
+        add = halo[:, :, None] * gate[:, :, None] * recv_rgb * self.halation2DStrength
+
+        if max_add is not None:
+            add = bd.minimum(add, bd.asarray(max_add, dtype=rgb_image.dtype))
+
+        out = rgb_image + add
+        return out, add
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
@@ -305,8 +606,7 @@ class Film(StdImager):
         if self.halationIsOptical:
             return self._HalationOptical(intersectRayBatch)
         else:
-            return self._Halation2D(rgb_image)
-
+            return self.Halation2D(rgb_image)[0]
 
 
     def _ApplySilverGrain(self, rgb_image):
@@ -767,10 +1067,6 @@ class Film(StdImager):
 
 
     def _HalationOptical(self, intersectRayBatch):
-        pass
-
-
-    def _Halation2D(self, rgb_image):
         pass
 
 

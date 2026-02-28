@@ -562,26 +562,32 @@ def NewWavelengthTest():
 
 def FilmTest():
     from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+    from Imagers.Technicolor import Technicolor
     from ObjectSpace.Images import Image2DFlat
     from Util.Misc import RectPath
 
+    converter = ColorPDF()
+    converter.gainR = 2
+    converter.gainB = 2
 
     im = Image2DFlat()
     im.LoadFromEXR(RectPath(r"resources/Results/NewZDepthClose9hr.exr"))
     im.rgbArray = im.rgbArray/128
     #im.Show2D()
 
-    f = Film()
+    f = Technicolor(converter)
 
     print(f.ImageStats(im.rgbArray))
 
+    # im.rgbArray = f.Halation2D(im.rgbArray)[1]
     im.rgbArray = f.ApplyGrainAndNoise(im.rgbArray)
-    im.rgbArray = f.DensityCurve(im.rgbArray)
+    #im.rgbArray = f.DensityCurve(im.rgbArray)
 
     print(f.ImageStats(im.rgbArray))
     # im.Show2D()
 
-    SaveAsEXR(im.rgbArray, r"resources/Results", "FilmCurveTest")
+    SaveAsEXR(im.rgbArray, r"resources/Results", "Technicolor")
 
 
 

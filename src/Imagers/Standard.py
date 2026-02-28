@@ -183,8 +183,8 @@ class StdImager(Surface):
 
         return {
             "backend": backend_name,
-            "shape": shape,
-            "channels": stats
+            "\nshape": shape,
+            "\nchannels": stats
         }
 
 
