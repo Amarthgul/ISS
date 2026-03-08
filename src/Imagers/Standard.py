@@ -380,17 +380,6 @@ class StdImager(Surface):
         # Stack to RGB image
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
 
-        # =================================================================================================
-        # Hook: image-domain effects that may require incident info (e.g. halation)
-        rgb_image = self._ApplyHalation(
-            intersectRayBatch=intersectRayBatch,
-            rgb_image=rgb_image
-        )
-
-        # =================================================================================================
-        # Hook: image-domain noise/grain
-        if self.buildInGrain:
-            rgb_image = self.ApplyGrainAndNoise(rgb_image=rgb_image)
 
         # Monte Carlo accumulation
         if baseImg is not None:

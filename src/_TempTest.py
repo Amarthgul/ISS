@@ -34,7 +34,7 @@ def BladeTest():
         plt.imshow(rgb)
 
         plt.draw()
-        plt.pause(0.5)
+        plt.pause(2)
 
     plt.show()
 
@@ -129,7 +129,7 @@ def main():
     # DifTest()
     # CentroidTest()
     # StereoImageDisplay()
-    DistTest()
+    BladeTest()
 
 
 if __name__ == "__main__":

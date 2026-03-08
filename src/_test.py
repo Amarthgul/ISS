@@ -590,6 +590,78 @@ def FilmTest():
     SaveAsEXR(im.rgbArray, r"resources/Results", "Technicolor")
 
 
+def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTime=2*60*60, realTimeUpdate=False):
+    print("New test w/ im Distance ", imageDistance)
+
+    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedMaster50f0.95.zmx"))
+    lens = reader.GetLens()
+    lens.UpdateLens()
+    # lens.SetAperture(5.6)
+    print(lens.GetInfo())
+
+    print("Best focus", lens.BestFocusBFD(focusDistance))  # 32.926564?
+    imager = StdImager(lens.BestFocusBFD(focusDistance))  # 32.4 lens.BestFocusBFD(imageDistance)
+
+    # Assemble the imaging system
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    sourceImage = Image2DFlat()
+    sourceImage.distance = imageDistance
+    sourceImage.horizontalAoV = lens.GetAoV()[0] * 2
+    sourceImage.imageDimensionOverride = 1920
+    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
+    # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
+
+    start = time.time()
+
+    iterationCount = 0
+
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image))
+
+    while (True):
+
+        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 20480)
+        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
+        # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        # mainRP.Append(mainRB, _tir, _vig)
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+        if (realTimeUpdate):
+            im.set_data(ImageConversion(image))
+            plt.draw()
+            plt.pause(0.01)
+
+        # print(source.sampleRecord)
+        elpased = time.time() - start
+        imMin, imMax, imR = sourceImage.GetSampleRatios()
+
+        # print("End RB size: ", mainRB.value.shape)
+        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin,
+              " max: ", imMax, " -Ratio: ", imR)
+        ProgressBar(elpased / computeTime, 100)
+
+        iterationCount += 1
+
+        if (elpased > computeTime):
+            image /= 100
+            global FrameCount
+            fn = r"SpeedMasterTest2hr"
+            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
+            break
+
+    FrameCount += 1
+
+    return elpased
+
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -692,4 +764,4 @@ def main():
 
 
 if __name__ == "__main__":
-    FilmTest()
+    SpeedMasterTest()

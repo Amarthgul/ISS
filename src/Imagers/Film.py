@@ -180,6 +180,8 @@ class Film(StdImager):
         # ==================================================================
         # ============================ Halation ============================
 
+        self.halationIsOptical = False
+
         # Image-domain halation (2D) controls
         self.halation2DStrength = 1.6  # overall amount added back (linear domain)
         self.halation2DRadiusPx = 48  # max radius in pixels (kernel radius)

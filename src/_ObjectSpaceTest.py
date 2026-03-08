@@ -220,6 +220,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
+    from Util.Globals import Channels
 
     print("Currently using ", backend_name)
 
@@ -235,14 +236,17 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
     sr = ColorPDF()
     #sr.gainR = 1.75
     sr.gainG = 0.75
-    #sr.sigmaG = 50
-    #sr.sigmaB = 50
     sr.gainB = 1.75
 
     # sr.PlotDistribution()
     # plt.show()
 
     imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    imager.dyeSpectralPairs = {
+        Channels.R: Channels.G,
+        Channels.G: Channels.R,
+        Channels.B: Channels.B,
+    }
     #imager = StdImager(lens.BestFocusBFD(focusDistance))
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
@@ -317,7 +321,8 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     att = DepthVisualizer()
     fog = FogAttenuator()
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
     lens.UpdateLens()
     if aperture is not None:
         lens.SetAperture(aperture)
@@ -339,7 +344,91 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
 
     while (True):
         recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
+        # mainRP.Append(mainRB, _tir, _vig)
+        #print(mainRB.ToString(30))
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
+
+
+def StackTestDigitalLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    stack = ExampleStack()
+    att = DepthVisualizer()
+    fog = FogAttenuator()
+
+    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(lensPath)).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    #sr = ColorPDF()
+    #sr.normGainB = 1.25
+    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
@@ -468,16 +557,25 @@ def main():
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
     renderTime = 3 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
-    aperture = [None,   None, None, None, 1.8,     2.8,      4]
+    aperture = [None,   None, None,  1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
+    # StackTestDigital(renderTime, distance[0], "HayesFocusNewlens", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
-    for i in [10, 11, 12]:
-        StackTestDigital(renderTime, distance[i], "HayesFocusRacking", realTimeUpdate=False)
-    #
+
+    for p in ["Zeiss50f1.4.zmx",
+              "Baltar50f2.zmx",
+              "Helios-44.zmx",
+              "SpeedMaster50f0.95.zmx"]:
+        StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[0], "LensTest"+p, realTimeUpdate=False)
+
+    # for a in [8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
+    #     StackTestDigital(renderTime, distance[0], "HayesFocusStopDown"+str(a), aperture=a, realTimeUpdate=False)
+    #     i +=1
+
 
     # StackTest(renderTime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)
 
