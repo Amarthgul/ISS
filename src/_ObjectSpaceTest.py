@@ -309,6 +309,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 
         recorder = time.time()
 
+
 def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
     from ObjectSpace.ImageStack import ImageStack, ExampleStack
@@ -477,6 +478,172 @@ def StackTestDigitalLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, 
         recorder = time.time()
 
 
+def ImgRefLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    stack = ExampleStack()
+    att = DepthVisualizer()
+    fog = FogAttenuator()
+
+    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(lensPath)).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    #sr = ColorPDF()
+    #sr.normGainB = 1.25
+    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+    refImage = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 1024)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=True)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=True)
+
+        reflectedRB, _tir, _vig = imager.IntersectRays(reflectedRB)
+        refImage= imager.IntegralRays(reflectedRB, baseImg=refImage, polarized=True)
+
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
+            SaveAsEXR(refImage, r"resources/Results", fn + "Ref" +str(focusDistance))
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
+
+
+def FocusFalloffLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+
+    from ObjectSpace.ImageVariDepth import  Image2DVariDepth
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    imSource = Image2DVariDepth()
+    imSource.LoadFromEXR(RectPath(r"resources/FocusFalloffGrid.exr"))
+
+    lens = LensFromZmx(RectPath(lensPath)).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    #sr = ColorPDF()
+    #sr.normGainB = 1.25
+    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
+    imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+
+    while (True):
+        recorder = time.time()
+        mainRB = imSource.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 20480)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        #mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
+        # mainRP.Append(mainRB, _tir, _vig)
+        #print(mainRB.ToString(30))
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
+            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
+
+
 def DoubleImgTest():
     targets = bd.array([
         [1, 2, 25],
@@ -565,12 +732,20 @@ def main():
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
+    # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", 30 * 60, 1500, "SpeedMaster50FallOff" , realTimeUpdate=False)
 
-    for p in ["Zeiss50f1.4.zmx",
-              "Baltar50f2.zmx",
-              "Helios-44.zmx",
-              "SpeedMaster50f0.95.zmx"]:
-        StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[0], "LensTest"+p, realTimeUpdate=False)
+    # "SpeedPanchro50f2.zmx",
+    # "SPii50mmf2.zmx",
+    # "CanonNFD50f1.4.zmx",
+    # "LeicaSummicron50f2.zmx"
+
+    for p in ["SpeedPanchro50f2.zmx",
+            "SPii50mmf2.zmx",
+            "CanonNFD50f1.4.zmx",
+            "LeicaSummicron50f2.zmx"]:
+        # StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=False)
+        FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1500, "FalloffTest"+p, realTimeUpdate=True)
+        # ImgRefLenSelect(r"resources/Zmx/"+p, 120, distance[i], "RefComp"+p, realTimeUpdate=False)
 
     # for a in [8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
     #     StackTestDigital(renderTime, distance[0], "HayesFocusStopDown"+str(a), aperture=a, realTimeUpdate=False)

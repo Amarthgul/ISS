@@ -174,7 +174,7 @@ def SpotTesting(lens, objectDistance = 13500, focusDistance = 1500, computeTime 
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = ((r"something" if lensName is None else lensName)+
+            fn = ((r"SpeedMasterSpots" if lensName is None else lensName)+
                   str(objectDistance)+"_"+str(focusDistance))
             SaveAsEXR(image, r"resources/Results", fn)
             break
@@ -697,6 +697,7 @@ def main():
     # lens = CanonEF50mmf12L()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
     reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedMaster50f0.95.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
     # lens.SetAperture(5.6)
@@ -704,8 +705,8 @@ def main():
 
     # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
     # return
-    ISO12233Test(lens, computeTime=10*60, realTimeUpdate=False)
-    # SpotTesting(lens, computeTime=30 * 60, realTimeUpdate=False)
+    #ISO12233Test(lens, computeTime=10*60, realTimeUpdate=False)
+    SpotTesting(lens, objectDistance=13500, focusDistance=1500,  computeTime=20 * 60, realTimeUpdate=False)
 
     return
 
@@ -764,4 +765,4 @@ def main():
 
 
 if __name__ == "__main__":
-    SpeedMasterTest()
+    main()
