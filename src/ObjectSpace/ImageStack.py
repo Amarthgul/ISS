@@ -52,7 +52,7 @@ class ImageStack:
         return wholeRB
 
 
-def ExampleStack():
+def ExampleStack3D():
 
     FG = Image2DVariDepth()
     FG.zFarLimit = 1e3
@@ -91,7 +91,7 @@ def ExampleStack():
 
 
 def main():
-    stack = ExampleStack()
+    stack = ExampleStack3D()
 
 if __name__ == "__main__":
     main()

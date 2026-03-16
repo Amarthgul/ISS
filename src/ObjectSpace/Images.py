@@ -234,6 +234,13 @@ class Image2DFlat(Image2D):
         self.rgbArray = bd.stack([r, g, b], axis=-1)
 
 
+    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
+
+        
+
+        pass
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================

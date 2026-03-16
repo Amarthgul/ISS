@@ -38,10 +38,13 @@ As a result, there are quite a lot of variations of method/variable names and co
 
 ### TODO: 
 
-- Polarzaition sometimes does not work at all 
-
 - Add a pure brute force asph solver 
 
+- Add channel summing in the imager 
+
+- Add opacity based on image staking 
+
+- Add propagation based film grain 
 
 ### AI 
 

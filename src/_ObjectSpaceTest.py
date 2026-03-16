@@ -134,13 +134,13 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
 
 def StackTest(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
     print("Currently using ", backend_name)
 
-    stack = ExampleStack()
+    stack = ExampleStack3D()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
@@ -217,14 +217,14 @@ def StackTest(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aper
 
 def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
     from Util.Globals import Channels
 
     print("Currently using ", backend_name)
 
-    stack = ExampleStack()
+    stack = ExampleStack3D()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
@@ -312,13 +312,13 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 
 def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
     print("Currently using ", backend_name)
 
-    stack = ExampleStack()
+    stack = ExampleStack3D()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
@@ -396,13 +396,13 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
 
 def StackTestDigitalLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
     print("Currently using ", backend_name)
 
-    stack = ExampleStack()
+    stack = ExampleStack3D()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
@@ -480,13 +480,13 @@ def StackTestDigitalLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, 
 
 def ImgRefLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
     print("Currently using ", backend_name)
 
-    stack = ExampleStack()
+    stack = ExampleStack3D()
     att = DepthVisualizer()
     fog = FogAttenuator()
 
@@ -738,13 +738,13 @@ def main():
     # "SPii50mmf2.zmx",
     # "CanonNFD50f1.4.zmx",
     # "LeicaSummicron50f2.zmx"
+    # "CanonEF50f1.2L.zmx",
 
-    for p in ["SpeedPanchro50f2.zmx",
-            "SPii50mmf2.zmx",
-            "CanonNFD50f1.4.zmx",
-            "LeicaSummicron50f2.zmx"]:
+    for p in ["Industar-50.zmx",
+              "Helios-44.zmx",
+              "Biotar50f1.4.zmx"]:
         # StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=False)
-        FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1500, "FalloffTest"+p, realTimeUpdate=True)
+        FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1250, "FalloffTest"+p, realTimeUpdate=False)
         # ImgRefLenSelect(r"resources/Zmx/"+p, 120, distance[i], "RefComp"+p, realTimeUpdate=False)
 
     # for a in [8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
