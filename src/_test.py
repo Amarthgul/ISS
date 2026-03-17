@@ -663,6 +663,33 @@ def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTi
     return elpased
 
 
+def HighlightReconTest():
+    from ObjectSpace.ImageExt import Image2DVariHighlightExtension, Image2DFlatHighlightExtension
+    from Util.Misc import RectPath
+
+    imgEx = Image2DVariHighlightExtension()
+    imgEx.zDepthMappingRange = [1000, 1500]
+    imgEx.imageDimensionOverride = 240
+    imgEx.LoadFrom8BitPNG(RectPath(r"resources/2DFrameExample_MG.png"))
+    imgEx.LoadFrom8bitZ(RectPath(r"resources/2DFrameExample_MGZ.png"))
+    imgEx.UpdatePointSources()
+    # imgEx.LoadFrom8bit(RectPath(r"resources/2DFrameExample.jpg"))
+
+    # imgEx= Image2DFlatHighlightExtension()
+    # imgEx.zDistance = 750
+    # imgEx.imageDimensionOverride = 240
+    # imgEx.LoadFrom8bitRGB(RectPath(r"resources/2DFrameExample_BG.png"))
+    # imgEx.UpdatePointSources()
+
+
+    #imgEx.ReconstructHighlight()
+    #imgEx.VisualizeLuminosityHotMap()
+    # imgEx.Show2D()
+    imgEx.DrawImage()
+    plt.show()
+
+
+
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
@@ -765,4 +792,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    HighlightReconTest()

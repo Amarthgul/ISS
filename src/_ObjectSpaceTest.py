@@ -717,9 +717,88 @@ def ZmxParse():
     plt.show()
 
 
+def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Stack2DHighlightRecon", aperture=None, realTimeUpdate = False):
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack2D
+    from Imagers.Film import Film
+    from Util.ColorPDF import ColorPDF
+
+    print("Currently using ", backend_name)
+
+    stack = iStack #ExampleStack2D()
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.UpdateLens()
+    if aperture is not None:
+        lens.SetAperture(aperture)
+
+    imager = StdImager(lens.BestFocusBFD(focusDistance))
+    # imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager.SetLensLength(lens.totalAxialLength)
+    image = imager.AcquireEmpty()
+
+    iterationCount = 0
+    start = time.time()
+    if (realTimeUpdate):
+        plt.ion()  # Turn on interactive mode
+        fig, ax = plt.subplots()
+        im = ax.imshow(ImageConversion(image, flipH=True))
+
+    while (True):
+        recorder = time.time()
+        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
+        # mainRB = fog.Attenuate(mainRB)
+        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
+        # mainRBZ = att.Attenuate(mainRB)
+        print("Creating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
+        print("Propagating RB took ", time.time() - recorder)
+        recorder = time.time()
+
+        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
+
+        # mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
+        # mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
+        # mainRP.Append(mainRB, _tir, _vig)
+        # print(mainRB.ToString(30))
+
+        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+        # imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
+        print("Integral image took ", time.time() - recorder)
+        recorder = time.time()
+
+        if (realTimeUpdate):
+            print("Max value ", bd.max(image))
+            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+            plt.draw()
+            plt.pause(0.01)
+
+            # print(source.sampleRecord)
+        elapsed = time.time() - start
+        ProgressBar(elapsed / renderTime, 100)
+        iterationCount += 1
+
+        print("House keep took ", time.time() - recorder)
+
+        if (elapsed > renderTime):
+            image /= 100
+            global FrameCount
+            fn = filename
+            SaveAsEXR(image, r"resources/Results", fn)
+            # SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
+
+            break
+
+        recorder = time.time()
 
 
 def main():
+
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack2D, ExampleStack2DNoGain
+    StackTest2D(ExampleStack2DNoGain(), renderTime=6*60*60, filename=r"Stack2DNoRecon")
+    StackTest2D(ExampleStack2D(), renderTime=6*60*60, filename=r"Stack2DHighlightRecon")
+    return
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
@@ -728,7 +807,7 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    # StackTestDigital(renderTime, distance[0], "HayesFocusNewlens", realTimeUpdate=False)
+    StackTestDigital(60, distance[7], "NewAlphaOrder", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
@@ -743,8 +822,8 @@ def main():
     for p in ["Industar-50.zmx",
               "Helios-44.zmx",
               "Biotar50f1.4.zmx"]:
-        # StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=False)
-        FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1250, "FalloffTest"+p, realTimeUpdate=False)
+        StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=True)
+        # FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1250, "FalloffTest"+p, realTimeUpdate=True)
         # ImgRefLenSelect(r"resources/Zmx/"+p, 120, distance[i], "RefComp"+p, realTimeUpdate=False)
 
     # for a in [8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6

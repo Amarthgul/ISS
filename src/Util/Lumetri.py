@@ -1,5 +1,10 @@
-import argparse
-from pathlib import Path
+
+
+
+"""
+Relevant visualization package. Not used in the project directly.
+"""
+
 
 import cv2
 import numpy as np

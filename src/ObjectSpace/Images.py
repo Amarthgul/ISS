@@ -252,8 +252,13 @@ class Image2DFlat(Image2D):
             newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
             imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
             if self._opacity is not None:
-                opacityArray = self._opacity.resize((self.imageDimensionOverride, newHeight))
-                self._opacityArray = bd.array(opacityArray)
+                if self.imageDimensionOverride is not None:
+                    opacity_img = self._opacity.resize((self.imageDimensionOverride, newHeight))
+                else:
+                    opacity_img = self._opacity
+                self._opacityArray = bd.array(opacity_img).astype(PRECISION_TYPE) / 255.0
+            else:
+                self._opacityArray = None
         else:
             self.imageDimensionOverride = self._fileMaster.width
             imageFile = self._fileMaster

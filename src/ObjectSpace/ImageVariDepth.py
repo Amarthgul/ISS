@@ -158,7 +158,7 @@ class Image2DVariDepth(Image2D):
         # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
         self.zArray = self.zArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
 
-        self.UpdateDepthRange()
+        self._UpdateDepthRange()
 
 
     def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "Z.R", "depth", "Depth.Z", "depth.Z"),
@@ -215,17 +215,14 @@ class Image2DVariDepth(Image2D):
         self.zArray = depth.astype(PRECISION_TYPE) * self.zUnitConversion
         self.zDistance = -self.zArray
 
-        # Alpha for opacity
-        if alpha is not None:
-            self.alphaArray = alpha.astype(PRECISION_TYPE)
-        else:
-            self.alphaArray = None
+        self.alphaArray = (
+            alpha.astype(PRECISION_TYPE) if alpha is not None else None
+        )
 
-        # Additional AOVs (all channels except RGB, depth, alpha)
-        if aov_dict:
-            self.AOVs = {name: arr.astype(PRECISION_TYPE) for name, arr in aov_dict.items()}
-        else:
-            self.AOVs = None
+        self.AOVs = (
+            {name: arr.astype(PRECISION_TYPE) for name, arr in aov_dict.items()}
+            if aov_dict else None
+        )
 
         # Mark direct-depth EXR mode
         self._usingEXRDirectDepth = True
@@ -233,15 +230,6 @@ class Image2DVariDepth(Image2D):
         # Keep the original EXR path as "master" reference
         self._fileMaster = exrPath
 
-        # Flip vertically to match system indexing (y,x)
-        # self.rgbArray = bd.flip(self.rgbArray, axis=0)
-        # self.zDistance = bd.flip(self.zDistance, axis=(0, 1))
-        #self.zArray = bd.flip(self.zArray, axis=(0, 1))
-        self.alphaArray = bd.flip(self.alphaArray, axis=(0, 1))
-
-        # if self.AOVs is not None:
-        #     for name in list(self.AOVs.keys()):
-        #         self.AOVs[name] = bd.flip(self.AOVs[name], axis=(0, 1))
 
         self._GeneratePolarPointSources()
 
@@ -359,8 +347,7 @@ class Image2DVariDepth(Image2D):
 
         # IMPORTANT: replicate the culler exactly
         # _CullSelfOcclusionVariDepth currently does this: :contentReference[oaicite:2]{index=2}
-        # alpha_valid = bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps
-        alpha_valid = (bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps) & (bd.abs(self.zDistance) < self.zFarLimit*self.zUnitConversion)
+        alpha_valid = (self.alphaArray > alpha_eps) & (bd.abs(self.zDistance) < self.zFarLimit*self.zUnitConversion)
 
         # Create masked depth map in the SAME index space as depth (i.e., using alpha_valid directly)
         depth_masked = bd.where(alpha_valid, depth, bd.nan)
@@ -502,7 +489,11 @@ class Image2DVariDepth(Image2D):
 
         # Pixels that actually have some opacity.
         # alpha_valid = self.alphaArray > alpha_eps
-        alpha_valid = (bd.flip(self.alphaArray, axis=(0, 1)) > alpha_eps) & (bd.abs(self.zDistance) < self.zFarLimit*self.zUnitConversion)
+
+        alpha_valid = (self.alphaArray > alpha_eps) & (
+                bd.abs(self.zDistance) < self.zFarLimit * self.zUnitConversion
+        )
+
         if not bd.any(alpha_valid):
             # Entire image effectively transparent
             return incidents.Copy()
@@ -605,8 +596,8 @@ class Image2DVariDepth(Image2D):
         inside = vz < 0.0
 
         # Angles
-        theta_x = bd.arctan2(vx, -vz)
-        theta_y = bd.arctan2(vy, -vz)
+        theta_x = bd.arctan2(-vx, -vz)
+        theta_y = bd.arctan2(-vy, -vz)
 
         u = (theta_x + half_horizontal) / horizontalAoV_rad
         v = (theta_y + half_vertical) / verticalAoV_rad
@@ -614,8 +605,8 @@ class Image2DVariDepth(Image2D):
         inside = inside & (u >= 0.0) & (u <= 1.0) & (v >= 0.0) & (v <= 1.0)
 
         # Map to floating pixel coordinates
-        x_img = u * (W - 1)
-        y_img = v * (H - 1)
+        x_img = u * W - 0.5
+        y_img = v * H - 0.5
 
         # ------------------------------------------------------------------
         # Bilinear sampling of alpha for all samples
@@ -943,6 +934,27 @@ class Image2DVariDepth(Image2D):
         print("Found channels:")
         for c in channels:
             print(f"  • {c}")
+
+
+    def _UpdateDepthRange(self, newRange=None):
+        """
+        Update the depth of the
+
+        """
+        if (newRange is None):
+            newRange = self.zDepthMappingRange
+
+        if (newRange[0] > newRange[1]):
+            self.zDepthMappingRange = bd.array([newRange[1], newRange[0]])
+        else:
+            self.zDepthMappingRange = bd.array(newRange)
+
+        deltaRange = self.zDepthMappingRange[1] - self.zDepthMappingRange[0]
+
+        self.zDistance = self.zArray * deltaRange + self.zDepthMappingRange[0]
+
+        # Here the z Distance is unsigned, to make it work in the system, they need to be inverted.
+        self.zDistance = -self.zDistance
 
 
 

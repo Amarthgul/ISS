@@ -7,7 +7,7 @@ import OpenEXR
 from src.Raytracing.RayBatch import RayBatch
 from .ImageVariDepth import Image2DVariDepth
 from .Images import Image2D, Image2DFlat
-
+from Util.Backend import backend as bd
 
 import warnings
 
@@ -24,6 +24,8 @@ class ImageStack:
         :param image: An image class object based on Image2D or its inherited classes.
         :param nameTag: Name tag for the image for easier recognition.
         """
+
+        print("Max min of ", nameTag, ": ",  bd.max(image.rgbArray), ", ", bd.min(image.rgbArray))
 
         if nameTag == "Img":
             nameTag = "Img"+str(self.layers)
@@ -90,8 +92,82 @@ def ExampleStack3D():
     return exampleStack
 
 
+def ExampleStack2D():
+    from .ImageExt import Image2DVariHighlightExtension, Image2DFlatHighlightExtension
+
+    FG = Image2DFlatHighlightExtension()
+    FG.zDistance = 900
+    FG.LoadFrom8bitRGB(r"resources/2DFrameExample_FG.png")
+
+    MG = Image2DVariHighlightExtension()
+    MG.zDepthMappingRange = [1000, 1500]
+    MG.LoadFrom8bitRGB(r"resources/2DFrameExample_MG.png")
+    MG.LoadFrom8bitZ(r"resources/2DFrameExample_MGZ.png")
+    MG.ReconstructHighlight()
+    MG.UpdatePointSources()
+
+    BG1 = Image2DFlatHighlightExtension()
+    BG1.zDistance = 35000
+    BG1.maxBrightness = 1024
+    BG1.highlightSizeMaxBoost = 1024
+    BG1.highlightSizePower = 1.5
+    BG1.LoadFrom8bitRGB(r"resources/2DFrameExample_BG.png")
+    BG1.ReconstructHighlight()
+    BG1.UpdatePointSources()
+
+    BG2 = Image2DFlatHighlightExtension()
+    BG2.zDistance = 200000
+    BG2.LoadFrom8bitRGB(r"resources/2DFrameExample_BGS.png")
+
+    exampleStack = ImageStack()
+    exampleStack.AddImage(BG2, "BG2")
+    exampleStack.AddImage(BG1, "BG1")
+    exampleStack.AddImage(MG, "MG")
+    exampleStack.AddImage(FG, "FG")
+
+    exampleStack.PrintLayerTags()
+
+    return exampleStack
+
+def ExampleStack2DNoGain():
+    from .ImageExt import Image2DVariHighlightExtension, Image2DFlatHighlightExtension
+
+    FG = Image2DFlatHighlightExtension()
+    FG.zDistance = 900
+    FG.LoadFrom8bitRGB(r"resources/2DFrameExample_FG.png")
+
+    MG = Image2DVariHighlightExtension()
+    MG.zDepthMappingRange = [1000, 1500]
+    MG.LoadFrom8bitRGB(r"resources/2DFrameExample_MG.png")
+    MG.LoadFrom8bitZ(r"resources/2DFrameExample_MGZ.png")
+    #MG.ReconstructHighlight()
+    MG.UpdatePointSources()
+
+    BG1 = Image2DFlatHighlightExtension()
+    BG1.zDistance = 35000
+    #BG1.maxBrightness = 1024
+    #BG1.highlightSizeMaxBoost = 1024
+    #BG1.highlightSizePower = 1.5
+    BG1.LoadFrom8bitRGB(r"resources/2DFrameExample_BG.png")
+    #BG1.ReconstructHighlight()
+    BG1.UpdatePointSources()
+
+    BG2 = Image2DFlatHighlightExtension()
+    BG2.zDistance = 200000
+    BG2.LoadFrom8bitRGB(r"resources/2DFrameExample_BGS.png")
+
+    exampleStack = ImageStack()
+    exampleStack.AddImage(BG2, "BG2")
+    exampleStack.AddImage(BG1, "BG1")
+    exampleStack.AddImage(MG, "MG")
+    exampleStack.AddImage(FG, "FG")
+
+    exampleStack.PrintLayerTags()
+
+    return exampleStack
+
 def main():
-    stack = ExampleStack3D()
+    stack = ExampleStack2D()
 
 if __name__ == "__main__":
     main()
