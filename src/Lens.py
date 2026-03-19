@@ -96,17 +96,27 @@ class Lens:
             self.AddSurface(s)
 
 
-    def AddFrontGroup(self, frontGroup):
+    def AddFrontGroup(self, frontGroup, offsetWholeLens=False):
+
         if(len(frontGroup) == 0): return
 
         newGroup = []
 
+        currentT = frontGroup[0].thickness
+
         for s in frontGroup:
+            s.SetCumulative(bd.copy(currentT))
             newGroup.append(s)
+            currentT += s.thickness
+
         for s in self.surfaces:
             newGroup.append(s)
 
         self.surfaces = newGroup
+
+        # Update should remove the previous thickness settings and makes the first element to sit at the origin
+        if offsetWholeLens:
+            self.UpdateLens()
 
 
     def UpdateLens(self):

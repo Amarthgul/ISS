@@ -128,8 +128,8 @@ def SpotTesting(lens, objectDistance = 13500, focusDistance = 1500, computeTime 
     # lens.UpdateLens()
     # print(lens.GetInfo())
 
-    imager = StdImager(73 , horiPx=6000)
-    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=1920)
+    # imager = StdImager(73 , horiPx=6000)
+    imager = StdImager(lens.BestFocusBFD(focusDistance), horiPx=6000)
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
 
@@ -174,7 +174,7 @@ def SpotTesting(lens, objectDistance = 13500, focusDistance = 1500, computeTime 
             plt.pause(0.01)
 
         if(elpased > computeTime):
-            fn = ((r"SpeedMasterSpots" if lensName is None else lensName)+
+            fn = ((r"JupiterSpot" if lensName is None else lensName)+
                   str(objectDistance)+"_"+str(focusDistance))
             SaveAsEXR(image, r"resources/Results", fn)
             break
@@ -689,6 +689,24 @@ def HighlightReconTest():
     plt.show()
 
 
+def MatteBoxText():
+    from Surfaces.ManualAperture import ManualAperture
+
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
+    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
+    lens = reader.GetLens()
+    lens.UpdateLens()
+
+    ma = ManualAperture()
+    ma.isCircular = False
+    lens.AddFrontGroup([ma])
+
+    lens.DrawLens()
+    plt.show()
+
 
 # ==================================================================
 """ ======================== End of Defs ======================= """
@@ -716,15 +734,10 @@ def main():
     angleFieldX = bd.linspace(-20, 20, len(objectDistance)) * 0.3
     angleFieldY = bd.linspace(-13, 13, len(objectDistance)) * 0.3
 
-    # lens = Zhongyi50f095()
-    # lens = Industar50_50mmf35()
-    # lens = ZeissHologon15mmf8() #AoV 104
-    # lens = Sonnar50mmF15()
-    # lens = CanonFD50mmf18()
-    # lens = CanonEF50mmf12L()
     reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
     reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
-    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedMaster50f0.95.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/Jupiter-12.zmx"))
     lens = reader.GetLens()
     lens.UpdateLens()
     # lens.SetAperture(5.6)
@@ -733,7 +746,7 @@ def main():
     # ReflectionSpotTesting(lens, AngleFieldToCartesian(12, 12, -200000), focusDistance=1500, computeTime=1.5 * 60 * 60, realTimeUpdate=False)
     # return
     #ISO12233Test(lens, computeTime=10*60, realTimeUpdate=False)
-    SpotTesting(lens, objectDistance=13500, focusDistance=1500,  computeTime=20 * 60, realTimeUpdate=False)
+    # SpotTesting(lens, objectDistance=13500, focusDistance=1000,  computeTime=2 * 60 * 60, realTimeUpdate=False)
 
     return
 
@@ -792,4 +805,4 @@ def main():
 
 
 if __name__ == "__main__":
-    HighlightReconTest()
+    MatteBoxText()

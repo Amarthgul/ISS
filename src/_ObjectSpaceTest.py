@@ -311,7 +311,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 
 
 def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
-
+    from Surfaces.ManualAperture import ManualAperture
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
@@ -322,9 +322,14 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     att = DepthVisualizer()
     fog = FogAttenuator()
 
-    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    # lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
     lens.UpdateLens()
+
+    ma = ManualAperture()
+    ma.isCircular = False
+    lens.AddFrontGroup([ma])
+
     if aperture is not None:
         lens.SetAperture(aperture)
 
@@ -795,10 +800,10 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
 
 def main():
 
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack2D, ExampleStack2DNoGain
-    StackTest2D(ExampleStack2DNoGain(), renderTime=6*60*60, filename=r"Stack2DNoRecon")
-    StackTest2D(ExampleStack2D(), renderTime=6*60*60, filename=r"Stack2DHighlightRecon")
-    return
+    # from ObjectSpace.ImageStack import ImageStack, ExampleStack2D, ExampleStack2DNoGain
+    # StackTest2D(ExampleStack2DNoGain(), renderTime=6*60*60, filename=r"Stack2DNoRecon")
+    # StackTest2D(ExampleStack2D(), renderTime=6*60*60, filename=r"Stack2DHighlightRecon")
+    # return
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
@@ -807,9 +812,11 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(60, distance[7], "NewAlphaOrder", realTimeUpdate=False)
+    # StackTestDigital(60, distance[0], "WithMatte", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
+
+    # return
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", 30 * 60, 1500, "SpeedMaster50FallOff" , realTimeUpdate=False)
 
@@ -819,16 +826,16 @@ def main():
     # "LeicaSummicron50f2.zmx"
     # "CanonEF50f1.2L.zmx",
 
-    for p in ["Industar-50.zmx",
-              "Helios-44.zmx",
-              "Biotar50f1.4.zmx"]:
-        StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=True)
+    # for p in ["Industar-50.zmx",
+    #           "Helios-44.zmx",
+    #           "Biotar50f1.4.zmx"]:
+    #     StackTestDigitalLenSelect(r"resources/Zmx/"+p, renderTime, distance[i], "LensTest"+p, realTimeUpdate=True)
         # FocusFalloffLenSelect(r"resources/Zmx/"+p, renderTime, 1250, "FalloffTest"+p, realTimeUpdate=True)
         # ImgRefLenSelect(r"resources/Zmx/"+p, 120, distance[i], "RefComp"+p, realTimeUpdate=False)
 
-    # for a in [8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
-    #     StackTestDigital(renderTime, distance[0], "HayesFocusStopDown"+str(a), aperture=a, realTimeUpdate=False)
-    #     i +=1
+    for a in [None, 1.22, 1.4, 1.8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
+        StackTestDigital(renderTime, distance[0], "HayesFocusStopDown"+str(a), aperture=a, realTimeUpdate=False)
+        i +=1
 
 
     # StackTest(renderTime, distance[i], "Focus" + str(distance[i]), realTimeUpdate=False)

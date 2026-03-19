@@ -1,6 +1,9 @@
 
 """
 Bunch of already modelled lenses for testing purpose.
+
+This is a really early file, should use ZMX loader instead for a much higher efficiency.
+
 """
 
 
