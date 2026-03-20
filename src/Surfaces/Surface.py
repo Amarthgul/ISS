@@ -108,6 +108,15 @@ class Surface:
         """Type of the curvature. By default it is standard spherical surface"""
         self.cType = CurvatureType.Standard
 
+        """Master strength switch for haze effect. If 0, skip entirely."""
+        self.hazeSigma = 0
+
+        """Wider lateral cone 0 <-> 1 tighter forward haze"""
+        self.hazeForwardBias = 0
+
+        """Scalar loss in [0, 1], where 0 means no loss and 1 means full loss."""
+        self.hazeTransmissionLoss = 0
+
         
     # ==============================================================
     """ ====================== Setting up ====================== """
@@ -403,22 +412,18 @@ class Surface:
         # Accquire the index of refractions (resp. wavelength)
         n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
         n2 = previousRI[~boolVig]
-
         # If the ray hits from the behind, RI needs to be swapped 
         if(inverted):
-            n1, n2 = n2, n1 
+            n1, n2 = n2, n1
 
         # Only the non vignetted rays goes into refraction 
         refracted, TIR, _temp = Refract(directions, normals, n2, n1)
-
-        
-
-        # DrawDirection(intersections, reflected, lineColor="b") # ======= Draw call
 
         mainRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         mainRB.SetPosition(intersections[~TIR])
         mainRB.SetDirection(refracted)
 
+        mainRB = self._HazePass(mainRB)
 
         strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 
@@ -533,6 +538,97 @@ class Surface:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+    def _HazePass(self, raybatch, wavelengthScale=True):
+        """
+        Cheap stochastic haze model.
+
+        Behavior:
+        - hazeSigma == 0 : disabled
+        - Some rays are always left completely unchanged
+        - Affected rays receive a small forward-scatter perturbation
+        - The angular distribution is center-peaked ("upside-down droplet"):
+          most perturbed rays stay close to the ordinary refracted direction,
+          while stronger haze mainly broadens the outer base rather than shifting
+          the whole bundle.
+        """
+
+        if (self.hazeSigma == 0):
+            return raybatch
+
+        dirs = raybatch.Direction()
+        rayCount = dirs.shape[0]
+        if rayCount == 0:
+            return raybatch
+
+        eps = 1e-12
+
+        #sigma = bd.abs(self.hazeSigma)
+        #forwardBias = bd.clip(self.hazeForwardBias, ZERO, ONE)
+        #transmissionLoss = bd.clip(self.hazeTransmissionLoss, ZERO, ONE)
+
+        # Decide which rays are affected at all.
+        # Keep a true untouched population even when sigma > 0. This prevents the entire image from being uniformly "defocused".
+        # pScatter rises with sigma but never reaches 1.0 unless sigma becomes extremely large.
+        pScatter = self.hazeSigma / (self.hazeSigma + 1.0)
+
+        affectMask = bd.random.random(rayCount) < pScatter
+
+        # Early out if no rays happened to scatter this pass
+        if not bd.any(affectMask):
+            return raybatch
+
+        # Build a unit perturbation direction perpendicular to the ray.
+        noise = bd.random.normal(0.0, 1.0, dirs.shape)
+
+        # Remove axial component so perturbation is angular, not longitudinal
+        noise -= bd.sum(noise * dirs, axis=1, keepdims=True) * dirs
+
+        noiseNorm = bd.linalg.norm(noise, axis=1, keepdims=True)
+        noiseNorm = bd.maximum(noiseNorm, eps)
+        noise = noise / noiseNorm
+
+        # Bias toward forward direction if desired
+        perturbDir = (ONE - self.hazeForwardBias) * noise + self.hazeForwardBias * dirs
+        perturbDir = ArrayNormalized(perturbDir)
+
+        # Center-peaked radial law.
+        # Use radius = sigma * U^k, with k > 1 so the PDF is highest near 0 and tapers outward.
+        # This makes the "droplet" peak remain at the ordinary direction, while larger sigma mostly spreads the base.
+        u = bd.random.random((rayCount, 1))
+
+        # Higher exponent -> more center-peaked.
+        # Tie it mildly to forwardBias so stronger forward bias stays tighter.
+        peakExp = 2.0 + 4.0 * self.hazeForwardBias
+
+        radius = self.hazeSigma * (u ** peakExp)
+
+        # Optional mild wavelength dependence
+        if wavelengthScale:
+            wl = raybatch.Wavelength().reshape(-1, 1)
+            wl = bd.maximum(wl, 1.0)
+            wlScale = bd.sqrt(550.0 / wl)
+            radius *= wlScale
+
+        # Zero out untouched rays exactly
+        radius *= affectMask.reshape(-1, 1)
+
+        # Apply perturbation and re-normalize.
+        newDirs = dirs + radius * perturbDir
+        newDirs = ArrayNormalized(newDirs)
+
+        raybatch.SetDirection(newDirs)
+
+        # Optional transmission loss only for rays that actually scatter. Untouched rays remain fully untouched.
+        if self.hazeTransmissionLoss > 0:
+            throughput = ONE - self.hazeTransmissionLoss
+            aff = affectMask.astype(raybatch.value.dtype if hasattr(raybatch.value, "dtype") else float)
+            aff = aff.reshape(-1, 1)
+
+            raybatch.value[:, 7:10] *= (ONE - aff + aff * throughput)
+
+        return raybatch
+
 
     def _PlaneIntersection(self, incomingRaybatch):
         """

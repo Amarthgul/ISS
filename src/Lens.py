@@ -119,6 +119,12 @@ class Lens:
             self.UpdateLens()
 
 
+    def FlipElement(self, elementIndex, autoUpdate = True):
+
+
+        pass
+
+
     def UpdateLens(self):
         """
         Iterate throught the elements and update their relative parameters. 

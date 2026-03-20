@@ -474,6 +474,28 @@ def Sonnar50mmF15():
     return sonnar
 
 
+def HazySonnar():
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens.UpdateLens()
+
+    lens.surfaces[1].hazeSigma = 0.1
+    lens.surfaces[1].hazeForwardBias = 0.85
+    lens.surfaces[1].hazeTransmissionLoss = 0.02
+
+    lens.surfaces[2].hazeSigma = 0.08
+    lens.surfaces[2].hazeForwardBias = 0.85
+    lens.surfaces[2].hazeTransmissionLoss = 0.02
+
+    lens.surfaces[5].hazeSigma = 0.1
+    lens.surfaces[5].hazeForwardBias = 0.85
+    lens.surfaces[5].hazeTransmissionLoss = 0.02
+
+    lens.surfaces[6].hazeSigma = 0.02
+    lens.surfaces[6].hazeForwardBias = 0.85
+    lens.surfaces[6].hazeTransmissionLoss = 0.02
+
+    return lens
+
 # ==================================================================
 """ ===================== Zhongyi 50mm f/-/95  ================= """
 # ==================================================================

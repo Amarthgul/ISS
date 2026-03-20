@@ -313,6 +313,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
     from Surfaces.ManualAperture import ManualAperture
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from ExampleLenses import HazySonnar
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
@@ -323,8 +324,10 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     fog = FogAttenuator()
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
     # lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
     lens.UpdateLens()
+    lens = HazySonnar()
 
     ma = ManualAperture()
     ma.isCircular = False
@@ -812,11 +815,11 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    # StackTestDigital(60, distance[0], "WithMatte", realTimeUpdate=False)
+    StackTestDigital(12*60*60, distance[7], "HazyLens", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
-    # return
+    return
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", 30 * 60, 1500, "SpeedMaster50FallOff" , realTimeUpdate=False)
 
@@ -834,7 +837,7 @@ def main():
         # ImgRefLenSelect(r"resources/Zmx/"+p, 120, distance[i], "RefComp"+p, realTimeUpdate=False)
 
     for a in [None, 1.22, 1.4, 1.8]: #1.22, 1.4, 1.8, 2, 2.8 , 4, 5.6
-        StackTestDigital(renderTime, distance[0], "HayesFocusStopDown"+str(a), aperture=a, realTimeUpdate=False)
+        StackTestDigital(renderTime, distance[0], "MatteBox"+str(a), aperture=a, realTimeUpdate=False)
         i +=1
 
 
