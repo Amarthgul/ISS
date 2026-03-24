@@ -543,15 +543,13 @@ class Surface:
         """
         Cheap stochastic haze model.
 
-        Behavior:
-        - hazeSigma == 0 : disabled
-        - Some rays are always left completely unchanged
-        - Affected rays receive a small forward-scatter perturbation
-        - The angular distribution is center-peaked ("upside-down droplet"):
-          most perturbed rays stay close to the ordinary refracted direction,
-          while stronger haze mainly broadens the outer base rather than shifting
-          the whole bundle.
+        No consideration of the uneven distribution of the haze on the surface. Optically local haze or fungus spots tend to disappear on the final image, their effects are only obvious when diffraction and interference is included, which the current framework does not perform in the propagation stage.
         """
+
+        # Behavior:
+        # - Some rays are always left completely unchanged
+        # - Affected rays receive a small forward-scatter perturbation
+        # - The angular distribution is center-peaked ("upside-down droplet"): most perturbed rays stay close to the ordinary refracted direction, while stronger haze mainly broadens the outer base rather than shifting the whole bundle.
 
         if (self.hazeSigma == 0):
             return raybatch

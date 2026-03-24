@@ -120,9 +120,25 @@ class Lens:
 
 
     def FlipElement(self, elementIndex, autoUpdate = True):
+        """
+        Flip an element in the lens so that its rear surfaces faces front.
 
+        :param elementIndex: index of the element to flip, note that this is 0-indexed, instead of starting from 1.
+        :param autoUpdate: whether to update the lens after flipping.
+        """
 
-        pass
+        frontR =  - self.surfaces[self.lenses[elementIndex][1]].radius
+        rearR =   - self.surfaces[self.lenses[elementIndex][0]].radius
+
+        frontIndex = self.lenses[elementIndex][0]
+        rearIndex = self.lenses[elementIndex][1]
+
+        self.surfaces[frontIndex].radius = frontR
+        self.surfaces[rearIndex].radius = rearR
+
+        if autoUpdate:
+            self.UpdateLens()
+
 
 
     def UpdateLens(self):

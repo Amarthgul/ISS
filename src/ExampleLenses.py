@@ -2,8 +2,7 @@
 """
 Bunch of already modelled lenses for testing purpose.
 
-This is a really early file, should use ZMX loader instead for a much higher efficiency.
-
+This is a really early file, for loading vanilla lenses, use ZMX loader instead for a much higher efficiency.
 """
 
 
@@ -474,28 +473,6 @@ def Sonnar50mmF15():
     return sonnar
 
 
-def HazySonnar():
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
-    lens.UpdateLens()
-
-    lens.surfaces[1].hazeSigma = 0.1
-    lens.surfaces[1].hazeForwardBias = 0.85
-    lens.surfaces[1].hazeTransmissionLoss = 0.02
-
-    lens.surfaces[2].hazeSigma = 0.08
-    lens.surfaces[2].hazeForwardBias = 0.85
-    lens.surfaces[2].hazeTransmissionLoss = 0.02
-
-    lens.surfaces[5].hazeSigma = 0.1
-    lens.surfaces[5].hazeForwardBias = 0.85
-    lens.surfaces[5].hazeTransmissionLoss = 0.02
-
-    lens.surfaces[6].hazeSigma = 0.02
-    lens.surfaces[6].hazeForwardBias = 0.85
-    lens.surfaces[6].hazeTransmissionLoss = 0.02
-
-    return lens
-
 # ==================================================================
 """ ===================== Zhongyi 50mm f/-/95  ================= """
 # ==================================================================
@@ -553,6 +530,43 @@ def Zhongyi50f095():
 
     return zy
 
+# ==================================================================
+""" ======================= Modified lenses ==================== """
+# ==================================================================
+
+
+def HazySonnar():
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens.UpdateLens()
+
+    lens.surfaces[1].hazeSigma = 0.4
+    lens.surfaces[1].hazeForwardBias = 0.85
+    lens.surfaces[1].hazeTransmissionLoss = 0.04
+
+    lens.surfaces[2].hazeSigma = 0.4
+    lens.surfaces[2].hazeForwardBias = 0.85
+    lens.surfaces[2].hazeTransmissionLoss = 0.04
+
+    lens.surfaces[5].hazeSigma = 0.4
+    lens.surfaces[5].hazeForwardBias = 0.85
+    lens.surfaces[5].hazeTransmissionLoss = 0.04
+
+    lens.surfaces[6].hazeSigma = 0.4
+    lens.surfaces[6].hazeForwardBias = 0.85
+    lens.surfaces[6].hazeTransmissionLoss = 0.04
+
+    return lens
+
+
+def ReverseHelios():
+
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
+    exampleLens = reader.GetLens()
+    exampleLens.UpdateLens()
+    exampleLens.FlipElement(5, True)
+
+    return exampleLens
+
 
 # ==================================================================
 
@@ -568,8 +582,8 @@ def main():
     #Industar50_50mmf35() #
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
-    reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    # reader = LensFromZmx(RectPath(r"resources/Zmx/CanonFD85f2.8SoftFocus.zmx"))
+    # reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
 
     exampleLens = reader.GetLens()
 
@@ -578,6 +592,8 @@ def main():
     #     Surface(INFINITY, 1, 20)
     # ])
     exampleLens.UpdateLens()
+
+    exampleLens.FlipElement(5, True)
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

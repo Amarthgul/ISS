@@ -313,7 +313,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
 def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
     from Surfaces.ManualAperture import ManualAperture
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from ExampleLenses import HazySonnar
+    from ExampleLenses import HazySonnar, ReverseHelios
     from Imagers.Film import Film
     from Util.ColorPDF import ColorPDF
 
@@ -324,14 +324,13 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     fog = FogAttenuator()
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
-    # lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
     lens.UpdateLens()
-    lens = HazySonnar()
+    lens.FlipElement(5, True)
 
-    ma = ManualAperture()
-    ma.isCircular = False
-    lens.AddFrontGroup([ma])
+    # ma = ManualAperture()
+    # ma.isCircular = False
+    # lens.AddFrontGroup([ma])
 
     if aperture is not None:
         lens.SetAperture(aperture)
@@ -339,9 +338,11 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     #sr = ColorPDF()
     #sr.normGainB = 1.25
     #imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    imager = StdImager(lens.BestFocusBFD(focusDistance))
+    imager = StdImager(lens.BestFocusBFD(focusDistance)-0.8)
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
+
+
 
     iterationCount = 0
     start = time.time()
@@ -815,7 +816,7 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(12*60*60, distance[7], "HazyLens", realTimeUpdate=False)
+    StackTestDigital(2*60, distance[7], "ReverseHelios", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
