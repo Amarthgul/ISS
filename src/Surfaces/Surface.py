@@ -164,6 +164,18 @@ class Surface:
         # TODO: add inverse transformation matrix calculation 
 
 
+    def LocalTransform(self, translation, rotation):
+        """
+        Set up a local transform of the surface. This transform affects mostly the imaging result and is generally skipped during initial prescription data calculation. In a way, it is more like random manufacturing error.
+
+        :param translation: Translation vector (x, y, z) in millimeter.
+        :param rotation: Rotation vector (x, y, z) in degrees.
+        """
+
+        # TODO: apply the translation and rotation onto the _inverseTransform
+        pass
+
+
     # ==============================================================
     """ ===================== Calculations ===================== """
     # ==============================================================
@@ -388,6 +400,8 @@ class Surface:
         if (self.material.name == MIRROR):
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
+
+        # incidentRaybatch = incidentRaybatch.Transform(self._inverseTransform)
 
         # First find the intersections 
         intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
@@ -673,9 +687,6 @@ class Surface:
         position = incomingRaybatch.Position()
         direction = incomingRaybatch.Direction()
 
-        if(not self.IsOnAxis):
-            # TODO: Add inverse transfrom here to compensate the off axis element position, if any.
-            pass 
 
         # Translate to sphere's local space
         oc = position - self.radiusCenter

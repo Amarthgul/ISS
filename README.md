@@ -26,7 +26,7 @@ This project does not have a clear commercial return model so it would have been
 
 This repo is, again, a proof of concept for my thesis, it had two prior versions (one of which was in C++) and is built gradually in a 3-year period. As such, there are a lot of places that could have be designed and coded in better ways but had to stay as they are due to connectivity and budget reasons. 
 
-As such, **I do not recommend directly using this repo for production**. If you are a production studio, reference the framework documentation, use your technical team and AI to rewrite it (ideally not in Python). 
+As such, **I do not recommend directly using this repo for production**. If you are a production studio, reference the framework documentation, use your technical team and AI to rewrite it _(ideally not in Python) (the documentation might still be WIP, but it's totally possible to feed this repo to AI and let them parse it)_. 
 
 
 ## Coding Conventions 
@@ -39,15 +39,19 @@ As a result, there are quite a lot of variations of method/variable names and co
 
 ## TODO: 
 
-- Add a pure brute force asph solver 
+- Add a pure brute force ASPH solver. 
 
-- Add channel summing in the imager 
+- Add channel summing in the imager. 
 
-- Add opacity based on image staking 
+- Add opacity based on image staking. 
 
-- Add propagation based film grain 
+- Add propagation based film grain. 
 
+- Add onion rings in ASPH bokeh.
 
+- Add transform for gamma corrected inputs. 
+
+- Finish conical elements. 
 
 ## AI 
 

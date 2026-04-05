@@ -38,6 +38,10 @@ class RayBatch:
         return bd.copy(self.value[:, 3:6])
     
 
+    def Transform(self, transformationMatrix):
+        pass
+
+
     def Wavelength(self, singleValue = False):
         """
         Wavelength in nanometer 

@@ -310,7 +310,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
         recorder = time.time()
 
 
-def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
+def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False, infoArg=0):
     from Surfaces.ManualAperture import ManualAperture
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from ExampleLenses import HazySonnar, ReverseHelios
@@ -324,13 +324,14 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     fog = FogAttenuator()
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
+    # lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
     lens.UpdateLens()
-    lens.FlipElement(5, True)
+    #lens.FlipElement(5, True)
 
-    # ma = ManualAperture()
-    # ma.isCircular = False
-    # lens.AddFrontGroup([ma])
+    if(infoArg == 0):
+        ma = ManualAperture()
+        ma.isCircular = False
+        lens.AddFrontGroup([ma])
 
     if aperture is not None:
         lens.SetAperture(aperture)
@@ -338,7 +339,7 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     #sr = ColorPDF()
     #sr.normGainB = 1.25
     #imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    imager = StdImager(lens.BestFocusBFD(focusDistance)-0.8)
+    imager = StdImager(lens.BestFocusBFD(focusDistance))#-0.8)+3
     imager.SetLensLength(lens.totalAxialLength)
     image = imager.AcquireEmpty()
 
@@ -811,12 +812,15 @@ def main():
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
-    renderTime = 3 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
+    renderTime = 6 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
     aperture = [None,   None, None,  1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(2*60, distance[7], "ReverseHelios", realTimeUpdate=False)
+    StackTestDigital(renderTime, distance[0], "SmallMatteBox", realTimeUpdate=False)
+    StackTestDigital(renderTime, distance[0], "SmallMatteBox", realTimeUpdate=False, infoArg=1)
+
+    # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 

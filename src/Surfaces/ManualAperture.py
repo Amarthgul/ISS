@@ -10,14 +10,14 @@ from Raytracing.RayBatch import RayBatch
 
 
 class ManualAperture(Surface):
-    def __init__(self, r=INFINITY, t=-135, sd=INFINITY, m=DEFAULT_MAT_NAME):
+    def __init__(self, r=INFINITY, t=-20, sd=INFINITY, m=DEFAULT_MAT_NAME):
         super().__init__(r, t, sd, m)
 
         self.isCircular = True
 
         """When is Circular is set to False, this manual aperture will be regarded as being a box. The width and height here are used to define its size"""
-        self.gateWidth = 125
-        self.gateHeight = 60
+        self.gateWidth = 50
+        self.gateHeight = 40
 
         self._plotColor = 'r'
 

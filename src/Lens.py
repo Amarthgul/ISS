@@ -119,12 +119,14 @@ class Lens:
             self.UpdateLens()
 
 
-    def FlipElement(self, elementIndex, autoUpdate = True):
+    def FlipElement(self, elementIndex, autoUpdate = True, autoCorrect=False):
         """
         Flip an element in the lens so that its rear surfaces faces front.
+        Please note this will make focus quite unstable, entirely manual focus might be needed since aberration correction will likely be annihilated and beam size becomes practically irrelevant.
 
         :param elementIndex: index of the element to flip, note that this is 0-indexed, instead of starting from 1.
         :param autoUpdate: whether to update the lens after flipping.
+        :param autoCorrect: whether to automatically correct the lens position if it ends up colliding with the next or previous surface.
         """
 
         frontR =  - self.surfaces[self.lenses[elementIndex][1]].radius
@@ -136,9 +138,45 @@ class Lens:
         self.surfaces[frontIndex].radius = frontR
         self.surfaces[rearIndex].radius = rearR
 
+
+        if autoCorrect:
+            minSpace = constant(1e-6)
+
+            # Rebuild temporary cumulative positions from current thickness values,
+            # then push downstream surfaces forward whenever two neighboring
+            # surfaces overlap in axial extent.
+            currentT = constant(0.0)
+
+            for i in range(len(self.surfaces)):
+                self.surfaces[i].SetCumulative(bd.copy(currentT))
+
+                # No need to test past the last surface
+                if i >= len(self.surfaces) - 1:
+                    break
+
+                currentSurface = self.surfaces[i]
+                nextSurface = self.surfaces[i + 1]
+
+                c0, c1 = currentSurface.zRange()
+                n0, n1 = nextSurface.zRange()
+
+                currentMaxZ = bd.maximum(c0, c1)
+                nextMinZ = bd.minimum(n0, n1)
+
+                requiredNextMinZ = currentMaxZ + minSpace
+
+                if nextMinZ < requiredNextMinZ:
+                    delta = requiredNextMinZ - nextMinZ
+                    self.surfaces[i].thickness = self.surfaces[i].thickness + delta
+
+                    # Recompute the next surface immediately with the corrected spacing
+                    nextSurface.SetCumulative(currentSurface.cumulativeThickness + self.surfaces[i].thickness)
+
+                currentT = currentT + self.surfaces[i].thickness
+
+
         if autoUpdate:
             self.UpdateLens()
-
 
 
     def UpdateLens(self):
