@@ -1,6 +1,6 @@
 # ISS - Imaging System Simulation
 
-This repo is the proof of concept implementation of my thesis, which seeks to create a framework capable of simulating an imaging system consists of at least:
+This repo is the proof of concept implementation of my thesis title **A Framework for Imaging System Simulation**, which seeks to create a framework capable of simulating an imaging system consists of at least:
 
 - An **object space** from which lights are emitted. 
 - A **lens** that bends the incoming lights.
@@ -19,14 +19,45 @@ Additionally, it could also:
 
 - help lens and optics enthusiasts to gain more insights of photographic objects by offering them a way to perform 100% repeatable and reproducible experiments. 
 
+This project is basically an abridged and open-source version of FRED with an additional specialization in media production compatibility. 
+
 This project does not have a clear commercial return model so it would have been hard to pull off in business R&D, it would also be viewed as not cutting-edge enough in academic computer science or physics alone. A highly interdisciplinary environment would be needed for it to survive. Special thanks thus goes to the Ohio State University, Department of Design, whose Digital Animation and Interactive Media program somehow allowed me to do whatever I want. My gratitude also goes to the Advanced Computing Center for Art and Design, the hardware resources greatly accelerated the development of the project _(imagine casually playing with a GPU with 48Gigs for graphic rams)_.
+
+## Features 
+
+Direct sequential propagation 
+
+Non-sequential propagation 
+
+Diaphragm blade and aperture control 
+
+Spectral response 
+
+Film emulsions 
+
+Additional apertures 
+
+2D highlight reconstruction
+
+Forward scattering 
+
+Lens element transform 
+
+
+Other features: 
+
+- Polarization
+
+- Through focus distortion 
+
+- Diffraction star (through Fraunhofer diffraction via the aperture stop)
 
 
 ## Important notes on using the project 
 
-This repo is, again, a proof of concept for my thesis, it had two prior versions (one of which was in C++) and is built gradually in a 3-year period. As such, there are a lot of places that could have be designed and coded in better ways but had to stay as they are due to connectivity and budget reasons. 
+This repo is, again, a proof of concept for my thesis, it had three prior versions (one of which was in C++) and is built gradually over three years. As such, there are a lot of places that could have been designed and coded in better ways but had to stay as they are due to connectivity and budget reasons. 
 
-As such, **I do not recommend directly using this repo for production**. If you are a production studio, reference the framework documentation, use your technical team and AI to rewrite it _(ideally not in Python) (the documentation might still be WIP, but it's totally possible to feed this repo to AI and let them parse it)_. 
+For this reason, **I do not recommend directly using this repo aside from personal entertainment**. If you are a production studio, reference the framework documentation, use your technical team and AI to rewrite it _(ideally not in Python) (the documentation might still be WIP, but it's totally possible to feed this repo to AI and let AI parse it)_. 
 
 
 ## Coding Conventions 
@@ -56,6 +87,11 @@ As a result, there are quite a lot of variations of method/variable names and co
 ## AI 
 
 The core lens construction and ray propagation are AI-free, not because of some moral standard, but because AI was not good enough when I wrote them. Later modules have seen much more use of AI, mostly in a "design by contract" style, as AI is asked to complete a method that fulfills certain tasks, which they perform quite well. 
+
+
+## Known issues 
+
+- Matplotlib after a certain version has become practically unusable. This happened at some point in late 2024, no plotting logic was changed but all of a sudden it drops to single digit FPS and refresh plot for real time update automatically halts after like 5 calls. 
 
 
 ## Future work

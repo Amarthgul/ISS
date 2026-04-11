@@ -81,7 +81,7 @@ def ImageConversionAverage(ary, bitDepth=8, modifier=2, rotate=True):
     return NumpyConversion(ary).astype(bd.uint8)
 
 
-def SaveAsEXR(ary, folder, fileName, *extra_channels):
+def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=False):
     """
     Save the latent image array as an EXR file.
 
@@ -95,10 +95,18 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels):
                   mask_array, "MASK")
 
         Each array will be saved as a separate EXR channel with the given name.
+    :param flipHori: when true, flip all channels horizontally (axis=1 / width).
+    :param flipVert: when true, flip all channels vertically (axis=0 / height).
     """
 
     def _to_numpy_f32(a):
         a = a.astype(bd.float32)
+
+        if flipVert:
+            a = bd.flip(a, axis=0)
+        if flipHori:
+            a = bd.flip(a, axis=1)
+
         if backend_name == 'cupy':
             a = bd.asnumpy(a)
         return a
@@ -137,7 +145,6 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels):
 
     with OpenEXR.File(header, channels) as outfile:
         outfile.write(nameStr)
-
 
 
 

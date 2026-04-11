@@ -1,4 +1,6 @@
-﻿import time
+﻿
+
+import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
@@ -320,8 +322,6 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
     print("Currently using ", backend_name)
 
     stack = ExampleStack3D()
-    att = DepthVisualizer()
-    fog = FogAttenuator()
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
@@ -803,6 +803,37 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
         recorder = time.time()
 
 
+def ISTest():
+    from ImagingSystem import ImagingSystem
+    from ObjectSpace.ImageStack import ImageStack
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    lens.UpdateLens()
+    print(lens.GetInfo())
+
+    imager = StdImager(horiPx=2160)
+
+    FG = Image2DVariDepth()
+    FG.horizontalAoV = 23
+    FG.LoadFromEXR(r"resources/LeicaFG.exr")
+    print("FG Stats ======================")
+    print(FG.Stats())
+    BG = Image2DVariDepth()
+    BG.horizontalAoV = 23
+    BG.LoadFromEXR(r"resources/LeicaBG.exr")
+    print("BG Stats ======================")
+    print(BG.Stats())
+    exampleStack = ImageStack()
+    exampleStack.AddImage(BG, "BG")
+    exampleStack.AddImage(FG, "FG")
+
+
+    IS = ImagingSystem(lens, imager)
+    IS.object = exampleStack
+
+    IS.Render(focusDistance=1500, renderTime=300, fileName="LeicaTest", realTimeUpdate=False)
+
+
 def main():
 
     # from ObjectSpace.ImageStack import ImageStack, ExampleStack2D, ExampleStack2DNoGain
@@ -812,13 +843,15 @@ def main():
 
     # 21 entries
     distance = bd.array([1, 1.25, 1.55, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 13, 16, 20, 30, 50, 70, 100, 200])* 1000.0
-    renderTime = 6 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
+    renderTime = 3 * 60 * 60  # For Hayes Forum testing it is 3 hours, file name HayesFocusRacking
     aperture = [None,   None, None,  1.8,     2.8,      4]
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(renderTime, distance[0], "SmallMatteBox", realTimeUpdate=False)
-    StackTestDigital(renderTime, distance[0], "SmallMatteBox", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[9], "NewRacking", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[10], "NewRacking", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[11], "NewRacking", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[12], "NewRacking", realTimeUpdate=False, infoArg=1)
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
@@ -854,5 +887,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ISTest()
 

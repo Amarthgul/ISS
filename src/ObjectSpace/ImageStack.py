@@ -129,6 +129,7 @@ def ExampleStack2D():
 
     return exampleStack
 
+
 def ExampleStack2DNoGain():
     from .ImageExt import Image2DVariHighlightExtension, Image2DFlatHighlightExtension
 
@@ -165,6 +166,7 @@ def ExampleStack2DNoGain():
     exampleStack.PrintLayerTags()
 
     return exampleStack
+
 
 def main():
     stack = ExampleStack2D()

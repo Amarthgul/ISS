@@ -71,7 +71,7 @@ class Image2DVariDepth(Image2D):
         """Point source object built from the image"""
         self.pointSource = None
 
-        """When using EXR, the unit in Z may not be the same."""
+        """When using EXR, the unit in Z may not be the same. This is the file unit to millimeter conversion. """
         self.zUnitConversion = 10
 
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""

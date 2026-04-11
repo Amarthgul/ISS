@@ -1,137 +1,114 @@
 
-from PIL import Image
+
 import time
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
-from Util.ColorWavelength import ImageConversion
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18
-from Imagers.Standard import StdImager 
-from ObjectSpace.Points import PointsSource
-from ObjectSpace.Images import Image2D
-from Raytracing.Emission import EmitField
+from Util.Backend import backend_name
+from Util.ImageIO import ImageConversion, SaveAsEXR
+from Util.Misc import ProgressBar
+
 
 class ImagingSystem:
-    def __init__(self):
 
-        self.lens = None 
-        self.imager = None 
-        self.rayBatch = None 
+    def __init__(self, lens, imager):
 
-        self.rayPath = None 
+        self.lens = lens
+        self.imager = imager
 
-        # Color-wavelength conversion 
-        self.primaries = {"R": "C'", "G": "e", "B":"g"}
-        self.secondaries = []#["F", "D"]
-        self.UVIRcut = ["i", "A'"]
+        self.object = None
 
-        self.point = None 
-        self.inputImage = None 
+        self.fNumber = 4
 
-    
-    def AddLens(self, lens):
-        self.lens = lens 
+        self.focusDistance = 1500
 
+        """Where the object is placed, this will likely never be used unless the target is a flat image."""
+        self.objectDistance = 1500
 
-    def AddImager(self, imager):
-        self.imager = imager 
+        """Render time for each frame in second. If this is set then iteration will be ignored. This gives great control over render time but may produce uneven exposure among frames."""
+        self.renderTime = 120
+
+        """Number of iterations for each frame. This ensures exposure but may produce uneven time due to hardware performance fluctuation. """
+        self.renderIteration = 32
 
 
-    def Test(self, image, perPointSample):
+        self._transmissionLoss = 0.8
+
+
+    def RenderNamePattern(self, rex):
+
         pass
 
 
-    # ==================================================================
-    """ ============================================================ """
-    # ==================================================================
+    def Render(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False):
+
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.Update()
+
+        image = self.imager.AcquireEmpty()
+
+        iterationCount = 0
+        start = time.time()
+
+        if (realTimeUpdate):
+            plt.ion()  # Turn on interactive mode
+            fig, ax = plt.subplots()
+            im = ax.imshow(ImageConversion(image, flipH=True))
 
 
+        while (True):
+            recorder = time.time()
+            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 20480)
 
-    
-def main():
+            mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
 
-    imageDistance = 1200
-    imageMinSample = 320
+            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
-    lens = Biotar50mmf14()
-    #lens.SetAperture(22)
+            image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
-
-    source = PointsSource()
-    source.isCartesian = False
-    source.GenerateSpots(19, 12)
-
-    # source.SetPoints(bd.array([
-    #     [0,     0, -50000, 1, 1, 1],
-    #     [4.75,     3,  -50000, 1, 1, 1],
-    #     [9.5,    6,  -50000, 1, 1, 1],
-    #     [14.25,    9,  -50000, 1, 1, 1],
-    #     [19.5,    12,  -50000, 1, 1, 1]
-    #     ]))
-
-    imager = StdImager(lens.BestFocusBFD(imageDistance)) #32.4
-    # Assemble the imaging system 
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    sourceImage = Image2D()
-    sourceImage.horizontalAoV = 40
-    sourceImage.imageDimensionOverride = 1920 
-    sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png") 
-    #sourceImage.SetupTransitionTest()
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  Arrow.png Grid.png
-
-    start = time.time()
-
-    plt.ion()  # Turn on interactive mode
-    fig, ax = plt.subplots()
-    im = ax.imshow(ImageConversion(image))
-    iterationCount = 0
-
-    while(True):
-        #print("- Starting a new sample iteration")
-        #mainRB = source.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(40960), 5, addSecondary=True)
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(32), 409600)
-        #print(mainRB.ToString())
-
-        lens.SetIncidentRaybatch(mainRB)
-
-        mainRB, mainRP = lens.Propagate()
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
-        image = imager.IntegralRays(mainRB, baseImg=image)
-
-        
-        im.set_data(ImageConversion(image))
-        plt.draw()
-        plt.pause(0.01)
-        
-        #print(source.sampleRecord)
-        elpased = time.time() - start
-        imMin, imMax, imR = sourceImage.GetSampleRatios()
-
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin, " max: ", imMax,  " -Ratio: ", imR)
-        iterationCount += 1
-        
-        if(imMin > imageMinSample):
-            imgSave = Image.fromarray(ImageConversion(image), 'RGB')
-            imgSave.save(r"resources/Results/Biotar_dist"+str(imageDistance)+"_320Sample.png")
-            break
-
-    # lens.DrawLens()
-    # imager.DrawSurface()
-    # mainRP.DrawPath()
-
-    # SetUnifScale(50)
-    # AddXYZ()
-    # RemoveBG()
-    plt.draw()
-    plt.imshow(ImageConversion(image))
+            if (realTimeUpdate):
+                im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
 
 
-if __name__ == "__main__":
-    main()
+            elapsed = time.time() - start
+            iterationCount += 1
+
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                image /= (iterationCount * self._transmissionLoss)
+
+                fn = fileName
+                SaveAsEXR(image, r"resources/Results", fn, flipHori=True, flipVert=True)
+
+                break
+
+            recorder = time.time()
+
+
+    def _TerminatePercent(self, renderTime,  currentTime, renderIteration, currentIteration):
+        # Prioritize passed in render time over others
+        if renderTime is not None:
+            return currentTime / renderTime
+
+        # Prioritize time over iteration
+        if self.renderTime is not None:
+            return  currentTime / self.renderTime
+
+        # Prioritize passed in iteration count over the build in one
+        if renderIteration is not None:
+            return currentIteration / renderIteration
+
+        # Well, last resort
+        if self.renderIteration is not None:
+            return currentIteration / self.renderIteration
+
+
+    def _TerminateCondition(self, renderTime, currentTime, renderIteration, currentIteration):
+
+        return self._TerminatePercent(renderTime, currentTime, renderIteration, currentIteration) >= 1
+
+
