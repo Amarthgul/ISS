@@ -94,6 +94,8 @@ class Image2DVariDepth(Image2D):
         """An array of same size with the number of point sources. Each entry in this array corresponds to the """
         self.jitterPerPoint = None
 
+        """Same as jitterPerPoint but for the pointSourceHigh"""
+        self.jitterPerPointHigh = None
 
 
     def LoadFrom8bit(self, rgbImgPath, zImgPath=None):
@@ -232,7 +234,54 @@ class Image2DVariDepth(Image2D):
 
 
         self._GeneratePolarPointSources()
+        self.ConstructHighlightPoints()
 
+
+    def ConstructHighlightPoints(self, threshold=1):
+        """
+        Create a highlight-only point source and its matching jitter array.
+
+        A source is considered a highlight if any of its RGB channels exceeds
+        the given threshold. The same boolean mask is applied to both the
+        point-source rows and jitterPerPoint so they remain in direct
+        correspondence.
+
+        :param threshold: highlight threshold applied to RGB values
+        :return: self.pointSourceHigh
+        """
+
+        self.pointSourceHigh = None
+        self.jitterPerPointHigh = None
+
+        if self.pointSource is None or self.pointSource.value is None:
+            return None
+
+        point_values = self.pointSource.value
+
+        # RGB is always stored in columns 3:6 for PointsSource
+        rgb = point_values[:, 3:6]
+
+        # Highlight if any channel is above threshold
+        highlight_mask = bd.any(rgb > threshold, axis=1)
+
+        highlight_values = point_values[highlight_mask]
+
+        self.pointSourceHigh = PointsSource(highlight_values)
+        self.pointSourceHigh.isCartesian = self.pointSource.isCartesian
+        self.pointSourceHigh.angleInRad = self.pointSource.angleInRad
+
+        if self.jitterPerPoint is not None:
+            self.jitterPerPointHigh = self.jitterPerPoint[highlight_mask]
+
+        return self.pointSourceHigh
+
+
+    def EmitTowards(self, targets, sampleCount, flareGlare=False):
+
+        if flareGlare:
+            return  self.EmitHighlightSamplesTowards(targets, sampleCount)
+        else:
+            return self.EmitSamplesToward(targets, sampleCount)
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
@@ -240,13 +289,24 @@ class Image2DVariDepth(Image2D):
         return self.pointSource.EmitSamplesToward(targets, sampleCount, self.jitterPerPoint)
 
 
-    def ReceiveAndEmitTowards(self, targets, incidents:RayBatch=None, sampleCount:int=64):
+    def EmitHighlightSamplesTowards(self, targets, sampleCount=64):
+
+        return self.pointSourceHigh.EmitSamplesToward(targets, sampleCount, self.jitterPerPointHigh)
+
+
+    def ReceiveAndEmitTowards(self, targets, incidents:RayBatch=None, sampleCount:int=64, useHighlightSources=False):
         """
         Receive an incident RayBatch, cull it and merge it with emitted RayBatch from this one.
 
         """
 
-        emitted = self.EmitSamplesToward(targets, sampleCount)
+        if useHighlightSources:
+            emissionMethod = self.EmitHighlightSamplesTowards
+        else:
+            emissionMethod = self.EmitSamplesToward
+
+
+        emitted = emissionMethod(targets, sampleCount)
 
         if (incidents is None) or (incidents.IsNoneType()):
             # When this is the furthest layer
@@ -255,9 +315,10 @@ class Image2DVariDepth(Image2D):
         else:
             through = self._CullSelfOcclusionVariDepth(incidents)
 
-            emitted = self.EmitSamplesToward(targets, sampleCount)
+            emitted = emissionMethod(targets, sampleCount)
 
             return through.Merge(emitted)
+
 
 
     def GetAOVNames(self):

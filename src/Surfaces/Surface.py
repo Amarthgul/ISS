@@ -487,12 +487,14 @@ class Surface:
 
         strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 
+
         if(reflection):
             # These reflected are the reflected component form the refracted due to fresnel
             reflected = Reflect(directions, normals)
 
             strayRB.SetPosition(intersections[~TIR])
             strayRB.SetDirection(reflected[~TIR])
+
 
             # TIR are the reverted selection
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
@@ -528,6 +530,7 @@ class Surface:
             mainRB = PolarizeRB(mainRB, senkrecht, parallel)
             
             strayRB = ResidueRB(strayRB, senkrecht, parallel)
+
 
             # Copy the vignetted rays to prepare for clear boundary check 
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))

@@ -833,7 +833,7 @@ def ISTest():
     IS.object = exampleStack
 
     # Render the inputs into an image
-    IS.Render(focusDistance=1500, renderTime=2*60, fileName="LeicaTest", realTimeUpdate=False)
+    IS.Render(focusDistance=1500, renderTime=5*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
 
 
 def main():

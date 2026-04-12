@@ -304,6 +304,7 @@ class Lens:
                     _reflectedRB.RadiantKill()
                     reflectedRB.Merge(_reflectedRB)
 
+
                 
                 if(recordPath):
                     self.rayPath.Append(rayBatch, _tir, _vig)
@@ -323,6 +324,7 @@ class Lens:
 
                     reflectedRB, _ = self._BounceReflection(reflectedRB)
 
+
                 reflectedRB = self._PropagateReflectedThrough(reflectedRB)
                 reflectedRB = reflectedRB.GetDirectionalRay()
                 reflectedRB.Merge(holderRB)
@@ -341,7 +343,8 @@ class Lens:
                 reflectedRB = reflectedRB.GetDirectionalRay()
                 reflectedRB = self._PropagateReflectedThrough(reflectedRB)
 
-            print("Total rad: ", reflectedRB.PolarizedRadiance().sum())
+            # print("Reflected size: ", reflectedRB.value.shape)
+            # print("Total rad: ", reflectedRB.PolarizedRadiance().sum())
 
         # print(rayBatch.SurfaceIndex())
 

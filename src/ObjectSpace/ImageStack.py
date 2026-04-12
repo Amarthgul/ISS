@@ -41,7 +41,7 @@ class ImageStack:
             print(index, key)
 
 
-    def EmitTowards(self, targets, sampleCount):
+    def EmitTowards(self, targets, sampleCount, flareGlare=False):
 
         wholeRB = RayBatch()
 
@@ -49,7 +49,8 @@ class ImageStack:
             wholeRB = currentImage.ReceiveAndEmitTowards(
                     targets,
                     wholeRB,
-                    sampleCount)
+                    sampleCount,
+                    useHighlightSources=flareGlare)
 
         return wholeRB
 

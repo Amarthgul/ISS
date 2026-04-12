@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateBeam
-from Raytracing.Reflection import Reflect
+from Raytracing.Reflection import Reflect, LambertianReflect
 from Raytracing.Refraction import Refract
 from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
 from Util.Backend import backend as bd 
@@ -42,7 +42,7 @@ class ClearBoundary():
 
 
         """Weight of [0, 1] that controls total diffuse and total mirror reflection. When set to 0, surface reflects as lambertian, when set to 1, reflects like mirror"""
-        self.specularReflection = 0.9
+        self.specularReflection = 0.5
         # This should be altered very carefully, too high of a change may result in reflected rays going beyond the surface
 
         self.absorption = 0.5
@@ -127,7 +127,7 @@ class ClearBoundary():
         
     def Trace(self, incidentRaybatch, previousRI, inverted=False):
         """
-        A clear boundary still calculates refraction, but it is only for Frensnel reflectance and not for ray propagation.
+        A clear boundary still calculates refraction, but it is only for Fresnel reflectance and not for ray propagation.
 
         :return: reflected raybatch and a boolean mask indicating the rays that did intersect.
         """
@@ -153,17 +153,35 @@ class ClearBoundary():
         if (self.E1.SemiAxisMagnititude() != self.E2.SemiAxisMagnititude()):
             normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
 
-        # Add some jittering to the normal direction to approximate diffuse reflection
-        randomDirection = self._RandomInHemisphere(normals)
-        normals = ArrayNormalized(normals * self.specularReflection + \
-                  randomDirection * (1 - self.specularReflection))
-        # Note that this is not the Lambertian reflected radiant intensity as viewing angle is not considered 
+        # Calculate both the mirror reflection and a Lambertian outgoing direction.
+        # Unlike the previous implementation, this samples the diffuse lobe directly
+        # instead of perturbing the normal and then performing a mirror reflection.
+        mirrorReflected = Reflect(directions, normals)
+        lambertReflected, lambertIntensity = LambertianReflect(normals, outputPer=1)
 
-        # Calculate the reflection directions and directly update the reflected RB 
-        reflected = Reflect(reflectedRB.Direction(), normals)
+        # Interpolate between the two reflected directions.
+        # specularReflection = 1 gives pure mirror reflection;
+        # specularReflection = 0 gives pure Lambertian reflection.
+        reflected = ArrayNormalized(
+            mirrorReflected * self.specularReflection +
+            lambertReflected * (1 - self.specularReflection)
+        )
         reflectedRB.SetDirection(reflected)
-        
-        
+
+        # Couple diffuse intensity to the sampled outgoing direction.
+        # For the Lambertian branch, brighter contributions stay closer to the
+        # surface normal; the specular branch preserves full strength.
+        lambertCos = bd.sum(reflected * normals, axis=1)
+        lambertCos = bd.clip(lambertCos, 0.0, 1.0)
+        reflectionIntensity = (
+            self.specularReflection +
+            (1 - self.specularReflection) * lambertIntensity * lambertCos
+        )
+        reflectedRB.SetRadianceTerms(
+            reflectedRB.RadianceTerms() * reflectionIntensity[:, None]
+        )
+
+
         # Accquire the index of refractions (resp. wavelength)
         n1 = previousRI[_mask]
         n2 = self.exteriorCoating.RI(reflectedRB.Wavelength())

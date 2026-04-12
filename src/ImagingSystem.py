@@ -40,13 +40,14 @@ class ImagingSystem:
         pass
 
 
-    def Render(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False):
+    def Render(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
         self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
         self.imager.Update()
 
         image = self.imager.AcquireEmpty()
+        fgImage = self.imager.AcquireEmpty()
 
         iterationCount = 0
         start = time.time()
@@ -57,17 +58,22 @@ class ImagingSystem:
             im = ax.imshow(ImageConversion(image, flipH=True))
 
 
+        # Mein render Zyklus
         while (True):
-            recorder = time.time()
             mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 20480)
-
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
-
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
-            if (realTimeUpdate):
+            if flareGlare:
+                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(128), 64, flareGlare=True)
+                _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
+                fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
+                fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
+
+
+            if realTimeUpdate:
                 im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
                 plt.draw()
                 plt.pause(0.01)
@@ -81,9 +87,13 @@ class ImagingSystem:
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
                 # iterationCount
                 image /= (iterationCount / self._transmissionLoss)
-
                 fn = fileName
                 SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
+
+                if flareGlare:
+                    fgImage/= (iterationCount / self._transmissionLoss)
+                    fn = fileName+"FlareGlare"
+                    SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 break
 

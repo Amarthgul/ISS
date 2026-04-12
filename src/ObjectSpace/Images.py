@@ -38,6 +38,9 @@ class Image2D:
         """Point source object built from the image"""
         self.pointSource = None
 
+        """Point source object built from parts of the image that's higher than the standard clipping value"""
+        self.pointSourceHigh = None
+
         """When set to an int, the image object will be resampled with image width replaced with this attribute"""
         self.imageDimensionOverride = None 
 
@@ -124,6 +127,7 @@ class Image2D:
     def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
         """The base class has no implementation, it is only an interface for more advanced classes. """
         pass
+
 
 
 

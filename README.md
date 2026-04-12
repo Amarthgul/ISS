@@ -181,7 +181,7 @@ None of the universities I applied seems to be interested in admitting me. So de
 
 - Add channel summing in the imager. 
 
-- Add opacity based on image staking. 
+- Add opacity based on image stacking. 
 
 - Add propagation based film grain. 
 
@@ -191,6 +191,7 @@ None of the universities I applied seems to be interested in admitting me. So de
 
 - Finish conical elements.
 
+- Find a way to make the render process dynamic, i.e., use as many hardware resources as possible without clipping the limit.
 
 ## AI 
 
@@ -203,16 +204,18 @@ The core lens construction and ray propagation are AI-free, not because of some 
 
 - Close focus (relative close focus with respect to effective focal length) may result in edge ray rejection, visually appears as dark lines around the object border. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
 
+
+
 ## Future work
 
-This repo is still largely based on geometric optics, with the primary improvement being a comprehensive representation of the entire imaging system and the virtual of a spectral tracer. 
+This repo is still largely based on geometric optics, with the primary improvement being a comprehensive representation of the entire imaging system and the virtue of a spectral tracer. 
 
 The consequence of not embracing full physical optics is that effects like diffraction and interference do not naturally occur. Consequently, image phenomena like the sun star cannot be easily recreated. 
 
 The next step apparently is to devise a way to perform full image simulation based on physical optics. Technically this is already possible, but the computational cost is several orders of magnitude higher than this framework, plus the same production-incompatibility issue and lack of comprehensiveness. The bulk of research work would then be about how to represent the wavefront so that it is cheap to calculate while still being accurate by rigorous optics standards. 
 
-Computer graphics as a field has long been doing emulating work, that is, as long as the result looks convincing, how to get there is of less importance. This philosophy of computer graphics has, to some degree, dug its own grave as AI is doing exactly that, but faster and often better. So naturally, computer graphics in the future will branch into the two directions, one being AI and other implicit methods, the other is more explicit and physically accurate methods. 
+Computer graphics as a field has long been doing emulative work, that is, as long as the result looks convincing, how to get there is of less importance. This philosophy of computer graphics has, to some degree, dug its own grave. As AI is now doing exactly that, but faster and often better. So, naturally, computer graphics in the future will branch into the two directions, one being AI and other implicit approaches, the other is more explicit and physically accurate methods. 
 
-Of course, for the AI branch, there would then be a more crucial question: if 3D is meant to create 2D images **eventually**, what are those 2D images **eventually** for?  Daß alle unsere Erkenntnis mit der Erfahrung anfange, if the goal of all these audio-visual experiences is to invoke a certain feeling or acquiring certain recognition, it would be much more effective to directly manipulate the subjective perception via biological interventions, such as neurochemistry injection, than to painstakingly recreate a representation of some part of the objective world. It would seem that, from this perspective,  the AI end-to-end generation philosophy at its fullest is a direct and complete denial of lived experience, replaced with… drugs?  
+For the AI branch, there would then be a more crucial question: if the 3D intermediate is meant to create 2D images **eventually**, what are those 2D images **eventually** for?  Daß alle unsere Erkenntnis mit der Erfahrung anfange, if the goal of all these audiovisual experiences is to invoke a certain feeling or acquiring certain recognition, it would be much more effective to directly manipulate the subjective perception via biological interventions, such as neurochemistry injection, than to painstakingly recreate a representation of some part of the objective world. It would seem that, from this perspective, the AI end-to-end generative creation philosophy at its fullest is a direct and complete denial of lived experience, replaced with… drugs?  
 
 
