@@ -81,7 +81,7 @@ def ImageConversionAverage(ary, bitDepth=8, modifier=2, rotate=True):
     return NumpyConversion(ary).astype(bd.uint8)
 
 
-def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=False):
+def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=False, rotate=False):
     """
     Save the latent image array as an EXR file.
 
@@ -95,17 +95,30 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=F
                   mask_array, "MASK")
 
         Each array will be saved as a separate EXR channel with the given name.
-    :param flipHori: when true, flip all channels horizontally (axis=1 / width).
-    :param flipVert: when true, flip all channels vertically (axis=0 / height).
+    :param flipHori: flip the whole image horizontally (left-right mirror).
+    :param flipVert: flip the whole image vertically (top-bottom mirror).
     """
 
-    def _to_numpy_f32(a):
-        a = a.astype(bd.float32)
+    def _flip_image_orientation(a):
+        if a.ndim < 2:
+            return a
 
+        if rotate:
+            a = bd.rot90(a, k=1)
+
+        # Image-space convention:
+        # axis 0 = vertical direction   (top-bottom)
+        # axis 1 = horizontal direction (left-right)
         if flipVert:
             a = bd.flip(a, axis=0)
         if flipHori:
             a = bd.flip(a, axis=1)
+
+        return a
+
+    def _to_numpy_f32(a):
+        a = a.astype(bd.float32)
+        a = _flip_image_orientation(a)
 
         if backend_name == 'cupy':
             a = bd.asnumpy(a)
@@ -118,15 +131,7 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=F
 
     # Parse extra channels: expect (array, name) pairs
     if extra_channels:
-        if len(extra_channels) % 2 != 0:
-            raise ValueError(
-                "Extra channels must be passed as (array, name) pairs, "
-                "e.g. SaveAsEXR(img, folder, name, depth, 'Z', mask, 'MASK')."
-            )
-
         for arr, ch_name in zip(extra_channels[0::2], extra_channels[1::2]):
-            if not isinstance(ch_name, str):
-                raise TypeError(f"Channel name must be a string, got {type(ch_name)}.")
             channels[ch_name] = _to_numpy_f32(arr)
 
     header = {
@@ -145,6 +150,5 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=F
 
     with OpenEXR.File(header, channels) as outfile:
         outfile.write(nameStr)
-
 
 

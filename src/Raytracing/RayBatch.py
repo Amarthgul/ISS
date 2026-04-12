@@ -36,10 +36,36 @@ class RayBatch:
 
     def Direction(self):
         return bd.copy(self.value[:, 3:6])
-    
+
 
     def Transform(self, transformationMatrix):
-        pass
+        """
+        Apply a 4x4 3D transformation matrix to the ray positions and directions.
+
+        Positions are transformed as homogeneous points (w=1), so translation applies.
+        Directions are transformed as homogeneous vectors (w=0), so translation does not apply.
+
+        :param transformationMatrix: array-like of shape (4, 4)
+        :return: this RayBatch object itself
+        """
+
+        M = bd.asarray(transformationMatrix)
+
+        # Positions
+        pos = self.value[:, :3]
+        ones = bd.ones((pos.shape[0], 1), dtype=pos.dtype)
+        pos_h = bd.concatenate((pos, ones), axis=1)  # (N, 4)
+        pos_t = pos_h @ M.T  # row-vector convention
+        self.value[:, :3] = pos_t[:, :3]
+
+        # Directions
+        direction = self.value[:, 3:6]
+        zeros = bd.zeros((direction.shape[0], 1), dtype=direction.dtype)
+        dir_h = bd.concatenate((direction, zeros), axis=1)  # (N, 4)
+        dir_t = dir_h @ M.T
+        self.value[:, 3:6] = Normalized(dir_t[:, :3])
+
+        return self
 
 
     def Wavelength(self, singleValue = False):

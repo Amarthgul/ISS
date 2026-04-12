@@ -21,7 +21,7 @@ Additionally, it could also:
 
 The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. 
 
-This repo is basically an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I will try to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embedings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python). 
+This repo is basically an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I will try to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embedings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
 
 ## Features 
 
@@ -55,13 +55,13 @@ Notice how as the aperture stops down, the depth of field increases and vignette
 	<img src="resources/ReadmeImg/BokehBlade.gif" width="480">
 </p>
 
-The image above compares the center bokeh (spot) and the higher field bokeh. Notice how, as the aperture stops down, the higher field bokeh first loses its edge aberrations before starting to reflect the aperture shape. The lens being used here is a Canon EF 50mm f/1.2 L, and is a prime example of how Double Gauss formula tends to quickly gains clarity around the image corner as the lens is stopped down. 
+The image above compares the center bokeh/spot (top right) and the higher field bokeh (bottom left). Notice how, as the aperture stops down, the higher field bokeh first loses its edge aberrations before starting to reflect the aperture shape. The lens being used here is a Canon EF 50mm f/1.2 L, and is a prime example of how Double Gauss formula tends to quickly gains clarity around the image corner as the lens is stopped down. 
 
 ### Wavelength emission and spectral response 
 
-Many other applications solve the dispersion issues by either scaling the RGB channel or assigning the RGB color with a certain wavelength. Results from this approach may look fine on a thumbnail but they break down once enlarged or encountering any high dispersion material.
+Many other applications solve the dispersion issues by either scaling the RGB channels or assigning the RGB color with a certain wavelength during tracing. Results from this approach may look fine on a thumbnail, but they break down once enlarged or encountering any high dispersion material.
 
-The framework takes RGB input but operates entirely in wavelength. It uses a set of probability density functions to convert RGB into wavelengths, which also ensures that there will be little to no color banding regardless of sample count. 
+The framework takes RGB inputs but operates entirely in wavelength. It uses a set of probability density functions to convert RGB into wavelengths, which also ensures that there will be little to no color banding regardless of sample count (also effectively outsourcing Metamerism to the user). 
 
 The framework also has imagers whose spectral response can be customized. The image below shows the scene (default balanced emission) rendered onto an imager that has a spectral response that favors the shorter wavelength, basically a tungsten balanced film.
 
@@ -119,6 +119,8 @@ Some production or enthusiasts modify the lens by editing how each glass element
 	<img src="resources/ReadmeImg/DirectionReversion.jpg" width="640">
 </p>
 
+Small manufacturing errors, such as misalignment and rotation, can also be replicated by transforming the surface. 
+
 ### Other features: 
 
 - Polarization. 
@@ -128,6 +130,39 @@ Some production or enthusiasts modify the lens by editing how each glass element
 - Diffraction star (through Fraunhofer diffraction via the aperture stop). 
 
 - Automatic optical material matching.
+
+
+### Demo use 
+
+```python
+    # Create or load a lens 
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    lens.UpdateLens()
+
+    # Instantiate an imager, adjust its attributes 
+    imager = StdImager(horiPx=2160)
+
+    # Read input images 
+    FG = Image2DVariDepth()
+    # Source size is determined by the system, pass in the lens angle of view to establish the scene size 
+    FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
+    FG.LoadFromEXR(r"resources/LeicaFG.exr")
+    BG = Image2DVariDepth()
+    BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
+    BG.LoadFromEXR(r"resources/LeicaBG.exr")
+
+    # Load images into a stack if needed 
+    exampleStack = ImageStack()
+    exampleStack.AddImage(BG, "BG")
+    exampleStack.AddImage(FG, "FG")
+
+    # Assemble things into an imaging system 
+    IS = ImagingSystem(lens, imager)
+    IS.object = exampleStack
+
+    # Render the inputs into an image 
+    IS.Render(focusDistance=1500, renderTime=2*60, fileName="LeicaTest", realTimeUpdate=False)
+```
 
 
 ## Coding Conventions 
@@ -154,7 +189,8 @@ None of the universities I applied seems to be interested in admitting me. So de
 
 - Add transform for gamma corrected inputs. 
 
-- Finish conical elements. 
+- Finish conical elements.
+
 
 ## AI 
 
@@ -165,6 +201,7 @@ The core lens construction and ray propagation are AI-free, not because of some 
 
 - Matplotlib after a certain version has become practically unusable. This happened at some point in late 2024, no plotting logic was changed but all of a sudden it drops to single digit FPS and refresh plot for real time update automatically halts after like 5 calls. 
 
+- Close focus (relative close focus with respect to effective focal length) may result in edge ray rejection, visually appears as dark lines around the object border. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
 
 ## Future work
 

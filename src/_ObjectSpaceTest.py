@@ -807,31 +807,33 @@ def ISTest():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack
 
+    # Create or load a lens
     lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
     lens.UpdateLens()
-    print(lens.GetInfo())
 
+    # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=2160)
 
+    # Read input images
     FG = Image2DVariDepth()
-    FG.horizontalAoV = 23
+    # Source size is determined by the system, pass in the lens angle of view to establish the scene size
+    FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     FG.LoadFromEXR(r"resources/LeicaFG.exr")
-    print("FG Stats ======================")
-    print(FG.Stats())
     BG = Image2DVariDepth()
-    BG.horizontalAoV = 23
+    BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     BG.LoadFromEXR(r"resources/LeicaBG.exr")
-    print("BG Stats ======================")
-    print(BG.Stats())
+
+    # Load images into a stack if needed
     exampleStack = ImageStack()
     exampleStack.AddImage(BG, "BG")
     exampleStack.AddImage(FG, "FG")
 
-
+    # Assemble things into an imaging system
     IS = ImagingSystem(lens, imager)
     IS.object = exampleStack
 
-    IS.Render(focusDistance=1500, renderTime=300, fileName="LeicaTest", realTimeUpdate=False)
+    # Render the inputs into an image
+    IS.Render(focusDistance=1500, renderTime=2*60, fileName="LeicaTest", realTimeUpdate=False)
 
 
 def main():
@@ -848,10 +850,11 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(renderTime, distance[9], "NewRacking", realTimeUpdate=False, infoArg=1)
-    StackTestDigital(renderTime, distance[10], "NewRacking", realTimeUpdate=False, infoArg=1)
-    StackTestDigital(renderTime, distance[11], "NewRacking", realTimeUpdate=False, infoArg=1)
-    StackTestDigital(renderTime, distance[12], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[12], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[13], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[14], "NewRacking", realTimeUpdate=False, infoArg=1)
+    ISTest()
+
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)
     #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
@@ -887,5 +890,5 @@ def main():
 
 
 if __name__ == "__main__":
-    ISTest()
+    main()
 

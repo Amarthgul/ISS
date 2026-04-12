@@ -79,10 +79,11 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= (iterationCount * self._transmissionLoss)
+                # iterationCount
+                image /= (iterationCount / self._transmissionLoss)
 
                 fn = fileName
-                SaveAsEXR(image, r"resources/Results", fn, flipHori=True, flipVert=True)
+                SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 break
 

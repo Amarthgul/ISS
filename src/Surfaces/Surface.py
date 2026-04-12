@@ -104,6 +104,7 @@ class Surface:
         """Inverse transform matrix to offset the incident when the surface is off axis"""
         self._inverseTransform = bd.identity(4)
         # If the surface is on axis, then use the identity matrix
+        # Assumes X-Y-Z rotation order, gimbal lock is possible at extreme cases
 
         """Type of the curvature. By default it is standard spherical surface"""
         self.cType = CurvatureType.Standard
@@ -161,7 +162,7 @@ class Surface:
         # This semi diameter thickness might be inaccurate, due to potnetial transformation of the surface.
         self.sdThickness = self.cumulativeThickness + self.radius + bd.sqrt(self.radius**TWO - self.clearSemiDiameter**TWO) * bd.sign(-self.radius)
         
-        # TODO: add inverse transformation matrix calculation 
+        self.LocalTransform(bd.array([ZERO, ZERO, ZERO]), bd.array([ZERO, ZERO, ZERO]))
 
 
     def LocalTransform(self, translation, rotation):
@@ -172,8 +173,53 @@ class Surface:
         :param rotation: Rotation vector (x, y, z) in degrees.
         """
 
-        # TODO: apply the translation and rotation onto the _inverseTransform
-        pass
+        translation = bd.asarray(translation).reshape(3)
+        rotation = bd.asarray(rotation).reshape(3)
+
+        # Degrees -> radians
+        rx, ry, rz = rotation * (bd.pi / 180.0)
+
+        cx, sx = bd.cos(rx), bd.sin(rx)
+        cy, sy = bd.cos(ry), bd.sin(ry)
+        cz, sz = bd.cos(rz), bd.sin(rz)
+
+        # Standard axis rotation matrices
+        Rx = bd.array([
+            [1.0, 0.0, 0.0],
+            [0.0, cx, -sx],
+            [0.0, sx, cx]
+        ])
+
+        Ry = bd.array([
+            [cy, 0.0, sy],
+            [0.0, 1.0, 0.0],
+            [-sy, 0.0, cy]
+        ])
+
+        Rz = bd.array([
+            [cz, -sz, 0.0],
+            [sz, cz, 0.0],
+            [0.0, 0.0, 1.0]
+        ])
+
+        # Forward local-to-world rotation:
+        # first X, then Y, then Z
+        R = Rz @ Ry @ Rx
+
+        # Since _inverseTransform is used to transform incident rays into
+        # the surface-local frame, store the inverse rigid transform:
+        #
+        # X_world = R * X_local + t
+        # X_local = R^T * (X_world - t)
+        #
+        R_inv = R.T
+        t_inv = -R_inv @ translation
+
+        M = bd.identity(4)
+        M[:3, :3] = R_inv
+        M[:3, 3] = t_inv
+
+        self._inverseTransform = M
 
 
     # ==============================================================
