@@ -19,9 +19,9 @@ Additionally, it could also:
 
 - help lens and optics enthusiasts to gain more insights of photographic objects by offering them a way to perform 100% repeatable and reproducible experiments. 
 
-The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. 
+The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo is basically an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I will try to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embedings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
+This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I am trying to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embedings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
 
 ## Features 
 
@@ -135,34 +135,42 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 ### Demo use 
 
 ```python
-    # Create or load a lens 
+    # Create or load a lens
     lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
     lens.UpdateLens()
 
-    # Instantiate an imager, adjust its attributes 
+    # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=2160)
 
-    # Read input images 
+    # Read input images
     FG = Image2DVariDepth()
-    # Source size is determined by the system, pass in the lens angle of view to establish the scene size 
+    # Pass in the lens angle of view to establish the scene size
     FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     FG.LoadFromEXR(r"resources/LeicaFG.exr")
     BG = Image2DVariDepth()
     BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     BG.LoadFromEXR(r"resources/LeicaBG.exr")
 
-    # Load images into a stack if needed 
+    # Load images into a stack, more efficient this way 
     exampleStack = ImageStack()
     exampleStack.AddImage(BG, "BG")
     exampleStack.AddImage(FG, "FG")
+    
 
-    # Assemble things into an imaging system 
+    # Assemble an imaging system
     IS = ImagingSystem(lens, imager)
+    # Set the scene 
     IS.object = exampleStack
+    # Aside from a stack, many other classes in ObjectSpace can also be passed in here 
 
-    # Render the inputs into an image 
-    IS.Render(focusDistance=1500, renderTime=2*60, fileName="LeicaTest", realTimeUpdate=False)
+    # Render the scene into an image
+    IS.Render(focusDistance=1500, renderTime=6*60*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
 ```
+Result: 
+
+<p align="center">
+	<img src="resources/ReadmeImg/LeicaTest.jpg" width="540">
+</p>
 
 
 ## Coding Conventions 

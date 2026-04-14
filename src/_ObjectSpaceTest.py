@@ -816,24 +816,27 @@ def ISTest():
 
     # Read input images
     FG = Image2DVariDepth()
-    # Source size is determined by the system, pass in the lens angle of view to establish the scene size
+    # Pass in the lens angle of view to establish the scene size
     FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     FG.LoadFromEXR(r"resources/LeicaFG.exr")
     BG = Image2DVariDepth()
     BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
     BG.LoadFromEXR(r"resources/LeicaBG.exr")
 
-    # Load images into a stack if needed
+    # Load images into a stack, more efficient this way
     exampleStack = ImageStack()
     exampleStack.AddImage(BG, "BG")
     exampleStack.AddImage(FG, "FG")
 
-    # Assemble things into an imaging system
-    IS = ImagingSystem(lens, imager)
-    IS.object = exampleStack
 
-    # Render the inputs into an image
-    IS.Render(focusDistance=1500, renderTime=5*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
+    # Assemble an imaging system
+    IS = ImagingSystem(lens, imager)
+    # Set the scene
+    IS.object = exampleStack
+    # Aside from a stack, many other classes in ObjectSpace can also be passed in here
+
+    # Render the scene into an image
+    IS.Render(focusDistance=1500, renderTime=6*60*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
 
 
 def main():
@@ -850,9 +853,8 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    # StackTestDigital(renderTime, distance[12], "NewRacking", realTimeUpdate=False, infoArg=1)
-    # StackTestDigital(renderTime, distance[13], "NewRacking", realTimeUpdate=False, infoArg=1)
-    # StackTestDigital(renderTime, distance[14], "NewRacking", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[15], "NewRacking", realTimeUpdate=False, infoArg=1)
+    StackTestDigital(renderTime, distance[16], "NewRacking", realTimeUpdate=False, infoArg=1)
     ISTest()
 
 

@@ -67,7 +67,7 @@ class ImagingSystem:
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
             if flareGlare:
-                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(128), 64, flareGlare=True)
+                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(128), 32, flareGlare=True)
                 _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
                 fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
                 fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
