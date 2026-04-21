@@ -1,3 +1,5 @@
+
+
 from .SurfaceModulator import SurfaceModulator
 from Util.Backend import backend as bd
 from Util.Globals import RNG, PRECISION_TYPE
@@ -5,7 +7,7 @@ from Util.Globals import RNG, PRECISION_TYPE
 
 class OnionRing(SurfaceModulator):
 
-    def __init__(self, ringCount=38, disturbance=0.5):
+    def __init__(self, ringCount=38, disturbance=1):
         super().__init__()
 
         """Total count of ring layers."""
@@ -16,6 +18,7 @@ class OnionRing(SurfaceModulator):
 
         self.normalMap = None
         self.heightMap = None
+        self.perlinMask = None
 
         self._normalBlend = 0.0001 # 1 being replacement, 0 being no modification
 
@@ -28,40 +31,70 @@ class OnionRing(SurfaceModulator):
         self._disturbanceSamples = None
         self._eps = 1e-12
 
+        self._centerFade = 0.5  # When set to 1, center will be replaced with flat normal. When set to 0, skip this center fade entirely.
+        self._centerFadeRadius = 0.35 # Ratio of the radius at which point the fade stops. 1 for the entire map radius range, 0 for none.
+
+        # Perlin-like mask controls.
+        self._perlinScale = 6.0          # Base cell count across the full diameter.
+        self._perlinOctaves = 3          # Number of self-added fractal iterations.
+        self._perlinPersistence = 0.5    # Amplitude decay per octave.
+        self._perlinLacunarity = 2.0     # Frequency growth per octave.
+        self._perlinStrength = 0.35      # 0 disables, 1 allows full local height suppression.
+
 
     def Generate(self):
 
         if self._ringHeight <= 0:
             self.heightMap = bd.zeros((self.mapRes, self.mapRes), dtype=PRECISION_TYPE)
+            self.perlinMask = bd.ones((self.mapRes, self.mapRes), dtype=PRECISION_TYPE)
             self.normalMap = self._NeutralNormalMap(self.mapRes)
             return self
 
         lin = bd.linspace(-1.0, 1.0, self.mapRes, dtype=PRECISION_TYPE)
         xx, yy = bd.meshgrid(lin, lin, indexing='xy')
         rr = bd.sqrt(xx * xx + yy * yy)
-        theta = bd.arctan2(yy, xx)
 
-        # Disturb the effective radius slightly per angle so each ring is not perfectly circular.
-        disturbed_r = self._DisturbedRadius(rr, theta, self.ringCount)
-
-        # Build height profile ring by ring.
-        height = bd.zeros_like(disturbed_r)
+        # Build height profile ring by ring. Each ring gets its own disturbed center
+        # and its own angular radius wobble, but both share a single combined
+        # disturbance budget so the total offset allowance is not exceeded.
+        height = bd.zeros_like(rr)
         ringWidth = 1.0 / max(self.ringCount, 1)
         amp = self._ringHeight * (ringWidth * 0.5)
 
         signs = self._RingSign()
+        center_offsets, radius_weights = self._PerRingDisturbanceParams()
+
         for idx in range(self.ringCount):
             inner = idx * ringWidth
             outer = (idx + 1) * ringWidth
-            local = (disturbed_r - inner) / max(outer - inner, self._eps)
+
+            # Each ring has its own slightly shifted center.
+            cx = center_offsets[idx, 0]
+            cy = center_offsets[idx, 1]
+            ring_rr = bd.sqrt((xx - cx) * (xx - cx) + (yy - cy) * (yy - cy))
+            ring_theta = bd.arctan2(yy - cy, xx - cx)
+
+            # Optional angular radius disturbance around that shifted center.
+            ring_rr = self._DisturbedRadius(
+                ring_rr, ring_theta, self.ringCount,
+                amplitudeScale=radius_weights[idx],
+                ringIndex=idx
+            )
+
+            local = (ring_rr - inner) / max(outer - inner, self._eps)
             in_ring = (local >= 0.0) & (local <= 1.0)
 
             ring_profile = self._RingProfile(local)
             sign = signs[idx]
             height = bd.where(in_ring, height + sign * amp * ring_profile, height)
 
-        # Clamp outside unit disk to neutral.
+        # Clamp outside unit disk.
         height = bd.where(rr <= 1.0, height, 0.0)
+
+        # Apply Perlin-like mask before the normal map is generated.
+        self.perlinMask = self._GeneratePerlinMask(xx, yy, rr)
+        height = height * self.perlinMask
+
         self.heightMap = height
 
         # Use non-wrapping finite differences so the visualization is not contaminated by roll-over seams.
@@ -77,9 +110,12 @@ class OnionRing(SurfaceModulator):
         dy[0, :] = (height[1, :] - height[0, :]) / pixel_size
         dy[-1, :] = (height[-1, :] - height[-2, :]) / pixel_size
 
+        # Center fade reduces the perturbation strength near the optical center.
+        center_weight = self._CenterFadeWeight(rr)
+
         # Increase normal strength impact.
-        nx = -dx * self._normalStrength
-        ny = -dy * self._normalStrength
+        nx = -dx * self._normalStrength * center_weight
+        ny = -dy * self._normalStrength * center_weight
         nz = bd.ones_like(nx)
 
         normal = bd.stack((nx, ny, nz), axis=2)
@@ -185,8 +221,6 @@ class OnionRing(SurfaceModulator):
             import numpy as np
             import matplotlib.pyplot as plt
 
-            # Ordinary tangent-space display heavily compresses subtle XY departures.
-            # Exaggerate only XY for visualization while preserving sign.
             viz = np.array(arr, copy=True)
             viz[:, :, 0] *= exaggeration
             viz[:, :, 1] *= exaggeration
@@ -223,7 +257,6 @@ class OnionRing(SurfaceModulator):
     """ ====================== Private Methods ===================== """
     # ==================================================================
 
-
     def _RingSign(self, unifiedSign=0):
 
         # Use this method to determine the sign of each ring, i.e., if they are convex or concave.
@@ -239,18 +272,15 @@ class OnionRing(SurfaceModulator):
         val = 1.0 if unifiedSign > 0 else -1.0
         return bd.full(count, val, dtype=PRECISION_TYPE)
 
-
     def _NormalizeRows(self, arr):
         norm = bd.linalg.norm(arr, axis=1, keepdims=True)
         norm = bd.maximum(norm, self._eps)
         return arr / norm
 
-
     def _NeutralNormalMap(self, res):
         normal = bd.zeros((res, res, 3), dtype=PRECISION_TYPE)
         normal[:, :, 2] = 1.0
         return normal
-
 
     def _RingProfile(self, local):
         """
@@ -260,37 +290,54 @@ class OnionRing(SurfaceModulator):
         """
         l = bd.clip(local, 0.0, 1.0)
 
-        # Symmetric half-sine bump.
         sine_prof = bd.sin(bd.pi * l)
 
-        # Circular-cap-like profile using a normalized semicircle over [-1, 1].
         x = 2.0 * l - 1.0
         circ_prof = bd.sqrt(bd.maximum(0.0, 1.0 - x * x))
 
         w = float(min(max(self._normalSinSag, 0.0), 1.0))
         return (w * sine_prof) + ((1.0 - w) * circ_prof)
 
+    def _CenterFadeWeight(self, rr):
+        """
+        Return multiplicative weight for XY normal strength.
 
-    def _DisturbedRadius(self, rr, theta, ringCount):
+        At the center, the weight becomes (1 - _centerFade).
+        At and beyond _centerFadeRadius, the weight becomes 1.
+        """
+        fade = float(min(max(self._centerFade, 0.0), 1.0))
+        radius = float(min(max(self._centerFadeRadius, 0.0), 1.0))
+
+        if fade <= 0.0 or radius <= 0.0:
+            return bd.ones_like(rr)
+
+        t = bd.clip(rr / max(radius, self._eps), 0.0, 1.0)
+        smooth = t * t * (3.0 - 2.0 * t)
+        return (1.0 - fade) + fade * smooth
+
+    def _DisturbedRadius(self, rr, theta, ringCount, amplitudeScale=1.0, ringIndex=0):
         """
         Apply a small angular modulation to the radial coordinate.
-        disturbance=1 means the local boundary can swing by up to half a ring width.
+
+        amplitudeScale is a per-ring [0, 1] weight that shares the same total
+        disturbance allowance with the center offset. When it is 0, this method
+        leaves the radius unchanged for that ring.
         """
         if self.disturbance <= 0:
             return rr
 
         ringWidth = 1.0 / max(ringCount, 1)
-        maxShift = 0.5 * ringWidth * float(self.disturbance)
+        maxShift = 0.5 * ringWidth * float(self.disturbance) * float(amplitudeScale)
+        if maxShift <= 0.0:
+            return rr
 
-        # Low-frequency deterministic random field over angle.
-        if self._disturbanceSamples is None or len(self._disturbanceSamples) != self._disturbanceHarmonics:
-            self._disturbanceSamples = (RNG.rand(self._disturbanceHarmonics) * 2.0 - 1.0).astype(PRECISION_TYPE)
+        samples = (RNG.rand(self._disturbanceHarmonics) * 2.0 - 1.0).astype(PRECISION_TYPE)
 
         field = bd.zeros_like(theta)
         for i in range(self._disturbanceHarmonics):
             freq = i + 1
-            phase = (2.0 * bd.pi) * self._disturbanceSamples[i]
-            amp = self._disturbanceSamples[i] / freq
+            phase = (2.0 * bd.pi) * samples[i]
+            amp = samples[i] / freq
             field = field + amp * bd.sin(freq * theta + phase)
 
         denom = bd.max(bd.abs(field))
@@ -299,6 +346,133 @@ class OnionRing(SurfaceModulator):
 
         return rr + (maxShift * field)
 
+    def _PerRingDisturbanceParams(self):
+        """
+        Create per-ring disturbance parameters.
+
+        The total allowance is half a ring width at disturbance=1.
+        For each ring, split that allowance between:
+            - center offset magnitude
+            - angular radius wobble amplitude
+
+        so that:
+            center_offset + radius_wobble <= total_allowance
+        """
+        count = int(max(1, self.ringCount))
+        ringWidth = 1.0 / max(count, 1)
+        total_allowance = 0.5 * ringWidth * float(max(self.disturbance, 0.0))
+
+        if total_allowance <= 0.0:
+            center_offsets = bd.zeros((count, 2), dtype=PRECISION_TYPE)
+            radius_weights = bd.zeros(count, dtype=PRECISION_TYPE)
+            return center_offsets, radius_weights
+
+        center_offsets = bd.zeros((count, 2), dtype=PRECISION_TYPE)
+        radius_weights = bd.zeros(count, dtype=PRECISION_TYPE)
+
+        split = RNG.rand(count).astype(PRECISION_TYPE)
+
+        angles = (2.0 * bd.pi) * RNG.rand(count).astype(PRECISION_TYPE)
+        center_mag = total_allowance * split
+        center_offsets[:, 0] = center_mag * bd.cos(angles)
+        center_offsets[:, 1] = center_mag * bd.sin(angles)
+
+        radius_weights[:] = (1.0 - split)
+
+        return center_offsets, radius_weights
+
+    def _GeneratePerlinMask(self, xx, yy, rr):
+        """
+        Fractal Perlin-like mask in [1 - strength, 1].
+        It multiplies the height map, so brighter values preserve more height.
+        """
+        strength = float(min(max(self._perlinStrength, 0.0), 1.0))
+        octaves = int(max(1, self._perlinOctaves))
+        scale = float(max(self._perlinScale, 1.0))
+        persistence = float(max(self._perlinPersistence, 0.0))
+        lacunarity = float(max(self._perlinLacunarity, 1.0))
+
+        if strength <= 0.0:
+            return bd.where(rr <= 1.0, bd.ones_like(rr), bd.ones_like(rr))
+
+        fbm = bd.zeros_like(xx)
+        amp = 1.0
+        amp_sum = 0.0
+        freq = scale
+
+        for _ in range(octaves):
+            cells = int(max(1, round(freq)))
+            octave_noise = self._Perlin2D(xx, yy, cells)
+            fbm = fbm + amp * octave_noise
+            amp_sum += amp
+            amp *= persistence
+            freq *= lacunarity
+
+        fbm = fbm / max(amp_sum, self._eps)
+        fbm = bd.clip(fbm, 0.0, 1.0)
+
+        mask = 1.0 - strength * fbm
+        return bd.where(rr <= 1.0, mask, bd.ones_like(mask))
+
+    def _Perlin2D(self, xx, yy, cells):
+        """
+        2D gradient-noise field over the unit disk domain using a square lattice
+        spanning the full [-1, 1] x [-1, 1] map.
+        Returns noise in [0, 1].
+        """
+        cells = int(max(1, cells))
+
+        px = (xx + 1.0) * 0.5 * cells
+        py = (yy + 1.0) * 0.5 * cells
+
+        x0 = bd.floor(px).astype(bd.int32)
+        y0 = bd.floor(py).astype(bd.int32)
+
+        x0 = bd.clip(x0, 0, cells - 1)
+        y0 = bd.clip(y0, 0, cells - 1)
+
+        x1 = x0 + 1
+        y1 = y0 + 1
+
+        xf = px - x0
+        yf = py - y0
+
+        angles = (2.0 * bd.pi) * RNG.rand(cells + 1, cells + 1).astype(PRECISION_TYPE)
+        grads = bd.stack((bd.cos(angles), bd.sin(angles)), axis=2)
+
+        g00 = grads[y0, x0]
+        g10 = grads[y0, x1]
+        g01 = grads[y1, x0]
+        g11 = grads[y1, x1]
+
+        d00x = xf
+        d00y = yf
+        d10x = xf - 1.0
+        d10y = yf
+        d01x = xf
+        d01y = yf - 1.0
+        d11x = xf - 1.0
+        d11y = yf - 1.0
+
+        n00 = g00[:, :, 0] * d00x + g00[:, :, 1] * d00y
+        n10 = g10[:, :, 0] * d10x + g10[:, :, 1] * d10y
+        n01 = g01[:, :, 0] * d01x + g01[:, :, 1] * d01y
+        n11 = g11[:, :, 0] * d11x + g11[:, :, 1] * d11y
+
+        u = self._Fade(xf)
+        v = self._Fade(yf)
+
+        nx0 = n00 * (1.0 - u) + n10 * u
+        nx1 = n01 * (1.0 - u) + n11 * u
+        out = nx0 * (1.0 - v) + nx1 * v
+
+        out_min = bd.min(out)
+        out_max = bd.max(out)
+        denom = bd.maximum(out_max - out_min, self._eps)
+        return (out - out_min) / denom
+
+    def _Fade(self, t):
+        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 
     def _PositionToUV(self, posXY):
         if self.semiDiameter is None:
@@ -318,7 +492,6 @@ class OnionRing(SurfaceModulator):
         radial2 = local[:, 0] * local[:, 0] + local[:, 1] * local[:, 1]
         valid = radial2 <= 1.0
         return uv, valid
-
 
     def _BilinearLookup(self, uv):
         tex = self.normalMap
@@ -347,3 +520,5 @@ class OnionRing(SurfaceModulator):
         out = n0 * (1.0 - wy) + n1 * wy
         norm = bd.linalg.norm(out, axis=1, keepdims=True)
         return out / bd.maximum(norm, self._eps)
+
+

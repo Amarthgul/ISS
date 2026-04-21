@@ -228,8 +228,10 @@ class Surface:
         self._inverseTransform = M
 
 
-    def AddDust(self, dustCount=2):
-        self.dusts = Dust(dustCount)
+    def AddDust(self, dustCount=2, pupilDist=0.2, maxSize=.01, maxOpacity=1):
+        self.dusts = Dust(dustCount, pupilDist)
+        self.dusts.maxSize = maxSize
+        self.dusts.maxOpacity = maxOpacity
         self.dusts.frontVertex = self.frontVertex
         self.dusts.semiDiameter = self.clearSemiDiameter
         self.dusts.Generate()

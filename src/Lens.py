@@ -13,7 +13,7 @@ from xarray.plot import surface
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR, MIRROR
+from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR, MIRROR, RNG
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import AxialDistance, TransversalDistance, RectPath
 from Util.SpatialEllipse import SpatialCircle
@@ -117,6 +117,32 @@ class Lens:
         # Update should remove the previous thickness settings and makes the first element to sit at the origin
         if offsetWholeLens:
             self.UpdateLens()
+
+
+    def AddSurfaceDefect(self):
+
+
+        for i in range(len(self.surfaces)):
+            if isinstance(self.surfaces[i], EvenAspheric):
+                self.surfaces[i].AddOnionRing()
+
+
+        for g in self.groups:
+            frontRear = [g[0], g[-1]]
+            for i in frontRear:
+                if i != 0 and 1 != len(self.surfaces)-1:
+
+                    size = RNG.rand() * 0.02
+                    opacity = RNG.rand()
+                    count = int(RNG.rand() * 8)
+                    pupilDistance = 1 - 1 / bd.abs(i - self.stopIndex)
+
+                    print("Sizes ", size, " opacity ", opacity, " totalC ", count, " pupilDist ", pupilDistance)
+
+                    self.surfaces[i].AddDust(count, pupilDistance, size, opacity)
+
+
+
 
 
     def FlipElement(self, elementIndex, autoUpdate = True, autoCorrect=False):

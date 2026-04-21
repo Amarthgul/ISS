@@ -815,11 +815,7 @@ def ISTest():
     # Create or load a lens
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens.surfaces[12].AddOnionRing()
-    lens.surfaces[2].AddDust(3)
-    lens.surfaces[7].AddDust()
-    lens.surfaces[12].AddDust(1)
-    lens.surfaces[13].AddDust()
+    lens.AddSurfaceDefect()
 
     # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=1920)
@@ -846,19 +842,36 @@ def ISTest():
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=1000, renderTime=30*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():
     from ImagingSystem import ImagingSystem
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
-    lens.surfaces[9].AddOnionRing()
-    # lens.surfaces[4].onionRing.ShowNormalMap()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.AddSurfaceDefect()
     imager = StdImager(horiPx=6000)
 
     IS = ImagingSystem(lens, imager)
-    IS.SpotGrid(objectDistance=20000, focusDistance=1500, renderTime=2*60, fileName="DustTest", realTimeUpdate=False)
+    IS.SpotGrid(objectDistance=20000, focusDistance=1500, renderTime=30*60, fileName="DustTest", realTimeUpdate=False)
+
+
+def PureArtifactTest():
+    from Surfaces.SurfaceModulator import  Dust
+    from Surfaces.OnionRing import OnionRing
+
+    OR = OnionRing()
+    OR.semiDiameter = 22
+    OR.frontVertex = bd.array([0, 0, 0])
+    OR.Generate()
+
+    OR.ShowNormalMap()
+
+    # d = Dust(3, 1)
+    # d.semiDiameter = 22
+    # d.frontVertex = bd.array([0, 0, 0])
+    # d.Generate()
+    # d.ShowNormalMap(512)
 
 
 def main():
@@ -878,8 +891,9 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    # PureOnion()
-    ISTest()
+    # ISTest()
+    ISSpotTest()
+    # PureArtifactTest()
 
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)

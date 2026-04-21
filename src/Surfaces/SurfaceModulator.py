@@ -28,11 +28,15 @@ class SurfaceModulator:
 
 class Dust(SurfaceModulator):
 
-    def __init__(self, dustCount=2):
+    def __init__(self, dustCount=2, pupilDist=.25):
         super().__init__()
 
         """Number of dusts. It is recommended to keep it below 10. more than 10 specks of visible dusts then your lens is screwed and you should just use scattering attribute of the surfaces instead."""
         self.dustCount = dustCount
+
+        """Relative distance from the pupil plane. 0 would be on the pupil plane, 1 would be furthest away from the pupil."""
+        self.pupilDist = pupilDist
+
 
         """Dust data structured as:
             [x_position, y_position, base_size, opacity, 1st_dark_ring_size, max_reach]
@@ -41,10 +45,15 @@ class Dust(SurfaceModulator):
         """
         self.dustData = None  # No per-dust map needed
 
-        self._maxSize = 0.02
-        self._maxOpacity = 1.0
+        self.maxSize = 0.01
+        self.maxOpacity = 0.9
+
         self._opacityFadePower = 2
-        self._1stRingMaxRatio = 2.5  # Ratio of the 1st dark ring size to the size of the dust itself
+        self._1stRingMaxRatio = 3.5  # Ratio of the 1st dark ring size to the size of the dust itself
+
+        self._maxFocusFade = 1  # Reduce normal blend when the normal is focusing the light.
+        # When set to 1, all directions pointing to the center in the normal map will be removed, effecting eliminating any focusing effect.
+        # When set to 0, normal map is generated without any intervention.
 
         self._airyNormal = None
 
@@ -57,16 +66,9 @@ class Dust(SurfaceModulator):
 
     def Generate(self):
 
-        # Randomly create dustCount number of dusts, assume they exist in a [0, 1] circular area, circle center at (.5, .5). This circular area will later be mapped into the self.semiDiameter during runtime. However, if self.semiDiameter is None, then treat the element as a square and place the dust in the entire [0, 1] square area
-
-        # Randomly generate base size, opacity, and the size of the 1st dark ring. Then use the size of the 1st dark ring to calculate the max reach size, i.e., the furthest distance the dust could affect the ray direction.
+        # Reduce the focusing / converging part of the Airy lookup depending on pupil distance. Dust near the pupil plane keeps the original map, while dust further away progressively loses the center-converging component.
 
         count = int(self.dustCount)
-        if count <= 0:
-            self.dustData = bd.zeros((0, 6), dtype=PRECISION_TYPE)
-            self.mapRes = 512
-            self._airyNormal = self._generate_airy_lookup()
-            return self
 
         if self.semiDiameter is None:
             dust_x = RNG.rand(count)
@@ -74,8 +76,8 @@ class Dust(SurfaceModulator):
         else:
             dust_x, dust_y = self._sample_unit_disk(count)
 
-        base_size = (0.2 + 0.8 * RNG.rand(count)) * self._maxSize
-        opacity = (0.35 + 0.65 * RNG.rand(count)) * self._maxOpacity
+        base_size = (0.2 + 0.8 * RNG.rand(count)) * self.maxSize
+        opacity = (0.35 + 0.65 * RNG.rand(count)) * self.maxOpacity
         ring_ratio = 1.0 + RNG.rand(count) * max(self._1stRingMaxRatio - 1.0, 0.0)
         first_ring = base_size * ring_ratio
         max_reach = bd.copy(first_ring)
@@ -85,8 +87,10 @@ class Dust(SurfaceModulator):
         ).astype(PRECISION_TYPE)
 
         self.mapRes = 512
-        # Generate self._airyNormal, a normal map of an Airy disk at mapRes. This map will be used as the directional perturbation "lookup map" for all dusts.
-        self._airyNormal = self._generate_airy_lookup()
+        # Generate self._airyNormal, a normal map of an Airy disk at mapRes.
+        # Then attenuate only the center-converging part so dust far from the pupil plane does not act like a tiny focusing lens.
+        focusFade = self._maxFocusFade * self.pupilDist
+        self._airyNormal = self._generate_airy_lookup(focusFade=focusFade)
 
         RefreshRNG()
 
@@ -148,8 +152,7 @@ class Dust(SurfaceModulator):
                 perturb_xy[in_ring] += local_xy * weight[:, None]
                 perturb_w[in_ring] += weight
 
-        transmission = bd.maximum(transmission, self._minTransmission)
-        exitingRB.RadianceChange(transmission)
+        transmission = bd.clip(transmission, self._minTransmission, 1.0)
 
         affected = perturb_w > 0.0
         if bd.any(affected):
@@ -165,7 +168,95 @@ class Dust(SurfaceModulator):
             new_dir = self._normalize_rows(new_dir)
             exitingRB.SetDirection(new_dir)
 
+        # Monte Carlo thinning: transmission acts as the survival probability.
+        survive = RNG.rand(pos_xy.shape[0]) <= transmission
+        exitingRB.Mask(survive)
+
         return exitingRB
+
+
+    def ShowNormalMap(self, exaggeration=24.0, showComponents=False):
+        """
+        Display the precomputed Airy lookup normal map (_airyNormal).
+
+        Parameters
+        ----------
+        exaggeration : float
+            Multiplies only the XY components for visualization.
+            Does NOT change the actual stored map.
+
+        showComponents : bool
+            If True, also show Nx and Ny as scalar fields.
+        """
+
+        if self._airyNormal is None:
+            self.Generate()
+
+        arr = self._airyNormal
+
+        # CuPy -> NumPy if needed
+        if hasattr(arr, "get"):
+            arr = arr.get()
+
+        try:
+            import numpy as np
+            import matplotlib.pyplot as plt
+
+            # Copy so we do not alter the actual map
+            viz = np.array(arr, copy=True)
+
+            # Exaggerate only transverse components
+            viz[:, :, 0] *= exaggeration
+            viz[:, :, 1] *= exaggeration
+
+            # Renormalize only for display
+            norm = np.linalg.norm(viz, axis=2, keepdims=True)
+            norm = np.maximum(norm, 1e-12)
+            viz = viz / norm
+
+            # Tangent-space normal map visualization
+            img = np.clip((viz + 1.0) * 0.5, 0.0, 1.0)
+
+            if showComponents:
+
+                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+                axes[0].imshow(img)
+                axes[0].set_title(
+                    f'Airy Lookup Normal (XY exaggerated x{exaggeration:g})'
+                )
+                axes[0].axis('off')
+
+                im1 = axes[1].imshow(
+                    arr[:, :, 0],
+                    cmap='coolwarm'
+                )
+                axes[1].set_title('Nx')
+                axes[1].axis('off')
+                fig.colorbar(im1, ax=axes[1], fraction=0.046)
+
+                im2 = axes[2].imshow(
+                    arr[:, :, 1],
+                    cmap='coolwarm'
+                )
+                axes[2].set_title('Ny')
+                axes[2].axis('off')
+                fig.colorbar(im2, ax=axes[2], fraction=0.046)
+
+                plt.tight_layout()
+                plt.show()
+
+            else:
+                plt.figure(figsize=(6, 6))
+                plt.imshow(img)
+                plt.title(
+                    f'Airy Lookup Normal (XY exaggerated x{exaggeration:g})'
+                )
+                plt.axis('off')
+                plt.show()
+
+        except Exception:
+            return arr
 
 
     # ==================================================================
@@ -188,26 +279,39 @@ class Dust(SurfaceModulator):
         return x, y
 
 
-    def _generate_airy_lookup(self):
+    def _generate_airy_lookup(self, focusFade=0.0):
         """
-        Create a small universal lookup map whose normals roughly follow
-        the derivative of the Airy disk up to the first dark ring.
+        Create a compact, universal lookup map whose normals resemble the
+        derivative of a truncated Airy pattern up to the first dark ring.
 
-        The radial profile is intentionally compact and smooth:
-            - a bright central lobe
-            - a darker annulus near the first dark ring
-            - no oscillation beyond the first dark ring
+        The default shape is intentionally ripple-like rather than bump-like:
+            - a central bowl
+            - a raised ring near the first dark ring
+            - decay back to neutral outside the ring
+
+        This gives the normal field a clearer outward-then-inward transition,
+        which is closer to the intended "center bowl + ring" look.
         """
         res = int(self.mapRes)
         lin = bd.linspace(-1.0, 1.0, res, dtype=PRECISION_TYPE)
         xx, yy = bd.meshgrid(lin, lin, indexing="xy")
         rr = bd.sqrt(xx * xx + yy * yy)
 
-        # Compact Airy-inspired height field.
-        # Positive center, shallow negative ring near r=1, zero beyond.
-        center_lobe = bd.where(rr <= 1.0, (1.0 - rr * rr) ** 2, 0.0)
-        ring = -0.18 * bd.exp(-((rr - 1.0) ** 2) / (2.0 * self._ringSigma * self._ringSigma))
-        height = bd.where(rr <= 1.15, center_lobe + ring, 0.0)
+        # ------------------------------------------------------------------
+        # Ripple-like Airy-inspired height field.
+        # Negative center bowl + positive annular ring near the first dark ring.
+        # The bowl controls the central push, while the ring introduces the
+        # sign change in slope that makes the lookup read like a ripple.
+        # ------------------------------------------------------------------
+        bowl = -bd.where(rr <= 1.0, (1.0 - rr * rr) ** 2, 0.0)
+
+        ring_center = 0.82
+        ring_sigma = bd.maximum(self._ringSigma, 0.08)
+        ring = 0.42 * bd.exp(-((rr - ring_center) ** 2) / (2.0 * ring_sigma * ring_sigma))
+
+        # Taper everything smoothly to zero at the first dark ring boundary.
+        edge_taper = bd.where(rr <= 1.0, (1.0 - rr * rr) ** 1.5, 0.0)
+        height = (bowl + ring) * edge_taper
 
         # Central differences via roll. Edge values are masked anyway.
         dx = 0.5 * (bd.roll(height, -1, axis=1) - bd.roll(height, 1, axis=1))
@@ -219,6 +323,27 @@ class Dust(SurfaceModulator):
 
         normal = bd.stack((nx, ny, nz), axis=2)
         normal = normal / bd.maximum(bd.linalg.norm(normal, axis=2, keepdims=True), self._eps)
+
+        # Fade only the converging part of the field. Converging means the xy
+        # component points toward the dust center, which can create an unwanted
+        # bright Poisson-like spot when the dust is away from the pupil plane.
+        if focusFade > 0.0:
+            radial = bd.stack((xx, yy), axis=2)
+            radial_norm = bd.maximum(bd.linalg.norm(radial, axis=2, keepdims=True), self._eps)
+            radial_dir = radial / radial_norm
+
+            xy = normal[:, :, :2]
+            inward = -(xy[:, :, 0] * radial_dir[:, :, 0] + xy[:, :, 1] * radial_dir[:, :, 1])
+            inward = bd.clip(inward, 0.0, None)
+
+            # Suppress the inward / focusing part most strongly in the bowl,
+            # and progressively less near the ring so the ripple character remains.
+            bowl_weight = bd.clip(1.0 - (rr / 0.9) ** 2, 0.0, 1.0)
+            fade = bd.clip(focusFade * inward * bowl_weight, 0.0, 1.0)
+
+            xy = xy * (1.0 - fade[:, :, None])
+            normal = bd.concatenate((xy, normal[:, :, 2:3]), axis=2)
+            normal = normal / bd.maximum(bd.linalg.norm(normal, axis=2, keepdims=True), self._eps)
 
         # Outside the support, keep a neutral normal.
         neutral = bd.zeros_like(normal)

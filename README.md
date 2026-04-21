@@ -33,6 +33,15 @@ The most fundamental way of imaging. The image below is formed by reading severa
 	<img src="resources/ReadmeImg/FocusRacking.gif" width="640">
 </p>
 
+If deem needed, small artifacts can also be added to the surfaces. For example, some dust specks are large enough to affect the propagation of rays, and when they sit next to the pupil plane, their shape will be made even more obvious. Another common surface artifact is the groves left from manufacturing even aspheric surfaces. These tiny groves are generally not visible to the naked eye, but they may form concentric circles in de-focused spots, which is commonly referred to as the _onion rings_. The image below shows the de-focus spot of the same EF 50mm f/1.2 lens with onion rings on its ASPH element and some dusts distributed along the lens. 
+
+
+<p align="center">
+	<img src="resources/ReadmeImg/ArtifactBokeh.png" width="720">
+</p>
+
+
+
 ### Non-sequential propagation 
 
 The framework could also simulate how rays bounce between each surface, the lens edge, or the interior barrel of the lens, creating flares and glares.
@@ -197,8 +206,6 @@ None of the universities I applied seems to be interested in admitting me. So de
 - Add opacity based on image stacking. 
 
 - Add propagation based film grain. 
-
-- Add onion rings in ASPH bokeh.
 
 - Add transform for gamma corrected inputs. 
 

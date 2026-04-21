@@ -151,7 +151,7 @@ class ImagingSystem:
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
                 # iterationCount
-                image /= (iterationCount / self._transmissionLoss)
+                image /= iterationCount
                 fn = fileName
                 SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
                 break
