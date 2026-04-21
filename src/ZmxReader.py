@@ -38,7 +38,11 @@ class LensFromZmx:
         self.ConvertIntoLens()
 
 
-    def GetLens(self):
+    def GetLens(self, autoUpdate=True):
+
+        if autoUpdate:
+            self.lens.UpdateLens()
+
         return self.lens
 
 

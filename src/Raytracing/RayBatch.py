@@ -255,6 +255,33 @@ class RayBatch:
             self.value[:, 9] = tilt
 
 
+    def RadianceChange(self, ratio):
+        # Change the 3 polarized radiance terms so that total radiance is higher or lower.
+
+        ratio = bd.asarray(ratio)
+
+        if bd.any(ratio <= 0):
+            raise ValueError("Radiance change ratio must be positive.")
+
+        # FIX: Remove the 'ONE / (ratio ** 2)' logic.
+        # To get 85% radiance, we need a scale factor of 0.85.
+        scale = ratio
+
+        # Scalar case
+        if ratio.ndim == 0:
+            self.value[:, [7, 8, 9]] *= scale
+            return self
+
+        # Per-ray case
+        if ratio.ndim != 1 or ratio.shape[0] != self.value.shape[0]:
+            raise ValueError("Per-ray ratio must have shape (ray_count,)")
+
+        scale = scale.reshape(-1, 1)
+        self.value[:, [7, 8, 9]] *= scale
+
+        return self
+
+
     def GetAoV(self):
         return self.value[:, 11:]
 

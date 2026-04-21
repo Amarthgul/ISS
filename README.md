@@ -21,13 +21,13 @@ Additionally, it could also:
 
 The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I am trying to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embedings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
+This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I am trying to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embeddings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
 
 ## Features 
 
 ### Direct sequential propagation 
 
-The most fundamental way of imaging. The image below is formed by reading several EXR images with depth and alpha channel, then reconstructing the scene and populating the scene through the imaging system. 
+The most fundamental way of imaging. The image below is formed by reading several EXR images with depth and alpha channel, then reconstructing the scene and populating the scene through the imaging system. The system consists of an ideal imager and a Canon EF 50mm f/1.2 L lens. 
 
 <p align="center">
 	<img src="resources/ReadmeImg/FocusRacking.gif" width="640">
@@ -137,7 +137,6 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 ```python
     # Create or load a lens
     lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
-    lens.UpdateLens()
 
     # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=2160)
@@ -164,12 +163,18 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here 
 
     # Render the scene into an image
-    IS.Render(focusDistance=1500, renderTime=6*60*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
+    IS.Render(focusDistance=1500, renderTime=6*60*60, fileName="LeicaTest", flareGlare=True)
 ```
 Result: 
 
 <p align="center">
-	<img src="resources/ReadmeImg/LeicaTest.jpg" width="540">
+	<img src="resources/ReadmeImg/LeicaTest.jpg" width="480">
+</p>
+
+It is also possible to include a pass of flare rendering using the same lens. For refractive objective it is easy to distinguish which rays are becoming stray rays and separate them into a different image output, then overlay it on top. The image below shows the image with flare from the same uncoated Leica Elmarit: 
+
+<p align="center">
+	<img src="resources/ReadmeImg/LeicaTestFlare.jpg" width="480">
 </p>
 
 

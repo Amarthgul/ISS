@@ -395,3 +395,5 @@ def PlotWavelengthHistogram(wavelength_ch, bin_nm=10.0, lam_min=380.0, lam_max=7
 
     plt.show()
     return fig, ax
+
+

@@ -93,6 +93,12 @@ class PointsSource:
         return bd.clip(colors, None, 1.0)
 
 
+    def EmitTowards(self,  targets, sampleCount, flareGlare=False):
+
+        # If this method is called, it probably is from ImageSystem, so jitter and addSecondary is extremely unlikely to be used.
+        return self.EmitSamplesToward(targets, sampleCount)
+
+
     def EmitSamplesToward(self, targets, sampleCount=64, jitter=None, addSecondary=None):
         """
         Emit rays from some of the point sources towards the target points. 

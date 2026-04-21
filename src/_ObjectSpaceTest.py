@@ -325,7 +325,12 @@ def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
-    lens.UpdateLens()
+    lens.surfaces[12].AddOnionRing()
+    lens.surfaces[2].AddDust(3)
+    lens.surfaces[7].AddDust()
+    lens.surfaces[12].AddDust(1)
+    lens.surfaces[13].AddDust()
+
     #lens.FlipElement(5, True)
 
     if(infoArg == 0):
@@ -805,14 +810,19 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
 
 def ISTest():
     from ImagingSystem import ImagingSystem
-    from ObjectSpace.ImageStack import ImageStack
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
 
     # Create or load a lens
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
-    lens.UpdateLens()
+    # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.surfaces[12].AddOnionRing()
+    lens.surfaces[2].AddDust(3)
+    lens.surfaces[7].AddDust()
+    lens.surfaces[12].AddDust(1)
+    lens.surfaces[13].AddDust()
 
     # Instantiate an imager, adjust its attributes
-    imager = StdImager(horiPx=2160)
+    imager = StdImager(horiPx=1920)
 
     # Read input images
     FG = Image2DVariDepth()
@@ -832,11 +842,23 @@ def ISTest():
     # Assemble an imaging system
     IS = ImagingSystem(lens, imager)
     # Set the scene
-    IS.object = exampleStack
+    IS.object = ExampleStack3D()
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
     # Render the scene into an image
-    IS.Render(focusDistance=1500, renderTime=6*60*60, fileName="LeicaTest", realTimeUpdate=False, flareGlare=True)
+    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+
+
+def ISSpotTest():
+    from ImagingSystem import ImagingSystem
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
+    lens.surfaces[9].AddOnionRing()
+    # lens.surfaces[4].onionRing.ShowNormalMap()
+    imager = StdImager(horiPx=6000)
+
+    IS = ImagingSystem(lens, imager)
+    IS.SpotGrid(objectDistance=20000, focusDistance=1500, renderTime=2*60, fileName="DustTest", realTimeUpdate=False)
 
 
 def main():
@@ -853,13 +875,15 @@ def main():
     # 11h = 39600s, 7 images, 5657 per image
 
     i = 7
-    StackTestDigital(renderTime, distance[15], "NewRacking", realTimeUpdate=False, infoArg=1)
-    StackTestDigital(renderTime, distance[16], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
+    # PureOnion()
     ISTest()
 
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)
-    #StackTest(renderTime, distance[i], "newPDFSeriesFilm", realTimeUpdate=False)
+    # StackTestDigital(5*60, distance[0], "newPDFSeriesFilm", realTimeUpdate=False)
     #StackTestFilmBalance(1.5*60*60, distance[i], "HayesWhiteBalance", realTimeUpdate=False)
 
     return

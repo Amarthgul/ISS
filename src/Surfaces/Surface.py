@@ -17,7 +17,8 @@ from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitField
 from Material import Material 
 
-
+from .SurfaceModulator import Dust
+from .OnionRing import OnionRing
 
 class CurvatureType(Enum):
     Standard = 0      # Sperical element 
@@ -108,6 +109,11 @@ class Surface:
 
         """Type of the curvature. By default it is standard spherical surface"""
         self.cType = CurvatureType.Standard
+
+
+        self.dusts = None
+        self.onionRing = None
+
 
         """Master strength switch for haze effect. If 0, skip entirely."""
         self.hazeSigma = 0
@@ -220,6 +226,20 @@ class Surface:
         M[:3, 3] = t_inv
 
         self._inverseTransform = M
+
+
+    def AddDust(self, dustCount=2):
+        self.dusts = Dust(dustCount)
+        self.dusts.frontVertex = self.frontVertex
+        self.dusts.semiDiameter = self.clearSemiDiameter
+        self.dusts.Generate()
+
+
+    def AddOnionRing(self):
+        self.onionRing = OnionRing()
+        self.onionRing.frontVertex = self.frontVertex
+        self.onionRing.semiDiameter = self.clearSemiDiameter
+        self.onionRing.Generate()
 
 
     # ==============================================================
@@ -465,6 +485,9 @@ class Surface:
         # Apply desired direction to the normals 
         normals = self.Normal(intersections)
         normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+
+        if self.onionRing is not None:
+            normals = self.onionRing.NormalBlend(normals, intersections)
         
         # Truncate the rays that are vignetted 
         directions = incidentRaybatch.Direction()[~boolVig]
@@ -484,6 +507,10 @@ class Surface:
         mainRB.SetDirection(refracted)
 
         mainRB = self._HazePass(mainRB)
+        # if self.onionRing is not None:
+        #     mainRB = self.onionRing.Modulate(mainRB)
+        if self.dusts is not None:
+           mainRB = self.dusts.Modulate(mainRB)
 
         strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 

@@ -585,7 +585,7 @@ class Image2DFlatHighlightExtension(Image2DVariHighlightExtension):
         self.UpdatePointSources()
 
 
-    def ReceiveAndEmitTowards(self, targets, incidents: RayBatch = None, sampleCount: int = 64):
+    def ReceiveAndEmitTowards(self, targets, incidents: RayBatch = None, sampleCount: int = 64, useHighlightSources=False):
         """
         Receive an incident RayBatch, probabilistically cull the rays that hit this flat
         image plane according to opacity/alpha, then merge survivors with newly emitted rays.
