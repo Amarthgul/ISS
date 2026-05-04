@@ -46,6 +46,7 @@ class Dust(SurfaceModulator):
         self.dustData = None  # No per-dust map needed
 
         self.maxSize = 0.01
+
         self.maxOpacity = 0.9
 
         self._opacityFadePower = 2

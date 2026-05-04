@@ -137,6 +137,8 @@ class ImagingSystem:
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
+            print(mainRB.ToString())
+
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=True)
 
             if realTimeUpdate:
@@ -157,6 +159,7 @@ class ImagingSystem:
                 break
 
             recorder = time.time()
+
 
 
     # ==================================================================

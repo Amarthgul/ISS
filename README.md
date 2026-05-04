@@ -33,14 +33,14 @@ The most fundamental way of imaging. The image below is formed by reading severa
 	<img src="resources/ReadmeImg/FocusRacking.gif" width="640">
 </p>
 
-If deem needed, small artifacts can also be added to the surfaces. For example, some dust specks are large enough to affect the propagation of rays, and when they sit next to the pupil plane, their shape will be made even more obvious. Another common surface artifact is the groves left from manufacturing even aspheric surfaces. These tiny groves are generally not visible to the naked eye, but they may form concentric circles in de-focused spots, which is commonly referred to as the _onion rings_. The image below shows the de-focus spot of the same EF 50mm f/1.2 lens with onion rings on its ASPH element and some dusts distributed along the lens. 
+If deem needed, small artifacts can also be added to the surfaces. For example, some dust specks are large enough to affect the propagation of rays, and when they sit next to the pupil plane, their shape will be made even more obvious. Another common surface artifact is the groves left from manufacturing aspheric surfaces. These tiny groves are generally not visible to the naked eye, but they may form concentric circles in de-focused spots, which is commonly referred to as the _onion rings_. The image below shows the de-focus spot of the same EF 50mm f/1.2 lens with onion rings on its ASPH element and some dusts distributed along the lens (effect is intentionally exaggerated). 
 
 
 <p align="center">
 	<img src="resources/ReadmeImg/ArtifactBokeh.png" width="720">
 </p>
 
-
+In practice, these effects are often way less obvious. On one hand, there might not be as many dusts and as strong of an onion ring. On the other hand, the light source tend to be larger than an ideal point, so these artifacts can overlap and "cancel out" each other, creating a more even bokeh at the end. 
 
 ### Non-sequential propagation 
 
@@ -142,6 +142,11 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
 
 ### Demo use 
+
+While the PSF integral logic is possible to be patched directly into the renderer as either a shader effect or replacing the DoF options entirely, it is not common for camera effects to be rendered directly into the image in real productions. Such decision will make all effects baked in and removing any chance of modification based on new art-directions. 
+
+Traditionally, camera effects are added in post after the 1st imaging process, such as through a DoF node in Nuke or similar applications. This is also where the framework is primarily designed to situate. The following snippet shows an example of constructing an image system and feeding inputs through it to acquire an image. 
+
 
 ```python
     # Create or load a lens

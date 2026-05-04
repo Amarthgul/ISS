@@ -120,13 +120,15 @@ class Lens:
 
 
     def AddSurfaceDefect(self):
-
+        """
+        Generate dusts at some lens surfaces. If a surface is aspherical, add onion ring effect as well.
+        """
 
         for i in range(len(self.surfaces)):
             if isinstance(self.surfaces[i], EvenAspheric):
                 self.surfaces[i].AddOnionRing()
 
-
+        # Only add dusts to front and rear surfaces of a group. Surfaces that represents a cemented pair should not be touched, dusts don't really happen to them.
         for g in self.groups:
             frontRear = [g[0], g[-1]]
             for i in frontRear:
@@ -137,12 +139,9 @@ class Lens:
                     count = int(RNG.rand() * 8)
                     pupilDistance = 1 - 1 / bd.abs(i - self.stopIndex)
 
-                    print("Sizes ", size, " opacity ", opacity, " totalC ", count, " pupilDist ", pupilDistance)
+                    # print("Sizes ", size, " opacity ", opacity, " totalC ", count, " pupilDist ", pupilDistance)
 
                     self.surfaces[i].AddDust(count, pupilDistance, size, opacity)
-
-
-
 
 
     def FlipElement(self, elementIndex, autoUpdate = True, autoCorrect=False):

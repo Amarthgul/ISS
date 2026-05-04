@@ -256,6 +256,10 @@ class RayBatch:
 
 
     def RadianceChange(self, ratio):
+        """
+        Doesn't work well. Often introduce outliers, try not to use this thing.
+
+        """
         # Change the 3 polarized radiance terms so that total radiance is higher or lower.
 
         ratio = bd.asarray(ratio)

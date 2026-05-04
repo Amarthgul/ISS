@@ -811,6 +811,8 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
 def ISTest():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from Util.Globals import RefreshRNG
+
 
     # Create or load a lens
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
@@ -841,8 +843,9 @@ def ISTest():
     IS.object = ExampleStack3D()
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
+    RefreshRNG()
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=30*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():
@@ -891,8 +894,8 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    # ISTest()
-    ISSpotTest()
+    ISTest()
+    # ISSpotTest()
     # PureArtifactTest()
 
 
