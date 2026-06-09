@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import re
 
-from xarray.plot import surface
-
 from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 

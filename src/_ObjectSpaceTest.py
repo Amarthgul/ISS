@@ -845,7 +845,7 @@ def ISTest():
 
     RefreshRNG()
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=True, flareGlare=False)
 
 
 def ISSpotTest():
@@ -878,6 +878,9 @@ def PureArtifactTest():
 
 
 def main():
+
+    from Util.Backend import backend_name
+    print("Currently using ", backend_name)
 
     # from ObjectSpace.ImageStack import ImageStack, ExampleStack2D, ExampleStack2DNoGain
     # StackTest2D(ExampleStack2DNoGain(), renderTime=6*60*60, filename=r"Stack2DNoRecon")

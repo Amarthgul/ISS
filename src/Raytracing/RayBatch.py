@@ -287,7 +287,7 @@ class RayBatch:
 
 
     def GetAoV(self):
-        return self.value[:, 11:]
+        return self.value[:, 12:]
 
 
     def AppendAOV(self, values):

@@ -132,13 +132,26 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
 ### Other features: 
 
-- Polarization. 
+- **Polarization**. 
 
-- Through focus distortion. 
+  Rays radiance is recorded in a polarization ellipse. Thus allowing Fresnel reflectance to be accurately calculated on every surface. 
 
-- Diffraction star (through Fraunhofer diffraction via the aperture stop). 
+- **Through focus distortion**. 
 
-- Automatic optical material matching.
+  Exploiting the fast sequential spot calculation to estimate the defocused distortion using the energy distribution of the spot. 
+
+- **Sun stars**. 
+
+  Treating the diaphragm shape as a diffraction grating, and use Fraunhofer diffraction to calculate sun stars of the lens. 
+
+- **Automatic optical material matching**.
+
+  Given the index of refraction, the Abbe number, and a selected Fraunhofer line, automatically locate the materials with the closet stat. 
+
+- **Zemax OpticStudio file read**. 
+
+  Directly read `zmx` files to skip manually code the lens (I also have [another repo](https://github.com/Amarthgul/ZemaxSims) that holds a bunch of lens files). 
+
 
 
 ### Demo use 
@@ -202,7 +215,7 @@ As a result, there are quite a lot of variations of method/variable names and co
 
 ## TODO: 
 
-None of the universities I applied seems to be interested in admitting me. So despite already having plans on how to implement them, I'll only be able to start working on them after I find a job, whcih could be never :D. 
+Most of these are either a subset or an extension of existing features... 
 
 - Add a pure brute force ASPH solver. 
 
@@ -243,4 +256,4 @@ Computer graphics as a field has long been doing emulative work, that is, as lon
 
 For the AI branch, there would then be a more crucial question: if the 3D intermediate is meant to create 2D images **eventually**, what are those 2D images **eventually** for?  Daß alle unsere Erkenntnis mit der Erfahrung anfange, if the goal of all these audiovisual experiences is to invoke a certain feeling or acquiring certain recognition, it would be much more effective to directly manipulate the subjective perception via biological interventions, such as neurochemistry injection, than to painstakingly recreate a representation of some part of the objective world. It would seem that, from this perspective, the AI end-to-end generative creation philosophy at its fullest is a direct and complete denial of lived experience, replaced with… drugs?  
 
-
+Regardless, it is not that likely that the next computational breakthrough is based still on the electric transistors. Even if it is, the sheer amount of computational needed to accurately back propagate tens of millions of wavefronts (same logic as backward ray tracing) may still be too large to handle. A full renderer using physical optics is more likely to be based on quantum computing or photonic computing, not because they are fast, but because they may offer a way to bypass the software layer and use some lower abstract level infrastructure to directly yield the result.   

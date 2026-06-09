@@ -472,24 +472,21 @@ def MaterialLookUpTest():
     excel_file = ReadSheet()
 
     # Suppose you have n=1.5168 and V=64.1 for the 'd' line
-    line = 'D'
+    line = 'd'
     stats = [
-        [1.51633 ,  64.14],
-        [1.80835 ,  40.55],
-        [1.883   ,40.69],
-        [1.71736 ,  29.5],
-        [1.72825 ,  28.32],
-        [1.883   ,40.69],
-        [1.883   ,40.69],
-        [1.60342 ,  38.03],
-        [1.80835 ,  40.55]
+        [1.6228   , 56.9],
+        [1.5168   , 64.2],
+        [1.80518  ,  25.5],
+        [1.64769  ,  33.8],
+        [1.6223   , 53.1],
+        [1.54814  ,  45.8]
     ]
 
     for item in stats:
         n_val = item[0]
         v_val = item[1]
 
-        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=5).to_string(index=False)
+        result_df = FindClosestMaterials(excel_file, line, n_val, v_val, top_k=10).to_string(index=False)
         print("Closest matches:")
         print(result_df)
 
@@ -805,4 +802,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MatteBoxText()
+    MaterialLookUpTest()

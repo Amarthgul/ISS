@@ -60,7 +60,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 20480)
+            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 4096)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
