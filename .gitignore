@@ -14,7 +14,12 @@ __pycache__/
 resources/Results/
 resources/Saves/
 
+
+
 .DS_Store
 ._.DS_Store
 **/.DS_Store
 **/._.DS_Store
+
+# Specific files
+MaterialLookUprResult.csv

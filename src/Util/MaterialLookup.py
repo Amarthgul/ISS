@@ -2,11 +2,20 @@
 
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from .Misc import RectPath
+
+MATERIAL_LOOKUP_RESULT_FILENAME = "MaterialLookUprResult.csv"
 
 def ReadSheet(excel_path = RectPath("resources/MaterialRefractionIndices.xlsx")):
 
     return pd.read_excel(excel_path)
+
+
+def _WriteMaterialLookupResult(result: pd.DataFrame, writePath):
+    output_dir = Path(writePath)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    result.to_csv(output_dir / MATERIAL_LOOKUP_RESULT_FILENAME, index=False)
 
 
 def FindClosestMaterials(
@@ -14,7 +23,8 @@ def FindClosestMaterials(
     line: str,
     n_target: float,
     v_target: float,
-    top_k: int = 1
+    top_k: int = 1,
+    writePath = None
 ):
     """
     Given a refractive index n_target and Abbe number v_target for one
@@ -27,6 +37,7 @@ def FindClosestMaterials(
     :param n_target: Target refractive index at the specified line.
     :param v_target: Target Abbe number at the specified line.
     :param top_k: Number of closest matches to return (default=1).
+    :param writePath: Optional directory path where the result CSV will be written.
     :return: A DataFrame of the closest match(es).
     """
 
@@ -72,14 +83,55 @@ def FindClosestMaterials(
     result = pd.DataFrame({
         "Cate": df_sorted["Cate"],
         "Name": df_sorted["Name"],
-        f"desired n_{line}": [n_target] * len(df_sorted),
         f"actual n_{line}": df_sorted[index_col],
-        f"desired V_{line}": [v_target] * len(df_sorted),
         f"actual V_{line}": df_sorted[abbe_col],
-
+        f"desired n_{line}": [n_target] * len(df_sorted),
+        f"desired V_{line}": [v_target] * len(df_sorted),
     }).reset_index(drop=True)
 
+    if writePath is not None:
+        _WriteMaterialLookupResult(result, writePath)
+
     return result
+
+
+def FindClosestMaterialsBatch(
+    df: pd.DataFrame,
+    line: str,
+    targets,
+    top_k: int = 1,
+    writePath = None
+):
+    """
+    Find the closest material matches for a list of refractive index and
+    Abbe number targets.
+
+    :param df: Dataframe object of the sheet containing all the n and V.
+    :param line: One of {'d', 'D', 'e'}, indicating which Fraunhofer line
+                 the n and V are for.
+    :param targets: List of target pairs in the form [[n, V], ...].
+    :param top_k: Number of closest matches to return for each target.
+    :param writePath: Optional directory path where the combined result CSV will be written.
+    :return: A DataFrame of the closest matches for all target pairs.
+    """
+
+    results = []
+
+    for target_index, (n_target, v_target) in enumerate(targets):
+        result = FindClosestMaterials(df, line, n_target, v_target, top_k=top_k)
+        result.insert(0, "Target", target_index)
+        results.append(result)
+
+    if results:
+        batch_result = pd.concat(results, ignore_index=True)
+    else:
+        batch_result = pd.DataFrame()
+
+    if writePath is not None:
+        _WriteMaterialLookupResult(batch_result, writePath)
+
+    return batch_result
+
 
 if __name__ == "__main__":
     pass
