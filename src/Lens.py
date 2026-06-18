@@ -17,6 +17,7 @@ from Util.Misc import AxialDistance, TransversalDistance, RectPath
 from Util.SpatialEllipse import SpatialCircle
 from Util.Sampling import RandomEllipticalDistribution
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
+from Util.PAEFL import LensPartitionFL
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import Surface
@@ -437,6 +438,8 @@ class Lens:
 
     def GetInfo(self):
 
+        FLP = 2
+
         info = "- Lens Info: \n" +\
             str(len(self.lenses)) + " lenses arranged in " + str(len(self.groups)) + " groups"
         
@@ -454,7 +457,15 @@ class Lens:
             info += "\n" +\
             "Principal plane:\t" + str(self.frontPrincipalPlane.GetInnerZ()) + "\n" +\
             "Focal point:    \t" + str(self.focalPoint[Axis.Z.value]) + "\n"
-            
+
+            groupFocalLengths = LensPartitionFL(self, "d")
+            groupFocalLengthInfo = "  ".join(
+                f"{float(fl):.{FLP}f}" for fl in groupFocalLengths
+            )
+            info += "Per group FF:    \t" + groupFocalLengthInfo + "\n"
+
+
+
         return info
 
 
@@ -511,6 +522,178 @@ class Lens:
         info = re.sub(r'(?<=\s)inf(?=\s)', 'INFINITY', info)
 
         return info
+
+
+    def PlotSurfaceData(self):
+
+        fraunhoferLine = "d"
+        FLP = 2
+
+        def _Scalar(value):
+            if hasattr(value, "get"):
+                value = value.get()
+            return float(value)
+
+        def _MaterialData(surface):
+            if isinstance(surface, Stop) or surface.IsAirMaterial():
+                return None, None
+
+            wavelength = constant(LambdaLines[fraunhoferLine])
+
+            try:
+                ri = _Scalar(surface.RI(wavelength))
+            except Exception:
+                ri = None
+
+            try:
+                abbe = _Scalar(surface.material.V_d())
+            except Exception:
+                abbe = None
+
+            return ri, abbe
+
+        if not self.groups:
+            self.UpdateLens()
+
+        surfaceCount = len(self.surfaces)
+        x = np.arange(surfaceCount)
+
+        riValues = []
+        abbeValues = []
+        for surface in self.surfaces:
+            ri, abbe = _MaterialData(surface)
+            riValues.append(ri)
+            abbeValues.append(abbe)
+
+        groupFocalLengths = LensPartitionFL(self, fraunhoferLine) if self.groups else []
+        groupFocalLengthValues = [_Scalar(fl) for fl in groupFocalLengths]
+
+        maxGroupFL = max(
+            [abs(fl) for fl in groupFocalLengthValues if np.isfinite(fl)],
+            default=1.0
+        )
+        if maxGroupFL <= _Scalar(AXIAL_ZERO):
+            maxGroupFL = 1.0
+
+        colors = plt.get_cmap("tab10").colors
+        figWidth = max(9, surfaceCount * 0.55)
+        fig, axes = plt.subplots(
+            3,
+            1,
+            figsize=(figWidth, 7),
+            sharex=True,
+            gridspec_kw={"height_ratios": [1.0, 1.0, 1.0]},
+            constrained_layout=True,
+        )
+        groupAx, riAx, abbeAx = axes
+
+        groupAx.axhline(0, color="0.25", linewidth=0.8)
+        for groupIndex, group in enumerate(self.groups):
+            if groupIndex >= len(groupFocalLengthValues):
+                continue
+
+            groupFL = groupFocalLengthValues[groupIndex]
+            if np.isfinite(groupFL):
+                barHeight = groupFL / maxGroupFL
+            else:
+                barHeight = 1.0
+
+            color = colors[groupIndex % len(colors)]
+            groupAx.bar(
+                group,
+                [barHeight] * len(group),
+                width=0.82,
+                color=color,
+                alpha=0.55,
+                edgecolor=color,
+            )
+
+            textY = barHeight + 0.06 if barHeight >= 0 else barHeight - 0.06
+            textVa = "bottom" if barHeight >= 0 else "top"
+            label = "INF" if not np.isfinite(groupFL) else f"{groupFL:.{FLP}f} mm"
+            groupAx.text(
+                group[-1] + 0.42,
+                textY,
+                label,
+                color=color,
+                ha="left",
+                va=textVa,
+                fontsize=9,
+                fontweight="bold",
+            )
+
+        groupAx.set_ylabel("Group FL")
+        groupAx.set_ylim(-1.15, 1.15)
+        groupAx.set_yticks([-1, 0, 1])
+        groupAx.set_yticklabels(["-max", "0", "+max"])
+
+        validRI = [(i, v) for i, v in enumerate(riValues) if v is not None]
+        if validRI:
+            riX, riY = zip(*validRI)
+            riAx.bar(riX, riY, width=0.55, color="#3B6FB6", alpha=0.75)
+            riMin = min(riY)
+            riMax = max(riY)
+            riPad = max((riMax - riMin) * 0.15, 0.01)
+            riAx.set_ylim(riMin - riPad, riMax + riPad)
+
+            for barX, barY in validRI:
+                riAx.text(
+                    barX,
+                    barY + riPad * 0.25,
+                    f"{barY:.3f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    color="#23446F",
+                )
+        else:
+            riAx.set_ylim(1.4, 2.2)
+
+        riAx.set_ylabel(f"n{fraunhoferLine}")
+
+        validAbbe = [(i, v) for i, v in enumerate(abbeValues) if v is not None]
+        if validAbbe:
+            abbeX, abbeY = zip(*validAbbe)
+            abbeAx.bar(abbeX, abbeY, width=0.55, color="#7A9A3A", alpha=0.75)
+            abbeMin = min(abbeY)
+            abbeMax = max(abbeY)
+            abbePad = max((abbeMax - abbeMin) * 0.15, 1.0)
+            abbeAx.set_ylim(abbeMin - abbePad, abbeMax + abbePad)
+
+            for barX, barY in validAbbe:
+                abbeAx.text(
+                    barX,
+                    barY + abbePad * 0.25,
+                    f"{barY:.1f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    color="#465C23",
+                )
+        else:
+            abbeAx.set_ylim(20, 90)
+
+        abbeAx.set_ylabel("Vd")
+
+        for ax in axes:
+            ax.set_xlim(-0.5, surfaceCount - 0.5)
+            ax.set_xticks(x)
+            ax.set_xticks(np.arange(-0.5, surfaceCount, 1), minor=True)
+            ax.grid(axis="x", which="minor", color="0.82", linewidth=0.8)
+            ax.grid(axis="y", color="0.9", linewidth=0.7)
+
+        surfaceLabels = [
+            "STOP" if isinstance(surface, Stop) else str(i + 1)
+            for i, surface in enumerate(self.surfaces)
+        ]
+        abbeAx.set_xticklabels(surfaceLabels)
+        abbeAx.set_xlabel("Surface")
+        fig.suptitle("Surface and Group Data")
+
+        if plt.get_backend().lower() != "agg":
+            plt.show()
+
+        return fig, axes
 
 
     # ==================================================================

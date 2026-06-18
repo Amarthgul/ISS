@@ -473,19 +473,45 @@ def MaterialLookUpTest():
     # Example usage:
     excel_file = ReadSheet()
 
-    # Suppose you have n=1.5168 and V=64.1 for the 'd' line
     line = 'd'
     stats = [
-        [1.62374,    47],
-        [1.62041,    60.3],
-        [1.70154,    41.1],
-        [1.7552 ,   27.5],
-        [1.58913,    61.2]
+        [1.56873 ,  63.1],
+        [1.5168  , 64.2],
+        [1.80518 ,  25.5],
+        [1.79063 ,  45],
+        [1.57957 ,  53.7]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
     print("Closest matches:")
     print(result_df)
+
+
+def CurvTest():
+    from Util.ConditionClamps import RadiToCurv
+
+    RadiToCurv([
+            [37, 30],
+            [110, 90],
+            [25, 20],
+            [52, 42],
+            [140, 115],
+            [12, 15],
+            [1000, 2000],
+            [60, 40],
+            [-12, -15],
+            [-90, -70]
+        ],
+        writeFile=True)
+
+
+def EFL():
+    from Util.PAEFL import LensPartitionFL
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+
+    # EFL = LensPartitionFL(lens, "d")
+    lens.PlotSurfaceData()
 
 
 def RefDepthTest():
@@ -495,10 +521,6 @@ def RefDepthTest():
 
     for r in refDepthList:
         ReflectionSpotTesting(lens, position, refIte=r, focusDistance=1500, imageMinSample=8192, realTimeUpdate=False)
-
-
-def AsphericTest():
-    from Surfaces.EvenAspheric import EvenAspheric
 
 
 def DefocusTests():
@@ -702,6 +724,8 @@ def MatteBoxText():
     plt.show()
 
 
+
+
 # ==================================================================
 """ ======================== End of Defs ======================= """
 # ==================================================================
@@ -799,4 +823,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MaterialLookUpTest()
+    EFL()
