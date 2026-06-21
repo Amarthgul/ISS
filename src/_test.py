@@ -508,10 +508,11 @@ def CurvTest():
 def EFL():
     from Util.PAEFL import LensPartitionFL
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Vivitar28mmf2Pt.zmx")).GetLens()
 
     # EFL = LensPartitionFL(lens, "d")
     lens.PlotSurfaceData()
+
 
 
 def RefDepthTest():

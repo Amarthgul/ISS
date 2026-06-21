@@ -2,7 +2,7 @@
 """
 Bunch of already modelled lenses for testing purpose.
 
-This is a really early file, for loading vanilla lenses, use ZMX loader instead for a much higher efficiency.
+This is a really early file, for loading vanilla lenses, use ZMX loader instead for higher efficiency.
 """
 
 
@@ -583,7 +583,7 @@ def main():
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
     # reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Vivitar28mmf2Pt.zmx"))
 
     exampleLens = reader.GetLens()
 

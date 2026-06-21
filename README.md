@@ -154,9 +154,12 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
 
 
-### Demo use 
+### Expected use 
 
-While the PSF integral logic is possible to be patched directly into the renderer as either a shader effect or replacing the DoF options entirely, it is not common for camera effects to be rendered directly into the image in real productions. Such decision will make all effects baked in and removing any chance of modification based on new art-directions. 
+This repo is, again, merely a proof of concept for the theoretical framework. It is recommended for production studios to adapt it depending on their own pipeline. Since creating the ray used here only requires the position of the ray source in camera space and a given wavelength, it can be directly put into the renderer as an additional calculation pass. It can also be coded as a shader effect. Alternatively, since ray source is inversely calculable in post-production as well by using the z-depth channel, it can also be implemented as a node or effect layer. The following example mimics a node operation in post composite. 
+
+
+#### Demo code für direkt use:
 
 Traditionally, camera effects are added in post after the 1st imaging process, such as through a DoF node in Nuke or similar applications. This is also where the framework is primarily designed to situate. The following snippet shows an example of constructing an image system and feeding inputs through it to acquire an image. 
 
