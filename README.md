@@ -21,7 +21,26 @@ Additionally, it could also:
 
 The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02) _(I am trying to transplant them onto GitHub once I find a way to seamlessly bridge the LaTex issues and image embeddings)_, use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
+This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02), use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
+
+The documentation is in the process of being transplanted to GitHub:
+
+- [General Background](Docs/Doc1.md)
+
+- [Algorithm Core](Docs/Doc2.md) 
+
+  - Optical Material _(transplanting)_
+
+  - Refraction, Reflection, and Polarization _(transplanting)_
+
+  - Surface _(transplanting)_
+
+  - Tracing Over the Lens _(transplanting)_
+
+  - Object Space _(transplanting)_
+
+  - Imager _(transplanting)_
+
 
 ## Features 
 

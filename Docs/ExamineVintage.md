@@ -17,7 +17,7 @@ Distortion measures the difference between the ideal imaging point and the actua
 A distortion chart calculates the difference between the ideal and actual imaging points from the image center to the edge. For barrel distortion, their curve should thus be leaning towards the left, i.e., having negative values. Figure 68 shows a distortion graph of the Leica Summilux (1996) 50mm f/1.4 when focusing at infinity. It is a typical barrel distortion.
 
 <p align="center">
-	<img src="resources/ReadmeImg/SummiluxDisto.png" width="360">
+	<img src="../resources/ReadmeImg/SummiluxDisto.png" width="360">
 </p>
 
 If the distortion claim about the Cooke lens is true, then it would be expected to see Cooke lenses showing the same distortion pattern in an out-of-focus background consistently. It would also be expected that other non-Cooke lenses have less or none of this distortion pattern.
