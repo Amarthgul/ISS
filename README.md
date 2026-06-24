@@ -23,23 +23,23 @@ The novelty of the thesis is that it builds a framework that can be used for bot
 
 This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02), use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
 
-The documentation is in the process of being transplanted to GitHub:
+The documentation is in the process of being ported to GitHub:
 
-- [General Background](Docs/Doc1.md)
+- [1 - General Background](Docs/Doc1.md)
 
-- [Algorithm Core](Docs/Doc2.md) 
+- [2 - Algorithm Core](Docs/Doc2.md) 
 
-  - Optical Material _(transplanting)_
+  - 2.1 - Optical Material _(transplanting)_
 
-  - Refraction, Reflection, and Polarization _(transplanting)_
+  - 2.2 - Refraction, Reflection, and Polarization _(transplanting)_
 
-  - Surface _(transplanting)_
+  - 2.3 - Surface _(transplanting)_
 
-  - Tracing Over the Lens _(transplanting)_
+  - 2.4 - Tracing Over the Lens _(transplanting)_
 
-  - Object Space _(transplanting)_
+  - 2.5 - Object Space _(transplanting)_
 
-  - Imager _(transplanting)_
+  - 2.6 - Imager _(transplanting)_
 
 
 ## Features 
@@ -260,11 +260,10 @@ The core lens construction and ray propagation are AI-free, not because of some 
 
 ## Known issues 
 
-- Matplotlib after a certain version has become practically unusable. This happened at some point in late 2024, no plotting logic was changed but all of a sudden it drops to single digit FPS and refresh plot for real time update automatically halts after like 5 calls. 
 
 - Close focus (relative close focus with respect to effective focal length) may result in edge ray rejection, visually appears as dark lines around the object border. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
 
-
+- The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
 
 ## Future work
 

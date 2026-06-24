@@ -1,7 +1,5 @@
 # 2 - Geometric Optics
 
-Owner: Amarth Gul
-
 Introductory courses in optics commonly uses the paraxial approximation and treat all lenses as thin lenses with no thickness. Rays are represented with a height from the optical axis and an angle. 
 
 However, paraxial approximations can not be taken for granted when the goal is to accurately simulated the imaging process. For example, in most paraxial cases, only the marginal and chief ray needs to be considered, even other calculations will limit the ray to be within the tangential plane. 
@@ -9,7 +7,7 @@ However, paraxial approximations can not be taken for granted when the goal is t
 The geometric optics part is based on a representation of ray: 
 
 $$
-\mathbf{r}=\left(  x,\\ y, \\ z, \\ v _x, \\ v _y, \\ v _z, \\ \lambda, \\ \Phi, \\ i _{\Phi}, \\ b, \\ s, \\ C, \\ AOV \right) ^T \tag{2.1}
+\mathbf{r}=\left(  x,\\ y, \\ z, \\ v _x, \\ v _y, \\ v _z, \\ \lambda, \\ \Phi, \\ i _{\Phi}, \\ b, \\ s, \\ C, \\ AOV \right) ^T 
 $$
 
 In those components:
@@ -22,9 +20,9 @@ In those components:
     
     Note that, while the wavelength in here is described in nanometers, many of the calculations are treating the wavelength in micrometers, such as the dispersion formulas.
     
-- $\Phi$ is one of the diagonal elements in the quadratic form of the polarized radiance ellipse. In expression 2.2.7 it is written as $a$.
-- $i _{\Phi}$ is the other diagonal element in the quadratic form of the polarized radiance ellipse. In expression 2.2.7 it is written as $c$.
-- $b$ is angle component used to in the quadratic form of the polarized radiance ellipse. This combined with the other 2 terms can be used to calculate the radiance of the ray on a given pair of $s$ and $p$ polarization direction. More on this can be seen in expression 2.2.7.
+- $\Phi$ is one of the diagonal elements in the quadratic form of the polarized radiance ellipse. In section 2.2.3 it is written as $a$.
+- $i _{\Phi}$ is the other diagonal element in the quadratic form of the polarized radiance ellipse. In section 2.2.3  it is written as $c$.
+- $b$ is angle component used to in the quadratic form of the polarized radiance ellipse. This combined with the other 2 terms can be used to calculate the radiance of the ray on a given pair of $s$ and $p$ polarization direction. More on this can be seen in section 2.2.3.
 - $s$ is an index denoting after which **s**urface this ray is currently located. 
 For example, if a ray just interacted with surface $i$ and refracted through it, its index will be updated to $i$. This can help determining the relative location of the ray more easily than using the position and direction.
 - $C$ is an optional parameter for color channel. When set to something not -1, it corresponds one of the RGB channels, and during wavelength to RGB conversion it will contribute only to that channel.
@@ -33,6 +31,7 @@ For example, if a ray just interacted with surface $i$ and refracted through it,
 After the terms above, there could be further data concatenated at the back. These data, however, will not be used for calculation, they are merely render pass data that needs to be transferred from the object space to the image space, such as motion vector, object-ID, surface normal, etc. 
 
 At a higher level, this framework is modelled based on referencing the imaging equation developed by H. H. Hopkins:
+
 $$
 I \left(x, \, y \right) = \left ( \frac{1}{f \lambda}  \right ) \int \int _{\infty } \sigma \left ( x_0, \ y_0 \right )
 \left| s \left ( x, \ y \right )t \left ( x, \ y \right ) ** psf \left ( x, \ y \right ) \right| ^2 \mathrm{d} x_0 \textrm{d} y_0

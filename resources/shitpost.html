@@ -1,0 +1,391 @@
+<div id="photo-title-generator" class="ptg-shell">
+  <div class="ptg-panel">
+    <div class="ptg-header">
+      <p class="ptg-kicker">Photography video title generator</p>
+      <h2>Cliche title machine</h2>
+    </div>
+
+    <label class="ptg-label" for="ptg-noun">Noun</label>
+    <input id="ptg-noun" class="ptg-input" type="text" placeholder="Leica M6, soviet lens, expired film">
+
+    <div class="ptg-sentiments" aria-label="Sentiment">
+      <label class="ptg-check">
+        <input id="ptg-positive" type="checkbox" value="positive">
+        <span>Positive</span>
+      </label>
+      <label class="ptg-check">
+        <input id="ptg-negative" type="checkbox" value="negative">
+        <span>Negative</span>
+      </label>
+    </div>
+
+    <button id="ptg-generate" class="ptg-button" type="button">Generate title</button>
+
+    <output id="ptg-output" class="ptg-output" aria-live="polite">
+      Your photos are bad because...
+    </output>
+  </div>
+</div>
+
+<style>
+  #photo-title-generator {
+    --ptg-ink: #181818;
+    --ptg-muted: #676767;
+    --ptg-line: #d8d5cc;
+    --ptg-paper: #fbfaf7;
+    --ptg-accent: #b93824;
+    --ptg-accent-dark: #8e2818;
+    --ptg-focus: #0a6f7a;
+    box-sizing: border-box;
+    color: var(--ptg-ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 680px;
+  }
+
+  #photo-title-generator *,
+  #photo-title-generator *::before,
+  #photo-title-generator *::after {
+    box-sizing: inherit;
+  }
+
+  #photo-title-generator .ptg-panel {
+    background: var(--ptg-paper);
+    border: 1px solid var(--ptg-line);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  #photo-title-generator .ptg-header {
+    margin: 0 0 20px;
+  }
+
+  #photo-title-generator .ptg-kicker {
+    color: var(--ptg-accent-dark);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+  }
+
+  #photo-title-generator h2 {
+    font-size: 28px;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  #photo-title-generator .ptg-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  #photo-title-generator .ptg-input {
+    background: #fff;
+    border: 1px solid var(--ptg-line);
+    border-radius: 6px;
+    color: var(--ptg-ink);
+    display: block;
+    font: inherit;
+    min-height: 46px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+
+  #photo-title-generator .ptg-input:focus,
+  #photo-title-generator .ptg-check:focus-within,
+  #photo-title-generator .ptg-button:focus {
+    outline: 3px solid color-mix(in srgb, var(--ptg-focus) 25%, transparent);
+    outline-offset: 2px;
+  }
+
+  #photo-title-generator .ptg-sentiments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0 18px;
+  }
+
+  #photo-title-generator .ptg-check {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--ptg-line);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: 14px;
+    font-weight: 700;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 11px;
+    user-select: none;
+  }
+
+  #photo-title-generator .ptg-check input {
+    accent-color: var(--ptg-accent);
+    height: 16px;
+    margin: 0;
+    width: 16px;
+  }
+
+  #photo-title-generator .ptg-button {
+    background: var(--ptg-accent);
+    border: 0;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    min-height: 46px;
+    padding: 11px 16px;
+    width: 100%;
+  }
+
+  #photo-title-generator .ptg-button:hover {
+    background: var(--ptg-accent-dark);
+  }
+
+  #photo-title-generator .ptg-output {
+    background: #fff;
+    border: 1px solid var(--ptg-line);
+    border-radius: 8px;
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 18px 0 0;
+    min-height: 102px;
+    overflow-wrap: anywhere;
+    padding: 18px;
+    width: 100%;
+  }
+
+  @media (max-width: 520px) {
+    #photo-title-generator .ptg-panel {
+      padding: 18px;
+    }
+
+    #photo-title-generator h2 {
+      font-size: 24px;
+    }
+
+    #photo-title-generator .ptg-output {
+      font-size: 20px;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    const templates = {
+      positive: [
+        { text: "I spent 30 days only using [n]", twist: true },
+        { text: "[n] is the only lens you need", twist: false },
+        { text: "The industry is hiding [n]", twist: true },
+        { text: "Stop buying new gear until you've tried [n]", twist: false },
+        { text: "The secret of [n] no one is talking about", twist: true },
+        { text: "I sold all my gears and left only the [n]", twist: true },
+        { text: "I sold my Leicas for a [n]", twist: true },
+        { text: "This unknown [n] takes better pictures than my Hasselblad", twist: true },
+        { text: "This [n] has the best color science", twist: true },
+        { text: "This [n] is a hidden gem", twist: true },
+        { text: "Do this if you use [n]", twist: true },
+        { text: "[n] is ALL that you need to take good photos", twist: true },
+        { text: "[n] is ALL you need to become a good photographer", twist: true },
+        { text: "[n] made me a better photographer", twist: true },
+        { text: "[#] things about [n] that you wish you knew", twist: true },
+        { text: "Why I still use my [n] in [Y]", twist: true },
+        { text: "I bought a [n] in [Y]", twist: true },
+        { text: "[n] is better than you think", twist: true },
+        { text: "Did [n] just killed Leica?", twist: false },
+        { text: "Did [n] just killed Hasselblad?", twist: false },
+        { text: "Did [n] just killed PhaseOne?", twist: false },
+        { text: "Did [n] just killed Canon?", twist: false },
+        { text: "Did [n] just killed Sony?", twist: false },
+        { text: "Did [n] just killed Nikon?", twist: false },
+        { text: "Why I switched to [n]", twist: true },
+        { text: "[#] reasons I switched to [n]", twist: true },
+        { text: "[n] is a cinematic machine!", twist: true },
+        { text: "Genuine opinion on [n]", twist: true },
+        { text: "Okay, I was wrong about [n]", twist: true },
+        { text: "You don't need a Leica, you need a [n]", twist: false },
+        { text: "Why every photographer needs a [n]", twist: true },
+        { text: "The [n] beats cameras 10x the price", twist: true },
+        { text: "The [n] is criminally underrated", twist: true },
+        { text: "The [n] should not be this good", twist: true },
+        { text: "This [n] beats lens 10x the price", twist: true },
+        { text: "This [n] is severally underrated", twist: true },
+        { text: "This [n] has no reason to be this good", twist: true },
+        { text: "I tried [n] for the first time", twist: true }
+      ],
+      negative: [
+        { text: "Why I am abandoning [n]", twist: true },
+        { text: "I am DONE with [n]", twist: true },
+        { text: "Why I tossed my [n]", twist: true },
+        { text: "Saying goodbye to my [n]", twist: true },
+        { text: "STOP using [n]", twist: true },
+        { text: "You don't need [n], you need THIS!", twist: false },
+        { text: "After [#] years, I am finally giving up the [n]", twist: true },
+        { text: "Why I left [n]", twist: true },
+        { text: "[#] reasons I left [n]", twist: true }
+      ],
+      neutral: [
+        { text: "The [n] is CRAZY!", twist: false },
+        { text: "Owning a [n]? You are using it WRONG!", twist: false },
+        { text: "The terrifying truth about [n]", twist: true },
+        { text: "The truth about [n]", twist: true },
+        { text: "I was wrong about [n]", twist: true },
+        { text: "I was right about [n]", twist: true },
+        { text: "[#] truths about [n]", twist: true },
+        { text: "After [#] months, this is what I learned about [n]", twist: true },
+        { text: "I shot [#] rolls of film with [n]", twist: true },
+        { text: "[#] things you need to know before buying a [n]", twist: true },
+        { text: "I shot expired film with [n]", twist: true }
+      ],
+      void: [
+        { text: "The hidden gem no one talks about", twist: true },
+        { text: "The best camera that no one talks about", twist: true },
+        { text: "The best lens nobody talks about.", twist: true },
+        { text: "Your photos are bad because...", twist: false },
+        { text: "[#] mistakes every new photographers make", twist: false },
+        { text: "The only camera you need is THIS", twist: true },
+        { text: "The only lens you need is THIS", twist: true },
+        { text: "The only filter you need is THIS", twist: true },
+        { text: "[#] things I wish I know when I started photography", twist: false },
+        { text: "This $[#] camera is INSANE!", twist: true },
+        { text: "This $[#] lens is INSANE!", twist: true },
+        { text: "After [#] years, I am finally giving up on this camera", twist: true },
+        { text: "This camera is better than you think", twist: true },
+        { text: "This lens is better than you think", twist: true },
+        { text: "[#] reasons your photos suck", twist: false },
+        { text: "[#] tricks to produce cinematic photos", twist: false },
+        { text: "I stopped chasing sharpness", twist: true },
+        { text: "I stopped chasing sharp lenses", twist: true },
+        { text: "This camera is criminally underrated", twist: true },
+        { text: "This lens is criminally underrated", twist: true },
+        { text: "This camera should not be this good", twist: true },
+        { text: "This lens should not be this good", twist: true },
+        { text: "STOP Chasing Sharp Photos", twist: true },
+        { text: "I finally get my DREAM camera", twist: true },
+        { text: "I finally get my DREAM lens", twist: true }
+      ]
+    };
+
+    const twists = [
+      "it changed everything",
+      "why you should do it too",
+      "why you should do the same",
+      "it is all you need for Street Photography",
+      "it is all you need for stunning photos",
+      "it made me lose my mind",
+      "the result is insane",
+      "it is a huge mistake",
+      "it saved me",
+      "it destroyed me",
+      "I was left in tears",
+      "it made me a better photographer",
+      "it will make you a better photographer",
+      "it will shock you",
+      "the result will shock you",
+      "and became a better photographer",
+      "you should get one too",
+      "it saved my life",
+      "I can't go back",
+      "it will change you forever",
+      "it is the future of Photography",
+      "why it will save your photo",
+      "it has made me 100x better at composing"
+    ];
+
+    const objects = [
+      "soviet lens",
+      "Zenit camera",
+      "vintage camera",
+      "vintage lens",
+      "Helios-44",
+      "russian camera",
+      "point and shot",
+      "expired film",
+      "kit zoom",
+      "camera bag",
+      "tripod",
+      null
+    ];
+
+    const root = document.getElementById("photo-title-generator");
+    const nounInput = root.querySelector("#ptg-noun");
+    const positiveInput = root.querySelector("#ptg-positive");
+    const negativeInput = root.querySelector("#ptg-negative");
+    const generateButton = root.querySelector("#ptg-generate");
+    const output = root.querySelector("#ptg-output");
+
+    function randomItem(list) {
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function cleanNoun(value) {
+      const text = String(value || "").trim();
+      return text && text.toLowerCase() !== "null" ? text : "";
+    }
+
+    function selectedSentiment() {
+      if (positiveInput.checked && !negativeInput.checked) return "positive";
+      if (negativeInput.checked && !positiveInput.checked) return "negative";
+      return randomItem(["positive", "negative", "neutral"]);
+    }
+
+    function fillTokens(text, noun) {
+      return text
+        .replace(/\[n\]/g, noun)
+        .replace(/\[#\]/g, String(randomInt(1, 20)))
+        .replace(/\[Y\]/g, String(randomInt(1970, 2025)));
+    }
+
+    function attachTwist(title) {
+      const twist = randomItem(twists);
+      const mode = randomItem(["comma", "and", "parentheses"]);
+
+      if (mode === "comma") return `${title}, ${twist}`;
+      if (mode === "and") return `${title} and ${twist.replace(/^and\s+/i, "")}`;
+      return `${title} (${twist})`;
+    }
+
+    function generateTitle() {
+      let noun = cleanNoun(nounInput.value);
+
+      if (!noun) {
+        noun = cleanNoun(randomItem(objects));
+      }
+
+      const group = noun ? selectedSentiment() : "void";
+      const template = randomItem(templates[group]);
+      let title = fillTokens(template.text, noun).replace(/\s+/g, " ").trim();
+
+      if (template.twist && Math.random() < 0.5) {
+        title = attachTwist(title);
+      }
+
+      output.textContent = title;
+    }
+
+    function makeExclusive(changedInput, otherInput) {
+      if (changedInput.checked) otherInput.checked = false;
+    }
+
+    positiveInput.addEventListener("change", function () {
+      makeExclusive(positiveInput, negativeInput);
+    });
+
+    negativeInput.addEventListener("change", function () {
+      makeExclusive(negativeInput, positiveInput);
+    });
+
+    generateButton.addEventListener("click", generateTitle);
+    generateTitle();
+  })();
+</script>
