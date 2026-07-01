@@ -583,7 +583,7 @@ def main():
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
     # reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Vivitar28mmf2Pt.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/iS35_2x_40mm.zmx"))
 
     exampleLens = reader.GetLens()
 
@@ -593,7 +593,7 @@ def main():
     # ])
     exampleLens.UpdateLens()
 
-    exampleLens.FlipElement(5, True)
+    # exampleLens.FlipElement(5, True)
 
     end = time.time()
     print("When setting to ", LOAD_LENS_FROM_FILE, ", program took ", end-start, " to finish.")

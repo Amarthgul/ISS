@@ -126,11 +126,28 @@ def DistTest():
 
 
 
+def ConicTest():
+    import matplotlib.pyplot as plt
+    from Util.PltPlot import AddXYZ, SetUnifScale, RemoveBG
+    from Surfaces.Biconic import BiconicSurface
+    from Surfaces.ClearBoundaryFlat import ClearBoundaryFlat
+
+    SetUnifScale(50)
+    AddXYZ()
+    RemoveBG()
+
+    BS = BiconicSurface(40, 2, 20)
+    BS.SetCumulative(0)
+
+    BS.DrawSurface()
+    plt.show()
+
+
 def main():
     # DifTest()
     # CentroidTest()
     # StereoImageDisplay()
-    BladeTest()
+    ConicTest()
 
 
 if __name__ == "__main__":

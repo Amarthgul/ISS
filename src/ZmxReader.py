@@ -14,9 +14,11 @@ import shlex
 
 from Surfaces.Surface import Surface
 from Surfaces.EvenAspheric import EvenAspheric
+from Surfaces.Biconic import BiconicSurface
 from Surfaces.Stop import Stop
 from Lens import Lens
-from Util.Globals import INFINITY, ZERO, DEFAULT_MAT_NAME
+from AnamorphicLens import AnamorphicLens
+from Util.Globals import INFINITY, ZERO, DEFAULT_MAT_NAME, Axis
 from Material import Material
 
 class LensFromZmx:
@@ -135,7 +137,8 @@ class LensFromZmx:
         Convert the read data into a Lens class object.
         """
 
-        lens = Lens()
+        parsedSurfaces = []
+        powerAxis = [] # For recording anamorphic power directions
 
         # I cannot guarantee the correctness of these rules, you (whoever not me that's using this) might need to check with the Zemax version you're working with and see if your ZMX files use the same kind of notation.
         sCounter = -1
@@ -158,13 +161,26 @@ class LensFromZmx:
                 currentS = self._ParseStandard(d)
             elif d["TYPE"][0] == "EVENASPH":
                 currentS = self._ParseEvenasph(d)
+            elif d["TYPE"][0] == "BICONICX":
+                currentS, conicAxis = self._ParseBiconic(d)
+
+                for axis in conicAxis:
+                    if axis not in powerAxis:
+                        powerAxis.append(axis)
 
             else:
                 # Other non stated types can be ignored for now
                 continue
 
-            lens.AddSurface(currentS)
+            parsedSurfaces.append(currentS)
 
+        if len(powerAxis) > 0:
+            lens = AnamorphicLens(powerAxis)
+        else:
+            lens = Lens()
+
+        for surface in parsedSurfaces:
+            lens.AddSurface(surface)
 
         self.lens = lens
         return lens
@@ -243,14 +259,51 @@ class LensFromZmx:
         for i in d["PARMS"]:
             coef.append(float(i[1]))
 
-        print(conic)
-        print(coef)
+        # print(conic)
+        # print(coef)
         if ("GLAS" in d):
             material = d["GLAS"][0]
             return EvenAspheric(radius, thickness, clearSemi, material, conic, coef)
         else:
             # Pass in default material, whatever the Material class define the default is
             return EvenAspheric(radius, thickness, clearSemi, DEFAULT_MAT_NAME, conic, coef)
+
+
+    def _ParseBiconic(self, d):
+        conicAxis = []
+
+        curvature = float(d["CURV"][0])
+        if curvature == 0:
+            yRadius = INFINITY
+        else:
+            yRadius = 1 / curvature
+            conicAxis.append(Axis.Y)
+
+        thickness = float(d["DISZ"][0])
+        clearSemi = float(d["DIAM"][0])
+
+        yConic = float(d["CONI"][0]) if "CONI" in d else 0
+
+        if "PARM1" in d:
+            xRadius = float(d["PARM1"])
+            if xRadius == 0:
+                xRadius = INFINITY
+            else:
+                conicAxis.append(Axis.X)
+        else:
+            xRadius = INFINITY
+
+        xConic = float(d["PARM2"]) if "PARM2" in d else 0
+
+        innerDia = None
+        if "CLAP" in d:
+            innerDia = float(d["CLAP"][0])
+
+        material = d["GLAS"][0] if "GLAS" in d else DEFAULT_MAT_NAME
+        s = BiconicSurface(xRadius, thickness, clearSemi, material, xConic, yRadius, yConic)
+        s.minAperture = innerDia
+
+        return s, conicAxis
 
 
     def _PrintDictList(self, listOfDict):

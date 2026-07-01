@@ -437,6 +437,51 @@ def DrawAspherical(radius, k, A, clearSemiDiameter, cumulativeThickness,
     ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
 
 
+def DrawBiconicSurface(radiusX, kX, radiusY, kY, clearSemiDiameter, cumulativeThickness,
+                       ySemi=None, isSweep=True, numPoints=THETA_DIV,
+                       surfaceColor="k", opacity=0.1, ax=None):
+    """
+    Draw a standard biconic surface along the z axis.
+
+    When isSweep is enabled, clearSemiDiameter and ySemi are treated as the
+    half-width and half-height of a rectangular swept aperture. Otherwise the
+    surface is clipped to a circular aperture with radius clearSemiDiameter.
+    """
+    if RENDER_MODE:
+        return
+
+    ax = CheckAX(ax)
+
+    radiusX = _as_float(radiusX)
+    kX = _as_float(kX)
+    radiusY = _as_float(radiusY)
+    kY = _as_float(kY)
+    clearSemiDiameter = _as_float(clearSemiDiameter)
+    cumulativeThickness = _as_float(cumulativeThickness)
+    ySemi = clearSemiDiameter if ySemi is None else _as_float(ySemi)
+
+    x = np.linspace(-clearSemiDiameter, clearSemiDiameter, numPoints)
+    yLimit = ySemi if isSweep else clearSemiDiameter
+    y = np.linspace(-yLimit, yLimit, numPoints)
+    X, Y = np.meshgrid(x, y)
+
+    cx = 0.0 if np.isinf(radiusX) else 1.0 / radiusX
+    cy = 0.0 if np.isinf(radiusY) else 1.0 / radiusY
+
+    radicand = 1.0 - (1.0 + kX) * cx**2 * X**2 - (1.0 + kY) * cy**2 * Y**2
+    valid = radicand >= 0.0
+
+    if not isSweep:
+        valid &= (X**2 + Y**2) <= clearSemiDiameter**2
+
+    numerator = cx * X**2 + cy * Y**2
+    denominator = 1.0 + np.sqrt(np.maximum(radicand, 0.0))
+    Z = cumulativeThickness + numerator / denominator
+    Z = np.where(valid, Z, np.nan)
+
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
+
+
 def DrawAsphericalProfile(radius, k, A, clearSemiDiameter, cumulativeThickness,
                           axis="x", numPoints=THETA_DIV, lineColor="r", lineWidth=1.0, ax=None):
     """

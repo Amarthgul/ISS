@@ -342,16 +342,23 @@ class Lens:
             if(AltMethod):
                 reflectedRBC = reflectedRB.Copy()
                 holderRB = RayBatch(None)
+
                 for _c in range(iteCount):
+                    if reflectedRBC.IsNoneType():
+                        break
+
                     outputRB, remainderRB = self._BounceReflectionAlt(reflectedRBC)
-                    holderRB.Merge(outputRB)
 
-                    reflectedRB, _ = self._BounceReflection(reflectedRB)
+                    if not outputRB.IsNoneType():
+                        holderRB.Merge(outputRB)
 
+                    reflectedRBC = remainderRB
 
-                reflectedRB = self._PropagateReflectedThrough(reflectedRB)
-                reflectedRB = reflectedRB.GetDirectionalRay()
-                reflectedRB.Merge(holderRB)
+                if holderRB.IsNoneType():
+                    reflectedRB = self._PropagateReflectedThrough(reflectedRB)
+                    reflectedRB = reflectedRB.GetDirectionalRay()
+                else:
+                    reflectedRB = holderRB.GetDirectionalRay()
 
             else:
                 #print(reflectedRB.SurfaceDistributionInfo())
@@ -1344,8 +1351,9 @@ class Lens:
             if not self.IsPhysicalSurface(i):
                 continue
 
-            # Get only the rays facing backward (toward previous surface) and merge them into the backward propagation RB
-            iterRB.Merge(reflectedRB.GetRaysAt(i).GetDirectionalRay(False))
+            # Reflected rays are indexed by the space before surface i, which is i - 1.
+            # Get only the rays facing backward and merge them into the backward propagation RB.
+            iterRB.Merge(reflectedRB.GetRaysAt(i - 1).GetDirectionalRay(False))
 
             previousSurfaceIndex = self._PreviousSurfaceIndex(i)
 

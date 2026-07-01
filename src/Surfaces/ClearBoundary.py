@@ -56,7 +56,7 @@ class ClearBoundary():
         """
         When the 2 ends are both on aixs circle with the same radius, this clear bounardy becomes a cylinder, which could simplify calculation significantly. 
         """
-        return self.E1.SemiAxisMagnititude() == self.E2.SemiAxisMagnititude
+        return self.E1.SemiAxisMagnititude() == self.E2.SemiAxisMagnititude()
 
 
     def Intersection(self, incidentRaybatch):
@@ -162,9 +162,10 @@ class ClearBoundary():
         # Interpolate between the two reflected directions.
         # specularReflection = 1 gives pure mirror reflection;
         # specularReflection = 0 gives pure Lambertian reflection.
+        specularReflection = bd.clip(self.specularReflection, 0.0, 1.0)
         reflected = ArrayNormalized(
-            mirrorReflected * self.specularReflection +
-            lambertReflected * (1 - self.specularReflection)
+            mirrorReflected * specularReflection +
+            lambertReflected * (1 - specularReflection)
         )
         reflectedRB.SetDirection(reflected)
 
@@ -174,13 +175,12 @@ class ClearBoundary():
         lambertCos = bd.sum(reflected * normals, axis=1)
         lambertCos = bd.clip(lambertCos, 0.0, 1.0)
         reflectionIntensity = (
-            self.specularReflection +
-            (1 - self.specularReflection) * lambertIntensity * lambertCos
+            specularReflection +
+            (1 - specularReflection) * lambertIntensity * lambertCos
         )
         reflectedRB.SetRadianceTerms(
             reflectedRB.RadianceTerms() * reflectionIntensity[:, None]
         )
-
 
         # Accquire the index of refractions (resp. wavelength)
         n1 = previousRI[_mask]
@@ -194,7 +194,7 @@ class ClearBoundary():
         refracted, TIR, _temp = Refract(directions, normals, n1, n2)
 
         # Accquire the reflectance ratio for the polarized radiance ellipses
-        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n2[~TIR], n1[~TIR])
+        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
         # Accquire s and p directional vector 
         senkrecht, parallel = SenkrechtUndParallel(directions[~TIR], normals[~TIR])
         # nonTIRRB is a temporary RayBatch that only contains the non-TIR rays
@@ -214,10 +214,12 @@ class ClearBoundary():
         # So here only need to merge the nonTIR, whose raidance ellipse just got modified, with the TIR rays of the original raybatch.
         reflectedRB = nonTIRRB.Merge(RayBatch(reflectedRB.value[TIR]))
 
+        absorption = min(max(self.absorption, 0.0), 1.0)
+        reflectedRB.RandomDrop(absorption)
+
         return reflectedRB, _mask
 
         
-
 
     # ==================================================================
     """ ====================== Private Methods ===================== """
@@ -498,86 +500,39 @@ class ClearBoundary():
         This method assumes the clear boundary is a cylinder on the longitudinal z axis direction with radius r.
         Each ray contributes at most one intersection along the positive ray direction.
         """
-        # Component decomposition
         ox, oy, oz = rayPos[:, 0], rayPos[:, 1], rayPos[:, 2]
         dx, dy, dz = rayDir[:, 0], rayDir[:, 1], rayDir[:, 2]
 
-        # Initialize output
-        all_coords = bd.empty((0, 3), dtype=bd.float32)
-        global_valid_mask = bd.zeros(rayPos.shape[0], dtype=bool)
+        zMin = bd.minimum(z1, z2)
+        zMax = bd.maximum(z1, z2)
+        eps = 1e-12
 
-        # Non-vertical rays ------------------------------------------------------
-        non_vert_mask = dz != 0
-        if bd.any(non_vert_mask):
-            non_vert_indices = bd.where(non_vert_mask)[0]
+        A = dx ** 2 + dy ** 2
+        B = 2 * (ox * dx + oy * dy)
+        C = ox ** 2 + oy ** 2 - r ** 2
 
-            # Quadratic coefficients for cylinder side intersection
-            A = dx[non_vert_mask] ** 2 + dy[non_vert_mask] ** 2
-            B = 2 * (ox[non_vert_mask] * dx[non_vert_mask] + oy[non_vert_mask] * dy[non_vert_mask])
-            C = ox[non_vert_mask] ** 2 + oy[non_vert_mask] ** 2 - r ** 2
+        discriminant = B ** 2 - 4 * A * C
+        canHitSide = (A > eps) & (discriminant >= 0)
 
-            discriminant = B ** 2 - 4 * A * C
-            has_real_solution = discriminant >= 0
-            valid_indices = non_vert_indices[has_real_solution]
+        sqrtD = bd.sqrt(bd.maximum(discriminant, 0))
+        denom = 2 * bd.where(A > eps, A, 1)
 
-            sqrt_d = bd.sqrt(discriminant[has_real_solution])
-            A_valid = A[has_real_solution]
-            dx_valid = dx[non_vert_mask][has_real_solution]
-            dy_valid = dy[non_vert_mask][has_real_solution]
-            dz_valid = dz[non_vert_mask][has_real_solution]
-            ox_valid = ox[non_vert_mask][has_real_solution]
-            oy_valid = oy[non_vert_mask][has_real_solution]
-            oz_valid = oz[non_vert_mask][has_real_solution]
+        t1 = (-B - sqrtD) / denom
+        t2 = (-B + sqrtD) / denom
 
-            t1 = (-B[has_real_solution] - sqrt_d) / (2 * A_valid)
-            t2 = (-B[has_real_solution] + sqrt_d) / (2 * A_valid)
+        zAtT1 = oz + t1 * dz
+        zAtT2 = oz + t2 * dz
 
-            # Compute coords
-            coords_t1 = bd.stack([
-                ox_valid + t1 * dx_valid,
-                oy_valid + t1 * dy_valid,
-                oz_valid + t1 * dz_valid
-            ], axis=1)
+        valid1 = canHitSide & (t1 >= 0) & (zAtT1 >= zMin) & (zAtT1 <= zMax)
+        valid2 = canHitSide & (t2 >= 0) & (zAtT2 >= zMin) & (zAtT2 <= zMax)
 
-            coords_t2 = bd.stack([
-                ox_valid + t2 * dx_valid,
-                oy_valid + t2 * dy_valid,
-                oz_valid + t2 * dz_valid
-            ], axis=1)
+        tCandidate = bd.where(valid1, t1, bd.inf)
+        tCandidate = bd.minimum(tCandidate, bd.where(valid2, t2, bd.inf))
 
-            # Filter valid t's
-            valid1 = (t1 >= 0) & (coords_t1[:, 2] >= z1) & (coords_t1[:, 2] <= z2)
-            valid2 = (t2 >= 0) & (coords_t2[:, 2] >= z1) & (coords_t2[:, 2] <= z2)
+        valid = tCandidate != bd.inf
+        intersections = rayPos + tCandidate[:, None] * rayDir
 
-            # Prefer t1 if both valid
-            choose_t1 = valid1
-            choose_t2 = ~valid1 & valid2
-            final_mask = choose_t1 | choose_t2
-
-            chosen_coords = bd.where(choose_t1[:, None], coords_t1, coords_t2)
-            all_coords = bd.concatenate([all_coords, chosen_coords[final_mask]], axis=0)
-            global_valid_mask[valid_indices[final_mask]] = True
-
-        # Vertical rays ----------------------------------------------------------
-        vert_mask = dz == 0
-        if bd.any(vert_mask):
-            vert_indices = bd.where(vert_mask)[0]
-            ox_v = ox[vert_mask]
-            oy_v = oy[vert_mask]
-            oz_v = oz[vert_mask]
-
-            # Must be inside cylinder and z range
-            in_radius = (ox_v ** 2 + oy_v ** 2) <= r ** 2
-            in_z = (oz_v >= z1) & (oz_v <= z2)
-            valid_vert = in_radius & in_z
-
-            if bd.any(valid_vert):
-                valid_idx = vert_indices[valid_vert]
-                vert_coords = bd.stack([ox_v[valid_vert], oy_v[valid_vert], oz_v[valid_vert]], axis=1)
-                all_coords = bd.concatenate([all_coords, vert_coords], axis=0)
-                global_valid_mask[valid_idx] = True
-
-        return all_coords, global_valid_mask
+        return intersections[valid], valid
 
 
     def _PlaneIntersection(self, rayPos, rayDir, E1, E2, axis=OBJ_FACING):
