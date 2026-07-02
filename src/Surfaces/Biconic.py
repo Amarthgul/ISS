@@ -30,16 +30,14 @@ class BiconicSurface(Surface):
         """Y direction conic factor. 0 by default."""
         self.yConic = constant(ky)
 
+        # Biconics preserve the previous rectangular default unless callers explicitly switch to a circular field stop.
+        self.fieldStop = FieldStopType.Rectangular
 
-        """When flagged, surface is treated to be a sweep, the semi-diameter would be regarded as the x direction (half) size. """
-        self.isSweep = True
-
-        """Y direction semi diameter, or more precisely, just the (half) size of the surface on Y direction. Usable when isSweep is flagged."""
+        """Y direction semi diameter, or more precisely, just the (half) size of the surface on Y direction. Usable when fieldStop is rectangular."""
         self.ySemi = constant(sd)
 
 
-        """List of four clear boundaries along the four directions"""
-        self.clearBoundaries = []
+
 
 
     def DrawSurface(self, DrawBoundary=True):
@@ -53,14 +51,14 @@ class BiconicSurface(Surface):
             clearSemiDiameter=self.clearSemiDiameter,
             cumulativeThickness=self.cumulativeThickness,
             ySemi=self.ySemi,
-            isSweep=self.isSweep,
+            fieldStop=self.fieldStop,
             surfaceColor=SURFACE_COLOR,
         )
 
         if DrawBoundary:
-            # Use elliptical boundary if isSweep is not flagged, use the flat clearBoundaries if isSweep is flagged
-            if self.isSweep:
-                for boundary in self._SweepClearBoundaryList():
+            # Use elliptical boundary for circular apertures, flat boundaries for rectangular apertures.
+            if self.fieldStop == FieldStopType.Rectangular:
+                for boundary in self._RectangularClearBoundaryList():
                     boundary.DrawSurface()
             else:
                 if self.clearBoundaryL is not None:
@@ -73,7 +71,7 @@ class BiconicSurface(Surface):
     def SetCumulative(self, cumulativeT):
         """
         Given the cumulative thickness, calculate the surface vertex and a
-        conservative edge z value for the swept biconic aperture.
+        conservative edge z value for the rectangular biconic aperture.
         """
         cumulativeT = bd.array(cumulativeT)
 
@@ -82,10 +80,12 @@ class BiconicSurface(Surface):
         self.radiusCenter = bd.array([ZERO, ZERO, cumulativeT + self.radius])
         self._radiusDirection = self.frontVertex - self.radiusCenter
 
-        if self.isSweep:
-            x = bd.array([ZERO, self.clearSemiDiameter, -self.clearSemiDiameter, ZERO, ZERO])
-            y = bd.array([ZERO, ZERO, ZERO, self.ySemi, -self.ySemi])
-            self.sdCumulative = cumulativeT + bd.max(self._SagBiconicXY(x, y))
+        if self.fieldStop == FieldStopType.Rectangular:
+            zMin, zMax = self.RectangularApertureZRange()
+            if self._HasNegativeCurvature() and not self._HasPositiveCurvature():
+                self.sdCumulative = zMin
+            else:
+                self.sdCumulative = zMax
         else:
             self.sdCumulative = cumulativeT + self._SagBiconicXY(self.clearSemiDiameter, ZERO)
 
@@ -122,9 +122,19 @@ class BiconicSurface(Surface):
         return ArrayNormalized(normals)
 
 
+    def RectangularApertureZRange(self):
+        """
+        Return the minimum and maximum Z extents over the rectangular aperture.
+        This preserves both sides of a saddle / mixed-sign biconic.
+        """
+        sagMin, sagMax = self._RectangularApertureSagRange()
+
+        return self.cumulativeThickness + sagMin, self.cumulativeThickness + sagMax
+
+
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
 
-        if not self.isSweep:
+        if self.fieldStop != FieldStopType.Rectangular:
             return super().Trace(incidentRaybatch, previousRI, inverted, reflection, useClearBoundary)
 
         mainRB, TIR, boolVig, strayRB = super().Trace(
@@ -140,7 +150,7 @@ class BiconicSurface(Surface):
                 (not inverted)):
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
             vigRI = previousRI[boolVig]
-            boundaryStray = self._TraceSweepClearBoundaries(vigRB, vigRI)
+            boundaryStray = self._TraceRectangularClearBoundaries(vigRB, vigRI)
             strayRB = self._MergeRayBatches(strayRB, boundaryStray)
 
         return mainRB, TIR, boolVig, strayRB
@@ -209,8 +219,8 @@ class BiconicSurface(Surface):
             ~interMask
 
 
-    def _TraceSweepClearBoundaries(self, incidentRaybatch, previousRI):
-        boundaries = self._SweepClearBoundaryList()
+    def _TraceRectangularClearBoundaries(self, incidentRaybatch, previousRI):
+        boundaries = self._RectangularClearBoundaryList()
 
         if len(boundaries) == 0 or incidentRaybatch.value.shape[0] == 0:
             return RayBatch(bd.copy(incidentRaybatch.value[:0]))
@@ -235,7 +245,7 @@ class BiconicSurface(Surface):
         return reflectedRB
 
 
-    def _SweepClearBoundaryList(self):
+    def _RectangularClearBoundaryList(self):
         if len(self.clearBoundaries) > 0:
             return [boundary for boundary in self.clearBoundaries if boundary is not None]
 
@@ -257,10 +267,10 @@ class BiconicSurface(Surface):
 
     def _ApertureMask(self, intersections):
         """
-        Biconics in anamorphic prescriptions are commonly swept rectangularly.
-        When isSweep is disabled, fall back to the circular parent aperture.
+        Biconics in anamorphic prescriptions commonly use rectangular apertures.
+        When fieldStop is circular, fall back to the circular parent aperture.
         """
-        if not self.isSweep:
+        if self.fieldStop != FieldStopType.Rectangular:
             return super()._ApertureMask(intersections)
 
         result = (bd.abs(intersections[:, Axis.X.value]) < self.clearSemiDiameter) & \
@@ -290,6 +300,34 @@ class BiconicSurface(Surface):
         denom = ONE + sqrtTerm
 
         return numerator / denom
+
+
+    def _RectangularApertureSagRange(self):
+        x = self.clearSemiDiameter
+        y = self.ySemi
+        sampleX = bd.array([ZERO, x, -x, ZERO, ZERO, x, x, -x, -x])
+        sampleY = bd.array([ZERO, ZERO, ZERO, y, -y, y, -y, y, -y])
+        sag = self._SagBiconicXY(sampleX, sampleY)
+
+        return bd.min(sag), bd.max(sag)
+
+
+    def _HasPositiveCurvature(self):
+        xPositive = (not self._ScalarBool(bd.isinf(self.radius))) and \
+            self._ScalarBool(self.radius > ZERO)
+        yPositive = (not self._ScalarBool(bd.isinf(self.yRadius))) and \
+            self._ScalarBool(self.yRadius > ZERO)
+
+        return xPositive or yPositive
+
+
+    def _HasNegativeCurvature(self):
+        xNegative = (not self._ScalarBool(bd.isinf(self.radius))) and \
+            self._ScalarBool(self.radius < ZERO)
+        yNegative = (not self._ScalarBool(bd.isinf(self.yRadius))) and \
+            self._ScalarBool(self.yRadius < ZERO)
+
+        return xNegative or yNegative
 
 
     def _SagGradientXY(self, x, y):
@@ -357,5 +395,3 @@ class BiconicSurface(Surface):
             return bool(value.get())
 
         return bool(value)
-
-

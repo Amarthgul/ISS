@@ -6,7 +6,6 @@ In the future the project should consider switching to mayavi or better libaraie
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 from Util.Backend import backend as bd
@@ -341,6 +340,45 @@ def DrawSpherical(radius, clearSemiDiameter, cumulativeThickness, numPoints = TH
     ax.plot_surface(x, y, z, color = surfaceColor, alpha =opacity)
 
 
+def DrawSphericalRectangular(radius, width, height, cumulativeThickness,
+                             minAperture=None, numPoints=THETA_DIV,
+                             surfaceColor="k", opacity=0.1, ax=None):
+    """
+    Draw a spherical surface clipped by a rectangular aperture centered on
+    the optical axis. Width and height are full dimensions.
+    """
+    if RENDER_MODE:
+        return
+
+    radius = _as_float(radius)
+    width = _as_float(width)
+    height = _as_float(height)
+    cumulativeThickness = _as_float(cumulativeThickness)
+    minAperture = None if minAperture is None else _as_float(minAperture)
+
+    if _is_infinite(radius):
+        return DrawRectangle(width, height, cumulativeThickness, surfaceColor, opacity, ax=ax)
+
+    ax = CheckAX(ax)
+
+    halfWidth = width / 2.0
+    halfHeight = height / 2.0
+    x = np.linspace(-halfWidth, halfWidth, numPoints)
+    y = np.linspace(-halfHeight, halfHeight, numPoints)
+    X, Y = np.meshgrid(x, y)
+
+    r2 = X**2 + Y**2
+    valid = r2 <= radius**2
+
+    if minAperture is not None:
+        valid &= r2 >= minAperture**2
+
+    Z = cumulativeThickness + radius - np.sign(radius) * np.sqrt(np.maximum(radius**2 - r2, 0.0))
+    Z = np.where(valid, Z, np.nan)
+
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
+
+
 def DrawSphericalInner(radius, maxAperture, minAperture, cumulativeThickness,
                        numPoints=THETA_DIV, surfaceColor="k", opacity=0.1, ax=None):
     """
@@ -438,13 +476,13 @@ def DrawAspherical(radius, k, A, clearSemiDiameter, cumulativeThickness,
 
 
 def DrawBiconicSurface(radiusX, kX, radiusY, kY, clearSemiDiameter, cumulativeThickness,
-                       ySemi=None, isSweep=True, numPoints=THETA_DIV,
+                       ySemi=None, fieldStop="Rectangular", numPoints=THETA_DIV,
                        surfaceColor="k", opacity=0.1, ax=None):
     """
     Draw a standard biconic surface along the z axis.
 
-    When isSweep is enabled, clearSemiDiameter and ySemi are treated as the
-    half-width and half-height of a rectangular swept aperture. Otherwise the
+    When fieldStop is rectangular, clearSemiDiameter and ySemi are treated as
+    the half-width and half-height of the rectangular aperture. Otherwise the
     surface is clipped to a circular aperture with radius clearSemiDiameter.
     """
     if RENDER_MODE:
@@ -459,9 +497,10 @@ def DrawBiconicSurface(radiusX, kX, radiusY, kY, clearSemiDiameter, cumulativeTh
     clearSemiDiameter = _as_float(clearSemiDiameter)
     cumulativeThickness = _as_float(cumulativeThickness)
     ySemi = clearSemiDiameter if ySemi is None else _as_float(ySemi)
+    isRectangular = getattr(fieldStop, "name", fieldStop) == "Rectangular"
 
     x = np.linspace(-clearSemiDiameter, clearSemiDiameter, numPoints)
-    yLimit = ySemi if isSweep else clearSemiDiameter
+    yLimit = ySemi if isRectangular else clearSemiDiameter
     y = np.linspace(-yLimit, yLimit, numPoints)
     X, Y = np.meshgrid(x, y)
 
@@ -471,7 +510,7 @@ def DrawBiconicSurface(radiusX, kX, radiusY, kY, clearSemiDiameter, cumulativeTh
     radicand = 1.0 - (1.0 + kX) * cx**2 * X**2 - (1.0 + kY) * cy**2 * Y**2
     valid = radicand >= 0.0
 
-    if not isSweep:
+    if not isRectangular:
         valid &= (X**2 + Y**2) <= clearSemiDiameter**2
 
     numerator = cx * X**2 + cy * Y**2
@@ -597,6 +636,31 @@ def DrawSphericalProfile(radius, clearSemiDiameter, cumulativeThickness,  axis="
         raise ValueError("axis must be 'x' or 'y'.")
 
     ax.plot(x, y, z, color=lineColor, linewidth=lineWidth)
+
+
+def DrawRectangle(width, height, z_height=2, surfaceColor="b", opacity=0.2, ax=None):
+    if RENDER_MODE:
+        return
+
+    ax = CheckAX(ax)
+    width = _as_float(width)
+    height = _as_float(height)
+    z_height = _as_float(z_height)
+
+    halfWidth = width / 2.0
+    halfHeight = height / 2.0
+
+    X = np.array([
+        [-halfWidth, halfWidth],
+        [-halfWidth, halfWidth],
+    ])
+    Y = np.array([
+        [-halfHeight, -halfHeight],
+        [halfHeight, halfHeight],
+    ])
+    Z = np.full_like(X, z_height)
+
+    ax.plot_surface(X, Y, Z, color=surfaceColor, alpha=opacity)
 
 
 def DrawDisk(radius, z_height=2, num_points=THETA_DIV ,surfaceColor="b",  ax=None):
@@ -765,7 +829,7 @@ def DrawEllipse(Q, center, num_points=THETA_DIV, lColor="c", lWidth=.35, ax=None
     ax.plot(x, y, z_vals, color=lColor, linewidth=lWidth)
 
 
-def DrawPlane(points, color = "b", ax=None):
+def DrawPlane(points, color = "k", opacity=0.1, ax=None):
 
     if(RENDER_MODE):
         return
@@ -773,10 +837,18 @@ def DrawPlane(points, color = "b", ax=None):
     ax = CheckAX(ax)
     points = _as_numpy(points)
 
-    x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    verts = [list(zip(x, y, z))]
-    plane = Poly3DCollection(verts, alpha=0.2, color=color)
-    ax.add_collection3d(plane)
+    surface = np.array([
+        [points[0], points[1]],
+        [points[3], points[2]]
+    ])
+
+    ax.plot_surface(
+        surface[:, :, 0],
+        surface[:, :, 1],
+        surface[:, :, 2],
+        color=color,
+        alpha=opacity
+    )
 
 
 def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=None):

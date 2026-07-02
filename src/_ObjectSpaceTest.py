@@ -816,11 +816,13 @@ def ISTest():
 
     # Create or load a lens
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/iS35_2x_40mm.zmx")).GetLens()
     lens.AddSurfaceDefect()
 
     # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=1920)
+    imager.LoadS35Preset()
 
     # Read input images
     FG = Image2DVariDepth()
@@ -845,7 +847,7 @@ def ISTest():
 
     RefreshRNG()
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=9*60*60, fileName="BokehArtifactTest", realTimeUpdate=True, flareGlare=False)
+    IS.Render(focusDistance=100000, renderTime=2*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():

@@ -8,7 +8,7 @@ from Util.Backend import constant
 from Util.Sampling import CircularDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR, MIRROR
-from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
+from Util.PltPlot import DrawSpherical, DrawSphericalRectangular, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
 from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
@@ -21,9 +21,9 @@ from .SurfaceModulator import Dust
 from .OnionRing import OnionRing
 
 class CurvatureType(Enum):
-    Standard = 0      # Sperical element 
+    Standard = 0      # Spherical element
     EvenAspheric = 1  # Common ASPH 
-    Cylindrical = 2   # For Anamorphics 
+    Cylindrical = 2   # For Anamorphic
     Parabolic = 3     # Mostly for reflective optics 
 
 
@@ -62,9 +62,15 @@ class Surface:
         self.clearBoundaryL = None 
         # This could be assigned during lens update, if needed 
 
+
         """Tangential-direction clear boundary. While it is called tangential, it may not be entirely perpendicular to the optical axis, it could also be chamfered."""
         self.clearBoundaryT = None 
         # This could be assigned during lens update, if needed 
+
+
+        """List of four plane clear boundaries along the four directions for rectangular shaped surface."""
+        self.clearBoundaries = []
+
 
         """This flag makes the surface clear boundary to directly connects to the previous one's semi diameter edge. Effectively removing Longitudinal CB abd leaving only the Tangential one"""
         self.disableBoundaryL = disableL
@@ -123,6 +129,9 @@ class Surface:
 
         """Scalar loss in [0, 1], where 0 means no loss and 1 means full loss."""
         self.hazeTransmissionLoss = 0
+
+
+        self.fieldStop = FieldStopType.Circular
 
         
     # ==============================================================
@@ -255,7 +264,16 @@ class Surface:
 
     def DrawSurface(self, DrawBoundary=True):
 
-        if self.minAperture is None:
+        if self.fieldStop == FieldStopType.Rectangular:
+            DrawSphericalRectangular(
+                self.radius,
+                self.clearSemiDiameter*2,
+                self.clearSemiDiameter*2,
+                self.cumulativeThickness,
+                minAperture=self.minAperture,
+                surfaceColor=SURFACE_COLOR,
+            )
+        elif self.minAperture is None:
             DrawSpherical(
                 self.radius,
                 self.clearSemiDiameter,
@@ -276,6 +294,10 @@ class Surface:
 
         if(DrawBoundary and self.clearBoundaryT is not None):
             self.clearBoundaryT.DrawSurface()
+
+        if(DrawBoundary and len(self.clearBoundaries) > 0):
+            for boundary in self.clearBoundaries:
+                boundary.DrawSurface()
 
 
     def zRange(self):
@@ -565,13 +587,22 @@ class Surface:
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
 
 
-            if( useClearBoundary and
+            if (useClearBoundary and
+                    self.fieldStop == FieldStopType.Rectangular and
+                    len(self.clearBoundaries) > 0 and
+                    self._ScalarBool(bd.any(boolVig)) and
+                    (not inverted)):
+
+                vigReflRB = self._TraceRectangularClearBoundaries(vigRB, previousRI[boolVig])
+                strayRB = self._MergeRayBatches(strayRB, vigReflRB)
+
+            elif( useClearBoundary and
                     (self.clearBoundaryL is not None) and
-                    bd.any(boolVig) and
+                    self._ScalarBool(bd.any(boolVig)) and
                     (not inverted)):
 
                 vigReflRBL, _NonInterMask = self.clearBoundaryL.Trace(vigRB, previousRI[boolVig])
-                if(self.clearBoundaryT is not None and bd.any(_NonInterMask)):
+                if(self.clearBoundaryT is not None and self._ScalarBool(bd.any(_NonInterMask))):
                     # Theoeretically, if there is a tansverse boundary, then the vignetted rays that are not intersected with the longitudinal boundary should intersect with the transverse boundary. 
                     # Create an RB using the rays that did not intersect L boundary
                     vigReflRBT = vigRB.Mask(~_NonInterMask)
@@ -816,12 +847,71 @@ class Surface:
         Given the intersections, filter out the ones that are outside the clear aperture. If there is an inner aperture then add that into the calculation as well.
         """
         # TODO: add tilt shift handling here
-        result = bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
+        if self.fieldStop == FieldStopType.Rectangular:
+            halfWidth = self.clearSemiDiameter / TWO
+            halfHeight = self.clearSemiDiameter / TWO
+            result = (bd.abs(intersections[:, Axis.X.value]) < halfWidth) & \
+                (bd.abs(intersections[:, Axis.Y.value]) < halfHeight)
+        else:
+            result = bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) < self.clearSemiDiameter
 
         if self.minAperture is not None:
             result &= bd.sqrt(intersections[:, 0]**TWO + intersections[:, 1]**TWO) > self.minAperture
 
         return result
+
+
+    def _TraceRectangularClearBoundaries(self, incidentRaybatch, previousRI):
+        boundaries = self._RectangularClearBoundaryList()
+
+        if len(boundaries) == 0 or incidentRaybatch.value.shape[0] == 0:
+            return RayBatch(bd.copy(incidentRaybatch.value[:0]))
+
+        remainingRB = RayBatch(bd.copy(incidentRaybatch.value))
+        remainingRI = bd.copy(previousRI)
+        reflectedRB = RayBatch(None)
+
+        for boundary in boundaries:
+            if remainingRB.value is None or remainingRB.value.shape[0] == 0:
+                break
+
+            boundaryRB, hitMask = boundary.Trace(remainingRB, remainingRI)
+            reflectedRB = self._MergeRayBatches(reflectedRB, boundaryRB)
+
+            if not self._ScalarBool(bd.any(~hitMask)):
+                break
+
+            remainingRB = RayBatch(bd.copy(remainingRB.value[~hitMask]))
+            remainingRI = remainingRI[~hitMask]
+
+        return reflectedRB
+
+
+    def _RectangularClearBoundaryList(self):
+        if len(self.clearBoundaries) > 0:
+            return [boundary for boundary in self.clearBoundaries if boundary is not None]
+
+        return [
+            boundary for boundary in (self.clearBoundaryL, self.clearBoundaryT)
+            if boundary is not None
+        ]
+
+
+    def _MergeRayBatches(self, baseRB, addRB):
+        if addRB is None or addRB.value is None or addRB.value.shape[0] == 0:
+            return baseRB
+
+        if baseRB is None or baseRB.value is None or baseRB.value.shape[0] == 0:
+            return addRB
+
+        return baseRB.Merge(addRB)
+
+
+    def _ScalarBool(self, value):
+        if hasattr(value, "get"):
+            return bool(value.get())
+
+        return bool(value)
 
 
 

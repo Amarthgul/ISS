@@ -188,6 +188,15 @@ class StdImager(Surface):
         }
 
 
+    def LoadS35Preset(self):
+        self.width =  bd.array(24.89)
+        self.height = bd.array(18.66)
+
+
+    def LoadAcademyPreset(self):
+        pass
+
+
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================

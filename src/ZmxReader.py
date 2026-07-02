@@ -17,7 +17,7 @@ from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Biconic import BiconicSurface
 from Surfaces.Stop import Stop
 from Lens import Lens
-from AnamorphicLens import AnamorphicLens
+from LensAnamorphic import AnamorphicLens
 from Util.Globals import INFINITY, ZERO, DEFAULT_MAT_NAME, Axis
 from Material import Material
 

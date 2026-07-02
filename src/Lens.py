@@ -20,11 +20,12 @@ from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from Util.PAEFL import LensPartitionFL
 
 from Surfaces.Stop import Stop
-from Surfaces.Surface import Surface
+from Surfaces.Surface import Surface, FieldStopType
 from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
 from Surfaces.ClearBoundary import ClearBoundary
+from Surfaces.ClearBoundaryFlat import ClearBoundaryFlat
 from Surfaces.MetalBoundary import MetalBoundary
 
 from Material import Material
@@ -765,6 +766,7 @@ class Lens:
         # Clear the previous record, if any 
         self.lenses = []
         self.groups = []
+        self.groupMaxSemi = {}
 
         # ===================== Count the lenses =======================
         lens = []
@@ -799,6 +801,8 @@ class Lens:
 
                 else:
                     currentGroup.append(i)
+
+        self._PropagateRectangularFieldStops()
                 
         largestR = 0 
 
@@ -811,6 +815,24 @@ class Lens:
             largestR = 0 
 
         # print(self.groupMaxSemi)
+
+
+    def _PropagateRectangularFieldStops(self):
+        """
+        If any surface in a cemented group uses a rectangular field stop, the
+        full group must use rectangular stops so the aperture and side walls
+        stay consistent through the element.
+        """
+
+        for group in self.groups:
+            hasRectangular = any(
+                self.surfaces[s].fieldStop == FieldStopType.Rectangular
+                for s in group
+            )
+
+            if hasRectangular:
+                for s in group:
+                    self.surfaces[s].fieldStop = FieldStopType.Rectangular
 
 
     def _DirectConnectPrevious(self, _index, sType=PBR.GLASS):
@@ -926,6 +948,10 @@ class Lens:
         for groupIndex, maxGroupSD in self.groupMaxSemi.items():
             # The key here is group index, and value is the max clear semi diameter of the group
 
+            if self._GroupHasRectangularFieldStop(groupIndex):
+                self._CreateRectangularClearBoundaryInnerGroup(groupIndex)
+                continue
+
             LastSufraceDC = False
 
             for s in self.groups[groupIndex]:
@@ -995,6 +1021,101 @@ class Lens:
                 # print("Surface ", s, " max csd ", value)
                 if (self.surfaces[s].clearSemiDiameter < maxGroupSD):
                     pass
+
+
+    def _CreateRectangularClearBoundaryInnerGroup(self, groupIndex) -> None:
+        """
+        Create four flat side boundaries between each adjacent pair of surfaces
+        in a rectangular-aperture group.
+        """
+
+        group = self.groups[groupIndex]
+        for s in group:
+            self.surfaces[s].clearBoundaryL = None
+            self.surfaces[s].clearBoundaryT = None
+            self.surfaces[s].clearBoundaries = []
+
+        for i in range(1, len(group)):
+            previousIndex = group[i - 1]
+            currentIndex = group[i]
+            self.surfaces[currentIndex].clearBoundaries = \
+                self._RectangularFlatBoundaryList(previousIndex, currentIndex)
+
+
+    def _RectangularFlatBoundaryList(self, previousIndex, currentIndex):
+        previousSurface = self.surfaces[previousIndex]
+        currentSurface = self.surfaces[currentIndex]
+
+        previousHalfX, previousHalfY = self._RectangularHalfSize(previousSurface)
+        currentHalfX, currentHalfY = self._RectangularHalfSize(currentSurface)
+
+        previousZ = self._RectangularFrontSurfaceBoundaryZ(previousSurface)
+        currentZ = self._RectangularCurrentSurfaceBoundaryZ(currentSurface)
+
+        return [
+            ClearBoundaryFlat(bd.array([
+                [ previousHalfX, -previousHalfY, previousZ],
+                [ previousHalfX,  previousHalfY, previousZ],
+                [ currentHalfX,   currentHalfY,  currentZ],
+                [ currentHalfX,  -currentHalfY,  currentZ],
+            ])),
+            ClearBoundaryFlat(bd.array([
+                [-previousHalfX,  previousHalfY, previousZ],
+                [-previousHalfX, -previousHalfY, previousZ],
+                [-currentHalfX,  -currentHalfY,  currentZ],
+                [-currentHalfX,   currentHalfY,  currentZ],
+            ])),
+            ClearBoundaryFlat(bd.array([
+                [-previousHalfX,  previousHalfY, previousZ],
+                [ previousHalfX,  previousHalfY, previousZ],
+                [ currentHalfX,   currentHalfY,  currentZ],
+                [-currentHalfX,   currentHalfY,  currentZ],
+            ])),
+            ClearBoundaryFlat(bd.array([
+                [ previousHalfX, -previousHalfY, previousZ],
+                [-previousHalfX, -previousHalfY, previousZ],
+                [-currentHalfX,  -currentHalfY,  currentZ],
+                [ currentHalfX,  -currentHalfY,  currentZ],
+            ])),
+        ]
+
+
+    def _RectangularCurrentSurfaceBoundaryZ(self, surface):
+        _zMin, zMax = self._RectangularApertureZRange(surface)
+        return zMax
+
+
+    def _RectangularFrontSurfaceBoundaryZ(self, surface):
+        zMin, _zMax = self._RectangularApertureZRange(surface)
+        return zMin
+
+
+    def _RectangularApertureZRange(self, surface):
+        if hasattr(surface, "RectangularApertureZRange"):
+            return surface.RectangularApertureZRange()
+
+        sdZ = surface.sdCumulative
+        vertexZ = surface.cumulativeThickness
+
+        if sdZ is None:
+            return vertexZ, vertexZ
+
+        return bd.minimum(sdZ, vertexZ), bd.maximum(sdZ, vertexZ)
+
+
+    def _RectangularHalfSize(self, surface):
+        if hasattr(surface, "ySemi"):
+            return surface.clearSemiDiameter, surface.ySemi
+
+        halfSize = surface.clearSemiDiameter
+        return halfSize, halfSize
+
+
+    def _GroupHasRectangularFieldStop(self, groupIndex):
+        return any(
+            self.surfaces[s].fieldStop == FieldStopType.Rectangular
+            for s in self.groups[groupIndex]
+        )
 
 
     def _CreateClearBoundaryOuterGroup(self) -> None:

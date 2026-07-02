@@ -2,10 +2,10 @@
 
 from Util.Globals import Axis
 
-from Lens import Lens
+from LensFLE import LensFLE
 
 
-class AnamorphicLens(Lens):
+class AnamorphicLens(LensFLE):
     def __init__(self, powerAxis=None):
 
         super().__init__()
