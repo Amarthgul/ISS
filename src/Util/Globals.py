@@ -184,16 +184,28 @@ class RayBehavior(Enum):
 # ==================================================================
 
 # Creates a RNG for the entire program to use 
-RANDOM_SEED = 42 
+RANDOM_SEED = 42
 RNG = bd.random.RandomState(seed=RANDOM_SEED)
 #RNG = bd.random.default_rng(seed=42)
 
 _rng_counter = 0  # Track the number of refreshes
+_rng_base_seed = RANDOM_SEED
 
-def RefreshRNG():
-    global RNG, _rng_counter
-    _rng_counter += 1
-    RNG = bd.random.RandomState(seed=RANDOM_SEED + _rng_counter)
+def RefreshRNG(manualSeed=None):
+    global _rng_counter, _rng_base_seed
+
+    if manualSeed is not None:
+        _rng_base_seed = int(manualSeed)
+        _rng_counter = 0
+        seedAssignment = _rng_base_seed
+    else:
+        _rng_counter += 1
+        seedAssignment = _rng_base_seed + _rng_counter
+
+    # Keep the RNG object stable so modules that imported RNG directly still
+    # observe seed refreshes.
+    RNG.seed(seedAssignment)
+    return RNG
 
 
 # ==================================================================

@@ -171,6 +171,9 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
   Directly read `zmx` files to skip manually code the lens (I also have [another repo](https://github.com/Amarthgul/ZemaxSims) that holds a bunch of lens files). 
 
+- **Lens analysis and replication assists**
+
+  A set of tools for visualize a lens or system data for educational or analysis purposes, such as showing $n$, $V$ per element and optical power distribution. It also supports creating Zemax operands that clamps parameters within a range to better facilitate lens replication. 
 
 
 ### Expected use 

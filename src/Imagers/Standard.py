@@ -188,6 +188,16 @@ class StdImager(Surface):
         }
 
 
+    def ExchangeWH(self):
+        self.width, self.height = self.height , self.width
+
+
+    def ScaleWH(self, ratio):
+
+        self.width =  bd.array(int(self.width * ratio))
+        self.height = bd.array(int(self.height * ratio))
+
+
     def LoadAPSCPreset(self):
         self.width = bd.array(25.1)
         self.height = bd.array(16.7)

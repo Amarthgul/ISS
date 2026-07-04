@@ -6,7 +6,7 @@ from Util.Backend import backend as bd
 from Util.ColorWavelength import RGBToWavelengthSameD, RGBToWavelengthSpotSim, Lumi
 from Util.Misc import  GridNormalized, PolarToCartesian, ArrayNormalized
 from Util.PltPlot import DrawDirection, DrawPoints, DrawPointsPerColor, DrawRaybatch, SetUnifScale
-from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, RefreshRNG, LambdaLines, ZERO, COLOR_PDF
+from Util.Globals import ONE, INIT_ELLIPSE_TILT, FAR_DISTANCE, RNG, LambdaLines, ZERO, COLOR_PDF, Channels
 from Util.ColorPDF import ColorPDF
 from Raytracing.RayBatch import RayBatch
 
@@ -41,8 +41,7 @@ class PointsSource:
         self.sampleRecord = None
 
 
-        # Whether to use probability density function for wavelength generation, or direct Fraunhofer line replacement
-        self._usePDF = True
+        self.emissionPDF = ColorPDF()
 
 
         self._ResetSampleRecord()
@@ -125,6 +124,7 @@ class PointsSource:
         # Copy the coordinate and angle setting from this one to the children
         sourceDuplicate.isCartesian = self.isCartesian
         sourceDuplicate.angleInRad = self.angleInRad
+        sourceDuplicate.emissionPDF = self.emissionPDF
 
         #print("Sample min/max on master:", bd.min(self.sampleRecord), bd.max(self.sampleRecord))
 
@@ -304,7 +304,6 @@ class PointsSource:
         sourcePos = bd.tile(sourcePos, (1, m, 1))  # (n, m, 3)
 
         if jitter is not None:
-            RefreshRNG()
             if bd.ndim(jitter) == 0:  # scalar → broadcast
                 mag = bd.full(sourcePos.shape[:2], float(jitter))
             elif bd.ndim(jitter) == 1:  # 1-D, per source
@@ -351,7 +350,7 @@ class PointsSource:
         # ------------------------------------------------------------------
         if cosineFalloff:
             cosTheta = bd.abs(dirCross[..., 2]) ** 4  # (n, m)
-            randCos = bd.random.random(cosTheta.shape)
+            randCos = RNG.rand(*cosTheta.shape)
             angMask = randCos < cosTheta  # (n, m) boolean
         else:
             angMask = bd.ones(dirCross.shape[:2], dtype=bool)
@@ -409,7 +408,7 @@ class PointsSource:
 
             # Fractional extra copy
             if bd.any(frac > 0):
-                randFrac = bd.random.random(angMask.shape)  # (n, m)
+                randFrac = RNG.rand(*angMask.shape)  # (n, m)
                 frac_mask = (randFrac < frac_b) & angMask  # (n, m) boolean
 
                 rays_frac = rays_i[frac_mask]  # (N_frac, 7)
@@ -507,17 +506,14 @@ class PointsSource:
         # ------------------------------------------------------------------
         # Vectorized wavelength sampling + emission build (multi-sample per channel)
         # ------------------------------------------------------------------
-        colorConverter = ColorPDF()
+        colorConverter = self.emissionPDF if self.emissionPDF is not None else ColorPDF()
+        colorConverter._Update()
         colors = sampleSource.Color()  # (n, 3)
 
         # No per-point normalization. Use raw RGB as expected multiplier.
         wR = bd.maximum(colors[:, 0] * bd.array(colorConverter.normGainR), ZERO)
         wG = bd.maximum(colors[:, 1] * bd.array(colorConverter.normGainG), ZERO)
         wB = bd.maximum(colors[:, 2] * bd.array(colorConverter.normGainB), ZERO)
-
-        muR = LambdaLines[colorConverter.lineR]
-        muG = LambdaLines[colorConverter.lineG]
-        muB = LambdaLines[colorConverter.lineB]
 
         # meta columns (radiance stays ONE; we increase sample count instead)
         temp = bd.ones(4)
@@ -581,7 +577,14 @@ class PointsSource:
         # Safety cap to prevent extreme HDR values (e.g., 1000+) from exploding memory.
         MAX_COPIES_PER_SRC = 256
 
-        def _emit_weighted(w, mu, sigma, ch_idx):
+        def _sample_channel(ch_idx, shape):
+            if ch_idx == 0:
+                return colorConverter.SampleChannel(Channels.R, shape)
+            if ch_idx == 1:
+                return colorConverter.SampleChannel(Channels.G, shape)
+            return colorConverter.SampleChannel(Channels.B, shape)
+
+        def _emit_weighted(w, ch_idx):
             k = bd.floor(w).astype(int)
             frac = w - bd.array(k, dtype=w.dtype)
 
@@ -597,7 +600,7 @@ class PointsSource:
             # Integer copies (unchanged)
             for rep in range(kmax):
                 keep = k > rep
-                lam = bd.clip(bd.array(mu) + bd.array(sigma) * RNG.randn(n), 380.0, 780.0)
+                lam = _sample_channel(ch_idx, (n,))
                 _emit_integer_sheet(keep, lam, ch_idx)
 
             # Fractional copy (CHANGED to per-(n,m), Fraunhofer-like)
@@ -607,15 +610,12 @@ class PointsSource:
             randFrac = RNG.rand(n, m)  # (n,m)
             frac_mask_nm = (randFrac < frac_b) & angMask  # (n,m)
 
-            lam_nm = bd.clip(
-                bd.array(mu) + bd.array(sigma) * RNG.randn(n, m),
-                380.0, 780.0
-            )
+            lam_nm = _sample_channel(ch_idx, (n, m))
             _emit_fractional_nm(frac_mask_nm, lam_nm, ch_idx)
 
-        _emit_weighted(wR, muR, colorConverter.sigmaR, 0)
-        _emit_weighted(wG, muG, colorConverter.sigmaG, 1)
-        _emit_weighted(wB, muB, colorConverter.sigmaB, 2)
+        _emit_weighted(wR, 0)
+        _emit_weighted(wG, 1)
+        _emit_weighted(wB, 2)
 
         if len(blocks) == 0:
             col_count = 12 + (pointAOV.shape[1] if pointAOV is not None else 0)

@@ -5,7 +5,7 @@ from scipy.stats.qmc import PoissonDisk
 
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
-from Util.Globals import RNG, RefreshRNG, ONE
+from Util.Globals import RNG, ONE
 
 
 # =========================== Presets ==========================
@@ -65,9 +65,6 @@ def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, z
 
     :return: Array representing the points on the ellipse in shape (n, 3) or (3, n).
     """
-    # RNG is refreshed for every call while remaining deterministic 
-    RefreshRNG()
-
     # Generate random angles between [0, 2*pi]
     angles = RNG.uniform(0, 2 * bd.pi, samplePoints)
     

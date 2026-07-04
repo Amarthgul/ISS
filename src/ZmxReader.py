@@ -27,6 +27,7 @@ class LensFromZmx:
         self.content = None
 
         self.lens = None
+        self._axisExchanged = False
 
         self._SurfDict = None # This is a list of dict of all surfaces parsed form the zmx file
 
@@ -40,7 +41,11 @@ class LensFromZmx:
         self.ConvertIntoLens()
 
 
-    def GetLens(self, autoUpdate=True):
+    def GetLens(self, exchangeAxis=False, autoUpdate=True):
+
+        if isinstance(self.lens, AnamorphicLens) and exchangeAxis != self._axisExchanged:
+            self._ExchangeAnamorphicAxis()
+            self._axisExchanged = exchangeAxis
 
         if autoUpdate:
             self.lens.UpdateLens()
@@ -188,6 +193,19 @@ class LensFromZmx:
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
+
+
+    def _ExchangeAnamorphicAxis(self):
+        for surface in self.lens.surfaces:
+            if isinstance(surface, BiconicSurface):
+                surface.radius, surface.yRadius = surface.yRadius, surface.radius
+                surface.xConic, surface.yConic = surface.yConic, surface.xConic
+                surface.clearSemiDiameter, surface.ySemi = surface.ySemi, surface.clearSemiDiameter
+
+        self.lens.powerAxis = [
+            Axis.Y if axis == Axis.X else Axis.X if axis == Axis.Y else axis
+            for axis in self.lens.powerAxis
+        ]
 
 
     def _ParseStandard(self, d):
