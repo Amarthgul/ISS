@@ -825,18 +825,18 @@ def ISTest():
     imager.LoadS35Preset()
 
     # Read input images
-    FG = Image2DVariDepth()
+    # FG = Image2DVariDepth()
     # Pass in the lens angle of view to establish the scene size
-    FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
-    FG.LoadFromEXR(r"resources/LeicaFG.exr")
-    BG = Image2DVariDepth()
-    BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
-    BG.LoadFromEXR(r"resources/LeicaBG.exr")
+    # FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
+    # FG.LoadFromEXR(r"resources/LeicaFG.exr")
+    # BG = Image2DVariDepth()
+    # BG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
+    # BG.LoadFromEXR(r"resources/LeicaBG.exr")
 
     # Load images into a stack, more efficient this way
-    exampleStack = ImageStack()
-    exampleStack.AddImage(BG, "BG")
-    exampleStack.AddImage(FG, "FG")
+    # exampleStack = ImageStack()
+    # exampleStack.AddImage(BG, "BG")
+    # exampleStack.AddImage(FG, "FG")
 
 
     # Assemble an imaging system
@@ -847,7 +847,7 @@ def ISTest():
 
     RefreshRNG()
     # Render the scene into an image
-    IS.Render(focusDistance=100000, renderTime=2*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=4000, renderTime=2*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():

@@ -77,12 +77,12 @@ NEAR_ZERO = 1e-10
 AXIAL_ZERO = 1e-3
 
 
-"""Far distance is treated as 500m away from the lens. This is an unsigned value."""
-FAR_DISTANCE = bd.array(500000.0)
-# This is treated as a pesudo infinity for the lens system.
+"""Far distance is treated as 1000m away from the lens. This is an unsigned value."""
+FAR_DISTANCE = bd.array(1000000.0)
+# This is treated as a pseudo infinity for the lens system.
 
 
-# Scalar contants for Cupy compatibility
+# Scalar constants for Cupy compatibility
 ZERO = bd.array(0.0)
 ONE = bd.array(1.0)
 TWO = bd.array(2.0)

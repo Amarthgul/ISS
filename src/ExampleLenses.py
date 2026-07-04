@@ -593,6 +593,9 @@ def main():
     # ])
     exampleLens.UpdateLens()
 
+    exampleLens.LoadPresetKeys()
+    newB = exampleLens.BestFocusBFD(1500)
+
     # exampleLens.FlipElement(5, True)
 
     end = time.time()

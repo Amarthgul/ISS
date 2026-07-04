@@ -188,13 +188,21 @@ class StdImager(Surface):
         }
 
 
+    def LoadAPSCPreset(self):
+        self.width = bd.array(25.1)
+        self.height = bd.array(16.7)
+
+
     def LoadS35Preset(self):
         self.width =  bd.array(24.89)
         self.height = bd.array(18.66)
 
 
     def LoadAcademyPreset(self):
-        pass
+        self.width = bd.array(22)
+        self.height = bd.array(16)
+
+
 
 
     # ==================================================================

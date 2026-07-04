@@ -934,6 +934,11 @@ class Lens:
     def _CreateClearBoundary(self, createOuterBound=False) -> None:
         """Create clear boundaries for the lens. This includes the boundaries that connects surfaces and make each element sealed solids, and also mechanical parts lying in between the lens elements."""
 
+        for surface in self.surfaces:
+            surface.clearBoundaryL = None
+            surface.clearBoundaryT = None
+            surface.clearBoundaries = []
+
         self._CreateClearBoundaryInnerGroup()
 
         if (createOuterBound):
