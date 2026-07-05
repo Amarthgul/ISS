@@ -55,25 +55,29 @@ class ImageStack:
         return wholeRB
 
 
-def ExampleStack3D():
+def ExampleStack3D(horizontalAoV=40):
 
     FG = Image2DVariDepth()
+    FG.horizontalAoV = horizontalAoV
     FG.zFarLimit = 1e3
     FG.LoadFromEXR(r"resources/DepthSceneFG.exr")
 
     # FG.DrawMask()
 
     MG = Image2DVariDepth()
+    MG.horizontalAoV = horizontalAoV
     MG.LoadFromEXR(r"resources/DepthSceneMG.exr")
     print("MG Stats ======================")
     print(MG.Stats())
 
     MG2 = Image2DVariDepth()
+    MG2.horizontalAoV = horizontalAoV
     MG2.LoadFromEXR(r"resources/DepthSceneMG2.exr")
     print("MG2 Stats ======================")
     print(MG2.Stats())
 
     BG = Image2DVariDepth()
+    BG.horizontalAoV = horizontalAoV
     BG.LoadFromEXR(r"resources/DepthSceneBG.exr")
     BG.FloodDepth(2000000.0)
     print("BG Stats ======================")

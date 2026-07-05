@@ -327,11 +327,9 @@ class Image2DVariDepth(Image2D):
             emissionMethod = self.EmitSamplesToward
 
 
-        emitted = emissionMethod(targets, sampleCount)
-
         if (incidents is None) or (incidents.IsNoneType()):
             # When this is the furthest layer
-            return emitted
+            return emissionMethod(targets, sampleCount)
 
         else:
             through = self._CullSelfOcclusionVariDepth(incidents)
@@ -537,17 +535,21 @@ class Image2DVariDepth(Image2D):
 
     def _CullSelfOcclusionVariDepth(self, incidents: RayBatch, iterStep: int = 3):
         """
-        Cull self-occluded rays against this vari-depth image using a
-        volumetric alpha process, but fully vectorized over rays.
+        Cull incident rays against this vari-depth image, fully vectorized
+        over rays.
 
         For each incident ray:
           1. Find the segment [t0,t1] where the ray overlaps the image's z-range.
           2. March along that segment in 'iterStep' samples (all rays in parallel).
-          3. For each sample, map to the image using AoV and bilinearly sample alpha.
-          4. Accumulate transmittance per ray: T = Π (1 - alpha_step).
-          5. Let alpha_acc = 1 - T in [0,1]. Interpret alpha_acc as the probability
+          3. For each sample, map to the image using AoV and bilinearly sample
+             alpha and depth.
+          4. Keep alpha only where the ray sample is near the sampled depth
+             surface. This prevents an opaque pixel from becoming a full
+             volumetric column throughout the layer's entire z-range.
+          5. Accumulate transmittance per ray: T = Π (1 - alpha_step).
+          6. Let alpha_acc = 1 - T in [0,1]. Interpret alpha_acc as the probability
              to DROP the ray (self-occluded).
-          6. Monte Carlo: draw U ~ Uniform[0,1], drop if U < alpha_acc.
+          7. Monte Carlo: draw U ~ Uniform[0,1], drop if U < alpha_acc.
 
         Returns a new RayBatch containing only the rays that survive.
         """
@@ -708,6 +710,25 @@ class Image2DVariDepth(Image2D):
         a11 = self.alphaArray[y1, x1]
 
         alpha_local = w00 * a00 + w10 * a10 + w01 * a01 + w11 * a11  # (N,steps)
+
+        # Gather the layer depth at the same projected sample locations.
+        # Alpha should only occlude when the ray passes near this surface,
+        # otherwise a foreground pixel behaves like an opaque column spanning
+        # the whole layer depth range and over-darkens deeper layers.
+        z00 = self.zDistance[y0, x0]
+        z10 = self.zDistance[y0, x1]
+        z01 = self.zDistance[y1, x0]
+        z11 = self.zDistance[y1, x1]
+
+        z_local = w00 * z00 + w10 * z10 + w01 * z01 + w11 * z11
+        z_valid_local = bd.isfinite(z_local) & (
+                bd.abs(z_local) < self.zFarLimit * self.zUnitConversion
+        )
+
+        depth_tol = bd.abs((length * dz)[:, None]) / (2.0 * steps)
+        depth_tol = bd.maximum(depth_tol, bd.array(1e-6, dtype=PRECISION_TYPE))
+        near_depth_surface = z_valid_local & (bd.abs(pz - z_local) <= depth_tol)
+        alpha_local = bd.where(near_depth_surface, alpha_local, bd.zeros_like(alpha_local))
 
         # Mask out samples outside FoV or on rays without segments
         alpha_local = bd.where(inside, alpha_local, bd.zeros_like(alpha_local))

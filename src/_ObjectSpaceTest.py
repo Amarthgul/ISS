@@ -134,89 +134,6 @@ def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
             break
 
 
-def StackTest(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
-
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
-
-    print("Currently using ", backend_name)
-
-    stack = ExampleStack3D()
-    att = DepthVisualizer()
-    fog = FogAttenuator()
-
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens.UpdateLens()
-    if aperture is not None:
-        lens.SetAperture(aperture)
-
-    sr = ColorPDF()
-    # sr.normGainB = 1.25
-    imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    #imager = StdImager(lens.BestFocusBFD(focusDistance))
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-
-    while (True):
-        recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
-        # mainRB = fog.Attenuate(mainRB)
-        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        #mainRBZ = att.Attenuate(mainRB)
-        print("Creating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        print("Propagating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
-        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
-        #print(mainRB.ToString(30))
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
-        print("Integral image took ", time.time() - recorder)
-        recorder = time.time()
-
-        if (realTimeUpdate):
-            print("Max value ", bd.max(image))
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elapsed = time.time() - start
-        ProgressBar(elapsed / renderTime, 100)
-        iterationCount += 1
-
-        print("House keep took ", time.time() - recorder)
-
-
-        if (elapsed > renderTime):
-            image /= 100
-            global FrameCount
-            fn = filename
-            SaveAsEXR(image, r"resources/Results", fn)
-            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
-
-            break
-
-        recorder = time.time()
-
-
 def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
@@ -264,187 +181,6 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
     while (True):
         recorder = time.time()
         mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
-        # mainRB = fog.Attenuate(mainRB)
-        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        #mainRBZ = att.Attenuate(mainRB)
-        print("Creating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        print("Propagating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
-        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
-        #print(mainRB.ToString(30))
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
-        print("Integral image took ", time.time() - recorder)
-        recorder = time.time()
-
-        if (realTimeUpdate):
-            print("Max value ", bd.max(image))
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elapsed = time.time() - start
-        ProgressBar(elapsed / renderTime, 100)
-        iterationCount += 1
-
-        print("House keep took ", time.time() - recorder)
-
-
-        if (elapsed > renderTime):
-            image /= 100
-            global FrameCount
-            fn = filename
-            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
-            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
-
-            break
-
-        recorder = time.time()
-
-
-def StackTestDigital(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False, infoArg=0):
-    from Surfaces.ManualAperture import ManualAperture
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from ExampleLenses import HazySonnar, ReverseHelios
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
-
-    print("Currently using ", backend_name)
-
-    stack = ExampleStack3D()
-
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    # lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
-    lens.surfaces[12].AddOnionRing()
-    lens.surfaces[2].AddDust(3)
-    lens.surfaces[7].AddDust()
-    lens.surfaces[12].AddDust(1)
-    lens.surfaces[13].AddDust()
-
-    #lens.FlipElement(5, True)
-
-    if(infoArg == 0):
-        ma = ManualAperture()
-        ma.isCircular = False
-        lens.AddFrontGroup([ma])
-
-    if aperture is not None:
-        lens.SetAperture(aperture)
-
-    #sr = ColorPDF()
-    #sr.normGainB = 1.25
-    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    imager = StdImager(lens.BestFocusBFD(focusDistance))#-0.8)+3
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-
-    while (True):
-        recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
-        # mainRB = fog.Attenuate(mainRB)
-        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        #mainRBZ = att.Attenuate(mainRB)
-        print("Creating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        print("Propagating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
-        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
-        #print(mainRB.ToString(30))
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
-        print("Integral image took ", time.time() - recorder)
-        recorder = time.time()
-
-        if (realTimeUpdate):
-            print("Max value ", bd.max(image))
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elapsed = time.time() - start
-        ProgressBar(elapsed / renderTime, 100)
-        iterationCount += 1
-
-        print("House keep took ", time.time() - recorder)
-
-
-        if (elapsed > renderTime):
-            image /= 100
-            global FrameCount
-            fn = filename
-            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
-            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
-
-            break
-
-        recorder = time.time()
-
-
-def StackTestDigitalLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
-
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
-
-    print("Currently using ", backend_name)
-
-    stack = ExampleStack3D()
-    att = DepthVisualizer()
-    fog = FogAttenuator()
-
-    #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(lensPath)).GetLens()
-    lens.UpdateLens()
-    if aperture is not None:
-        lens.SetAperture(aperture)
-
-    #sr = ColorPDF()
-    #sr.normGainB = 1.25
-    #imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    imager = StdImager(lens.BestFocusBFD(focusDistance))
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-
-    while (True):
-        recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 20480)
         # mainRB = fog.Attenuate(mainRB)
         # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
         #mainRBZ = att.Attenuate(mainRB)
@@ -659,57 +395,6 @@ def FocusFalloffLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, file
         recorder = time.time()
 
 
-def DoubleImgTest():
-    targets = bd.array([
-        [1, 2, 25],
-        [2, 4, 25],
-        [-2, 3, 25],
-        [1, -2, 25]
-    ])
-
-    imgFG = Image2DFlat()
-    imgFG.imageDimensionOverride = 200
-    imgFG.distance = 200
-    imgFG.LoadFrom8BitPNG(r"resources/2330D1FG.png")
-
-    imgBG = Image2DFlat()
-    imgBG.imageDimensionOverride = 200
-    imgBG.distance = 500
-    imgBG.LoadFrom8BitPNG(r"resources/2330D1BG.png")
-
-    imgFG.DrawImage()
-    imgBG.DrawImage()
-
-    RemoveBG()
-    SetUnifScale(700)
-    plt.show()
-
-
-def MetalTest():
-    SetUnifScale()
-    AddXYZ(70)
-    RemoveBG()
-
-    pseudoSurface = Surface(INFINITY, 1, 10)
-    pseudoSurface.SetCumulative(0)
-
-    e1 = SpatialCircle(0, 10)
-    e2 = SpatialCircle(5, 5)
-    mb = MetalBoundary(e1, e2)
-
-    RB = EmitField(0, 0, 5000, sampleTargets=pseudoSurface.SampleFromClearAperture())
-
-    inters = mb.Intersection(RB)
-    normals = mb.Normal(inters[0])
-    refl, _ = mb.Trace(RB)
-
-    DrawRaybatch(refl, lLength=2)
-    DrawNormal(inters[0], normals)
-
-    mb.DrawSurface()
-    plt.show()
-
-
 def ZmxParse():
     print("=================Parse===============")
     reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
@@ -808,7 +493,7 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
         recorder = time.time()
 
 
-def ISTest():
+def ISAnamorphicTest():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Util.Globals import RefreshRNG
@@ -823,7 +508,7 @@ def ISTest():
     # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=1920)
     imager.LoadS35Preset()
-    imager.ScaleWH(1.1)
+    imager.ScaleWH(0.9)
 
     # Read input images
     # FG = Image2DVariDepth()
@@ -843,12 +528,39 @@ def ISTest():
     # Assemble an imaging system
     IS = ImagingSystem(lens, imager)
     # Set the scene
+    IS.object = ExampleStack3D(28)
+    # Aside from a stack, many other classes in ObjectSpace can also be passed in here
+
+    RefreshRNG(25353)
+    # Render the scene into an image
+    IS.Render(focusDistance=1000, renderTime=30*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=False)
+
+
+def ISSphericalTest():
+    from ImagingSystem import ImagingSystem
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from Util.Globals import RefreshRNG
+
+
+    # Create or load a lens
+    # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens.AddSurfaceDefect()
+
+    # Instantiate an imager, adjust its attributes
+    imager = StdImager(horiPx=1920)
+    #imager.LoadS35Preset()
+    #imager.ScaleWH(0.9)
+
+    # Assemble an imaging system
+    IS = ImagingSystem(lens, imager)
+    # Set the scene
     IS.object = ExampleStack3D()
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
-    RefreshRNG(457)
+    RefreshRNG(25353)
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=2*60, fileName="BokehArtifactTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=6800, renderTime=2*60, fileName="SphericalRender", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():
@@ -900,7 +612,7 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    ISTest()
+    ISSphericalTest()
     # ISSpotTest()
     # PureArtifactTest()
 
