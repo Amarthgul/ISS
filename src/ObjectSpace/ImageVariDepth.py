@@ -910,21 +910,6 @@ class Image2DVariDepth(Image2D):
                 for name in self.AOVNames:
                     extra_aov_flats.append(self.AOVs[name].reshape(N))
 
-            # If alpha is present, cull transparent pixels and apply the same mask to all arrays
-            if alpha_flat is not None:
-                keep_mask = alpha_flat > 0
-
-                coordinates = coordinates[keep_mask]
-                colors = colors[keep_mask]
-                self.jitterPerPoint = self.jitterPerPoint[keep_mask]
-
-                alpha_flat = alpha_flat[keep_mask]
-                depth_flat = depth_flat[keep_mask]
-                for i in range(len(extra_aov_flats)):
-                    extra_aov_flats[i] = extra_aov_flats[i][keep_mask]
-            else:
-                keep_mask = None  # not used, but kept for clarity
-
             # Build AOV columns: alpha, depth, then all other AOVs
             aov_cols = []
             aov_names = []
