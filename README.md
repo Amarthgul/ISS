@@ -31,7 +31,7 @@ The documentation is in the process of being ported to GitHub:
 
   - 2.1 - Optical Material _(transplanting)_
 
-  - 2.2 - Refraction, Reflection, and Polarization _(transplanting)_
+  - [2.2 - Refraction, Reflection, and Polarization](Docs/Doc2.2.md)
 
   - 2.3 - Surface _(transplanting)_
 
@@ -250,9 +250,7 @@ Most of these are either a subset or an extension of existing features...
 
 - Add propagation based film grain. 
 
-- Add transform for gamma corrected inputs. 
-
-- Finish conical elements.
+- Add transform for gamma corrected inputs.
 
 - Find a way to make the render process dynamic, i.e., use as many hardware resources as possible without clipping the limit.
 
@@ -267,6 +265,8 @@ The core lens construction and ray propagation are AI-free, not because of some 
 - Close focus (relative close focus with respect to effective focal length) may result in edge ray rejection, visually appears as dark lines around the object border. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
 
 - The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
+
+- Samples are now static, with the value set based on my own machine, which is almost guaranteed to be over or under-utilizing the hardware when other people run it. 
 
 ## Future work
 

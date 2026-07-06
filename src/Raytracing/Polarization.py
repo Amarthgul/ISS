@@ -154,6 +154,11 @@ def PolarizeRB(rb, v_s, v_p, add=False):
     """
 
     ellipseM = rb.PolarizationMat()
+    if ellipseM.shape[0] != v_s.shape[0] or ellipseM.shape[0] != v_p.shape[0]:
+        raise ValueError(
+            "PolarizeRB row count mismatch: raybatch, senkrecht, and parallel "
+            f"must align, got {ellipseM.shape[0]}, {v_s.shape[0]}, {v_p.shape[0]}"
+        )
 
     ellipseM = ModifyEllipse(ellipseM, v_s, add)
     ellipseM = ModifyEllipse(ellipseM, v_p, add)
@@ -205,6 +210,12 @@ def ResidueRB(rb, v_s, v_p):
     """
     Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. This is better used for non-TIR reflections. 
     """
+
+    if rb.value.shape[0] != v_s.shape[0] or rb.value.shape[0] != v_p.shape[0]:
+        raise ValueError(
+            "ResidueRB row count mismatch: raybatch, senkrecht, and parallel "
+            f"must align, got {rb.value.shape[0]}, {v_s.shape[0]}, {v_p.shape[0]}"
+        )
 
     ms = CreateEllipseFromFectors(v_s, v_p)
 

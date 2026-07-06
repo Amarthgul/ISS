@@ -290,6 +290,7 @@ class Image2DVariDepth(Image2D):
         self.pointSourceHigh = PointsSource(highlight_values)
         self.pointSourceHigh.isCartesian = self.pointSource.isCartesian
         self.pointSourceHigh.angleInRad = self.pointSource.angleInRad
+        self.pointSourceHigh.emissionPDF = self.pointSource.emissionPDF
 
         if self.jitterPerPoint is not None:
             self.jitterPerPointHigh = self.jitterPerPoint[highlight_mask]
@@ -311,6 +312,10 @@ class Image2DVariDepth(Image2D):
 
 
     def EmitHighlightSamplesTowards(self, targets, sampleCount=64):
+
+        if self.pointSourceHigh is None:
+            self.ConstructHighlightPoints()
+            return PointsSource().EmitSamplesToward(targets, 0)
 
         return self.pointSourceHigh.EmitSamplesToward(targets, sampleCount, self.jitterPerPointHigh)
 

@@ -239,7 +239,7 @@ class Lens:
             return
 
         self._PartitionGroups()
-        self._CreateClearBoundary()
+        # self._CreateClearBoundary()
 
         # Afocal system does not have a principal plane and the entrance pupil is the first stop 
         if(self.isAfocal):
@@ -1464,6 +1464,9 @@ class Lens:
     def _BounceReflectionAlt(self, reflectedRB):
         """Iterate through each surface, calculate both reflection and refractions."""
 
+        if reflectedRB is None or reflectedRB.IsNoneType():
+            return RayBatch(None), RayBatch(None)
+
         holderRB = RayBatch(None)
 
         # Use this as a holder RB for iterations. I hate how things have to be this complicated and how Cupy likely will make a mess out of this variable due to their memory management...
@@ -1480,6 +1483,9 @@ class Lens:
             # Reflected rays are indexed by the space before surface i, which is i - 1.
             # Get only the rays facing backward and merge them into the backward propagation RB.
             iterRB.Merge(reflectedRB.GetRaysAt(i - 1).GetDirectionalRay(False))
+
+            if iterRB.IsNoneType():
+                continue
 
             previousSurfaceIndex = self._PreviousSurfaceIndex(i)
 
@@ -1499,6 +1505,9 @@ class Lens:
 
             # Append the reflected rays in this surface into the return RB for record. During the backward propagation, holder is only used to hold the scatter reflections in each surface tracing.
             holderRB.Merge(_reflectedRB)
+
+            if not holderRB.IsNoneType():
+                holderRB.RadiantKill()
 
         # After the backward tracing is done, append the iterRB into the holder as well. holder now should have both the scattered reflections in each surface and the refracted rays that reached the first surface from the last.
         holderRB.Merge(iterRB)
@@ -1526,8 +1535,12 @@ class Lens:
             if not self.IsPhysicalSurface(i): continue
 
             # Get rays in the currently surface space that are also facing to the image side, then merge these rays into the iterRB
-            iterRB.Merge(holderRB.GetRaysAt(i - 1).GetDirectionalRay())
+            if not holderRB.IsNoneType():
+                iterRB.Merge(holderRB.GetRaysAt(i - 1).GetDirectionalRay())
             iterRB.Merge(reflectedRB.GetRaysAt(i - 1).GetDirectionalRay())
+
+            if iterRB.IsNoneType():
+                continue
 
             #print("=== Rad at ", i, " before forward prop size ", iterRB.GetRaysAt(i-1).value.shape, " with rad",  iterRB.GetRaysAt(i-1).PolarizedRadiance().sum())
             #print("At surface index ", i)
@@ -1547,6 +1560,9 @@ class Lens:
 
             # Put the unused rays into remainRB
             remainRB.Merge(_reflectedRB)
+
+            if not remainRB.IsNoneType():
+                remainRB.RadiantKill()
 
             #DrawRaybatch(iterRB.GetRaysAt(i), lLength=1)#Drawcall ========================================================================
             #plt.draw()#Drawcall ========================================================================
@@ -1577,7 +1593,8 @@ class Lens:
                         returnRB, 
                         self._FindPreviousRI(i, returnRB), 
                         reflection = False)
-                
+
+                returnRB.RadiantKill()
 
         return returnRB
 

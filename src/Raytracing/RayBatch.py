@@ -311,7 +311,10 @@ class RayBatch:
         Merge this raybatch with another one. This raybatch will be modifed and also as a return value.
         """
 
-        if(self.value is None):
+        if input is None or input.IsNoneType():
+            return self
+
+        if self.IsNoneType():
             self.value = input.value
         else:
             self.value = bd.vstack((self.value, input.value))

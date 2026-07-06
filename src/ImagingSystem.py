@@ -60,7 +60,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 2048)
+            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 4096)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
@@ -68,7 +68,7 @@ class ImagingSystem:
 
             if flareGlare:
                 # While it is possible to enable refection on the previous pass, it would eat up all the computer memories (first GPU, then the shared) and reach the matrix size limit of the CUDA eigenvector calculation limit. Since only the outliers make major contributions to the flare and glare effects, here we flag the flareGlare in the EmitTowards and request only the highlights to emit rays. Then calculate them alone.
-                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(128), 32, flareGlare=True)
+                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
                 _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
                 fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
                 fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
@@ -96,6 +96,48 @@ class ImagingSystem:
                     fn = fileName+"FlareGlare"
                     SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
+                break
+
+            recorder = time.time()
+
+
+    def RenderFlareOnly(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.Update()
+
+        fgImage = self.imager.AcquireEmpty()
+
+        iterationCount = 0
+        start = time.time()
+
+        if (realTimeUpdate):
+            plt.ion()  # Turn on interactive mode
+            fig, ax = plt.subplots()
+            im = ax.imshow(ImageConversion(fgImage, flipH=True))
+
+        # Mein render Zyklus
+        while (True):
+            # Only render the flare/glare reflection pass; skip the sequential image pass entirely.
+            fgRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
+            _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
+            fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
+            fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
+
+            if realTimeUpdate:
+                im.set_data(ImageConversion(fgImage, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
+
+            elapsed = time.time() - start
+            iterationCount += 1
+
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                fgImage /= (iterationCount / self._transmissionLoss)
+                fn = fileName+"FlareGlare"
+                SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
                 break
 
             recorder = time.time()

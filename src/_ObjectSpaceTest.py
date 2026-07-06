@@ -533,7 +533,7 @@ def ISAnamorphicTest():
 
     RefreshRNG(25353)
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=30*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=True)
 
 
 def ISSphericalTest():
@@ -612,7 +612,7 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    ISSphericalTest()
+    ISAnamorphicTest()
     # ISSpotTest()
     # PureArtifactTest()
 

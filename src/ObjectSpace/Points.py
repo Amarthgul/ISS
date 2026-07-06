@@ -108,6 +108,16 @@ class PointsSource:
         :return: raybatch object of rays from the point sources to the target, with corresponding wavelengths. 
         """
 
+        if (
+            self.value is None
+            or self.sampleRecord is None
+            or self.sampleRecord.shape[0] == 0
+            or targets is None
+            or targets.shape[0] == 0
+            or sampleCount <= 0
+        ):
+            return self._EmptyEmissionRayBatch(self)
+
         # In the case that there are fewer sources than demanded sample count, return all
         if(self.sampleRecord.shape[0] <= sampleCount):
             return self._SamplesToTargetsEmission(self, targets, jitter=jitter, addSecondary=addSecondary)
@@ -278,7 +288,26 @@ class PointsSource:
             self.sampleRecord = bd.zeros(self.value.shape[0]).astype(bd.int32)
 
 
+    def _EmptyEmissionRayBatch(self, sampleSource=None):
+        source = self if sampleSource is None else sampleSource
+        aov_count = 0
+
+        if source.value is not None and source.value.shape[1] > 6:
+            aov_count = source.value.shape[1] - 6
+
+        base_columns = 12 if COLOR_PDF else 11
+        return RayBatch(bd.zeros((0, base_columns + aov_count)))
+
+
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
+
+        if (
+            sampleSource.value is None
+            or sampleSource.value.shape[0] == 0
+            or targets is None
+            or targets.shape[0] == 0
+        ):
+            return self._EmptyEmissionRayBatch(sampleSource)
 
         if COLOR_PDF:
             return self._SamplesToTargetsEmissionChannelBased(sampleSource, targets, jitter, cosineFalloff)

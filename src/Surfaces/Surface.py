@@ -530,12 +530,6 @@ class Surface:
         mainRB.SetPosition(intersections[~TIR])
         mainRB.SetDirection(refracted)
 
-        mainRB = self._HazePass(mainRB)
-        # if self.onionRing is not None:
-        #     mainRB = self.onionRing.Modulate(mainRB)
-        if self.dusts is not None:
-           mainRB = self.dusts.Modulate(mainRB)
-
         strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
 
 
@@ -614,6 +608,12 @@ class Surface:
                 strayRB = strayRB.Merge(vigReflRBL)
                 
             strayRB = strayRB.Merge(tirRB)
+
+        mainRB = self._HazePass(mainRB)
+        # if self.onionRing is not None:
+        #     mainRB = self.onionRing.Modulate(mainRB)
+        if self.dusts is not None:
+           mainRB = self.dusts.Modulate(mainRB)
 
         return mainRB, TIR, boolVig, strayRB
 
