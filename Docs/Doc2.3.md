@@ -77,9 +77,13 @@ $$
 The correct intersection between ray and a spherical surface can be determined by the sign of the radius and the sign of the incident ray along the $z$ axis. $t_1$ should be used when the sign of the radius is the same as the sign of the $z$ component of the incident ray. i.e.,
 
 $$
-t=\left\{\begin{matrix} t_1 \quad \textrm{if} \quad \textrm{sign}\left ( r \right )= \textrm{sign}\left ( d_z \right )
- \\t_2 \quad \textrm{if} \quad \textrm{sign}\left ( r \right ) \neq \textrm{sign}\left ( d_z \right ) 
-\end{matrix}\right. 
+t =
+\left\lbrace
+\begin{matrix}
+t_1 \quad \textrm{if} \quad \textrm{sign}\left(r\right) = \textrm{sign}\left(d_z\right) \\
+t_2 \quad \textrm{if} \quad \textrm{sign}\left(r\right) \neq \textrm{sign}\left(d_z\right)
+\end{matrix}
+\right.
 $$
 
 There is, however, another caveat. In some cases, particularly reflection and vignette, the ray could be pointing **away** from the surface. As such, the line this ray coincide does intersect with the surface, but the ray does not. 
@@ -87,7 +91,12 @@ There is, however, another caveat. In some cases, particularly reflection and vi
 This situation can be determined by the value of $t$. Recall that $t$ indicates the position of the point along the ray direction $\mathbf{p} \left( t \right) =\mathbf{o}+t\mathbf{d}$. As such, the ray will not intersect the surface regardless of the sphere-line intersection result, if:
 
 $$
-\left\{\begin{matrix} t_1 < 0 \\ t_2 < 0\end{matrix}\right. 
+\left\lbrace
+\begin{matrix} 
+t_1 < 0 \\ 
+t_2 < 0
+\end{matrix}
+\right. 
 $$
 
 In another words, if both $t$ is smaller than $0$, then all possible intersections are **behind** where the ray starts, which will not intersect the surface. 
@@ -101,7 +110,12 @@ $$
 Expression 2.3.7 works but only works for a surface that is cut with a circular border. In practice, however, many optical elements are cut with a rectangular border, such as most anamorphic front elements, or the plastic molded aspherical elements in recent lenses. For those, explicit height $h$ and width $w$ need to be defined, then the field stop can be expressed as: 
 
 $$
-\left\{\begin{matrix} \textup{abs}\left( p_x \right) \leq \frac{w}{2}  \\ \textup{abs}\left( p_y \right) \leq \frac{h}{2}\end{matrix}\right. 
+\left\lbrace
+\begin{matrix} 
+\textup{abs}\left( p_x \right) \leq \frac{w}{2}  \\
+\textup{abs}\left( p_y \right) \leq \frac{h}{2}
+\end{matrix}
+\right. 
 $$
 
 # 2.3.2 - Normal
@@ -115,9 +129,13 @@ $$
 The goal of acquiring the normal is to perform reflection and refraction calculation, which means the normal does have to be pointing at the opposite direction of the incident ray. The same logic from equation (2.3.5) can be used here to correct the normal if needed: 
 
 $$
-\mathbf{n}=\left\{\begin{matrix} \mathbf{p}-\mathbf{c} \quad \textrm{if} \quad \textrm{sign}\left ( r \right )= \textrm{sign}\left ( d_z \right )
- \\ \mathbf{c}-\mathbf{p} \quad \textrm{if} \quad \textrm{sign}\left ( r \right ) \neq \textrm{sign}\left ( d_z \right ) 
-\end{matrix}\right. 
+\mathbf{n}=
+\left\lbrace
+\begin{matrix} 
+\mathbf{p}-\mathbf{c} \quad \textrm{if} \quad \textrm{sign}\left ( r \right )= \textrm{sign}\left ( d_z \right ) \\ 
+\mathbf{c}-\mathbf{p} \quad \textrm{if} \quad \textrm{sign}\left ( r \right ) \neq \textrm{sign}\left ( d_z \right ) 
+\end{matrix}
+\right. 
 $$
 
 # 2.3.3 - Even aspheric surface
@@ -132,9 +150,9 @@ $$
 
 The term $k$ is the conical constant. When $k=0$ the surface is spherical, when $k=-1$ the surface is parabolical, when $k<-1$ the surface is hyperbolical, and then $k>-1$ the surface is elliptical. 
 
-The name “even” in even aspheric refers to the power terms. Notice that in expression (2.3.11), all terms of $\alpha _n r ^ m$ has an even powers. The power has to be even in this case so that the surface remains axial symmetric, otherwise the surface will become asymmetric on all axis. 
+The name “even” in even aspheric refers to the power terms. Notice that in the expression above, all terms of $\alpha _n r ^ m$ has an even powers. The power has to be even in this case so that the surface remains axial symmetric, otherwise the surface will become asymmetric on all axis. 
 
-Because aspheric surfaces are mostly used to correct high level aberration, its effect is relatively subtly. For most modern aspheric surfaces, their power terms starts with the 4th power. However, some lenses, such as the famous Canon EF 50mm f/1.0 L, has an aspherical surface that feature a term with the power of two. It is thus suggested to treat the first power coefficient as a power of two to maximize compatibility. 
+For most modern aspheric surfaces, their power terms starts with the 4th power. However, some lenses, such as the famous Canon EF 50mm f/1.0 L, has an aspherical surface that feature a term with the power of two. It is thus suggested to treat the first power coefficient as a power of two to maximize compatibility. 
 
 ## 2.3.3.1 - Intersection with aspherical surface
 
@@ -176,7 +194,7 @@ The two spherical proxy surfaces enabled us to calculate, deterministically, whe
 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/ASphProxy.png" width="640">
+	<img src="../resources/ReadmeImg/Doc2.3/ASphProxy.png" width="640">
 </p>
 
 In the plot above, the red line is the sag of the aspheric surface, and the thinner magenta lines are the sags of the two enclosing proxy surfaces. Lens data is from the 25th surface of the Sigma 85mm f/1.4 ART lens, patent JP 2018-005099, example 1. 
@@ -301,7 +319,7 @@ However, if the surfaces are in a cemented doublet (a lens group consists of 2 l
 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/LensCrossSection.png" width="420">
+	<img src="../resources/ReadmeImg/Doc2.3/LensCrossSection.png" width="420">
 </p>
 
 To model this, acquire the maximum $s _d$ of the group and iterate through the surfaces in the group. If the current surface’s $s _d$ is smaller than the group $s _d$, calculate the difference and subtract them from the z position of the edge of the clear semi-diameter, acquiring the chamfer. 
@@ -310,7 +328,7 @@ Using a typical Planar variant, the Biotar 50mm f/1.4 as an example. The 2 surfa
 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/BiotarLayout.png" width="420">
+	<img src="../resources/ReadmeImg/Doc2.3/BiotarLayout.png" width="420">
 </p>
 
 This does leave the limitation that in rare cases, a lens element with 3 different clear boundaries cannot be modelled. But limiting clear boundaries to a max of 2 per surface could simplify the calculation greatly and is generally a worthy tradeoff. 
@@ -464,7 +482,7 @@ Use the $t$ value to calculate the intersections, check if the intersection $z$ 
 And here are some tricks to play. When a frustum appears, there also tend to have a cylinder next to it. A very typical example is the doublets in a Planar arrangement: 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/CanonFDLayout.png" width="420">
+	<img src="../resources/ReadmeImg/Doc2.3/CanonFDLayout.png" width="420">
 </p>
 
 
@@ -535,7 +553,7 @@ Realistically speaking, dust is similar to haze, but are much larger and more is
 The easiest way to implement dust is apparently to just cull the rays intersecting with a piece of dist. However, at the size of a dust, diffraction is also starting to contribute towards the visual result. The image below is a real photo of a defocused spot from a Helios-44 lens, it can be seen that the dusts have caused some rippled craters instead of a single black dot. In a way, this is almost an inverse of an Airy disk. 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/DustInstance.png" width="440">
+	<img src="../resources/ReadmeImg/Doc2.3/DustInstance.png" width="440">
 </p>
 
 Fully recreating this interference effect would be computationally impossible, not to mention the framework still needs to operate on geometric optics. As such, a trick is used to perturb the directions. 
@@ -543,7 +561,7 @@ Fully recreating this interference effect would be computationally impossible, n
 Each dust is given a size and an opacity, two attributes that are virtually free to calculate in a geometric ray propagation model. However, aside from these, they also slightly changes the direction of the ray, with the direction being represented by a partial Airy disk, whose radius is clamped to the end of the first black ring. The directional change is pre-calculated and recorded as a normal map, and example is shown below: 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/DustNormal.png" width="480">
+	<img src="../resources/ReadmeImg/Doc2.3/DustNormal.png" width="480">
 </p>
 
 
@@ -571,7 +589,7 @@ After establishing the ring size and location, they are assigned an alternating 
 To convert all these info into a recorded look-up table instead of doing it in runtime, the circles and the curves are rendered into a normal map, and example is shown below. 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/OnionRingNormal.png" width="480">
+	<img src="../resources/ReadmeImg/Doc2.3/OnionRingNormal.png" width="480">
 </p>
 
 
@@ -584,7 +602,7 @@ However, unlike dust, whose effect is applied to the refracted rays. The effect 
 The image below shows the bokeh of 5 spots at different fields, with both onion rings and dusts. 
 
 <p align="center">
-	<img src="resources/ReadmeImg/Doc2.3/ArtifactBokeh.png" width="640">
+	<img src="../resources/ReadmeImg/Doc2.3/ArtifactBokeh.png" width="640">
 </p>
 
 Do know that in the image above, the light sources are ideal point lights with a precise location and no size. In almost all scenarios, the light source is not an ideal point with no volume or area, so the onion rings and dusts will be blurred and evened out, thus becoming far less obvious. 
