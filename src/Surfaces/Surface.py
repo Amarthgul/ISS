@@ -117,6 +117,8 @@ class Surface:
         self.cType = CurvatureType.Standard
 
 
+        self.coating = None
+
         self.dusts = None
         self.onionRing = None
 
@@ -577,6 +579,10 @@ class Surface:
             strayRB = ResidueRB(strayRB, senkrecht, parallel)
 
 
+            if self.coating is not None:
+                strayRB = self.coating.ReflectionModulate(strayRB)
+
+
             # Copy the vignetted rays to prepare for clear boundary check 
             vigRB = RayBatch(bd.copy(incidentRaybatch.value[boolVig]))
 
@@ -608,6 +614,7 @@ class Surface:
                 strayRB = strayRB.Merge(vigReflRBL)
                 
             strayRB = strayRB.Merge(tirRB)
+
 
         mainRB = self._HazePass(mainRB)
         # if self.onionRing is not None:

@@ -97,6 +97,9 @@ class BiconicSurface(Surface):
         if self._IsPlane():
             return self._PlaneIntersection(incidentRaybatch)
 
+        if self._IsCylindrical():
+            return self._CylindricalIntersection(incidentRaybatch)
+
         return self._SolveSagIntersection(incidentRaybatch)
 
 
@@ -217,6 +220,51 @@ class BiconicSurface(Surface):
         return intersections, \
             bd.zeros(intersections.shape[0], dtype=bd.bool_), \
             ~interMask
+
+
+    def _CylindricalIntersection(self, incidentRaybatch):
+        """
+        Fast path for a zero-conic biconic with exactly one finite radius.
+
+        A finite X radius is a circular arc swept along Y:
+            x^2 + (z - center_z)^2 = radius^2
+        A finite Y radius is the same arc swept along X.
+        """
+        position = incidentRaybatch.Position()
+        direction = incidentRaybatch.Direction()
+
+        xCylinder = not self._ScalarBool(bd.isinf(self.radius))
+        radius = self.radius if xCylinder else self.yRadius
+        curvedAxis = Axis.X.value if xCylinder else Axis.Y.value
+
+        u = position[:, curvedAxis]
+        du = direction[:, curvedAxis]
+        z = position[:, Axis.Z.value] - (self.cumulativeThickness + radius)
+        dz = direction[:, Axis.Z.value]
+
+        a = du**TWO + dz**TWO
+        b = TWO * (u * du + z * dz)
+        c = u**TWO + z**TWO - radius**TWO
+
+        eps = constant(1e-12)
+        discriminant = b**TWO - constant(4) * a * c
+        canSolve = (a > eps) & (discriminant >= ZERO)
+
+        sqrtD = bd.sqrt(bd.maximum(discriminant, ZERO))
+        denom = TWO * bd.where(a > eps, a, ONE)
+        t1 = (-b - sqrtD) / denom
+        t2 = (-b + sqrtD) / denom
+
+        useSecondRoot = bd.sign(radius) != bd.sign(direction[:, Axis.Z.value])
+        t = bd.where(useSecondRoot, t2, t1)
+
+        intersections_all = position + t[:, bd.newaxis] * direction
+        valid = canSolve & bd.isfinite(t) & (t >= ZERO) & self._ApertureMask(intersections_all)
+        intersections = intersections_all[valid]
+
+        return intersections, \
+            bd.zeros(intersections.shape[0], dtype=bd.bool_), \
+            ~valid
 
 
     def _TraceRectangularClearBoundaries(self, incidentRaybatch, previousRI):
@@ -371,14 +419,12 @@ class BiconicSurface(Surface):
 
 
     def _IsCylindrical(self):
-        xSphere = (not self._ScalarBool(bd.isinf(self.radius))) and \
-            self._ScalarBool(self.xConic == ZERO) and \
-            self._ScalarBool(bd.isinf(self.yRadius))
-        ySphere = self._ScalarBool(bd.isinf(self.radius)) and \
-            (not self._ScalarBool(bd.isinf(self.yRadius))) and \
+        xFinite = not self._ScalarBool(bd.isinf(self.radius))
+        yFinite = not self._ScalarBool(bd.isinf(self.yRadius))
+        noConic = self._ScalarBool(self.xConic == ZERO) and \
             self._ScalarBool(self.yConic == ZERO)
 
-        return xSphere or ySphere
+        return noConic and (xFinite != yFinite)
 
 
     def _IsConicSweep(self):

@@ -19,21 +19,21 @@ Additionally, it could also:
 
 - help lens and optics enthusiasts to gain more insights of photographic objects by offering them a way to perform 100% repeatable and reproducible experiments. 
 
-The novelty of the thesis is that it builds a framework that can be used for both direct 3D renderers as "in-camera effect" and the 2D postproduction composition stage. The framework showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
+The novelty of the thesis is that, unlike most rendering applications, **the core concept here is based on relay imaging** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like a postproduction edit effect. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D postproduction composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo as it is now can be viewed as an abridged and open-source version of FRED with additional specializations in media production compatibility. But please **do not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02), use your technical team and AI to rewrite it in a way that fits your software and your pipeline _(ideally not in Python)_. 
+This repo as it is now can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02), use your technical team and AI to rewrite it in a way that fits your software and your pipeline. 
 
-The documentation is in the process of being ported to GitHub:
+The documentations are in the process of being ported to GitHub:
 
 - [1 - General Background](Docs/Doc1.md)
 
 - [2 - Algorithm Core](Docs/Doc2.md) 
 
-  - 2.1 - Optical Material _(transplanting)_
+  - [2.1 - Optical Material](Docs/Doc2.1.md)
 
   - [2.2 - Refraction, Reflection, and Polarization](Docs/Doc2.2.md)
 
-  - 2.3 - Surface _(transplanting)_
+  - [2.3 - Surface](Docs/Doc2.3.md)
 
   - 2.4 - Tracing Over the Lens _(transplanting)_
 
@@ -44,7 +44,7 @@ The documentation is in the process of being ported to GitHub:
 
 ## Features 
 
-### Direct sequential propagation 
+### Diret sequential propagation 
 
 The most fundamental way of imaging. The image below is formed by reading several EXR images with depth and alpha channel, then reconstructing the scene and populating the scene through the imaging system. The system consists of an ideal imager and a Canon EF 50mm f/1.2 L lens. 
 
@@ -68,6 +68,13 @@ The framework could also simulate how rays bounce between each surface, the lens
 <p align="center">
 	<img src="resources/ReadmeImg/FlareGlare.gif" width="480">
 </p>
+
+This also allows the recreation of the iconic anamorphic strake flares. 
+
+<p align="center">
+	<img src="resources/ReadmeImg/AnamorphicRenderFlareOnly.jpg" width="640">
+</p>
+
 
 ### Diaphragm blade and aperture control 
 
@@ -158,6 +165,10 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 - **Through focus distortion**. 
 
   Exploiting the fast sequential spot calculation to estimate the defocused distortion using the energy distribution of the spot. 
+
+- **Floating Lens Element** 
+
+  Allowing internal groups or elements to move individually when focusing at different distances. 
 
 - **Sun stars**. 
 
@@ -251,6 +262,8 @@ Most of these are either a subset or an extension of existing features...
 - Add propagation based film grain. 
 
 - Add transform for gamma corrected inputs.
+
+- Finish coatings. 
 
 - Find a way to make the render process dynamic, i.e., use as many hardware resources as possible without clipping the limit.
 

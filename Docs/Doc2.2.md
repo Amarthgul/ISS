@@ -239,6 +239,9 @@ The earth colored line represents the incident ray before and after the refracti
 
 The largest ellipses in cyan is the polarized radiance ellipse of the incident ray and the smaller one is for the refracted ray. The small ellipse in the middle is the polarized radiance ellipse of the reflected ray. Note that because the ray is refracted into a medium with higher IOR with fairly large incident angle, the reflected ellipse has a larger semi axis along senkrecht direction, i.e., the ray is reflected more along the senkrecht direction. 
 
+
+## References 
+
 <aside>
 
 Wu, Jiaze, Changwen Zheng, Xiaohui Hu, Yang Wang, and Liqiang Zhang. “Realistic Rendering of Bokeh Effect Based on Optical Aberrations.” *The Visual Computer* 26, no. 6 (June 1, 2010): 555–63. [https://doi.org/10.1007/s00371-010-0459-5](https://doi.org/10.1007/s00371-010-0459-5).

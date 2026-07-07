@@ -119,7 +119,7 @@ class ImagingSystem:
         # Mein render Zyklus
         while (True):
             # Only render the flare/glare reflection pass; skip the sequential image pass entirely.
-            fgRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
+            fgRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 4, flareGlare=True)
             _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
             fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
             fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)

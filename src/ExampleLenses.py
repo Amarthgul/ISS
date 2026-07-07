@@ -568,6 +568,28 @@ def ReverseHelios():
     return exampleLens
 
 
+def Cooke_i_S35_40mm_NaiveCoating():
+    from Surfaces.Coating import NaiveCoating
+    lens = LensFromZmx(RectPath(r"resources/Zmx/iS35_2x_40mm.zmx")).GetLens(exchangeAxis=True)
+    lens.AddSurfaceDefect()
+
+    lens.surfaces[14].coating = NaiveCoating()
+    lens.surfaces[15].coating = NaiveCoating()
+    lens.surfaces[16].coating = NaiveCoating()
+    lens.surfaces[17].coating = NaiveCoating()
+    lens.surfaces[18].coating = NaiveCoating()
+    lens.surfaces[19].coating = NaiveCoating()
+    lens.surfaces[21].coating = NaiveCoating()
+    lens.surfaces[22].coating = NaiveCoating()
+    lens.surfaces[23].coating = NaiveCoating()
+    lens.surfaces[24].coating = NaiveCoating()
+    lens.surfaces[25].coating = NaiveCoating()
+    lens.surfaces[26].coating = NaiveCoating()
+    lens.surfaces[27].coating = NaiveCoating()
+
+    return lens
+
+
 # ==================================================================
 
 

@@ -67,10 +67,14 @@ def ProgressBar(progress, bar_length=50):
     bar = "█" * filled_length + "-" * empty_length  # Unicode block for smooth bar
     percent = int(progress * 100)
 
-    # Print the bar dynamically (without newlines)
-    print(f"\r[{bar}] {percent}%")
-    #sys.stdout.write(f"\r[{bar}] {percent}%")
-    #sys.stdout.flush()
+    # Draw the bar in-place and clear any leftover characters from the last draw.
+    output = f"[{bar}] {percent}%"
+    last_length = getattr(ProgressBar, "_last_length", 0)
+    padding = " " * max(0, last_length - len(output))
+
+    sys.stdout.write(f"\r{output}{padding}")
+    sys.stdout.flush()
+    ProgressBar._last_length = len(output)
 
 
 # ==================================================================

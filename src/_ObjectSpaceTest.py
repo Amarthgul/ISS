@@ -497,6 +497,7 @@ def ISAnamorphicTest():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Util.Globals import RefreshRNG
+    from ExampleLenses import Cooke_i_S35_40mm_NaiveCoating
 
 
     # Create or load a lens
@@ -504,6 +505,7 @@ def ISAnamorphicTest():
     #lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
     lens = LensFromZmx(RectPath(r"resources/Zmx/iS35_2x_40mm.zmx")).GetLens(exchangeAxis=True)
     lens.AddSurfaceDefect()
+    lens = Cooke_i_S35_40mm_NaiveCoating()
 
     # Instantiate an imager, adjust its attributes
     imager = StdImager(horiPx=1920)
@@ -533,7 +535,8 @@ def ISAnamorphicTest():
 
     RefreshRNG(25353)
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=True)
+    # IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=True)
+    IS.RenderFlareOnly(focusDistance=1000, renderTime=4* 60 * 60, fileName="Anamorphic", realTimeUpdate=False, flareGlare=True)
 
 
 def ISSphericalTest():
@@ -578,18 +581,18 @@ def PureArtifactTest():
     from Surfaces.SurfaceModulator import  Dust
     from Surfaces.OnionRing import OnionRing
 
-    OR = OnionRing()
-    OR.semiDiameter = 22
-    OR.frontVertex = bd.array([0, 0, 0])
-    OR.Generate()
+    #OR = OnionRing()
+    #OR.semiDiameter = 22
+    #OR.frontVertex = bd.array([0, 0, 0])
+    #OR.Generate()
 
-    OR.ShowNormalMap()
+    #OR.ShowNormalMap()
 
-    # d = Dust(3, 1)
-    # d.semiDiameter = 22
-    # d.frontVertex = bd.array([0, 0, 0])
-    # d.Generate()
-    # d.ShowNormalMap(512)
+    d = Dust(3, 1)
+    d.semiDiameter = 22
+    d.frontVertex = bd.array([0, 0, 0])
+    d.Generate()
+    d.ShowNormalMap(512)
 
 
 def main():
@@ -613,6 +616,7 @@ def main():
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
     ISAnamorphicTest()
+    # PureArtifactTest()
     # ISSpotTest()
     # PureArtifactTest()
 
