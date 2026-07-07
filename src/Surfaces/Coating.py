@@ -27,7 +27,7 @@ class NaiveCoating(Coating):
     def __init__(self):
          super().__init__()
 
-         self.reflectKill = 0.6
+         self.reflectKill = 0.8
 
 
 
@@ -46,5 +46,14 @@ class NaiveCoating(Coating):
         reflectedRaybatch.Mask(keepMask)
 
         return reflectedRaybatch
+
+
+class BiasedNaiveCoating(Coating):
+
+    def __init__(self):
+         super().__init__()
+
+         self.biasKill = {}
+
 
 

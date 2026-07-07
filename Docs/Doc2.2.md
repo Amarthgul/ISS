@@ -1,7 +1,5 @@
 # 2.2 - Refraction, Reflection and Vignette
 
-Owner: Amarth Gul
-
 This chapter discusses the simple physics of how geometric rays react upon contacting a surface. 
 
 # 2.2.1 - Refraction

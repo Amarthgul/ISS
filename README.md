@@ -35,7 +35,7 @@ The documentations are in the process of being ported to GitHub:
 
   - [2.3 - Surface](Docs/Doc2.3.md)
 
-  - 2.4 - Tracing Over the Lens _(transplanting)_
+  - [2.4 - Tracing Over the Lens](Docs/Doc2.4.md)
 
   - 2.5 - Object Space _(transplanting)_
 

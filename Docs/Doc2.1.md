@@ -1,7 +1,5 @@
 # 2.1 - Optical material
 
-Owner: Amarth Gul
-
 One of the most important thing for optical imaging, and one that most CG renderer did not replicate, is the optical materials and their unique characteristics. 
 
 Virtually in all CG implementations, transparent materials are calculated using a refraction index (RI). This, however, is not what actual transparent materials like glass would behave. Lights with different wavelength will be refracted differently, i.e., the RI of a material is not a scalar value, but a function of wavelength. 

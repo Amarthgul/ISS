@@ -1,7 +1,5 @@
 # 2.3 - Surface
 
-Owner: Amarth Gul
-
 A lens surface is defined by 3 key parameters: 
 
 - **Radius** $r$
