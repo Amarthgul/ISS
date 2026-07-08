@@ -58,7 +58,7 @@ INIT_ELLIPSE_TILT = 0
 
 
 # The threshold by which a raybatch will no longer propagate
-RADIANT_KILL = bd.array(0.5 ** 11)
+RADIANT_KILL = bd.array(0.5 ** 10)
 # 11 stops lower than 1. This value is chosen since many image formats are 12-bit, and from the visual's perspective, there is not much point in keep calculating when the radiance is lower than that.
 
 

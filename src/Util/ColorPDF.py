@@ -42,7 +42,7 @@ class ColorPDF:
         # These Fraunhofer lines are also the mu of the Gaussian distribution
         self.lineR = "r"
         self.lineG = "e"
-        self.lineB = "g"
+        self.lineB = "h"
 
         # Sigma parameter for the three Gaussian respectively
         self.sigmaR = 45
@@ -60,7 +60,7 @@ class ColorPDF:
         self.gainG = 1
         self.gainB = 1
 
-        self.fastGaussian = True
+        self.fastGaussian = False
 
         # Floor-lift control for the channel PDFs:
         # lifted = 1 - (1 - normalized_raw) ** floorLiftPower.

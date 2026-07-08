@@ -37,9 +37,9 @@ The documentations are in the process of being ported to GitHub:
 
   - [2.4 - Tracing Over the Lens](Docs/Doc2.4.md)
 
-  - 2.5 - Object Space _(transplanting)_
+  - [2.5 - Object Space](Docs/Doc2.5.md)
 
-  - 2.6 - Imager _(transplanting)_
+  - [2.6 - Imager](Docs/Doc2.6.md)
 
 
 ## Features 

@@ -533,10 +533,10 @@ def ISAnamorphicTest():
     IS.object = ExampleStack3D(28)
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
-    RefreshRNG(25353)
+    RefreshRNG(654390)
     # Render the scene into an image
     # IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=True)
-    IS.RenderFlareOnly(focusDistance=1000, renderTime=4* 60 * 60, fileName="Anamorphic", realTimeUpdate=False, flareGlare=True)
+    IS.RenderFlareOnly(focusDistance=1000, renderTime=35* 60, fileName="AnamorphicBlue", realTimeUpdate=False, flareGlare=True)
 
 
 def ISSphericalTest():

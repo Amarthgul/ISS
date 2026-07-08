@@ -126,22 +126,11 @@ def DistTest():
 
 
 
-def ConicTest():
-    import matplotlib.pyplot as plt
-    from Util.PltPlot import AddXYZ, SetUnifScale, RemoveBG
-    from Surfaces.Biconic import BiconicSurface
-    from Surfaces.ClearBoundaryFlat import ClearBoundaryFlat
+def CoatingTest():
+    from Surfaces.Coating import BiasedNaiveCoating
 
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
-
-    BS = BiconicSurface(40, 2, 20)
-    BS.SetCumulative(0)
-
-    BS.DrawSurface()
-    plt.show()
-
+    ct = BiasedNaiveCoating()
+    ct.PlotTransmission()
 
 
 
@@ -149,7 +138,7 @@ def main():
     # DifTest()
     # CentroidTest()
     # StereoImageDisplay()
-    ConicTest()
+    CoatingTest()
 
 
 if __name__ == "__main__":
