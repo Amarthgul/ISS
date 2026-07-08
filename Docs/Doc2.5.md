@@ -27,7 +27,12 @@ Where $\theta_x$ and $\theta_y$ are field angle along $x$ and $y$ axis, and $d$ 
 Since most of the calculations in this project are still conducted in Cartesian space, field angles still needs to be converted to Cartesian coordinates, which can be easily calculated by: 
 
 $$
- \left\{\begin{matrix}x=d \tan \left ( \theta _x \right )  \\y=d \tan \left ( \theta _y \right ) \end{matrix}\right. 
+ \left\lbrace
+ \begin{matrix}
+ x=d \tan \left ( \theta _x \right )  \\
+ y=d \tan \left ( \theta _y \right ) 
+ \end{matrix}
+ \right. 
 $$
 
 ## 2.5.1.1 - Color to wavelength conversion
