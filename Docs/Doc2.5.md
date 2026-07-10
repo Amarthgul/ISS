@@ -430,8 +430,8 @@ Where $\mathbf{o}$ is the ray origin and $\mathbf{d}$ is the ray direction. For 
 $$
 \left\lbrace
 \begin{matrix}
-\theta_x = \operatorname{atan2}(-p_x, -p_z) \\
-\theta_y = \operatorname{atan2}(-p_y, -p_z)
+\theta_x = \mathrm{atan }2\left ( -p_x, -p_z \right ) \\
+\theta_y = \mathrm{atan }2\left ( -p_y, -p_z \right )
 \end{matrix}
 \right.
 $$
