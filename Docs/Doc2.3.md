@@ -138,9 +138,23 @@ $$
 
 # 2.3.3 - Even aspheric surface
 
-TODO: image comparison 
+Spherical surfaces will produce spherical aberration (SA) regardless. While some methods, such as combining several glasses with different index and dispersion together could reduce SA, it can never eliminate it. At places where correcting SA by glass juxtaposition appears to be inefficient or impossible, aspheric surfaces are often used. There are other aberrations that can be corrected by aspheric surfaces; their relationship with aspheric surface can be generalized as follows:
 
-An even aspheric surface is expressed as follow: 
+- Spherical aberration: $\propto \rho^4$
+
+- Coma: $\propto \rho^3 H$
+
+- Astigmatism: $\propto \rho^2 H ^2$
+
+- Petzval sum: 0
+
+- Distortion: $\propto \rho H^4$
+
+Where $\rho$ is pupil height and $H$ is field height. 
+
+These relationships help revealing what an ASPH surface is trying to correct by looking at its placement. Notice how SA correction is directly proportionate to the pupil height only, so placing ASPH surface around the pupil could greatly reduce SA. This is what Leica really likes to do, from their early Summilux all the way till now, they always prefer adding a corrective lens next to the pupil. In contrast, Japanese manufacturers tend to be more enthusiastic at using the ASPH surface to correct oblique aberrations like astigmatism and distortion, which is why they often have an exaggerated ASPH surface at the very end. Cosina Voigtländer is especially fond of doing so on their M mount lenses, which forms an interesting comparison with Leica. 
+
+An even aspheric surface is expressed as follows: 
 
 $$
 z=\frac{ cr ^2 }{ 1 + \sqrt{ 1 + k c ^2 r ^2}  }+ \alpha _1 r^2 + \alpha _2 r^4 + \alpha _3 r^6 + \alpha _4 r^8 +\cdots 
@@ -248,9 +262,11 @@ $$
 F'\left( t \right)  d_z - \frac{df}{dr}\cdot \frac{dr}{dt}  = d_z -  \frac{df}{dr} \cdot \frac{x \ d_x + y \ d_y}{r}
 $$
 
+It has to be noted that this method of finding the intersection is, at its core, an approximation. So for a lens with many ASPH surfaces or ASPH surfaces with very aggressive coefficients, the result might not be ideal.  
+
 # 2.3.4 - Conical surface
 
-While barely ever appear in photographic lenses, conical lenses are a corner stone for “cinematic” images due to its use in anamorphic lens and the resulting stripe flares. 
+While barely ever appear in photographic lenses, conical lenses are a cornerstone for “cinematic” images due to its use in anamorphic lens and the resulting stripe flares. 
 
 Compared to even aspherical surfaces, conical surfaces are a bit easier to represent and to calculate. In this framework, for compatibility and extendibility purposes, conical elements are defined using a biconic surface, with the sag defined as:
 

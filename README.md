@@ -19,11 +19,9 @@ Additionally, it could also:
 
 - help lens and optics enthusiasts to gain more insights of photographic objects by offering them a way to perform 100% repeatable and reproducible experiments. 
 
-The novelty of the thesis is that, unlike most rendering applications, **the core concept here is based on relay imaging** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like a postproduction edit effect. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D postproduction composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
+The novelty of the thesis is that, unlike most rendering applications, **_the core concept here is based on relay imaging_** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like a postproduction edit effect. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D postproduction composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo as it is now can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the [framework documentation](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02), use your technical team and AI to rewrite it in a way that fits your software and your pipeline. 
-
-The documentations are in the process of being ported to GitHub:
+This repo as it is now can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the documentations linked below, use your technical team and AI to rewrite it in a way that fits your software packages and pipeline.
 
 - [1 - General Background](Docs/Doc1.md)
 
@@ -41,6 +39,7 @@ The documentations are in the process of being ported to GitHub:
 
   - [2.6 - Imager](Docs/Doc2.6.md)
 
+An older version of the documentation is also held on [Notion](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02). While lagged behind, it supports the `\tag{}` grammar and is thus mildly more helpful for human readers to understand the algorithms. 
 
 ## Features 
 
@@ -69,7 +68,7 @@ The framework could also simulate how rays bounce between each surface, the lens
 	<img src="resources/ReadmeImg/FlareGlare.gif" width="480">
 </p>
 
-This also allows the recreation of the iconic anamorphic strake flares. 
+This also allows the recreation of the iconic anamorphic strake flares. The image below is the flare result from Cooke i/ S35 40mm, which utilizes both horizontal and vertical conic surfaces, resulting in flares along both directions. 
 
 <p align="center">
 	<img src="resources/ReadmeImg/AnamorphicRenderFlareOnly.jpg" width="640">
@@ -137,6 +136,13 @@ This framework provides a way to recreate the highlights and make the editing pr
 	<img src="resources/ReadmeImg/HighlightComparasion.png" width="480">
 </p>
 
+The concept behind is very simple. Photographically and empirically, for light sources of the same size and same distance from the camera, the brighter the light, the larger it appears on the image due to the combined factor of sensor response and lens effects. It also happens that the value around the highlight is not a step function, but a gradual increase. As such, it is possible to fit a Gaussian or a polynomial around it and recreate the radiance that is being clipped by the bit depth of the file. 
+
+<p align="center">
+	<img src="resources/ReadmeImg/HighlightReconG.png" width="360">
+</p>
+
+
 ### Forward scattering 
 
 Vintage lens often accumulates small dusts, oils, or balsam separations. These factors introduce more scattering inside the lens and creates a foggy image. The framework models this forward scattering process and thus allows a more natural mist effect to be created. 
@@ -184,7 +190,7 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
 - **Lens analysis and replication assists**
 
-  A set of tools for visualize a lens or system data for educational or analysis purposes, such as showing $n$, $V$ per element and optical power distribution. It also supports creating Zemax operands that clamps parameters within a range to better facilitate lens replication. 
+  A set of tools for visualize a lens or system data for education or analysis purposes, such as showing $n$, $V$ per element and optical power distribution. It also supports creating Zemax operands that clamps parameters within a range to better facilitate lens replication. 
 
 
 ### Expected use 

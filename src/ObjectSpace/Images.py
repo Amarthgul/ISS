@@ -1,12 +1,6 @@
 
 
-import PIL.Image
 import matplotlib.pyplot as plt
-import Imath
-import OpenEXR
-
-import sys
-import os
 
 
 # SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +8,7 @@ import os
 from .Points import PointsSource
 
 from Util.Backend import backend as bd
-from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis
+from Util.Globals import ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, RNG
 from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor
 from Util.Misc import Magnitude, ArrayRotate, RectPath
 from Raytracing.RayBatch import RayBatch
@@ -46,6 +40,142 @@ class Image2D:
 
         """Modifiers that could alter the RayBatch"""
         self.emissionModifier = []
+
+        """Other channels when reading from an EXR file."""
+        self.AOVs = None
+
+        """Names of the extra EXR AOV channels, in the same order as self.AOVs."""
+        self.AOVNames = []
+
+        """Names of AOV columns packed into pointSource / emitted RayBatch rows."""
+        self.pointSourceAOVNames = []
+
+        """An array of same size with the number of point sources. Each entry in this array corresponds to the """
+        self.jitterPerPoint = None
+
+        """Same as jitterPerPoint but for the pointSourceHigh"""
+        self.jitterPerPointHigh = None
+
+
+    def AppendAOV(self, name, values):
+        """
+        Add an AOV to the image.
+
+        :param name: The name of the AOV channel.
+        :param values: The values of the AOV channel as an array same size as the image,
+            or a scalar value to flood the whole image.
+
+        """
+        if self.rgbArray is None:
+            raise RuntimeError("Image2D.AppendAOV(): rgbArray is empty. Load an image first.")
+
+        if name is None or str(name) == "":
+            raise ValueError("Image2D.AppendAOV(): name must be a non-empty string.")
+
+        image_shape = self.rgbArray.shape[:2]
+        pixel_count = image_shape[0] * image_shape[1]
+
+        aov_values = bd.asarray(values, dtype=PRECISION_TYPE)
+
+        if aov_values.ndim == 0:
+            aov_values = bd.ones(image_shape, dtype=PRECISION_TYPE) * aov_values
+        elif aov_values.ndim == 1:
+            if aov_values.shape[0] != pixel_count:
+                raise ValueError(
+                    "Image2D.AppendAOV(): 1-D values must have one entry per image pixel."
+                )
+            aov_values = aov_values.reshape(image_shape)
+        elif aov_values.ndim == 2:
+            if aov_values.shape != image_shape:
+                raise ValueError(
+                    f"Image2D.AppendAOV(): values shape {aov_values.shape} does not match image shape {image_shape}."
+                )
+        elif aov_values.ndim == 3 and aov_values.shape[:2] == image_shape and aov_values.shape[2] == 1:
+            aov_values = aov_values[:, :, 0]
+        else:
+            raise ValueError(
+                "Image2D.AppendAOV(): values must be scalar, flat per-pixel, HxW, or HxWx1."
+            )
+
+        if self.AOVs is None:
+            self.AOVs = {}
+
+        if name not in self.AOVNames:
+            self.AOVNames.append(name)
+
+        self.AOVs[name] = aov_values.astype(PRECISION_TYPE, copy=False)
+
+        if self.pointSource is not None:
+            if hasattr(self, "_GeneratePolarPointSources"):
+                self._GeneratePolarPointSources(appendAOV=True)
+            elif hasattr(self, "_GeneratePointSources"):
+                self._GeneratePointSources()
+
+            if self.pointSourceHigh is not None:
+                self.ConstructHighlightPoints()
+
+        return self
+
+
+    def ReorderAOV(self, nameOrder=None):
+        """
+        Reorder stored AOV channels by name.
+
+        :param nameOrder: list of AOV names in the desired order. It must contain
+            exactly the same names as the current stored AOV channels.
+        :return: self
+        """
+        if nameOrder is None:
+            nameOrder = []
+
+        nameOrder = list(nameOrder)
+
+        if self.AOVs is None or len(self.AOVNames) == 0:
+            if len(nameOrder) != 0:
+                raise ValueError("Image2D.ReorderAOV(): cannot reorder an image with no AOVs.")
+            return self
+
+        currentNames = list(self.AOVNames)
+
+        if len(nameOrder) != len(currentNames):
+            raise ValueError(
+                "Image2D.ReorderAOV(): nameOrder must contain exactly the current AOV names."
+            )
+
+        if len(set(nameOrder)) != len(nameOrder):
+            raise ValueError("Image2D.ReorderAOV(): nameOrder contains duplicate AOV names.")
+
+        missing = [name for name in currentNames if name not in nameOrder]
+        extra = [name for name in nameOrder if name not in currentNames]
+        if missing or extra:
+            raise ValueError(
+                f"Image2D.ReorderAOV(): nameOrder mismatch. Missing={missing}, extra={extra}."
+            )
+
+        self.AOVNames = nameOrder
+        self.AOVs = {name: self.AOVs[name] for name in self.AOVNames}
+
+        if self.pointSource is not None:
+            if hasattr(self, "_GeneratePolarPointSources"):
+                self._GeneratePolarPointSources(appendAOV=True)
+            elif hasattr(self, "_GeneratePointSources"):
+                self._GeneratePointSources()
+
+            if self.pointSourceHigh is not None:
+                self.ConstructHighlightPoints()
+
+        return self
+
+
+    def GetAOVNames(self):
+        """
+        Return the names of AOV columns packed into emitted rays.
+
+        The order exactly matches the AOV columns generated by
+        _GeneratePolarPointSources(appendAOV=True), so names and values can be
+        zipped safely by downstream output code.
+        """
+        return list(self.pointSourceAOVNames)
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
@@ -124,235 +254,64 @@ class Image2D:
         return img
 
 
-    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
-        """The base class has no implementation, it is only an interface for more advanced classes. """
+    def ConstructHighlightPoints(self, threshold=1):
+        """
+        Create a highlight-only point source and its matching jitter array.
+
+        A source is considered a highlight if any of its RGB channels exceeds
+        the given threshold. The same boolean mask is applied to both the
+        point-source rows and jitterPerPoint so they remain in direct
+        correspondence.
+
+        :param threshold: highlight threshold applied to RGB values
+        :return: self.pointSourceHigh
+        """
+
+        self.pointSourceHigh = None
+        self.jitterPerPointHigh = None
+
+        if self.pointSource is None or self.pointSource.value is None:
+            return None
+
+        point_values = self.pointSource.value
+
+        # RGB is always stored in columns 3:6 for PointsSource
+        rgb = point_values[:, 3:6]
+
+        # Highlight if any channel is above threshold
+        highlight_mask = bd.any(rgb > threshold, axis=1)
+
+        highlight_values = point_values[highlight_mask]
+
+        self.pointSourceHigh = PointsSource(highlight_values)
+        self.pointSourceHigh.isCartesian = self.pointSource.isCartesian
+        self.pointSourceHigh.angleInRad = self.pointSource.angleInRad
+        self.pointSourceHigh.emissionPDF = self.pointSource.emissionPDF
+
+        if self.jitterPerPoint is not None:
+            self.jitterPerPointHigh = self.jitterPerPoint[highlight_mask]
+
+        return self.pointSourceHigh
+
+
+    def EmitHighlightSamplesTowards(self, targets, sampleCount=64):
+
+        if self.pointSourceHigh is None:
+            self.ConstructHighlightPoints()
+            return PointsSource().EmitSamplesToward(targets, 0)
+
+        return self.pointSourceHigh.EmitSamplesToward(targets, sampleCount, self.jitterPerPointHigh)
+
+
+    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64, useHighlightSources=False):
         pass
 
 
-
-
-class Image2DFlat(Image2D):
-    def __init__(self):
-        super().__init__()
-
-
-        """Unsigned unit in mm. If anchors are not explicitly stated, assume image at infinity"""
-        self.distance = INFINITY
-
-
-        """Unsigned unit in degree. If anchors are not explicitly stated, assume image in 3D fills a horizontal angle of view. Default value 40 degrees, which is a 50mm on 135 format."""
-        self.horizontalAoV = 40
-        # Note that since this AoV describes the image and not the lens, decreasing this attribute will make the image smaller, as if the lens is having a higher AoV. 
-
-
-        """4 points data in Vec3. The 4 anchor points that pins the image in 3D space """
-        self.pointAnchor = None 
-        
-
-        self.imageCenter = None 
-        
-
-        """Height/width of each pixel, assuming square pixels"""
-        self.pixelPitch = None
-
-
-        self._opacity = None
-        self._opacityArray = None
-
-
-    def LoadFrom8bit(self, imgPath):
-        """
-        For common 8 bit image formats like jpg, bmp, and png. If a png is not 8 bit, do not use this method. Find the right bit depth method instead. 
-        """
-
-        # Read and save the original
-        imgPath = RectPath(imgPath)
-        self._fileMaster = PIL.Image.open(imgPath).convert("RGB")
-
-        self._Update()
-
-
-    def LoadFrom8BitPNG(self, imgPath):
-        # Read and save the original
-        imgPath = RectPath(imgPath)
-        self._fileMaster = PIL.Image.open(imgPath).convert("RGBA")
-        # if self._fileMaster.mode != "RGBA":
-        #     self._fileMaster = self._fileMaster.convert("RGBA")
-
-        r, g, b, self._opacity = self._fileMaster.split()
-
-        self._fileMaster = self._fileMaster.convert("RGB")
-
-
-        self._Update()
-
-
-    def SetupTransitionTest(self, rotateDegree=45, scale=2):
-        """
-        This method adjusts the anchor points thus tilting the image. The tilted image can then be used to test transition. 
-
-        """
-        
-        # Create the 4 anchor points if they are not defined 
-        if(self.pointAnchor is None):
-            self._CreateAnchors(self.distance)
-
-        self.pointAnchor = ArrayRotate(bd.pi/4, 
-                                       UP_DIR, 
-                                       self.imageCenter, 
-                                       self.pointAnchor)
-
-
-        self._GeneratePointSources()
-
-
-    def LoadFromEXR(self, imgPath):
-        """
-        Load only the RGB info from an EXR image. Other channels are ignored.
-        """
-        exrPath = RectPath(imgPath)
-
-        exr = OpenEXR.InputFile(imgPath)
-
-        # EXR header tells us the image size
-        header = exr.header()
-        dw = header['dataWindow']
-        width = dw.max.x - dw.min.x + 1
-        height = dw.max.y - dw.min.y + 1
-
-        # EXR stores channels as strings like "R", "G", "B"
-        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-
-        # Read raw channel strings
-        r_str = exr.channel('R', FLOAT)
-        g_str = exr.channel('G', FLOAT)
-        b_str = exr.channel('B', FLOAT)
-
-        # Convert to float32 NumPy arrays
-        r = bd.frombuffer(r_str, dtype=bd.float32).reshape((height, width))
-        g = bd.frombuffer(g_str, dtype=bd.float32).reshape((height, width))
-        b = bd.frombuffer(b_str, dtype=bd.float32).reshape((height, width))
-
-        # Stack to H×W×3
-        rgb = bd.stack([r, g, b], axis=-1)
-        self.rgbArray = bd.stack([r, g, b], axis=-1)
-
-
-    def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64):
-
-        
-
-        pass
-
-
-    # ==================================================================
-    """ ====================== Private Methods ===================== """
-    # ==================================================================
-
-    def _Update(self):
-
-        # Resize the input if needed
-        if self.imageDimensionOverride is not None:
-            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
-            if self._opacity is not None:
-                if self.imageDimensionOverride is not None:
-                    opacity_img = self._opacity.resize((self.imageDimensionOverride, newHeight))
-                else:
-                    opacity_img = self._opacity
-                self._opacityArray = bd.array(opacity_img).astype(PRECISION_TYPE) / 255.0
-            else:
-                self._opacityArray = None
-        else:
-            self.imageDimensionOverride = self._fileMaster.width
-            imageFile = self._fileMaster
-
-        # Convert into array format
-        self.rgbArray = bd.array(imageFile)
-
-        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in
-        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
-
-
-        self._GeneratePointSources()
-
-
-    def _GeneratePointSources(self):
-        """
-        Using the RGB and position data, generate a point source object that cooresponds to all the pixel/samples from the image input. 
-        """
-
-        # Create the 4 anchor points if they are not defined 
-        if(self.pointAnchor is None):
-            self._CreateAnchors()
-
-        # This method of updating pixel pitch only works when the image is a spatial rectangle, is it stretches, then this will become uneven 
-        self.pixelPitch = Magnitude(self.pointAnchor[1]-self.pointAnchor[0]) / self.imageDimensionOverride
-
-        sampleX = self.rgbArray.shape[1]
-        sampleY = self.rgbArray.shape[0]
-
-        u = bd.linspace(0, 1, sampleX)  # Interpolation values in x-direction
-        v = bd.linspace(0, 1, sampleY)  # Interpolation values in y-direction
-
-        # Create a meshgrid of interpolation factors
-        U, V = bd.meshgrid(u, v, indexing="ij")  # Shape (sampleX, sampleY)
-
-        # Compute the bilinear interpolation
-        gridPositions = (
-            (1 - U)[..., None] * (1 - V)[..., None]  * self.pointAnchor[0].reshape(1, 1, 3) +
-            U[..., None] * (1 - V)[..., None]        * self.pointAnchor[1].reshape(1, 1, 3) +
-            (1 - U)[..., None] * V[..., None]        * self.pointAnchor[2].reshape(1, 1, 3) +
-            U[..., None] * V[..., None]              * self.pointAnchor[3].reshape(1, 1, 3)
-        )  
-
-        # The grid generated this way is transposed, thus need the axis swapped
-        gridPositions = bd.swapaxes(gridPositions, 0, 1)
-
-        # Reshape the point position and color array
-        gridPositions = gridPositions.reshape(sampleY * sampleX, 3)
-        gridColors = self.rgbArray.reshape(sampleY * sampleX, 3)
-
-        if self._opacityArray is not None:
-            flat_opacity = self._opacityArray.reshape(sampleY * sampleX)
-            mask = flat_opacity > 0
-            gridPositions = gridPositions[mask]
-            gridColors = gridColors[mask]
-
-        gridData = bd.concatenate([gridPositions, gridColors], axis=1)
-        self.pointSource = PointsSource(gridData)
-
-        # Concatenate the position and color 
-        # gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)
-        #
-        # self.pointSource = PointsSource(gridPositions)
-
-
-    def _CreateAnchors(self, zDist=None):
-
-        # Infinty is not really workable, replace it with an approximation
-        if (self.distance is INFINITY):
-            zDist = -FAR_DISTANCE
-        else:
-            zDist = -bd.array(self.distance)
-
-        rad = bd.deg2rad(self.horizontalAoV) / 2
-
-        halfX = bd.abs(bd.tan(rad) * zDist)
-        halfY = halfX * bd.abs(self._fileMaster.height / self._fileMaster.width)
-
-        self.pointAnchor = bd.array([
-            [-halfX, -halfY, zDist], 
-            [ halfX, -halfY, zDist], 
-            [-halfX,  halfY, zDist], 
-            [ halfX,  halfY, zDist], 
-        ])
-
-        self.imageCenter = bd.mean(self.pointAnchor, axis=0)
 
 
 def main():
-    
+    from .Image2DFlat import Image2DFlat
+
     targets = bd.array([
         [1, 2, 25], 
         [2, 4,25],

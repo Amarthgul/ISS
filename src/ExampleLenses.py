@@ -589,6 +589,10 @@ def Cooke_i_S35_40mm_NaiveCoating():
 
     lens.surfaces[10].coating = NaiveCoating()
 
+    lens.surfaces[11].coating = BiasedNaiveCoating()
+    lens.surfaces[12].coating = BiasedNaiveCoating()
+    lens.surfaces[13].coating = BiasedNaiveCoating()
+
     lens.surfaces[14].coating = NaiveCoating()
     lens.surfaces[15].coating = NaiveCoating()
     lens.surfaces[16].coating = NaiveCoating()

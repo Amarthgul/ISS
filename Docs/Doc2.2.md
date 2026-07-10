@@ -66,7 +66,7 @@ $$
 
 Where $\mathbf{R}_{r}$ is a random unit vector. Note that $\mathbf{R}_{r}$ must go through a prior check to see if it is in the same direction as the normal $\mathbf{N}$, if not, invert it to keep it pointing at the same hemispherical direction as the normal. 
 
-# 2.2.3 - Polarized reflectance
+# 2.2.3 - Polarized Reflectance
 
 Up till this point, the discussion of refraction and reflection has been limited to their directions. For the intensity of the rays, it might seem easy to use a single scalar value to record the radiance, but in certain scenarios this might not be enough. Especially when considering the complicated things that may happen at a surface. 
 
@@ -226,7 +226,7 @@ For refracted rays, their polarized radiance ellipse will be subtracted by $\mat
 
 If a ray experiences TIR, although technically it would go through a phase change, radiance-wise the polarization direction and intensity will not change. As such, it will carry the same polarized radiance ellipse as the incident ray. 
 
-The figure below is an example of the polarized radiance ellipse after propagated through a surface: 
+The figure below is an example illustrating how polarized radiance work for a ray hitting a refractive surface: 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc2.2/SurfaceReactions.png" width="540">

@@ -1,12 +1,14 @@
 
 
 import time
+import copy
 import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.ImageIO import ImageConversion, SaveAsEXR
 from Util.Misc import ProgressBar
+from ObjectSpace.ImageStack import ImageStack
 
 
 class ImagingSystem:
@@ -17,6 +19,8 @@ class ImagingSystem:
         self.imager = imager
 
         self.object = None
+
+        self.singleObject = None
 
         self.fNumber = 4
 
@@ -138,6 +142,110 @@ class ImagingSystem:
                 fgImage /= (iterationCount / self._transmissionLoss)
                 fn = fileName+"FlareGlare"
                 SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
+                break
+
+            recorder = time.time()
+
+
+    def SingleLayerAlpha(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
+
+        if self.singleObject is None:
+            raise RuntimeError("ImagingSystem.SingleLayerAlpha(): self.singleObject cannot be None.")
+
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.Update()
+
+        alphaChannelName = "X"
+        alphaStack = ImageStack()
+        alphaStack.AlphaImage(copy.deepcopy(self.singleObject), alphaChannelName)
+        alphaAOVNames = alphaStack.GetAOVNames()
+        if alphaChannelName not in alphaAOVNames:
+            raise RuntimeError(
+                f"ImagingSystem.SingleLayerAlpha(): AlphaImage did not create AOV '{alphaChannelName}'."
+            )
+        alphaChannelIndex = alphaAOVNames.index(alphaChannelName)
+
+        image = self.imager.AcquireEmpty()
+        alphaImage = self.imager.AcquireEmpty()
+        fgImage = self.imager.AcquireEmpty()
+        previousAOVAverageCounts = getattr(self.imager, "_AOVAverageCounts", None)
+        beautyAOVAverageCounts = None
+        alphaAOVAverageCounts = None
+        flareAOVAverageCounts = None
+
+        iterationCount = 0
+        start = time.time()
+
+        if realTimeUpdate:
+            plt.ion()
+            fig, ax = plt.subplots()
+            im = ax.imshow(ImageConversion(image, flipH=True))
+
+        while True:
+            targets = self.lens.entrancePupil.GetSamplePoints(512)
+
+            mainRB = self.singleObject.EmitTowards(targets, 2048)
+            mainRB, _mainRP, _reflectedRB = self.lens.Propagate(mainRB, reflection=False)
+            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
+            self.imager._AOVAverageCounts = beautyAOVAverageCounts
+            image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+            beautyAOVAverageCounts = self.imager._AOVAverageCounts
+
+            alphaRB = alphaStack.EmitTowards(targets, 2048, flareGlare=False)
+            alphaRB, _alphaRP, _alphaReflectedRB = self.lens.Propagate(alphaRB, reflection=False)
+            alphaRB, _alphaTir, _alphaVig = self.imager.IntersectRays(alphaRB)
+            self.imager._AOVAverageCounts = alphaAOVAverageCounts
+            alphaImage = self.imager.IntegralRays(alphaRB, baseImg=alphaImage, polarized=False)
+            alphaAOVAverageCounts = self.imager._AOVAverageCounts
+
+            if flareGlare:
+                fgRB = self.singleObject.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
+                _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
+                fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
+                self.imager._AOVAverageCounts = flareAOVAverageCounts
+                fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
+                flareAOVAverageCounts = self.imager._AOVAverageCounts
+
+            if realTimeUpdate:
+                im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
+
+            elapsed = time.time() - start
+            iterationCount += 1
+
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                image /= (iterationCount / self._transmissionLoss)
+
+                alphaImageChannel = 3 + alphaChannelIndex
+                if alphaImage.shape[-1] <= alphaImageChannel:
+                    raise RuntimeError(
+                        "ImagingSystem.SingleLayerAlpha(): alpha branch did not produce the AlphaImage AOV channel."
+                    )
+
+                alpha = bd.clip(1.0 - alphaImage[:, :, alphaImageChannel], 0.0, 1.0)
+
+                fn = fileName
+                SaveAsEXR(
+                    image[:, :, :3],
+                    r"resources/Results",
+                    fn,
+                    alpha,
+                    "A",
+                    flipHori=False,
+                    flipVert=True,
+                    rotate=True
+                )
+
+                if flareGlare:
+                    fgImage /= (iterationCount / self._transmissionLoss)
+                    fn = fileName + "FlareGlare"
+                    SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
+
+                self.imager._AOVAverageCounts = previousAOVAverageCounts
                 break
 
             recorder = time.time()

@@ -15,7 +15,7 @@ from Util.SpatialEllipse import SpatialCircle
 from Util.Misc import RectPath
 
 from Imagers.Standard import StdImager
-from ObjectSpace.Images import Image2DFlat
+from ObjectSpace.Image2DFlat import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from ObjectSpace.Attenuator import  DepthVisualizer
 from ObjectSpace.Fog import FogAttenuator
@@ -493,6 +493,23 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
         recorder = time.time()
 
 
+def SingleImgRens():
+    from ImagingSystem import ImagingSystem
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from Util.Globals import RefreshRNG
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    imager = StdImager(horiPx=1920)
+    IS = ImagingSystem(lens, imager)
+
+    FG = Image2DVariDepth()
+    FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
+    FG.LoadFromEXR(r"resources/LeicaFG.exr")
+    IS.singleObject = FG
+
+    IS.SingleLayerAlpha(focusDistance=1500, renderTime=2*60, fileName="LeicaSingleNew", flareGlare=False)
+
+
 def ISAnamorphicTest():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
@@ -533,10 +550,10 @@ def ISAnamorphicTest():
     IS.object = ExampleStack3D(28)
     # Aside from a stack, many other classes in ObjectSpace can also be passed in here
 
-    RefreshRNG(654390)
+    RefreshRNG(3452345)
     # Render the scene into an image
-    # IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=True)
-    IS.RenderFlareOnly(focusDistance=1000, renderTime=35* 60, fileName="AnamorphicBlue", realTimeUpdate=False, flareGlare=True)
+    # IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=False)
+    IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
 
 def ISSphericalTest():
@@ -615,8 +632,9 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    ISAnamorphicTest()
+    # ISAnamorphicTest()
     # PureArtifactTest()
+    SingleImgRens()
     # ISSpotTest()
     # PureArtifactTest()
 

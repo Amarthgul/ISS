@@ -1,6 +1,7 @@
-
+import enum
 
 import matplotlib.pyplot as plt
+from enum import Enum
 
 from Surfaces.Surface import FieldStopType, Surface
 from Util.Backend import backend as bd
@@ -9,6 +10,11 @@ from Util.PltPlot import Reset2D, DrawPlane
 from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis, OUTPUT_TYPE, COLOR_PDF
 from Util.ColorWavelength import WavelengthToRGB
 from Util.Misc import PointsInTriangle, NumpyConversion
+
+
+class AOVSchema(Enum):
+    ADD = 0
+    AVERAGE = 1
 
 
 class StdImager(Surface):
@@ -31,7 +37,7 @@ class StdImager(Surface):
         self.horizontalPx = horiPx  # Unitless int 
         self.verticalPx = None      # Unitless int 
 
-        """Points reprensenting the 4 corners of the rectangular field stop"""
+        """Points representing the 4 corners of the rectangular field stop"""
         self.gatePoints = None
 
         self.rayPath = None 
@@ -41,10 +47,14 @@ class StdImager(Surface):
         """When enabled, grain will be added in the image instead of being an optional pass"""
         self.buildInGrain = False
 
+
+        self._AOVSchemen = None
+        self._AOVAverageCounts = None
+
+
         # If gate points are not set, then assume it is flat and perpendicular to the optical axis, then use the 2 following properties to calculate the gate points
         self._lensLength = 0 # Length of the lens in front of the imager
         self._zPos = 0
-
 
         self._Start()
 
@@ -188,6 +198,11 @@ class StdImager(Surface):
         }
 
 
+    def SetAOVSchemen(self, AOVSchemen):
+        self._AOVSchemen = AOVSchemen
+        self._AOVAverageCounts = None
+
+
     def ExchangeWH(self):
         self.width, self.height = self.height , self.width
 
@@ -266,7 +281,17 @@ class StdImager(Surface):
         rayWavelength = intersectRayBatch.Wavelength()[rayHitMask]
 
         # Convert ray position into pixel position 
-        rayPos = bd.floor(rayPos).astype(int)
+        rayPos = bd.floor(rayPos).astype(int)[:, :2]
+        aovValues = self._ExtractAOVValues(intersectRayBatch, rayHitMask)
+
+        in_bounds_all = (
+                (rayPos[:, 0] >= 0) & (rayPos[:, 0] < self.horizontalPx) &
+                (rayPos[:, 1] >= 0) & (rayPos[:, 1] < self.verticalPx)
+        )
+        aovRayPos = rayPos[in_bounds_all]
+        if aovValues is not None:
+            aovValues = aovValues[in_bounds_all]
+
         # Create pixel grid 
         radiantGridR = bd.zeros( (self.horizontalPx, self.verticalPx) )
         radiantGridG = bd.zeros( (self.horizontalPx, self.verticalPx) )
@@ -316,12 +341,8 @@ class StdImager(Surface):
         
         # Stack the channels together as a "latent image"
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
-        
-        # Monte Carlo addition 
-        if(baseImg is not None):
-            rgb_image = baseImg + rgb_image
 
-        return rgb_image
+        return self._CombineRGBAndAOV(rgb_image, aovRayPos, aovValues, baseImg)
 
 
     def _integralRaysChannelBased(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
@@ -347,6 +368,7 @@ class StdImager(Surface):
 
         # Convert hit positions to pixel coords
         rayPos = bd.floor(intersectRayBatch.Position()[rayHitMask] / pxPitch + pxOffset).astype(int)[:, :2]
+        aovValues = self._ExtractAOVValues(intersectRayBatch, rayHitMask)
 
         # Per-ray radiance + channel id + wavelength
         radiant = intersectRayBatch.PolarizedRadiance(polarized)[rayHitMask]
@@ -362,6 +384,8 @@ class StdImager(Surface):
         radiant = radiant[in_bounds]
         chan = chan[in_bounds]
         wavelength = wavelength[in_bounds]
+        if aovValues is not None:
+            aovValues = aovValues[in_bounds]
 
         # =================================================================================================
         # Hook: allow subclasses to alter rays before deposition (e.g. CFA shift, lateral scattering, etc.)
@@ -372,6 +396,11 @@ class StdImager(Surface):
             chan=chan,
             wavelength=wavelength
         )
+
+        if aovValues is not None and aovValues.shape[0] != rayPos.shape[0]:
+            raise RuntimeError(
+                "StdImager AOV integration requires _ApplyIncidentRayEffects to preserve ray count."
+            )
 
         # =================================================================================================
         # Hook: spectral / channel weighting (default identity in StdImager)
@@ -407,12 +436,137 @@ class StdImager(Surface):
         # Stack to RGB image
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
 
+        return self._CombineRGBAndAOV(rgb_image, rayPos, aovValues, baseImg)
 
-        # Monte Carlo accumulation
-        if baseImg is not None:
-            rgb_image = baseImg + rgb_image
+    def _ExtractAOVValues(self, raybatch, rayMask):
+        """
+        Return AOV columns for the selected rays, or None when no AOVs exist.
+        """
+        aov_start = 12 if COLOR_PDF else 11
+        if raybatch.value.shape[1] <= aov_start:
+            return None
 
-        return rgb_image
+        return raybatch.value[rayMask, aov_start:]
+
+
+    def _ResolveAOVSchemen(self, aovCount):
+        if self._AOVSchemen is None:
+            return [AOVSchema.AVERAGE] * aovCount
+
+        if len(self._AOVSchemen) != aovCount:
+            raise ValueError(
+                f"StdImager._AOVSchemen length {len(self._AOVSchemen)} does not match "
+                f"incoming AOV count {aovCount}."
+            )
+
+        resolved = []
+        for schema in self._AOVSchemen:
+            if isinstance(schema, AOVSchema):
+                resolved.append(schema)
+            elif isinstance(schema, str):
+                resolved.append(AOVSchema[schema.upper()])
+            else:
+                resolved.append(AOVSchema(schema))
+
+        return resolved
+
+
+    def _BaseRGBAndAOV(self, baseImg):
+        if baseImg is None:
+            return None, None
+
+        baseImg = bd.asarray(baseImg)
+        if baseImg.ndim != 3 or baseImg.shape[-1] < 3:
+            raise ValueError(f"StdImager expects baseImg to have shape (H, W, C>=3). Got {baseImg.shape}")
+
+        baseRGB = baseImg[:, :, :3]
+        baseAOV = baseImg[:, :, 3:] if baseImg.shape[-1] > 3 else None
+
+        return baseRGB, baseAOV
+
+
+    def _CombineRGBAndAOV(self, rgbDelta, rayPos, aovValues, baseImg):
+        baseRGB, baseAOV = self._BaseRGBAndAOV(baseImg)
+
+        if baseRGB is not None:
+            rgbImage = baseRGB + rgbDelta
+        else:
+            rgbImage = rgbDelta
+
+        if aovValues is None or aovValues.shape[1] == 0:
+            if baseAOV is None:
+                return rgbImage
+            return bd.concatenate([rgbImage, baseAOV], axis=-1)
+
+        if baseAOV is None:
+            self._AOVAverageCounts = None
+
+        aovImage = self._IntegrateAOVs(rayPos, aovValues, baseAOV)
+        if baseAOV is not None and baseAOV.shape[-1] > aovValues.shape[1]:
+            aovImage = bd.concatenate([aovImage, baseAOV[:, :, aovValues.shape[1]:]], axis=-1)
+
+        return bd.concatenate([rgbImage, aovImage], axis=-1)
+
+
+    def _EnsureAOVAverageCounts(self, aovCount, baseAOV, schemen):
+        targetShape = (self.horizontalPx, self.verticalPx, aovCount)
+        if (
+            self._AOVAverageCounts is None
+            or self._AOVAverageCounts.shape != targetShape
+        ):
+            self._AOVAverageCounts = bd.zeros(targetShape)
+
+            if baseAOV is not None:
+                baseCount = min(baseAOV.shape[-1], aovCount)
+                for i in range(baseCount):
+                    if schemen[i] == AOVSchema.AVERAGE:
+                        self._AOVAverageCounts[:, :, i] = 1.0
+
+        return self._AOVAverageCounts
+
+
+    def _IntegrateAOVs(self, rayPos, aovValues, baseAOV=None):
+        aovCount = aovValues.shape[1]
+        schemen = self._ResolveAOVSchemen(aovCount)
+        averageCounts = self._EnsureAOVAverageCounts(aovCount, baseAOV, schemen)
+
+        integrated = []
+        baseCount = 0 if baseAOV is None else baseAOV.shape[-1]
+
+        for i, schema in enumerate(schemen):
+            values = aovValues[:, i]
+            sumGrid = bd.zeros((self.horizontalPx, self.verticalPx), dtype=values.dtype)
+            bd.add.at(sumGrid, (rayPos[:, 0], rayPos[:, 1]), values)
+
+            baseChannel = None
+            if baseAOV is not None and i < baseCount:
+                baseChannel = baseAOV[:, :, i]
+
+            if schema == AOVSchema.ADD:
+                if baseChannel is not None:
+                    sumGrid = baseChannel + sumGrid
+                integrated.append(sumGrid)
+                continue
+
+            if schema != AOVSchema.AVERAGE:
+                raise ValueError(f"Unsupported AOV schema: {schema}")
+
+            countGrid = bd.zeros((self.horizontalPx, self.verticalPx), dtype=values.dtype)
+            bd.add.at(countGrid, (rayPos[:, 0], rayPos[:, 1]), bd.ones_like(values))
+
+            previousCounts = averageCounts[:, :, i]
+            if baseChannel is None:
+                baseChannel = bd.zeros((self.horizontalPx, self.verticalPx), dtype=values.dtype)
+
+            totalCounts = previousCounts + countGrid
+            totalSum = baseChannel * previousCounts + sumGrid
+            safeCounts = bd.where(totalCounts > 0, totalCounts, bd.ones_like(totalCounts))
+            avgGrid = bd.where(totalCounts > 0, totalSum / safeCounts, baseChannel)
+
+            averageCounts[:, :, i] = totalCounts
+            integrated.append(avgGrid)
+
+        return bd.stack(integrated, axis=-1)
 
 
     def _ApplyIncidentRayEffects(self, intersectRayBatch, rayPos, radiant, chan, wavelength):
