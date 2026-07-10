@@ -177,6 +177,8 @@ class ImagingSystem:
         iterationCount = 0
         start = time.time()
 
+        sourceSample = 720
+
         if realTimeUpdate:
             plt.ion()
             fig, ax = plt.subplots()
@@ -185,14 +187,14 @@ class ImagingSystem:
         while True:
             targets = self.lens.entrancePupil.GetSamplePoints(512)
 
-            mainRB = self.singleObject.EmitTowards(targets, 2048)
+            mainRB = self.singleObject.EmitTowards(targets, sourceSample)
             mainRB, _mainRP, _reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             self.imager._AOVAverageCounts = beautyAOVAverageCounts
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
             beautyAOVAverageCounts = self.imager._AOVAverageCounts
 
-            alphaRB = alphaStack.EmitTowards(targets, 2048, flareGlare=False)
+            alphaRB = alphaStack.EmitTowards(targets, sourceSample, flareGlare=False)
             alphaRB, _alphaRP, _alphaReflectedRB = self.lens.Propagate(alphaRB, reflection=False)
             alphaRB, _alphaTir, _alphaVig = self.imager.IntersectRays(alphaRB)
             self.imager._AOVAverageCounts = alphaAOVAverageCounts

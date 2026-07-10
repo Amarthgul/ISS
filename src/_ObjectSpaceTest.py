@@ -499,6 +499,7 @@ def SingleImgRens():
     from Util.Globals import RefreshRNG
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
+    print(lens.GetInfo())
     imager = StdImager(horiPx=1920)
     IS = ImagingSystem(lens, imager)
 
@@ -507,7 +508,7 @@ def SingleImgRens():
     FG.LoadFromEXR(r"resources/LeicaFG.exr")
     IS.singleObject = FG
 
-    IS.SingleLayerAlpha(focusDistance=1500, renderTime=2*60, fileName="LeicaSingleNew", flareGlare=False)
+    IS.SingleLayerAlpha(focusDistance=1500, renderTime=10 * 60 * 60, fileName="LeicaSingleNew", flareGlare=False)
 
 
 def ISAnamorphicTest():

@@ -22,3 +22,4 @@
       - **Image2DFlatHighlightExtension**
 
         Takes a flat depth value. It overrides the depth-ray intersection check from `Image2DVariHighlightExtension` and replaced it with a much simpler close form ray-plane intersection solution. 
+

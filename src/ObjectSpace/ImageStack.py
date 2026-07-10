@@ -66,6 +66,8 @@ class ImageStack:
 
         background.AppendAOV(opaChannelName, 1)
         #image.rgbArray = bd.zeros_like(image.rgbArray, dtype=image.rgbArray.dtype)
+
+        # Replace with white to ensure good opacity transition around border
         image.rgbArray = bd.ones_like(image.rgbArray, dtype=image.rgbArray.dtype)
         image.AppendAOV(opaChannelName, 0)
 

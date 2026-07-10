@@ -354,7 +354,7 @@ Sending these points back through the imaging system would then yield an image o
 	<img src="../resources/ReadmeImg/Doc2.5/RenderView.png" width="540">
 </p>
 
-## 2.5.2.3 - Stacked images with varied z-depth
+## 2.5.2.3 - Stacked Images With Varied z-depth
 
 With the ability of rendering a single layer of image with varied z-depth, the next step would be to render a scene with several of these images stacked together. 
 
@@ -362,17 +362,28 @@ A question might arise, especially from those with image editing experience: why
 
 We shall first explicate why alpha is fundamentally incompatible with physical imaging system. Recall how alpha is “preserved” in traditional image editing software. Take Gaussian blur in Photoshop, for example. The kernel is a matrix of values usually in the form of: 
 
-While often taken for granted, it must be emphasized here that, for typical convolution: 
+$$
+ \begin{bmatrix}
+ 0.075 & 0.124 & 0.075 \\
+ 0.124 & 0.204 & 0.124 \\ 
+ 0.075 & 0.124 & 0.075 \\
+\end{bmatrix}
+$$
+
+And this kernel is used to blur out the image. 
+
+While often taken for granted, it has to be made explicit that for typical convolution: 
 
 > The kernel is the same through the entire signal area.
-> 
 
-i.e., regardless of where, the kernel used to convolute the local signal is the exact same as everywhere else. This would then also indicate: 
+
+i.e., regardless of where, the kernel used to convolute the local signal is the exact same as everywhere else. 
+
+Additionally: 
 
 > Taking an integral over the kernel, the result is the same for all kernels.
-> 
 
-Quite often, the integral of the kernel is used to normalize the convoluted value, or applied pre-convolution onto the kernel so that the entries are in decimal. But either way, for a signal valued `1` , the sum of its effect after convolution still adds up to `1` , i.e., signal intensity is conserved through this type of convolution. 
+For example, the demo Gaussian kernel above sums to one. And since it remains the same through every pixel position, each pixel use the same kernel that sums to 1. i.e., signal intensity is conserved everywhere on the image through this type of convolution. 
 
 But neither of the two observations are true for an imaging system. Treat the point spread function (PSF) as kernel, then for one, the shape of the kernel could vary drastically according to the field angle and distance, as shown in the figure below. 
 
@@ -389,16 +400,190 @@ And secondly, these kernels does not sum to the same value. This should be quite
 
 The only way that opacity becomes meaningful in the context of physical imaging is to regard it as **the ratio between foreground and background information weight**. Suppose there are two objects that overlaps each other from the perspective of the imaging system, at their edges, the pixel color is affected 40% from the foreground object and 60% from the background object. It is then fair to say the foreground object has 40% opaqueness at that pixel. But such definition would, again, require a layered rendering algorithm, which brings the topic back to how to render several layers of image objects in the object space, all of which contains depth and alpha information. 
 
-The challenge here is that the plane-line intersection cannot be used, because there is no single plane that the spatial image resides in. Due to the varied depth, the ray may even have more than one intersection with this plane. In other words, there is no close form solution for finding the intersection between a ray and an image with varied depth. 
+The challenge here is that the direct plane-line intersection cannot be used, because there is no single plane that the spatial image resides in. Due to the varied depth, the ray may even have more than one intersection with this plane. In other words, there is no close form solution for finding the intersection between a ray and an image with varied depth. 
 
-However, in chapter 2, a proxy surface encasing method is proposed to calculate the intersection between a ray and an even aspheric surface. It would appear that the only difference between the even aspheric surface and the depth-varied image is that instead of surface sag function, a depth indexing is used. Thus, the intersection between a ray and the image with varied depth here can be simplified as the following two steps:
+There can be three ways to solve this problem. 
+
+**Method 1** is to triangulate the pixels and create a literal 3D mesh. Since 3D intersection between ray and mesh can be solved more easily, this could eliminate the implicit part of the equation. However, readers with computer graphics background could probably see the problems immediately: 
+
+- Gigantic poly count. Even at just UHD 4K, and image has 8 million pixels. And if each pixel is treated more accurately as a quad, the triangle count is going to be even higher. 
+
+- Scattered meshes. Objects in the image may not be a single shell; they could be small islands scattered all around the image. This makes object separation also difficult; a topological group connectivity algorithm will be needed to reconstruct the mesh without adding crosswalks between shells. 
+
+- Transparency implementation. Meshes in themselves cannot represent transparency, so they need to look up the original pixel transparency anyway.  
+
+**Method 2** is to borrow the ASPH proxy surface concept used in the last chapter. It would appear that the only difference between the even aspheric surface and the depth-varied image is that instead of surface sag function, a depth indexing is used. Thus, the intersection between a ray and the image with varied depth here can be simplified as the following two steps:
 
 - Intersecting the ray with two proxy planes.
 - Use the Secant method to iteratively approximate the solution.
 
+**Method 3** treats a varied-depth image as a single-valued depth surface in the camera angular domain. It is intended to be more reliable than method 2, but much cheaper than building a full triangle mesh from every depth pixel like method 1.
+
+The same ray representation is reused here:
+
+$$
+\mathbf{r}(t) = \mathbf{o} + t\mathbf{d}, \quad t > 0
+$$
+
+Where $\mathbf{o}$ is the ray origin and $\mathbf{d}$ is the ray direction. For a sample point $\mathbf{p} = \mathbf{r}(t)$, the method maps the point back to the image angular coordinates:
+
+$$
+\left\lbrace
+\begin{matrix}
+\theta_x = \operatorname{atan2}(-p_x, -p_z) \\
+\theta_y = \operatorname{atan2}(-p_y, -p_z)
+\end{matrix}
+\right.
+$$
+
+And then to normalized image coordinates:
+
+$$
+u = \frac{\theta_x + \theta_{x,\mathrm{half}}}{\theta_{x,\mathrm{fov}}}, \quad
+v = \frac{\theta_y + \theta_{y,\mathrm{half}}}{\theta_{y,\mathrm{fov}}}
+$$
+
+At that image location, the local image depth is bilinearly sampled as $Z(u, v)$. A ray/image intersection is therefore a root of
+
+$$
+F(t) = r_z(t) - Z(u(t), v(t)) = 0
+$$
+
+This is the key difference from the old fixed-step method: the new method is looking for an actual zero crossing of the depth surface instead of only asking  whether a sparse sample happens to be close to the surface.
+
+The valid depth slab is then examined. The method first builds a validity mask:
+
+$$
+\alpha > \epsilon_\alpha,
+\quad
+|Z| < Z_{\mathrm{limit}},
+\quad
+Z \text{ is finite}
+$$
+
+Only valid opaque pixels contribute to the global depth interval:
+
+$$
+z_{\min} = \min Z_{\mathrm{valid}}, \quad
+z_{\max} = \max Z_{\mathrm{valid}}
+$$
+
+Each ray is intersected with this global $z$-slab to get a forward search interval $\left[t _ 0, t _ 1 \right]$ Rays that do not overlap the slab are passed through.
+
+If $z_{\min} = z_{\max}$, the image is locally flat in depth. In that case the method uses the closed-form ray-plane solution:
+
+$$
+t_{\mathrm{hit}} = \frac{z_{\min} - o_z}{d_z}
+$$
+
+This avoids the degenerate case where a fully opaque flat-depth image would have zero slab thickness and accidentally cull nothing.
+
+For any candidate $t$, the method samples the four neighboring image taps. The pixel-center convention is
+
+$$
+x_{\mathrm{img}} = uW - \frac{1}{2}, \quad
+y_{\mathrm{img}} = vH - \frac{1}{2}
+$$
+
+The coordinates are clipped before computing bilinear fractions, so the fractions stay inside $[0, 1]$ at image borders.
+
+Alpha is sampled with ordinary bilinear interpolation:
+
+$$
+\alpha(u, v) = \sum_i w_i \alpha_i
+$$
+
+Depth is sampled only from locally valid opaque taps. Invalid or transparent neighbors receive zero weight:
+
+$$
+\tilde{w}_i =
+\begin{cases}
+w_i, & \alpha_i > \epsilon_\alpha \text{ and } Z_i \text{ is valid} \\
+0, & \text{otherwise}
+\end{cases}
+$$
+
+And the sampled depth is renormalized:
+
+$$
+Z(u, v) =
+\frac{\sum_i \tilde{w}_i Z_i}
+     {\max\left(\sum_i \tilde{w}_i, \epsilon\right)}
+$$
+
+This prevents transparent holes or invalid EXR sentinel depths from bending the interpolated surface near alpha-mask edges.
+
+For non-flat depth fields, the method divides the ray's slab interval into  brackets of iteration steps. It evaluates $F(t)$ at the bracket endpoints and marks a  bracket as a possible hit when both endpoints are locally valid and the residual  changes sign:
+
+$$
+F(t_a)F(t_b) < 0
+$$
+
+Each marked bracket is refined with a fixed number of bisection iterations. At each iteration:
+
+$$
+t_m = \frac{t_a + t_b}{2}
+$$
+
+If $F(t_m)$ has the same sign as $F(t_a)$, the left endpoint is replaced by $t_m$; otherwise the right endpoint is replaced. After refinement, alpha is  sampled at the refined hit position.
+
+The method also checks direct endpoint hits:
+
+$$
+|F(t)| \le \epsilon_F
+$$
+
+so a root exactly on an initial sample is not missed.
+
+Partial opacity remains probabilistic. If a ray finds one or more valid hits with sampled alpha values $\alpha_k$, transmittance is accumulated as
+
+$$
+T = \prod_k (1 - \alpha_k)
+$$
+
+and the final probability to drop the ray is
+
+$$
+\alpha_{\mathrm{acc}} = 1 - T
+$$
+
+The ray survives when
+
+$$
+U \ge \alpha_{\mathrm{acc}}, \quad U \sim \mathcal{U}(0, 1)
+$$
+
+This keeps semi-transparent or antialiased pixels budget friendly: they do not split rays or scale radiance continuously, but they still converge statistically  over many samples.
+
+An example render with stacks of depth-varying images is shown below: 
+
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc2.5/FG.jpg" width="540">
 </p>
+
+## 2.5.2.4 - Single Layer with Opacity 
+
+The concept of opacity only makes sense in optics when understood as "a ratio between foreground and background". So it can be somewhat recreated by using two layers of input images and with some help of AOVs. 
+
+Given a single target image, a flat background located at infinity is created. And both the flat background and target image are appended with an extra AOV channel of arbitrary name. However, the two images are assigned with different values in this AOV, for example, the background is assigned 1 and target image 0. 
+
+The render is then spilt into two routes. On one route, the target image is rendered along; this is used as the output RGB. 
+
+On the other route, both images have their RGB flooded with $(1, 1, 1)$ and send to the renderer. The RGB color is only here to ensure their emissions are even, what really makes opacity is the added AOV. 
+
+Upon reaching the imager, the AOV value is added then divided by total ray hit count. So if a pixel is only hit by rays from the background, it will have a value of 1 in that AOV. Conversely, if a pixel is only hit by rays from the target, its value in that AOV would be 0. 
+
+At the end, the new AOV is treated as the opacity of the whole image, and we would get a _somewhat_ accurate result with opacity. 
+
+<p align="center">
+	<img src="../resources/ReadmeImg/Alpha.png" width="540">
+</p>
+
+However, it was said somewhat accurate instead of totally accurate because physics dictates that there are artifacts that cannot be removed. 
+
+In a strict sense, even an ideal point light source would contribute globally to the image. It is just that outside of a small region its contribution is so small that it becomes practically invisible, but the value is still there. This would appear in the opacity render especially if render time or iteration is set low, in which case the image will have cloud like patterns indicating both target and background has hit every pixel. 
+
+As the sample increases, the values will asymptotically become 0 and 1, the same as how 1e-10 is practically 0 or $0.\dot{9}$ is practically 1. But the values will never truly become boolean, so in some cases it will still cause problems. 
 
 # 2.5.3 - Direct conversion in 3D renderer
 

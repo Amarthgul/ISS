@@ -246,8 +246,15 @@ It is also possible to include a pass of flare rendering using the same lens. Fo
 	<img src="resources/ReadmeImg/LeicaTestFlare.jpg" width="480">
 </p>
 
+The concept of alpha and opacity no longer makes sense in physics, but it is possible to view it as a ratio between foreground and background occupancy. In this way, a single layer image rendering can also be acquired with opacity: 
 
-## Coding Conventions 
+<p align="center">
+	<img src="resources/ReadmeImg/Alpha.png" width="480">
+</p>
+
+(Using opacity in optics is a huge pain, more on this can be seen in 2.5.2.3 of the documentation)
+
+## Coding Conventions
 
 I must admit that there are a lot of inconsistencies in the coding convention here. 
 For example, likely due to my prior habit with `C++` and `C#`, I started the project defaulting to my normal `UpperCaseCamel` naming paradigm, but later I learned that that Python is supposed to be using the `under_score_format`... 
