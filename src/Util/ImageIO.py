@@ -124,8 +124,13 @@ def SaveAsEXR(ary, folder, fileName, *extra_channels, flipHori=False, flipVert=F
             a = bd.asnumpy(a)
         return a
 
-    # Base RGB channel
-    RGB = _to_numpy_f32(ary)
+    ary = bd.asarray(ary)
+    if ary.ndim != 3 or ary.shape[-1] < 3:
+        raise ValueError(f"SaveAsEXR expects base image to have shape (H, W, C>=3). Got {ary.shape}")
+
+    # Base RGB channel. Any latent AOVs carried after RGB are intentionally not
+    # saved here; callers must pass output channels explicitly.
+    RGB = _to_numpy_f32(ary[:, :, :3])
 
     channels = {"RGB": RGB}
 

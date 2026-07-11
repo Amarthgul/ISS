@@ -18,7 +18,7 @@ from Imagers.Standard import StdImager
 from Imagers.PDA import PDA
 from Surfaces.Surface import Surface
 from ObjectSpace.Points import PointsSource
-from ObjectSpace.Images import Image2DFlat
+from ObjectSpace.Image2DFlat import Image2DFlat
 from ObjectSpace.ImageVariDepth import Image2DVariDepth
 from Raytracing.Emission import EmitField, EmitFieldMultispectral
 from Raytracing.Raypath import RayPath
@@ -356,11 +356,14 @@ def MaterialLookUpTest():
 
     line = 'd'
     stats = [
-        [1.56873 ,  63.1],
-        [1.5168  , 64.2],
-        [1.80518 ,  25.5],
-        [1.79063 ,  45],
-        [1.57957 ,  53.7]
+        [1.757,   47.9],
+        [1.62 ,  60.3],
+        [1.67 ,  57.3],
+        [1.773,   49.6],
+        [1.596,   39.2],
+        [1.773,   49.6],
+        [1.689,   31.1],
+        [1.697,   55.6]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
@@ -389,7 +392,7 @@ def CurvTest():
 def EFL():
     from Util.PAEFL import LensPartitionFL
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Vivitar28mmf2Pt.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/OlympusZuiko28mmf2Auto-W.zmx")).GetLens()
 
     # EFL = LensPartitionFL(lens, "d")
     lens.PlotSurfaceData()
@@ -424,58 +427,6 @@ def DefocusTests():
     lens.UpdateLens()
     SpotTesting(lens, objectDistance=13500, focusDistance=1500, computeTime=30 * 60, realTimeUpdate=False, lensName="CanonL")
     SpotTesting(lens, objectDistance=13500, focusDistance=135000, computeTime=30 * 60, realTimeUpdate=False, lensName="CanonL")
-
-
-def NewWavelengthTest():
-    from Util.ColorPDF import ColorPDF
-
-    colorData = bd.array([[1, 0, 0],
-                          [0, 1, 0],
-                          [0, 0, 1],
-                          [1, 0, 0],
-                          [0, 1, 0],
-                          [0, 0, 1],
-                          [1, .5, 0],
-                          [.5, 1, .5],
-                          [0, .5, 1]])
-
-    converter = ColorPDF()
-    wa = converter.ColorToWavelength(colorData, perChannelSample=64)
-
-    # print(wa)
-    RGBack = converter.SpectralResponse(wa[:, 0], wa[:, 1])
-    print(bd.sort(RGBack))
-    converter.PlotDistribution()
-
-
-def FilmTest():
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
-    from Imagers.Technicolor import Technicolor
-    from ObjectSpace.Images import Image2DFlat
-    from Util.Misc import RectPath
-
-    converter = ColorPDF()
-    converter.gainR = 2
-    converter.gainB = 2
-
-    im = Image2DFlat()
-    im.LoadFromEXR(RectPath(r"resources/Results/NewZDepthClose9hr.exr"))
-    im.rgbArray = im.rgbArray/128
-    #im.Show2D()
-
-    f = Technicolor(converter)
-
-    print(f.ImageStats(im.rgbArray))
-
-    # im.rgbArray = f.Halation2D(im.rgbArray)[1]
-    im.rgbArray = f.ApplyGrainAndNoise(im.rgbArray)
-    #im.rgbArray = f.DensityCurve(im.rgbArray)
-
-    print(f.ImageStats(im.rgbArray))
-    # im.Show2D()
-
-    SaveAsEXR(im.rgbArray, r"resources/Results", "Technicolor")
 
 
 def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTime=2*60*60, realTimeUpdate=False):
@@ -695,4 +646,4 @@ def main():
 
 
 if __name__ == "__main__":
-    NewWavelengthTest()
+    EFL()

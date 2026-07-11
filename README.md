@@ -268,17 +268,11 @@ Most of these are either a subset or an extension of existing features...
 
 - Add a pure brute force ASPH solver. 
 
-- Add channel summing in the imager. 
-
-- Add opacity based on image stacking. 
-
 - Add propagation based film grain. 
 
 - Add transform for gamma corrected inputs.
 
 - Finish coatings. 
-
-- Find a way to make the render process dynamic, i.e., use as many hardware resources as possible without clipping the limit.
 
 ## AI 
 
@@ -288,7 +282,7 @@ The core lens construction and ray propagation are AI-free, not because of some 
 ## Known issues 
 
 
-- Close focus (relative close focus with respect to effective focal length) may result in edge ray rejection, visually appears as dark lines around the object border. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
+- Close focus (relative close focus with respect to effective focal length) may result in edge ray rejections and small artifacts. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
 
 - The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
 

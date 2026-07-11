@@ -28,32 +28,6 @@ from Surfaces.Surface import Surface
 
 
 
-
-def AsphTest():
-    SetUnifScale()
-    AddXYZ(70)
-    RemoveBG()
-
-
-    asphS = EvenAspheric(INFINITY, 0.1510, 24, "FD60", -1.0,
-                         [-7.39600E-03, 2.39000E-07, 2.21800E-09, -3.20700E-12, 1.92500E-15])
-    # asphS = EvenAspheric(85.289, 8, 20, "FD60", 0,
-    #                      [0, -1.473089E-06, 1.381523E-10, 2.077557E-11, -7.423427E-14, 1.589502E-16])
-
-    asphS.SetCumulative(2)
-
-    projectRB = EmitField(0, 10, sampleTargets=asphS.SampleFromClearAperture())
-
-    intersections = asphS.Intersection(projectRB)
-    normals = asphS.Normal(intersections[0])
-
-    asphS.DrawSurface(drawProxy=False)
-
-    DrawNormal(intersections[0], normals)
-    DrawPoints(intersections[0])
-    plt.show()
-
-
 def StereoImageDisplay(imageMinSample = 128, realTimeUpdate = True):
 
 
@@ -68,70 +42,6 @@ def StereoImageDisplay(imageMinSample = 128, realTimeUpdate = True):
     RemoveBG()
     SetUnifScale(10000)
     plt.show()
-
-
-def StereoImageTest(imageMinSample = 512, realTimeUpdate = True):
-
-    #bg = Image2DFlat()
-    bg = Image2DVariDepth()
-    bg.distance = 200000
-    #bg.LoadFrom8BitPNG(r"resources/YourTaxReturn.png")
-    bg.LoadFromEXR(r"resources/DepthSceneBG.exr")
-
-    img = Image2DVariDepth()
-    #img.LoadFromEXR(r"resources/allChannels.exr")
-    img.LoadFromEXR(r"resources/DepthSceneMG2.exr")
-    # img.zDepthMappingRange = [2000, 10000]
-    # img.LoadFrom8bit(r"resources/DualTest_RGB.png", r"resources/DualTest_Z.png")
-    print(img.GetAOVNames())
-
-    #img.DrawImage()
-    #plt.show()
-
-
-    lens = Biotar50mmf14()
-    imager = StdImager(lens.BestFocusBFD(5000))
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-    while (True):
-
-        mainRB = img.ReceiveAndEmitTowards(
-            lens.entrancePupil.GetSamplePoints(512),
-            bg.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 1024),
-            1024)
-
-        # mainRB = img.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512),1024)
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-
-        if (realTimeUpdate):
-            im.set_data(ImageConversion(image, flipH=True, maxModifier=0.25))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elpased = time.time() - start
-        ProgressBar(iterationCount / imageMinSample, 100)
-        iterationCount += 1
-
-        if (iterationCount > imageMinSample):
-            image /= 100
-            global FrameCount
-            fn = r"LayerTest"
-            SaveAsEXR(image, r"resources/Results", fn)
-            break
 
 
 def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
@@ -508,7 +418,8 @@ def SingleImgRens():
     FG.LoadFromEXR(r"resources/LeicaFG.exr")
     IS.singleObject = FG
 
-    IS.SingleLayerAlpha(focusDistance=1500, renderTime=10 * 60 * 60, fileName="LeicaSingleNew", flareGlare=False)
+    RefreshRNG(435789)
+    IS.SingleLayerAlpha(focusDistance=1500, renderTime=2 * 60, fileName="leicaSingleEXRSaveTest", flareGlare=False)
 
 
 def ISAnamorphicTest():
@@ -565,7 +476,7 @@ def ISSphericalTest():
 
     # Create or load a lens
     # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Biotar58mmf2.zmx")).GetLens()
     lens.AddSurfaceDefect()
 
     # Instantiate an imager, adjust its attributes
@@ -581,7 +492,7 @@ def ISSphericalTest():
 
     RefreshRNG(25353)
     # Render the scene into an image
-    IS.Render(focusDistance=6800, renderTime=2*60, fileName="SphericalRender", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=6800, renderTime=2*60, fileName="SphericalRenderBiotar", realTimeUpdate=False, flareGlare=False)
 
 
 def ISSpotTest():
@@ -636,6 +547,7 @@ def main():
     # ISAnamorphicTest()
     # PureArtifactTest()
     SingleImgRens()
+    #ISSphericalTest()
     # ISSpotTest()
     # PureArtifactTest()
 
