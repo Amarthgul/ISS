@@ -37,6 +37,8 @@ class Dust(SurfaceModulator):
         """Relative distance from the pupil plane. 0 would be on the pupil plane, 1 would be furthest away from the pupil."""
         self.pupilDist = pupilDist
 
+        self.primaryEffect = 1
+
 
         """Dust data structured as:
             [x_position, y_position, base_size, opacity, 1st_dark_ring_size, max_reach]
@@ -69,7 +71,8 @@ class Dust(SurfaceModulator):
 
         # Reduce the focusing / converging part of the Airy lookup depending on pupil distance. Dust near the pupil plane keeps the original map, while dust further away progressively loses the center-converging component.
 
-        count = int(self.dustCount)
+        count = int(self.dustCount * self.primaryEffect)
+        count = 1 if count < 1 else count
 
         if self.semiDiameter is None:
             dust_x = RNG.rand(count)
@@ -111,6 +114,7 @@ class Dust(SurfaceModulator):
         # For directional change, transfer the relative position of the intersection within the 1st_dark_ring_size to the image space of the _airyNormal, then blend the normal map's direction with the original direction.
 
         if self.dustCount == 0: return exitingRB
+        if self.primaryEffect <= 0.0: return exitingRB
 
         pos_xy = bd.asarray(exitingRB.Position()[:, :2], dtype=PRECISION_TYPE)
         dir_xyz = bd.asarray(exitingRB.Direction(), dtype=PRECISION_TYPE)
@@ -133,7 +137,7 @@ class Dust(SurfaceModulator):
             in_core = dist <= base_size
             if bd.any(in_core):
                 ratio = bd.clip(dist / bd.maximum(base_size, self._eps), 0.0, 1.0)
-                local_block = opacity * (1.0 - ratio ** self._opacityFadePower)
+                local_block = self.primaryEffect * opacity * (1.0 - ratio ** self._opacityFadePower)
                 local_trans = 1.0 - local_block
                 transmission = bd.where(in_core, transmission * bd.maximum(local_trans, self._minTransmission), transmission)
 
@@ -148,7 +152,7 @@ class Dust(SurfaceModulator):
                 # The lookup normal lives in the local dust frame. Use its xy as a tangent-space perturbation.
                 local_xy = sampled[:, :2]
                 ring_ratio = bd.clip(1.0 - dist[in_ring] / bd.maximum(max_reach, self._eps), 0.0, 1.0)
-                weight = opacity * ring_ratio
+                weight = self.primaryEffect * opacity * ring_ratio
 
                 perturb_xy[in_ring] += local_xy * weight[:, None]
                 perturb_w[in_ring] += weight

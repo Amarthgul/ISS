@@ -354,16 +354,10 @@ def MaterialLookUpTest():
     # Example usage:
     excel_file = ReadSheet()
 
-    line = 'd'
+    line = 'e'
     stats = [
-        [1.757,   47.9],
-        [1.62 ,  60.3],
-        [1.67 ,  57.3],
-        [1.773,   49.6],
-        [1.596,   39.2],
-        [1.773,   49.6],
-        [1.689,   31.1],
-        [1.697,   55.6]
+        [1.7919   , 25.55],
+        [1.65222  ,  33.6]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
@@ -391,8 +385,10 @@ def CurvTest():
 
 def EFL():
     from Util.PAEFL import LensPartitionFL
+    from ExampleLenses import ZeissHologon15mmf8
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/OlympusZuiko28mmf2Auto-W.zmx")).GetLens()
+    lens = ZeissHologon15mmf8()
+    #lens = LensFromZmx(RectPath(r"resources/Zmx/Hologon15f8.zmx")).GetLens()
 
     # EFL = LensPartitionFL(lens, "d")
     lens.PlotSurfaceData()

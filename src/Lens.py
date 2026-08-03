@@ -119,7 +119,7 @@ class Lens:
             self.UpdateLens()
 
 
-    def AddSurfaceDefect(self):
+    def AddSurfaceDefect(self, intensity = 1):
         """
         Generate dusts at some lens surfaces. If a surface is aspherical, add onion ring effect as well.
         """
@@ -141,7 +141,7 @@ class Lens:
 
                     # print("Sizes ", size, " opacity ", opacity, " totalC ", count, " pupilDist ", pupilDistance)
 
-                    self.surfaces[i].AddDust(count, pupilDistance, size, opacity)
+                    self.surfaces[i].AddDust(count, pupilDistance, size, opacity, intensity)
 
 
     def FlipElement(self, elementIndex, autoUpdate = True, autoCorrect=False):
@@ -532,7 +532,7 @@ class Lens:
         return info
 
 
-    def PlotSurfaceData(self):
+    def PlotSurfaceData(self, maxPower=None):
 
         fraunhoferLine = "d"
         FLP = 2
@@ -576,12 +576,23 @@ class Lens:
         groupFocalLengths = LensPartitionFL(self, fraunhoferLine) if self.groups else []
         groupFocalLengthValues = [_Scalar(fl) for fl in groupFocalLengths]
 
-        maxGroupFL = max(
-            [abs(fl) for fl in groupFocalLengthValues if np.isfinite(fl)],
-            default=1.0
-        )
-        if maxGroupFL <= _Scalar(AXIAL_ZERO):
-            maxGroupFL = 1.0
+        groupPowers = [
+            1.0 / fl
+            if np.isfinite(fl) and abs(fl) > _Scalar(AXIAL_ZERO)
+            else 0.0
+            for fl in groupFocalLengthValues
+        ]
+        if maxPower is None:
+            normalizationPower = max(
+                [abs(power) for power in groupPowers],
+                default=1.0
+            )
+            if normalizationPower <= _Scalar(AXIAL_ZERO):
+                normalizationPower = 1.0
+        else:
+            normalizationPower = _Scalar(maxPower)
+            if not np.isfinite(normalizationPower) or normalizationPower <= _Scalar(AXIAL_ZERO):
+                raise ValueError("maxPower must be a finite, positive optical power.")
 
         colors = plt.get_cmap("tab10").colors
         figWidth = max(9, surfaceCount * 0.55)
@@ -597,14 +608,11 @@ class Lens:
 
         groupAx.axhline(0, color="0.25", linewidth=0.8)
         for groupIndex, group in enumerate(self.groups):
-            if groupIndex >= len(groupFocalLengthValues):
+            if groupIndex >= len(groupFocalLengthValues) or not group:
                 continue
 
             groupFL = groupFocalLengthValues[groupIndex]
-            if np.isfinite(groupFL):
-                barHeight = groupFL / maxGroupFL
-            else:
-                barHeight = 1.0
+            barHeight = groupPowers[groupIndex] / normalizationPower
 
             color = colors[groupIndex % len(colors)]
             groupAx.bar(
@@ -630,10 +638,10 @@ class Lens:
                 fontweight="bold",
             )
 
-        groupAx.set_ylabel("Group FL")
+        groupAx.set_ylabel("Group power")
         groupAx.set_ylim(-1.15, 1.15)
         groupAx.set_yticks([-1, 0, 1])
-        groupAx.set_yticklabels(["-max", "0", "+max"])
+        groupAx.set_yticklabels(["-max power", "0", "+max power"])
 
         validRI = [(i, v) for i, v in enumerate(riValues) if v is not None]
         if validRI:
@@ -1613,15 +1621,6 @@ class Lens:
         return self.surfaces[index].material.name == "MIRROR"
 
 
-def main():
-
-    test = Lens() 
-
-
-
-
-    
-
 
 if __name__ == "__main__":
-    main()
+    pass

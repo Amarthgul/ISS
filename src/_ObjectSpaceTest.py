@@ -464,35 +464,47 @@ def ISAnamorphicTest():
 
     RefreshRNG(3452345)
     # Render the scene into an image
-    # IS.Render(focusDistance=1000, renderTime=2*60, fileName="AnamorphicRender4", realTimeUpdate=False, flareGlare=False)
-    IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
+    IS.Render(focusDistance=1000, renderTime=20*60, fileName="EvennessTest", realTimeUpdate=False, flareGlare=False)
+    # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
 
-def ISSphericalTest():
+def HeliosComparison():
     from ImagingSystem import ImagingSystem
     from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
     from Util.Globals import RefreshRNG
+    import time
 
 
     # Create or load a lens
-    # lens = LensFromZmx(RectPath(r"resources/Zmx/Elmarit90f2.8.zmx")).GetLens()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Biotar58mmf2.zmx")).GetLens()
-    lens.AddSurfaceDefect()
+    Helios = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
+    Helios.AddSurfaceDefect(0.2)
 
-    # Instantiate an imager, adjust its attributes
+    Biotar = LensFromZmx(RectPath(r"resources/Zmx/Biotar58mmf2.zmx")).GetLens()
+    Biotar.AddSurfaceDefect(0.2)
+
     imager = StdImager(horiPx=1920)
-    #imager.LoadS35Preset()
-    #imager.ScaleWH(0.9)
 
-    # Assemble an imaging system
-    IS = ImagingSystem(lens, imager)
-    # Set the scene
-    IS.object = ExampleStack3D()
-    # Aside from a stack, many other classes in ObjectSpace can also be passed in here
+    BiotarIS = ImagingSystem(Biotar, imager)
+    BiotarIS.object = ExampleStack3D()
+
+    HeliosIS = ImagingSystem(Helios, imager)
+    HeliosIS.object = ExampleStack3D()
 
     RefreshRNG(25353)
-    # Render the scene into an image
-    IS.Render(focusDistance=6800, renderTime=2*60, fileName="SphericalRenderBiotar", realTimeUpdate=False, flareGlare=False)
+    print("Scene rendering example for Helios")
+    HeliosIS.Render(focusDistance=6500, renderTime=11*60*60, fileName="HeliosSceneRender", realTimeUpdate=False, flareGlare=False)
+    time.sleep(15 * 60)
+
+    print("ISO12233 example for Helios")
+    HeliosIS.ISO12233(objectDistance=1500, focusDistance=1500, renderTime=2 * 60 * 60, fileName="HeliosISO12233", realTimeUpdate=False)
+    time.sleep(15 * 60)
+
+    BiotarIS.imager = StdImager(horiPx=6000)
+    HeliosIS.imager = StdImager(horiPx=6000)
+    for d in [1500, 2000, 3000, 4500, 6500, 9000, 12000, 16000, 21000]:
+        print("Focusing at ", d)
+        HeliosIS.SpotGrid(objectDistance=10000, focusDistance=1500, renderTime=10 * 60, fileName="HeliosGrid_" + str(d), realTimeUpdate=False)
+        time.sleep(5*60)
 
 
 def ISSpotTest():
@@ -544,10 +556,9 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    # ISAnamorphicTest()
+    ISAnamorphicTest()
     # PureArtifactTest()
-    SingleImgRens()
-    #ISSphericalTest()
+    # HeliosComparison()
     # ISSpotTest()
     # PureArtifactTest()
 

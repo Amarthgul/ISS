@@ -39,6 +39,11 @@ class ImagingSystem:
         self._transmissionLoss = 0.8
 
 
+        self._sourcePerSample = 512
+
+        self._pupilPerSample = 512
+
+
     def RenderNamePattern(self, rex):
 
         pass
@@ -64,7 +69,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 4096)
+            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), self._sourcePerSample)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
@@ -177,24 +182,22 @@ class ImagingSystem:
         iterationCount = 0
         start = time.time()
 
-        sourceSample = 720
-
         if realTimeUpdate:
             plt.ion()
             fig, ax = plt.subplots()
             im = ax.imshow(ImageConversion(image, flipH=True))
 
         while True:
-            targets = self.lens.entrancePupil.GetSamplePoints(512)
+            targets = self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample)
 
-            mainRB = self.singleObject.EmitTowards(targets, sourceSample)
+            mainRB = self.singleObject.EmitTowards(targets, self._sourcePerSample)
             mainRB, _mainRP, _reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             self.imager._AOVAverageCounts = beautyAOVAverageCounts
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
             beautyAOVAverageCounts = self.imager._AOVAverageCounts
 
-            alphaRB = alphaStack.EmitTowards(targets, sourceSample, flareGlare=False)
+            alphaRB = alphaStack.EmitTowards(targets, self._sourcePerSample, flareGlare=False)
             alphaRB, _alphaRP, _alphaReflectedRB = self.lens.Propagate(alphaRB, reflection=False)
             alphaRB, _alphaTir, _alphaVig = self.imager.IntersectRays(alphaRB)
             self.imager._AOVAverageCounts = alphaAOVAverageCounts
@@ -289,7 +292,7 @@ class ImagingSystem:
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
-            print(mainRB.ToString())
+            # print(mainRB.ToString())
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=True)
 
@@ -312,6 +315,56 @@ class ImagingSystem:
 
             recorder = time.time()
 
+
+    def ISO12233(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False):
+        from ObjectSpace.Image2DFlat import Image2DFlat
+
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.Update()
+
+        ISO12233C = Image2DFlat()
+        ISO12233C.distance = objectDistance
+        ISO12233C.horizontalAoV = self.lens.GetAoV()[0] * 2
+        ISO12233C.LoadFrom8bit(r"resources/ISO12233-4k.png")
+
+        image = self.imager.AcquireEmpty()
+
+        iterationCount = 0
+        start = time.time()
+
+        if (realTimeUpdate):
+            plt.ion()  # Turn on interactive mode
+            fig, ax = plt.subplots()
+            im = ax.imshow(ImageConversion(image, flipH=True))
+
+        # Mein render Zyklus
+        while (True):
+            mainRB = ISO12233C.ReceiveAndEmitTowards( self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), None,  self._sourcePerSample)
+            mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
+            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
+
+            image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+            if realTimeUpdate:
+                im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
+
+            elapsed = time.time() - start
+            iterationCount += 1
+
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                # iterationCount
+                image /= (iterationCount / self._transmissionLoss)
+                fn = fileName
+                SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
+
+                break
+
+            recorder = time.time()
 
 
     # ==================================================================

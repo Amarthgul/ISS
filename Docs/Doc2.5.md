@@ -563,9 +563,9 @@ An example render with stacks of depth-varying images is shown below:
 
 ## 2.5.2.4 - Single Layer with Opacity 
 
-The concept of opacity only makes sense in optics when understood as "a ratio between foreground and background". So it can be somewhat recreated by using two layers of input images and with some help of AOVs. 
+The concept of opacity only makes sense in optics when understood as "a ratio between foreground and background". So it can be somewhat recreated by using two layers of input images and with a little help of AOVs. 
 
-Given a single target image, a flat background located at infinity is created. And both the flat background and target image are appended with an extra AOV channel of arbitrary name. However, the two images are assigned with different values in this AOV, for example, the background is assigned 1 and target image 0. 
+To render a single image with opacity, a flat background located at infinity is created. Both the flat background and target image are appended with an extra AOV channel of arbitrary name. However, the two images are assigned with different values in this AOV channel, for example, the background is assigned 1 and target image 0. 
 
 The render is then spilt into two routes. On one route, the target image is rendered along; this is used as the output RGB. 
 
@@ -579,11 +579,11 @@ At the end, the new AOV is treated as the opacity of the whole image, and we wou
 	<img src="../resources/ReadmeImg/Alpha.png" width="540">
 </p>
 
-However, it was said somewhat accurate instead of totally accurate because physics dictates that there are artifacts that cannot be removed. 
+However, it is only _somewhat_ accurate instead of totally accurate because physics dictates that there are artifacts that cannot be removed. 
 
-In a strict sense, even an ideal point light source would contribute globally to the image. It is just that outside of a small region its contribution is so small that it becomes practically invisible, but the value is still there. This would appear in the opacity render especially if render time or iteration is set low, in which case the image will have cloud like patterns indicating both target and background has hit every pixel. 
+In a strict sense, even an ideal point light source would contribute globally to the image. It is just that outside of a small region its contribution is so tiny that it becomes practically invisible. Think of an Airy disk, after the first ring the magnitude falls drastically and quickly becomes near invisible, but it is still there. This would appear in the opacity render especially if render time or iteration is set low, in which case the image will have cloud-like patterns indicating both target and background have reached the imager. 
 
-As the sample increases, the values will asymptotically become 0 and 1, the same as how 1e-10 is practically 0 or $0.\dot{9}$ is practically 1. But the values will never truly become boolean, so in some cases it will still cause problems. 
+As the sample increases, the values will asymptotically become 0 and 1 (or whatever ideal transition it is), the same as how 1e-10 is practically 0 or $0.\dot{9}$ is practically 1. But the values will never truly become boolean, so in some special cases of post-production it might still cause problems. 
 
 # 2.5.3 - Direct conversion in 3D renderer
 

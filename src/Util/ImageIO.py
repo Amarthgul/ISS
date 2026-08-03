@@ -13,11 +13,9 @@ def ImageConversion(ary, bitDepth=8, maxModifier=1, normalizer=None, rotate=True
     """
     Convert the float representation of an image to an uint8 image.
     """
-    # print(bd.max(ary))
-    maxValue = bd.max(ary) * maxModifier 
-
     bits = 2.0**bitDepth-1
-    scaleRatio = bits / (maxValue if (normalizer is None) else normalizer + NEAR_ZERO)
+    scaleBase = (ONE if normalizer is None else normalizer) * maxModifier
+    scaleRatio = bits / (scaleBase + NEAR_ZERO)
     ary = bd.clip(ary*scaleRatio, 0, bits) 
 
     if rotate:
