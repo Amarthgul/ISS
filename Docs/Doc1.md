@@ -1,11 +1,13 @@
 
 # 1.1 - Rise of the “vintage look”
 
-While this wiki is not a photography/contemporary history class, some camera and lens design history would help explaining why vintage lens have gained popularity in recent years. 
+While this documentation is not a photography/contemporary history class, some camera and lens design history would help explaining why vintage lens and the vintage aesthetic have gained noticeable popularity in recent years. 
+
+Also, I have the habit of using `-` long before LLM became a thing, it really is my kink, not the result of AI. 
 
 ## 1.1.1 - Dass alle unsere Erkenntnis mit der Erfahrung anfange
 
-During the 19th and early 20th century, 8x10, 5x7, and 4x5 were the common photography formats. These numbers represent the size of the negative in inches, which is generally larger than the entire body of a modern digital camera. Large negative requires large cameras and large lenses, also expensive developing processes. Taking a photo was thus a slow and prohibitive process. 
+During the 19th and early 20th century, 8x10, 5x7, and 4x5 were the common photography formats. These numbers represent the size of the negative in inches, which in comparison is larger than the entire body of a modern digital camera. Large negative requires large cameras and large lenses, and also a slow and expensive developing processes. Taking a photo was thus a careful and prohibitive process. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/image.png" width="360">
@@ -16,19 +18,19 @@ $$
 $$
 
 
-The cost of taking photos brought some problems, 1 photo in Daguerreotype was about $81.50 to $195.00 in modern standard (alice). Motion picture requires taking images in rapid succession, which, apparently, cannot afford to shoot film at the size and price rate of still photos.
+The cost of taking photos brought some problems, A single shot in Daguerreotype translates to about \$81.50 to \$195.00 when accounting for modern inflation (alice). For still photography, this was somewhat okay, but motion picture would never have deemed this as acceptable. 
 
-To solve this, William Kennedy Dickson came up with a small and perforated film gauge in 1889. Using gears in the camera to bite into the perforations and let the film run vertically through the camera. The image area of this film, when shooting at the standard academy aspect ratio, is roughly 146 times smaller than a single 8x10 film, drastically reducing the cost. Because this film type has a width of 35mm, it is also referred to as the 35mm film. Later, Kodak popularized the name “135 film” as another name for the 35mm motion picture film.
+To solve this, William Kennedy Dickson came up with a small and perforated film gauge in 1889. Using gears in the camera to bite into the perforations and let the film run vertically through the camera. The image area of this film, when shooting at the standard academy 4:3 aspect ratio, is roughly 146 times smaller than a single 8x10 film, drastically reducing the cost. Because this film type has a width of 35mm, it is also referred to as the 35mm film. Later, Kodak popularized the name “135 film” as an alias for the 35mm motion picture film format.
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/image 1.png" width="360">
 </p>
 
-In 1913, Oskar Barnack put 35mm motion picture film horizontally in a still camera, with a 3x2 aspect ratioed gate, this becomes the first 135 camera. The cameras that bear the traits of his invention have been referred to as Barnack camera ever since, these traits include: 
+In 1913, Oskar Barnack put 35mm motion picture film horizontally in a still camera, with a 3x2 aspect ratio gate, which became the first 135 camera. The cameras that bear the traits of his invention have been referred to as Barnack camera ever since, these traits include: 
 
-- **Dial winder.** Barnack cameras tend to use two dials, one for advancing the film after each shot, anther for rewinding the film.
-- **Take up spool to attach the film lead**. The film roll attaches onto a take up spool. When the advance dial is rotated, the spool drags the film forward into next frame.
-- **Removable bottom plate**. Film loading are typically done by removing the bottom plate, connecting the film onto the take up spool, pushing them into the back, then reattaching the bottom plate.
+- **Dial winder.** Barnack cameras tend to use two dials, one for advancing the film after each shot, another for rewinding the film.
+- **Take-up spool to attach the film lead**. The film roll attaches onto a take-up spool. When the advance dial is rotated, the spool drags the film forward into next frame.
+- **Removable bottom plate**. Film loading are typically done by removing the bottom plate, connecting the film onto the take-up spool, pushing them into the back, then reattaching the bottom plate.
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/image 2.png" width="360">
@@ -39,11 +41,15 @@ $$
 \textsf{An existing Barnack camera used by Oscar Barnack himself (Kosmo Foto)}
 $$
 
-The Barnack is a quite straightforward camera design. It attaches the lens onto a camera body so that it can project the image directly onto the film, effectively miniaturizing a large format camera. Concealing the film in a canister also allowed the camera to take several dozens of images with one roll of film, a significant jump from large format. But this means the canister must remain inside and the user cannot use the viewing glass to see the composition like in large format cameras.
+The Barnack is a quite straightforward camera design. It attaches the lens onto a camera body so that it can project the image directly onto the film, effectively miniaturizing a large format camera. Concealing the film in a canister also allowed the camera to take several dozens of images with one roll of film, a significant jump from large format. 
 
-As a result, there is no way of knowing what the image looks like and where the lens is currently focusing at. Checking the focus can only be done by meter taping or by user estimation based on the focus marking on the lens, the latter is commonly known now as *zone focus*.
+However, having the film canister and the film inside the camera means that the user cannot use the viewing glass to see the composition like in large format cameras - they actually could not know for sure what they are taking pictures of. 
 
-Another way to find the proper focus distance is by borrowing external optical devices, such as a coincidence rangefinder. These devices use trigonometry to find the distance of objects, which can then be used to focus the lens.
+Additionally, checking the focus is also quite troublesome. For the original Barnack design, there were three ways to check the focus of the lens: 
+
+- Tape meter it. 
+- User estimation based on the focus marking on the lens (commonly known now as *zone focus*).
+- Use an external optical devices, such as a coincidence rangefinder. These devices use trigonometry to find the distance of objects, which can then be used to turn and focus the lens.
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/image 3.png" width="360">
@@ -72,15 +78,14 @@ $$
 \textsf{The lens blocked part of the viewfinder. (Rockwell)}
 $$
 
-For these reasons, it made sense that single lens reflex (SLR) cameras gradually became photographers' new favorite as technology developed. 
+For these reasons, it makes sense that single lens reflex (SLR) cameras gradually became photographers' new favorite as technology developed (like dynasties, there were several companies whose fate was closely tied to these technological changes, I wish there are more spaces for these stories). 
 
 As the name suggests, SLR incorporates a reflective mirror between the lens and the image plane. This mirror reflects the image upward into a focus screen, allowing photographers to see exactly what the lens sees.
 
-The mirror flips the image upside down. Since the image is already inverted when it exits the lens, this flipping corrects the vertical orientation. 
+There are some trivia about the orientation of the image seen by the user. The mirror flips the image upside down. Since the image is already inverted when it exits the lens, this flipping corrects the vertical orientation.
+However, the image remains reversed left to right with just the mirror. Later SLRs solved this by adding a prism with a ridge at the top, this ridge flips the left-right direction and thus make the image seen from the finder to match ordinary human vision. So, what the photographers see in the viewfinder is precisely what they'll capture _(ideally, in practice the prism does not always provide 100% view coverage)_.
 
-However, the image remains reversed left to right with just the mirror. Later SLRs solved this by adding a prism with a ridge at the top, correcting the horizontal orientation to match normal vision. This means what photographers see in the viewfinder is precisely what they'll capture (ideally, in practice the prism does not always provide 100% view coverage).
-
-Additionally, since the viewfinder now looks directly through the lens (TTL) rather than beside it, the size restrictions of rangefinder cameras no longer apply. SLR lenses can be built in any size and weight, allowing for greater flexibility in both focal length and maximum aperture designs.
+Additionally, since the viewfinder now looks directly **t**hrough **t**he **l**ens (TTL) rather than next to it, the size restrictions of rangefinder cameras no longer apply. SLR lenses can be built in any size and weight, allowing for greater flexibility in both focal length and maximum aperture designs.
 
 But the transition from rangefinder to SLR was not without sacrifice, some lens designs, wide angle lenses particularly, were drastically limited for SLR cameras. 
 
@@ -96,13 +101,19 @@ SLR lenses, on the other hand, completely lost this privilege. The space between
 	<img src="../resources/ReadmeImg/Doc1/TelecentricityComparasion.jpg" width="720">
 </p>
 
-The figure above shows the optical layout of 4 lenses of the same 35mm focal length for 135 cameras, differentiated only by camera system and maximum aperture. The left column are 2 lenses with a maximum aperture f/1.4, and the right f/2.8. The top row are lenses designed for SLR camera, and the bottom two for rangefinder cameras. 
+The figure above shows the optical layout of 4 lenses of the same 35mm focal length, differentiated only by camera system and maximum aperture. The left column are 2 lenses with a maximum aperture f/1.4, and the right f/2.8. The top row are lenses designed for SLR camera, and the bottom two for rangefinder cameras. It is quite obvious how the rangefinder lenses are significantly smaller than SLR lenses at similar settings. 
 
-The rangefinder lenses adopted a mostly symmetric design around the aperture stop. In comparison, the SLR lenses for this focal length almost universally chose the inverse telephoto arrangement with the signature negative group at the front in order to extend the exiting rays to reach the image plane over a longer distance. As a result, SLR lenses at wider angles have to use more and often larger elements to achieve what rangefinder lenses could do with fewer and smaller elements. 
+Optically (this is the paragraph you can ignore), lenses whose focal length is smaller than the size of the mirror chamber have to place their rear principal plane outside the lens. This is impossible to achieve with only positive-powered lens groups. To do this, the ray have to be diverged first before being focused again, which demands a negative-powered group at the front before entering the positive-powered rear group. This is the core idea of retrofocus design, and is the reason why SLR wide angle lenses have to have that negative front. 
 
-The core of this difference is caused by the angle of the exiting rays, or the position of the exit pupil. The closer the exit pupil is to the image plane, the more oblique the exiting rays. With a small BFD, rangefinder lenses enjoys a full degree of freedom on the position of the exit pupil. But for SLR lenses, the exit pupil have to be further away from the image plane in order for the exiting rays to be projected through the mirror chamber and reach the image plane. 
+Coincidently, this power distribution also explained a shift in popular lens paradigm. The "Sonnar" type is one of the most popular lens design paradigm for rangefinder cameras, but since its optical power concentrate heavily at the front half, the principal plane is often sitting closer to the front of the lens. This design means that for normal focal lengths, Sonnar often cannot create enough clearance for the mirror. 
 
-One example of the effect of exit pupil is the shift of normal focal length design paradigm. When rangefinder was the mainstream, Sonnar was a popular optical design paradigm for fast normal focal length lenses. However, the Sonnar design often features highly oblique exiting rays, which requires a short BFD and makes it hard to compensate when put on SLR. This gave rise to the double Gauss and the later Planar design, which is arguably the most famous optical design paradigm.
+In comparison, another paradigm, "Planar", allows a much more flexible power distribution, and thus have become the single most popular paradigm for normal focal lengths. This paradigm have seen arguably the three most influencial lenses in consumer photography history: 
+
+- **Canon EF 50mm f/1.8**, _the Nifty Fifty_. A masterclass on how to use the most easy to process materials to deliver image quality on par with competitor's high-end products, while making sure it works well with digital camera autofocus and could be cheaply manufactured with little to no deviance. 
+
+- **Leica Summicron 50mm f/2**. A monster of a lens that willing gave up 5 lens design variables (4 radii and 1 material) but still have a performance so good that it stand tall for over forty years. 
+
+- **Zeiss Planar T\* 50mm f/1.4**. Every lesson in double gauss history (power spilt, Ultron doublet, etc.) rolled into a single fast-lens package, somehow still highly affordable. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/SonnarPlannarComparasion.png" width="540">
@@ -255,13 +266,13 @@ $$
 \textsf{Before and after of a lens rehousing (Rhodes, Phil)}
 $$
 
-A very popular vintage lens used in cinema production is the Helios-44, a soviet version of the Zeiss Biotar 58mm f/2 from Germany. It was used in the new _Batman_, and _Dune Part II_. 
+Among the many vintage photographic lenses, a very popular one used in cinema production is the Helios-44, a soviet copy of the Zeiss Biotar 58mm f/2 originally designed in Germany (postwar Soviet and German landscape for camera and leases is another big story). It was used in the new _Batman_, and _Dune Part II_, and is also widely sought after for its "swirly" look. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/iw3zwvh4y2fb1.jpg" width="720">
 </p>
 
-The swirl is not exclusively to vintage lenses, but it is certainly a welcoming trait. Shogun primarily used newly produced modern lenses, but these lenses was designed specially to create a swirly background. 
+The swirl is not exclusively to vintage lenses, but it is certainly a welcoming trait. The 2024 TV show _Shogun_ primarily used newly produced modern lenses, but these lenses was designed specially to create a swirly background. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/shogun-bokeh.jpg" width="720">
@@ -298,9 +309,12 @@ Aside from realistic rendering, cartoon and stylized animation also have picked 
 
 # 1.2 - You can(not) replicate
 
-(Optical material availability)
+There are, however, some problems that is brewing (by the time you read this, it might already be in discussion). 
 
-(Post production)
+For one, vintage lens, by definition, is no longer in production. It is only a matter of time before they go extinct or become inaccessible for those who want them. 
+As such, it may happen that after many years, a filmmaker wanting to shot their work on a certain lens or film stock find that thing has already become a museum piece with no loaning option. 
+
+The second problem is in post-production, especially visual effects. The computer graphics have been operating under the ideal pinhole camera model the entire time, and the patched camera effects, such as depth of field, are also idealized. For the artists to match the computer generated images with live action footage shot on some vintage optics, the most prevalent way currently is based on eyeballing the difference - not a great plan.
 
 As an example, in *Rebel Moon*,  Zack Snyder used vintage Canon and Leica lenses as the taking lens, then putting anamorphic adapters in front. This resulted in highly distorted image edges and extreme flares. In the shot below, however, the CGI background showed no vignette, no distortion and no aberration: 
 
@@ -316,14 +330,11 @@ In a similar setup of vintage Cooke SP spherical lens with LOMO anamorphic front
 
 In comparison, the CGI background from the *Rebel Moon* apparently lacks the optical character. In fact, given the lens combination, it is physically impossible for such anamorphic setup to have a rendering as prefect as the shot shown. 
 
-However, the visual effect team behind Rebel Moon did try to replicate the optical effect. The team shot several bokeh chart, distortion chart to guide the post artists adjusting the CGI sequences. 
+However, the visual effect team behind Rebel Moon **did** try to replicate the optical effect. The team shot several charts recording the bokeh and distortion of the lenses to guide the post artists, but such guidance is still, at its core, an assisted eyeballing. A single bokeh, for example, is affected by where the lens is focusing, where is the light source, what is the aperture setting, where is that light source imaged (its field angle and height), and the rigs used on set in front of the camera. To ask the artists to eyeball something like this is effectively asking them to precisely pinpoint a location in a space with at least 6 dimensions - even Nolan cannot do that. 
 
-Now it becomes necessary to enter the technical part of optics. From the aspect of optical imaging, an image is the sum of all the light sources and their point spread function on the imager. 
+From the aspect of optical imaging, an image is the sum of all the light sources and their point spread function (PSF) on the imager. The PSF is affected by virtually every single part in an imaging system; not just the lens, but also things in the object space, the cine rigs, the filters, the camera sensor, etc. But the effects these component have been known and can be mathematically modelled. So if they are correctly simulated, it would then be possible to yield a correct PSF. And since an image is the sum of all the PSF of emission sources from the object space, it would logically follow that the whole image will also be accurate. 
 
-(EXPLAIN PSF)
-
-For optical imaging, the point spread function of a lens takes many parameters, include the spectral intensity of the light source, the position of the light source, the focus distance of the lens, the aperture opening of the lens, 
-
+This is the philosophy of the framework: instead of trying to identify individual image-wise phenomena, treat them as the result of a process and model that process. In this way using small scale accuracies to create a globally accurate result with emergent qualities. 
 
 
 ## References 

@@ -21,7 +21,7 @@ Additionally, it could also:
 
 The novelty of the thesis is that, unlike most rendering applications, **_the core concept here is based on relay imaging_** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like a postproduction edit effect. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D postproduction composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
-This repo as it is now can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the documentations linked below, use your technical team and AI to rewrite it in a way that fits your software packages and pipeline.
+This repo can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the documentations linked below, use your technical team and AI to rewrite it in a way that fits your software packages and pipeline.
 
 - [1 - General Background](Docs/Doc1.md)
 
