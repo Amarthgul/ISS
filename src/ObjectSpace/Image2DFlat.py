@@ -50,6 +50,7 @@ class Image2DFlat(Image2D):
 
         self._Update()
 
+
     def LoadFrom8BitPNG(self, imgPath):
         # Read and save the original
         imgPath = RectPath(imgPath)
@@ -62,6 +63,7 @@ class Image2DFlat(Image2D):
         self._fileMaster = self._fileMaster.convert("RGB")
 
         self._Update()
+
 
     def SetupTransitionTest(self, rotateDegree=45, scale=2):
         """
@@ -80,13 +82,14 @@ class Image2DFlat(Image2D):
 
         self._GeneratePointSources()
 
+
     def LoadFromEXR(self, imgPath):
         """
         Load only the RGB info from an EXR image. Other channels are ignored.
         """
         exrPath = RectPath(imgPath)
 
-        exr = OpenEXR.InputFile(imgPath)
+        exr = OpenEXR.InputFile(exrPath)
 
         # EXR header tells us the image size
         header = exr.header()
@@ -110,6 +113,11 @@ class Image2DFlat(Image2D):
         # Stack to H×W×3
         rgb = bd.stack([r, g, b], axis=-1)
         self.rgbArray = bd.stack([r, g, b], axis=-1)
+
+
+    def EmitTowards(self, targets, sampleCount, flareGlare=False):
+        return self.ReceiveAndEmitTowards(targets,  incidents=None, sampleCount= sampleCount, useHighlightSources = flareGlare)
+
 
     def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64, useHighlightSources=False):
         """

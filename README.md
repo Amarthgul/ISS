@@ -39,6 +39,8 @@ This repo as it is now can be viewed as an abridged and open-source version of [
 
   - [2.6 - Imager](Docs/Doc2.6.md)
 
+  - [2.7 - Imaging System](Docs/Doc2.7.md)
+
 An older version of the documentation is also held on [Notion](https://muddy-mouse-6bd.notion.site/2-Geometric-Optics-162ee08ae1108055a5e0d884d1a1cc02). While lagged behind, it supports the `\tag{}` grammar and is thus mildly more helpful for human readers to understand the algorithms. 
 
 ## Features 

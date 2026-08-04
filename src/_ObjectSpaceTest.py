@@ -464,7 +464,7 @@ def ISAnamorphicTest():
 
     RefreshRNG(3452345)
     # Render the scene into an image
-    IS.Render(focusDistance=1000, renderTime=20*60, fileName="EvennessTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=1000, renderTime=4*60, fileName="EvennessTest4MinNewExp", realTimeUpdate=False, flareGlare=False)
     # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
 
