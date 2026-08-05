@@ -1,6 +1,6 @@
 # ISS - Imaging System Simulation
 
-This repo is the proof of concept implementation of [my](https://www.amarthchen.com/nerdy-stuff/imaging-system-simulation) thesis title **A Framework for Imaging System Simulation**, which seeks to create a framework capable of simulating an imaging system consists of at least:
+This repo is the proof of concept implementation of [my](https://www.amarthchen.com/nerdy-stuff/imaging-system-simulation) [thesis](http://rave.ohiolink.edu/etdc/view?acc_num=osu1776026221196068) title **A Framework for Imaging System Simulation**, which seeks to create a framework capable of simulating an imaging system consists of at least:
 
 - An **object space** from which lights are emitted. 
 - A **lens** that bends the incoming lights.
@@ -276,15 +276,16 @@ Most of these are either a subset or an extension of existing features...
 
 - Finish coatings. 
 
+- Finish MLA and CFA. 
+
 ## AI 
 
-The core lens construction and ray propagation are AI-free, not because of some moral standard, but because AI was not good enough when I wrote them. Later modules have seen much more use of AI, mostly in a "design by contract" style, as AI is asked to complete a method that fulfills certain tasks, which they perform quite well. 
+The core lens construction and ray propagation are AI-free, not because of some moral standard, but because AI was not good enough when I wrote them. Later modules have seen much more use of AI, mostly in a "design by contract" style, as AI is asked to complete a method that has arguments and return already defined, which they perform quite well. 
 
 
 ## Known issues 
 
-
-- Close focus (relative close focus with respect to effective focal length) may result in edge ray rejections and small artifacts. This is likely caused by the implementation calculating the location of the scene from first vertex instead of the principal point. 
+- Close focus (relative close focus with respect to effective focal length) may result in edge ray rejections and small artifacts. This is likely caused by the implementation currently calculating the location of the scene from first vertex instead of the principal point. 
 
 - The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
 

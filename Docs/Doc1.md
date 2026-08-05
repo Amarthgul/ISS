@@ -111,7 +111,7 @@ In comparison, another paradigm, "Planar", allows a much more flexible power dis
 
 - **Canon EF 50mm f/1.8**, _the Nifty Fifty_. A masterclass on how to use the most easy to process materials to deliver image quality on par with competitor's high-end products, while making sure it works well with digital camera autofocus and could be cheaply manufactured with little to no deviance. 
 
-- **Leica Summicron 50mm f/2**. A monster of a lens that willing gave up 5 lens design variables (4 radii and 1 material) but still have a performance so good that it stand tall for over forty years. 
+- **Leica Summicron 50mm f/2**. A monster of a lens that willing gave up 5 lens design variables (4 radii and 1 material) but still have a performance so good that it stand tall for over forty years before seeing a successor. 
 
 - **Zeiss Planar T\* 50mm f/1.4**. Every lesson in double gauss history (power spilt, Ultron doublet, etc.) rolled into a single fast-lens package, somehow still highly affordable. 
 
@@ -123,7 +123,8 @@ $$
 \textsf{Comparasion of a Sonnar design (top) and a Planar design (bottom).}
 $$
 
-A more extreme lens design example would be the famous Zeiss Hologon 15mm f/8. This lens uses only 4 elements in 3 groups to achieve a remarkable sharpness with virtually no distortion. But such oblique angles can only be achieved on rangefinder cameras *(in fact, these angles also makes this lens performing badly on digital sensors, as will be discussed later)*. 
+In terms of lens design and adapting onto modern cameras, 
+a more extreme example would be the famous Zeiss Hologon 15mm f/8. This lens uses only 4 elements in 3 groups to achieve a remarkable sharpness with virtually no distortion. But such oblique angles can only be achieved on rangefinder cameras *(in fact, these angles also makes this lens performing badly on digital sensors, as will be discussed later)*. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/NonTele.png" width="480">

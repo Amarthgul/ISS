@@ -282,7 +282,7 @@ This form of twin elements cemented together is commonly referred to as a double
 
 # 2.4.5 - Ray Transport
 
-A fully defined lens here finally enabled us to starting propagating rays through it. The whole process can be described as follow:
+A fully defined lens here finally enabled us to start propagating rays through it. The whole process can be described as follow:
 
 1. Create object space emission sources (see chapter 2.5)
 2. Define an emission target, this can be either the entrance pupil or the first surface. 
@@ -293,6 +293,8 @@ A fully defined lens here finally enabled us to starting propagating rays throug
     3. Using intersection and normal to calculate refraction and reflection with respect to polarization (see chapter 2.2). 
     4. For refractive system, mark the reflected rays in case flare is needed, and store the reflected rays in a basket for future use. 
 5. After the rays exit the lens system, calculate their intersection and reaction on the imager, convert wavelengths and radiance into color (see chapter 2.6)
+
+More on this can be seen in chapter 2.7. 
 
 # 2.4.6 - Stray rays and internal reflections
 

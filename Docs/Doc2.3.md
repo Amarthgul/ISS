@@ -1,6 +1,6 @@
 # 2.3 - Surface
 
-A lens surface is defined by 3 key parameters: 
+A lens surface is usually defined by 3 key parameters from the perspective of engineering: 
 
 - **Radius** $r$
 The surface curvature. A positive value means the surface is convex with respect to the object space direction; a negative value means the surface is concave with respect to the object space direction.
@@ -620,6 +620,12 @@ The image below shows the bokeh of 5 spots at different fields, with both onion 
 </p>
 
 Do know that in the image above, the light sources are ideal point lights with a precise location and no size. In almost all scenarios, the light source is not an ideal point with no volume or area, so the onion rings and dusts will be blurred and evened out, thus becoming far less obvious. 
+
+## 2.3.7 - Transform 
+
+There is little to be discussed. Since the rays are represented as vectors, and calculations are done with matrix operations, we could use the same space transform in computer graphics here and convert calculations from global coordinate into local coordinate, or vice versa. 
+
+In this way, a de-centered lens can be represented by having a translational matrix that is being applied before and after the ray calculation. 
 
 ## Reference 
 

@@ -22,8 +22,30 @@ For example, the smallest component in the object space is a point source. In sp
 From the perspective of the imaging system, we care not what exactly is in the object space. All that is needed is to ask the residents inside the object space to provide ray emissions. 
 
 
+## 2.7.2 - Running the System 
 
-## 2.7.2 - Restoring Input Brightness 
+While this was briefly mentioned in 2.4.5 - Ray Transport, here the steps for running the system can be further expanded. 
+
+1. **Create emission sources in the object space**.
+  This can be a handful of points, or large collections of them build from input images. 
+2. **Define an emission targets**.
+  For efficiency this can be the entrance pupil, whose shape is connected to the diaphragm. If a more comprehensive flare is desired, this can also be set as the front surface. 
+3. **Iterate through all the things in the object space**. 
+  For each source, supply them with the target, and ask the source to **emit rays** towards all of these targets. From this point onward, explicit RGB values will be gone, replaced with only wavelengths and polarized radiance. 
+4. **Send the emitted rays into the lens section**. 
+  Within the lens, iterate through the components of the lens system. For each component:
+    1. Calculate initial intersection between the component and the rays, if any. 
+    2. Perform ray cull or other boolean operations if needed. Culled rays are sometimes marked as _vignetted_. 
+    3. For refractive and reflective surfaces, use the intersections to calculate corresponding surface normals. 
+    4. Using intersection and normal to calculate refraction and reflection with respect to polarization. 
+    5. For refractive system, mark the _reflected_ rays and store them in a separate basket for future use. 
+    6. Examine and perform whatever calculations needed for the _vignetted_ and _reflected_ rays. 
+5. After the rays exit the lens system, calculate their real intersections with the imager. 
+6. Given the intersections, map them onto individual picture elements (pixels, in the case of ideal image plane). 
+7. Deposit the radiance into the RGB channels according to the wavelength and the set interpretation. 
+
+
+## 2.7.3 - Restoring Input Brightness 
 
 For the best efficiency and to exploit the Monte Carlo process, every part that can be approximated asymptotically were done that way. 
 
@@ -66,5 +88,5 @@ $$
 I_{out} = \frac{I_{raw} \cdot n}{C \cdot m}
 $$
 
-Note that even with this normalization, the output may still be a little bit of difference compared to the original. This is often caused by several reasons, the lens will have transmission loss over many surfaces, so it tends to become a bit darker. Samples may not be valid (especially for image stacks), which will also make the result darker. But the brightness of the output will converge and stabilize around a level, which is the more important requirement for post-production. 
+Note that even with this normalization, the output may still posses differences in overall exposure compared to the original. This is often caused by several reasons, aside from the optical vignette that is inevitable for any system, the lens will also have transmission loss over its many surfaces, so it tends to become a bit darker. Samples from the emission source may not be valid (especially for image stacks), which will also make the result darker. But over many Monte Carlo iterations, the brightness of the output will converge and stabilize around a level, which is the more important requirement for post-production. 
 

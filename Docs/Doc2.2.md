@@ -1,6 +1,6 @@
 # 2.2 - Refraction, Reflection and Vignette
 
-This chapter discusses the simple physics of how geometric rays react upon contacting a surface. 
+This chapter discusses the simple physics of how geometric rays react upon contacting a surface, particularly, a refractive surface. 
 
 # 2.2.1 - Refraction
 
@@ -20,7 +20,7 @@ $$
 
 In the vector above, $h$ is ray height and $\gamma$ represents the angle of the ray. 
 
-However, as discussed in the beginning of chapter 2, the ray transfer matrix cannot represent rays that are not in the meridional plane, nor is it able to handle surfaces that are not axial symmetric. As such, the vector form of refraction is adapted. The refraction equation can be converted into the following vector form (Wu, Zhang, et. al.): 
+However, as discussed at the beginning of chapter 2, the ray transfer matrix cannot represent rays that are not in the meridional plane, nor is it able to handle surfaces that are not axial symmetric. As such, the vector form of refraction is adapted. The refraction equation can be converted into the following vector form (Wu, Zhang, et. al.): 
 
 $$
 \mathbf{R} _r=\frac{n_1}{n_2}\left ( \mathbf{I} - \left ( \mathbf{I} \cdot \mathbf{N} \right ) \mathbf{N} \right ) - \mathbf{N} \sqrt{ 1 - \left ( \frac{n_1}{n_2} \right ) ^{2} \left ( 1 -  \left( \mathbf{I} \cdot \mathbf{N} \right )^{2} \right ) } 
@@ -64,15 +64,77 @@ $$
 \mathbf{R}_{lr}=k \cdot \mathbf{R}_{l} + \left( 1-k \right)\mathbf{R}_{r}
 $$
 
-Where $\mathbf{R}_{r}$ is a random unit vector. Note that $\mathbf{R}_{r}$ must go through a prior check to see if it is in the same direction as the normal $\mathbf{N}$, if not, invert it to keep it pointing at the same hemispherical direction as the normal. 
+Where $\mathbf{R}_{r}$ is a Lambertian direction, here modelled as a direction generated with cosine-weighted hemisphere distribution by the following procedural. 
+
+First create two random numbers: 
+
+$$
+u _ 1 , \ u _ 2 \in  \left [ 0, 1 \right ]
+$$
+
+These two numbers are then used to construct a polar coordinate: 
+
+$$
+\begin{matrix}
+r = \sqrt{ u _ 1 }\\
+\phi = 2 \pi u _ 2
+\end{matrix}
+$$
+
+Local outgoing direction is then: 
+
+$$
+\begin{matrix}
+x _ {local} = r \cos \phi
+ \\ y _ {local} = r \sin \phi
+ \\ z _ {local} = \sqrt{\max \left ( 0, \ 1-u _ 1 \right )}
+\end{matrix}
+$$
+
+The same vector at local coordinate is thus: 
+
+$$
+\begin{bmatrix}
+\sqrt{ u _ 1} \cos \left ( 2 \pi u _ 2 \right )
+ \\ \sqrt{ u _ 1} \sin \left ( 2 \pi u _ 2 \right )
+ \\ \sqrt{1 - u _ 1}
+\end{bmatrix}
+$$
+
+Next a vector $\mathbf{h}$ not parallel to the normal at the intersection is needed. Since it is statistically near impossible to get a vector exactly parallel with the normal, especially so in double precision, it can be generated randomly. 
+
+Then the tangent vector would be: 
+
+$$
+\mathbf{t} = \frac{\mathbf{h} \times \mathbf{n}}{ \left\| \mathbf{h} \times \mathbf{n}\right\| }
+$$
+
+And the bitangent vector: 
+
+$$
+\mathbf{b} = \frac{\mathbf{n} \times \mathbf{t}}{ \left\| \mathbf{n} \times \mathbf{t}\right\| }
+$$
+
+This led to the $\mathbf{R}_{r}$: 
+
+$$
+\mathbf{R}_{r} = x _ {local} \mathbf{t} +
+y _ {local} \mathbf{b}  +
+z _ {local} \mathbf{n} 
+$$
+
+It might occur to some that the procedural discussed here has not covered about how many rays would be emitted and what would be their corresponding radiance, this is the neat part: we don't. 
+
+Since it is known for sure that the working scenario for this entire framework will be in a Monte Carlo case, with millions of rays and countless iterations, it becomes entirely inconsequential to mingle with individual reflection's radiance. The statistical spirit of Monte Carlo can be exploited here, each diffuse reflected ray only receives a directional change that abides the Lambertian rule, but no change in the radiance is made (unless the material itself has some absorption index) and no more rays are spawned. With tens, hundreds, and thousands of millions of rays, this naive reflection would eventually converge and behave just like the more complex and complicated diffuse model.  
+
 
 # 2.2.3 - Polarized Reflectance
 
 Up till this point, the discussion of refraction and reflection has been limited to their directions. For the intensity of the rays, it might seem easy to use a single scalar value to record the radiance, but in certain scenarios this might not be enough. Especially when considering the complicated things that may happen at a surface. 
 
-A ray from one refractive medium reaching at another refractive medium is almost never fully refracted, rather, some reflection will also happen, depending on the angle on incident. And the amount of reflection happens differently at different directions. It might be fitting to model the change on two primary directions, $s$ and $p$ (not the ETF). 
+A ray traveling in a refractive medium reaching at another refractive medium is almost never fully refracted, rather, some reflection will likely to happen depending on the angle on incident. The amount of reflection is different along the two different directions. It might be fitting to model the change to be based on two primary directions, $s$ and $p$ (not the ETF). 
 
-$s$ stands for senkrecht, German for “perpendicular”, representing the wave direction perpendicular to the incident plane; $p$ stands for parallel, representing the wave direction parallel to the incident plane. The reflectance on the two direction is defined by the Fresnel equation: 
+$s$ stands for senkrecht, German for “perpendicular”, representing the wave direction perpendicular to the incident plane; $p$ stands for parallel (also a German word), representing the wave direction parallel to the incident plane. The reflectance on the two direction is defined by the Fresnel equation: 
 
 $$
 R_s = \left| \frac{n _1 \cos \theta _i - n _2 \cos \theta _t}{ n _1 \cos \theta_i + n _2 \cos \theta_t }  \right| ^2 

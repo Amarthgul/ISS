@@ -34,6 +34,9 @@ The figure below shows an example of the color PDF and their aggregate. It can b
 	<img src="../resources/ReadmeImg/Doc2.6/PDF.png" width="640">
 </p>
 
+While named "plain", the plain imager is only plain in the sense that it has no other modifiers outside or inside of it, i.e., rays are intersected and radiance are deposit directly without modifications. 
+There are still things that the plain imager is capable of. For example, some old film point and shot cameras have a curved image plane, which aims to solve the field curvature caused by the cheap lens. The plain imager is nevertheless a surface, which means it could inherit the behaviors of a lens surface and have curvature of its own. In this way, the imager itself can also be curved. 
+
 # 2.6.2 - CMOS/CCD
 
 Digital sensors are mostly divided into two categories, CMOS and CCD, but their difference primarily lies in how they read the data. CCD does have some unique image characteristics such as blooming, but its logic also made it near impossible for motion picture production, so it can be ignored temporarily for this framework. 
