@@ -9,17 +9,17 @@ This repo is the proof of concept implementation of [my](https://www.amarthchen.
 
 The goal is to help animators and CG artists such that: 
 
-- CGI sequences can be better blended with live action footage when the live action has shot with a lot of deliberately introduced image artifacts.
+- CGI sequences can be better blended with live action footage's shot with a lot of deliberately introduced optical artifacts.
 
-- accurate optical effects can be easily added into animations, 2D and 3D alike, while keeping the effect art-directable. 
+- accurate optical effects can be easily added into computer generated animations, 2D and 3D alike, while keeping the effects art-directable. 
 
 Additionally, it could also:
 
-- help computer vision and AI researchers to generate "ground truth" image results without physically possessing the optical instruments. 
+- help computer vision and AI researchers to generate "ground truth" image results without having to acquire the physical instruments. 
 
-- help lens and optics enthusiasts to gain more insights of photographic objects by offering them a way to perform 100% repeatable and reproducible experiments. 
+- help lens and optics enthusiasts to gain more insights of photographic objectives by offering them a way to perform 100% repeatable and reproducible experiments. 
 
-The novelty of the thesis is that, unlike most rendering applications, **_the core concept here is based on relay imaging_** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like a postproduction edit effect. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D postproduction composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
+The novelty of the thesis is that, unlike most rendering applications, **_the core concept here is based on relay imaging_** instead of a pure first imaging process like a 3D renderer, or a pure second imaging process like am AfterEffect edits. This allows the framework to be used for both direct 3D renderers as "in-camera effect" or the 2D post-production composition stage. The framework also showed that a well-designed application of the imaging equation can reproduce optical effects accurately and easily without requiring a drastic change of the media production workflow. Additionally, before a full electromagnetic radiation-based explicit scene representation becomes the new norm, the ray structure devised in this thesis can be a decent bridging piece that connects the modern computer graphics scene representation with most of the optical effects. 
 
 This repo can be viewed as an abridged and open-source version of [FRED](https://photonengr.com/) with additional specializations in media production compatibility. It is suggested to **not use this thing directly in production**. If you are a production studio, reference the documentations linked below, use your technical team and AI to rewrite it in a way that fits your software packages and pipeline.
 

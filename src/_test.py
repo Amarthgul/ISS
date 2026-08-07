@@ -369,17 +369,12 @@ def CurvTest():
     from Util.ConditionClamps import RadiToCurv
 
     RadiToCurv([
-            [37, 30],
-            [110, 90],
-            [25, 20],
-            [52, 42],
-            [140, 115],
-            [12, 15],
-            [1000, 2000],
-            [60, 40],
-            [-12, -15],
-            [-90, -70]
-        ],
+        [34.00, 103.00],
+        [23.00, 48.00],
+        [128.00, 13.00],
+        [49.00, - 13.00],
+        [- 80.00, 10]
+    ],
         writeFile=True)
 
 
@@ -388,10 +383,10 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    #lens = LensFromZmx(RectPath(r"resources/Zmx/Hologon15f8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SummicronM50f2.zmx")).GetLens()
 
     # EFL = LensPartitionFL(lens, "d")
-    lens.PlotSurfaceData()
+    lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74)
 
 
 def DefocusTests():

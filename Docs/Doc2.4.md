@@ -409,3 +409,7 @@ However, manually override the BFD to `33.5` mm, and the result looks a lot more
 The reason is likely because that the Canon EF 50mm f/1.2 L was designed to have a moderate amount of spherical aberrations left, especially when wide open, which is further exemplified by the sensor glass. However, the focusing process uses the beam RMS diameter without considering the energy distribution, so if the thinnest RMS beam location is different from there the integrated energy distribution centroid, then the auto focus will be a bit off. Or in simpler terms:
 
 > Smallest beam RMS radius does not imply best focus.
+
+## 2.4.8 - Aperture control 
+
+

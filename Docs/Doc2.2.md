@@ -75,30 +75,30 @@ $$
 These two numbers are then used to construct a polar coordinate: 
 
 $$
-\begin{matrix}
+\begin{align*}
 r = \sqrt{ u _ 1 }\\
 \phi = 2 \pi u _ 2
-\end{matrix}
+\end{align*}
 $$
 
 Local outgoing direction is then: 
 
 $$
-\begin{matrix}
+\begin{align*}
 x _ {local} = r \cos \phi
  \\ y _ {local} = r \sin \phi
  \\ z _ {local} = \sqrt{\max \left ( 0, \ 1-u _ 1 \right )}
-\end{matrix}
+\end{align*}
 $$
 
 The same vector at local coordinate is thus: 
 
 $$
-\begin{bmatrix}
+\begin{align*}
 \sqrt{ u _ 1} \cos \left ( 2 \pi u _ 2 \right )
  \\ \sqrt{ u _ 1} \sin \left ( 2 \pi u _ 2 \right )
  \\ \sqrt{1 - u _ 1}
-\end{bmatrix}
+\end{align*}
 $$
 
 Next a vector $\mathbf{h}$ not parallel to the normal at the intersection is needed. Since it is statistically near impossible to get a vector exactly parallel with the normal, especially so in double precision, it can be generated randomly. 

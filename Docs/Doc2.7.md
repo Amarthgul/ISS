@@ -33,6 +33,9 @@ While this was briefly mentioned in 2.4.5 - Ray Transport, here the steps for ru
 3. **Iterate through all the things in the object space**. 
   For each source, supply them with the target, and ask the source to **emit rays** towards all of these targets. From this point onward, explicit RGB values will be gone, replaced with only wavelengths and polarized radiance. 
 4. **Send the emitted rays into the lens section**. 
+5. **Perform necessary pre-tracing updates**. 
+  This includes focusing the lens by moving either some components in the lens section or sliding the imager back and forth. This step does not have to be after the ray emission, but it has to be done before the next tracing step. 
+6. **Trace the rays over the lens**. 
   Within the lens, iterate through the components of the lens system. For each component:
     1. Calculate initial intersection between the component and the rays, if any. 
     2. Perform ray cull or other boolean operations if needed. Culled rays are sometimes marked as _vignetted_. 
@@ -40,9 +43,21 @@ While this was briefly mentioned in 2.4.5 - Ray Transport, here the steps for ru
     4. Using intersection and normal to calculate refraction and reflection with respect to polarization. 
     5. For refractive system, mark the _reflected_ rays and store them in a separate basket for future use. 
     6. Examine and perform whatever calculations needed for the _vignetted_ and _reflected_ rays. 
-5. After the rays exit the lens system, calculate their real intersections with the imager. 
-6. Given the intersections, map them onto individual picture elements (pixels, in the case of ideal image plane). 
-7. Deposit the radiance into the RGB channels according to the wavelength and the set interpretation. 
+7. After the rays exit the lens system, calculate their real **intersections with the imager**. 
+8. Given the intersections, **map the ray onto individual picture elements** (pixels, in the case of ideal image plane, or grain and dye clouds for film). 
+9. For each picture element and for all the rays that intersect with that picture element, **deposit the radiance** from the rays into the RGB channels according to the wavelength and the set interpretation. 
+
+The steps above describes what is being executed inside. 
+When viewed form an external perspective, these steps can be largely simplified. For an external user, the procedural would just be: 
+
+1. Assign some input, such as a scene or a handful of images. 
+2. State which lens to use and if any modification are added to the lens. 
+3. Assign a specific imager if needed. 
+4. Set the lens aperture and focus distance. 
+5. Start the render. 
+
+The whole process is designed to mimic the natural photographic procedural while also be compatible with the post-production visual effect pipelines. 
+In this way, the artist does not have to know anything about the complex optical aberrations or computer graphics principles, and could instead treat the rendering process like operating a real camera. At the same time, the inner workings can still be controlled by the technical artists and the software team, allowing a higher degree of integration with the studio workflow. 
 
 
 ## 2.7.3 - Restoring Input Brightness 

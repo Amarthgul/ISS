@@ -60,4 +60,3 @@ def RadiToCurv(RadiPairs, writeFile=True):
 
 
 
-
