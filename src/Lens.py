@@ -533,9 +533,19 @@ class Lens:
         return info
 
 
-    def PlotSurfaceData(self, maxPower=None, PlotTrackLength=None):
+    def PlotSurfaceData(
+            self,
+            maxPower=None,
+            PlotTrackLength=None,
+            PlotAllPupilPoints=False,
+    ):
 
-        return PlotSurfaceData(self, maxPower, PlotTrackLength)
+        return PlotSurfaceData(
+            self,
+            maxPower,
+            PlotTrackLength,
+            PlotAllPupilPoints,
+        )
 
 
     # ==================================================================

@@ -217,6 +217,11 @@ class RayBatch:
         self.value[:, 10] = indices
 
 
+    def SetChannel(self, channels):
+        self.value[:, 11] = channels
+        return self
+
+
     def SetPolarization(self, polarM):
         """
         Given the polarization matrices, decompose them and assign them to the raybatch.

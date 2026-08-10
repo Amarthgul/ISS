@@ -115,6 +115,12 @@ class Pupil(VirtualSurface):
         self._GenerateAccordingToAlphaShape()
 
 
+    def GetPupilPoints(self):
+        """
+        Get the points used to define the pupil's shape initially.
+        """
+        return [self._height, self._zDepth]
+
 
     def GetMaxPupilSize(self):
         """

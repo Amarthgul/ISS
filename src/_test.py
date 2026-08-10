@@ -75,9 +75,6 @@ def ISO12233Test(lens, imageDistance = 200000, computeTime = 4096, realTimeUpdat
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
         if(realTimeUpdate):
@@ -151,9 +148,6 @@ def SpotTesting(lens, objectDistance = 13500, focusDistance = 1500, computeTime 
 
         print("Size of exiting RB: ", mainRB.value.shape)
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
-
         # DrawRaybatch(mainRB)
         # plt.draw()
         # plt.pause(5)
@@ -205,10 +199,6 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
 
 
     mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, recordPath=True)
-
-    # mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
-    # mainRP.Append(mainRB, _tir, _vig)
 
     image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
@@ -271,9 +261,6 @@ def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320,
         # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
@@ -354,10 +341,13 @@ def MaterialLookUpTest():
     # Example usage:
     excel_file = ReadSheet()
 
-    line = 'e'
+    line = 'd'
     stats = [
-        [1.7919   , 25.55],
-        [1.65222  ,  33.6]
+        [1.6063, 58.5],
+        [1.6031, 38.3],
+        [1.5162, 64.5],
+        [1.5154, 56.6],
+        [1.6092, 58.9]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
@@ -369,11 +359,11 @@ def CurvTest():
     from Util.ConditionClamps import RadiToCurv
 
     RadiToCurv([
-        [34.00, 103.00],
-        [23.00, 48.00],
-        [128.00, 13.00],
-        [49.00, - 13.00],
-        [- 80.00, 10]
+        [1.6063 ,  58.5],
+        [1.6031 ,  38.3],
+        [1.5162 ,  64.5],
+        [1.5154 ,  56.6],
+        [1.6092 ,  58.9]
     ],
         writeFile=True)
 
@@ -383,11 +373,13 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SummicronM50f2.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonSerenar50f1.8.zmx")).GetLens()
+
+    print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
-    lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74)
-
+    #lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74)
+    lens.PlotSurfaceData(PlotTrackLength=74)
 
 def DefocusTests():
 
@@ -459,9 +451,6 @@ def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTi
         # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
 
         mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-        # mainRP.Append(mainRB, _tir, _vig)
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 

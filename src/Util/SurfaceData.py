@@ -21,24 +21,35 @@ class SurfaceDataType(Enum):
     OpticalPower = 1
     RefractiveIndex = 2
     AbbeNumber = 3
+    PrincipalPlane = 4
+    EntrancePupil = 5
 
 
 displayConfig = [
     SurfaceDataType.RayHeight,
     SurfaceDataType.OpticalPower,
     SurfaceDataType.RefractiveIndex,
-    SurfaceDataType.AbbeNumber
+    SurfaceDataType.AbbeNumber,
+    SurfaceDataType.PrincipalPlane,
+    SurfaceDataType.EntrancePupil,
 ]
 
 
-def PlotSurfaceData(lens, maxPower=None, PlotTrackLength=None):
+def PlotSurfaceData(
+        lens,
+        maxPower=None,
+        PlotTrackLength=None,
+        PlotAllPupilPoints=False,
+):
     """
     Plot an optical layout and the tracks selected by ``displayConfig``.
 
     The optical layout is always shown. ``SurfaceDataType.RayHeight`` controls
-    its marginal-ray overlay; the other display types control the lower tracks.
-    ``PlotTrackLength`` frames every aligned axis from the focal point back
-    toward object space. When omitted, the lens total axial track length is used.
+    its marginal-ray overlay; the other display types control the lower tracks
+    and virtual layout references. ``PlotTrackLength`` frames every aligned axis
+    from the focal point back toward object space. When omitted, the lens total
+    axial track length is used. ``PlotAllPupilPoints`` draws the complete traced
+    pupil curve instead of its near-axis pupil-plane position.
     """
     _EnsureLensData(lens)
     if not lens.surfaces:
@@ -48,6 +59,8 @@ def PlotSurfaceData(lens, maxPower=None, PlotTrackLength=None):
     vertices = _SurfaceVertices(lens)
     selectedTypes = set(displayConfig)
     showRayHeight = SurfaceDataType.RayHeight in selectedTypes
+    showPrincipalPlane = SurfaceDataType.PrincipalPlane in selectedTypes
+    showEntrancePupil = SurfaceDataType.EntrancePupil in selectedTypes
     trackSpecs = []
 
     if SurfaceDataType.OpticalPower in selectedTypes:
@@ -82,7 +95,14 @@ def PlotSurfaceData(lens, maxPower=None, PlotTrackLength=None):
     axes = np.atleast_1d(axes)
     layoutAxis = axes[0]
 
-    focus = _DrawLensLayout(layoutAxis, lens, showRayHeight)
+    focus, principalPlaneZ = _DrawLensLayout(
+        layoutAxis,
+        lens,
+        showRayHeight,
+        showPrincipalPlane,
+        showEntrancePupil,
+        PlotAllPupilPoints,
+    )
     focus = focus or _LensFocalPoint(lens)
     plotBounds = _PlotBounds(lens, focus, layoutTrackLength)
 
@@ -96,7 +116,13 @@ def PlotSurfaceData(lens, maxPower=None, PlotTrackLength=None):
 
     _ConfigureAlignment(axes, vertices, plotBounds)
     _SetLayoutScale(layoutAxis, layoutHeight)
-    _DrawLayoutLengths(layoutAxis, lens, vertices, focus)
+    _DrawLayoutLengths(
+        layoutAxis,
+        lens,
+        vertices,
+        focus,
+        principalPlaneZ if showPrincipalPlane else None,
+    )
     fig.suptitle("Lens Layout and Surface Data")
     _MatchLayoutWidth(layoutAxis, axes[-1])
 
@@ -230,8 +256,8 @@ def _MatchLayoutWidth(layoutAxis, alignmentAxis):
         figure.set_figwidth(targetWidth)
 
 
-def _LayoutLengthText(lens, vertices, focus):
-    """Format total and first-to-last-vertex optical track lengths."""
+def _LayoutLengthText(lens, vertices, focus, principalPlaneZ):
+    """Format total, optical, and optional rear-principal focal lengths."""
     opticalLength = max(vertices) - min(vertices)
     if focus is not None:
         totalTrackLength = abs(focus[0] - vertices[0])
@@ -240,18 +266,23 @@ def _LayoutLengthText(lens, vertices, focus):
         if totalTrackLength is None:
             totalTrackLength = opticalLength
 
-    return (
-        f"Total track: {_Scalar(totalTrackLength):.2f} mm\n"
-        f"Optical length: {opticalLength:.2f} mm"
-    )
+    lines = [
+        f"Total track: {_Scalar(totalTrackLength):.2f} mm",
+        f"Optical length: {opticalLength:.2f} mm",
+    ]
+    # if principalPlaneZ is not None and focus is not None:
+    #     focalLength = focus[0] - principalPlaneZ
+    #     lines.append(f"Focal length: {focalLength:.2f} mm")
+
+    return "\n".join(lines)
 
 
-def _DrawLayoutLengths(axis, lens, vertices, focus):
+def _DrawLayoutLengths(axis, lens, vertices, focus, principalPlaneZ):
     """Place the lens-length summary in the upper-right layout corner."""
     axis.text(
         0.985,
         0.975,
-        _LayoutLengthText(lens, vertices, focus),
+        _LayoutLengthText(lens, vertices, focus, principalPlaneZ),
         transform=axis.transAxes,
         ha="right",
         va="top",
@@ -408,8 +439,8 @@ def _GroupData(lens, fraunhoferLine, vertices, maxPower):
     return groups
 
 
-def _MarginalRayPoints(lens):
-    """Return traced marginal-ray points and its forward axial crossing."""
+def _MarginalRayLayoutData(lens):
+    """Return marginal-ray points, focus, and rear-principal-plane position."""
     rayPath = MarginalRayPath(lens)
     physicalIndices = [
         index for index, surface in enumerate(lens.surfaces)
@@ -417,6 +448,11 @@ def _MarginalRayPoints(lens):
     ]
     points = []
     finalDirection = None
+
+    if not rayPath.position or len(rayPath.position[0]) == 0:
+        return points, None, None
+
+    initialHeight = _Scalar(rayPath.position[0][0, Axis.Y.value])
 
     for pathIndex, _surfaceIndex in enumerate(physicalIndices, start=1):
         if pathIndex >= len(rayPath.position):
@@ -443,7 +479,136 @@ def _MarginalRayPoints(lens):
             if distance > 0:
                 focus = (points[-1][0] + distance * directionZ, 0.0)
 
-    return points, focus
+    principalPlaneZ = None
+    if points and finalDirection is not None:
+        exitHeight = points[-1][1]
+        directionY = _Scalar(finalDirection[Axis.Y.value])
+        directionZ = _Scalar(finalDirection[Axis.Z.value])
+        if abs(directionY) > _Scalar(AXIAL_ZERO):
+            distance = (initialHeight - exitHeight) / directionY
+            principalPlaneZ = points[-1][0] + distance * directionZ
+            if not np.isfinite(principalPlaneZ):
+                principalPlaneZ = None
+
+    return points, focus, principalPlaneZ
+
+
+def _PupilProfile(lens):
+    """Return positive pupil heights and their traced axial positions."""
+    pupil = getattr(lens, "entrancePupil", None)
+    if pupil is None:
+        return None
+
+    try:
+        heights, depths = pupil.GetPupilPoints()
+    except (AttributeError, TypeError):
+        return None
+
+    pointCount = min(len(heights), len(depths))
+    if pointCount == 0:
+        return None
+
+    points = []
+    for index in range(pointCount):
+        try:
+            height = abs(_Scalar(heights[index]))
+            depth = _Scalar(depths[index])
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(height) and np.isfinite(depth):
+            points.append((height, depth))
+
+    if not points:
+        return None
+
+    points.sort(key=lambda point: point[0])
+    return tuple(zip(*points))
+
+
+def _DrawEntrancePupil(axis, lens, layoutHeight, plotAllPoints):
+    """Draw the entrance pupil as a plane or its complete traced profile."""
+    profile = _PupilProfile(lens)
+    if profile is None:
+        return
+
+    heights, depths = profile
+    innerIndex = min(range(len(heights)), key=heights.__getitem__)
+    innerHeight = heights[innerIndex]
+    innerDepth = depths[innerIndex]
+    color = "#D34C4C"
+
+    if plotAllPoints and len(heights) > 1:
+        axis.plot(depths, heights, color=color, alpha=0.48, linewidth=2.4, zorder=4)
+        labelHeight = innerHeight + layoutHeight * 0.04
+    else:
+        pupil = lens.entrancePupil
+        semiDiameter = getattr(pupil, "clearSemiDiameter", None)
+        planeHeight = max(heights) if semiDiameter is None else abs(_Scalar(semiDiameter))
+        planeHeight = min(planeHeight, layoutHeight)
+        axis.plot(
+            [innerDepth, innerDepth],
+            [0.0, planeHeight],
+            color=color,
+            alpha=0.48,
+            linewidth=3.0,
+            solid_capstyle="butt",
+            zorder=4,
+        )
+        labelHeight = planeHeight + layoutHeight * 0.04
+
+    axis.text(
+        innerDepth,
+        min(labelHeight, layoutHeight * 1.08),
+        "P'",
+        color=color,
+        alpha=0.8,
+        ha="left",
+        va="bottom",
+        fontsize=9,
+        zorder=5,
+    )
+
+
+def _DrawRearPrincipalPlane(axis, principalPlaneZ, layoutHeight, axialOrigin):
+    """Draw the rear principal plane at the exit-ray back-projection."""
+    if principalPlaneZ is None:
+        return
+
+    color = "#287BB9"
+    axis.plot(
+        [principalPlaneZ, principalPlaneZ],
+        [0.0, layoutHeight],
+        color=color,
+        alpha=0.48,
+        linewidth=2.4,
+        solid_capstyle="butt",
+        zorder=4,
+    )
+    labelPosition = (principalPlaneZ, layoutHeight * 1.04)
+    axis.annotate(
+        "H'",
+        xy=labelPosition,
+        xytext=(2, 0),
+        textcoords="offset points",
+        color=color,
+        alpha=0.8,
+        ha="left",
+        va="bottom",
+        fontsize=9,
+        zorder=5,
+    )
+    axis.annotate(
+        f"{principalPlaneZ - axialOrigin:.2f} mm",
+        xy=labelPosition,
+        xytext=(16, 1),
+        textcoords="offset points",
+        color=color,
+        alpha=0.8,
+        ha="left",
+        va="bottom",
+        fontsize=7,
+        zorder=5,
+    )
 
 
 def _MetricLimits(values, minimumPadding):
@@ -478,8 +643,15 @@ def _StopHeight(lens, stopIndex, layoutHeight):
     return layoutHeight
 
 
-def _DrawLensLayout(axis, lens, showRayHeight):
-    """Draw the positive-half lens cross section and optional marginal ray."""
+def _DrawLensLayout(
+        axis,
+        lens,
+        showRayHeight,
+        showPrincipalPlane,
+        showEntrancePupil,
+        plotAllPupilPoints,
+):
+    """Draw the positive-half lens cross section and selected ray references."""
     for frontSurface, rearSurface in _LensElements(lens):
         polygonZ, polygonY = _ElementPolygon(frontSurface, rearSurface)
         axis.fill(
@@ -523,8 +695,12 @@ def _DrawLensLayout(axis, lens, showRayHeight):
         )
 
     focus = None
+    rayPoints = []
+    principalPlaneZ = None
+    if showRayHeight or showPrincipalPlane:
+        rayPoints, focus, principalPlaneZ = _MarginalRayLayoutData(lens)
+
     if showRayHeight:
-        rayPoints, focus = _MarginalRayPoints(lens)
         if rayPoints:
             rayZ, rayY = zip(*rayPoints)
             axis.plot(rayZ, rayY, color="#A63832", linewidth=2.0, zorder=4)
@@ -538,10 +714,21 @@ def _DrawLensLayout(axis, lens, showRayHeight):
                 )
                 axis.scatter([focus[0]], [focus[1]], color="#A63832", s=18, zorder=5)
 
+    if showEntrancePupil:
+        _DrawEntrancePupil(axis, lens, layoutHeight, plotAllPupilPoints)
+
+    if showPrincipalPlane:
+        _DrawRearPrincipalPlane(
+            axis,
+            principalPlaneZ,
+            layoutHeight,
+            _Scalar(lens.surfaces[0].cumulativeThickness),
+        )
+
     axis.axhline(0.0, color="#303030", linewidth=0.9, zorder=3)
     axis.set_ylabel("Height (mm)")
 
-    return focus
+    return focus, principalPlaneZ
 
 
 def _DrawGroupPower(axis, groups):

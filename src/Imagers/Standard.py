@@ -9,6 +9,7 @@ from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
 from Util.Globals import INFINITY, ZERO, ONE, TWO, Axis, OUTPUT_TYPE, COLOR_PDF
 from Util.ColorWavelength import WavelengthToRGB
+from Util.ImageIO import SaveAsEXR
 from Util.Misc import PointsInTriangle, NumpyConversion
 
 
@@ -77,6 +78,9 @@ class StdImager(Surface):
 
 
     def Update(self):
+        """
+        This should be called last.
+        """
         self._zPos = self._lensLength + self.BFD
 
         if (self.gatePoints is None):
@@ -87,6 +91,10 @@ class StdImager(Surface):
                 [self.width / 2, -self.height / 2, self._zPos]])
 
         self.frontVertex = bd.array([ZERO, ZERO, self._zPos])
+
+
+    def SetBFD(self, BFD):
+        self.BFD = BFD
 
 
     def IntersectRays(self, raybatch):
@@ -100,8 +108,9 @@ class StdImager(Surface):
 
 
     def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+        """Intersect incoming rays with the imager and integrate the resulting hits."""
 
-        #self.rayBatch = raybatch
+        raybatch, _tir, _vig = self.IntersectRays(raybatch)
 
         return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval, polarized=polarized)
 
@@ -228,6 +237,25 @@ class StdImager(Surface):
         self.height = bd.array(16)
 
 
+    def SaveImage(self, fileName, sourceImg=None, scalar=1, extraChannels=()):
+        """Scale and save an image using the imager's standard EXR settings.
+
+        If ``sourceImg`` is omitted, ``self.image`` is saved. Extra channels are
+        passed as ``(array, name)`` pairs and are not affected by ``scalar``.
+        """
+        image = self.image if sourceImg is None else sourceImg
+        if image is None:
+            raise ValueError("StdImager.SaveImage(): no image is available to save.")
+
+        SaveAsEXR(
+            bd.asarray(image) * scalar,
+            r"resources/Results",
+            fileName,
+            *extraChannels,
+            flipHori=False,
+            flipVert=True,
+            rotate=True
+        )
 
 
     # ==================================================================

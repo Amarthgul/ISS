@@ -27,21 +27,13 @@ from Surfaces.MetalBoundary import MetalBoundary
 from Surfaces.Surface import Surface
 
 
+def PDAT():
+    from Imagers.PDA import PDA
 
-def StereoImageDisplay(imageMinSample = 128, realTimeUpdate = True):
-
-
-
-    img = Image2DVariDepth()
-    img.imageDimensionOverride = 100
-    img.LoadFromEXR(r"resources/allChannels.exr")
-    # img.UpdateDepthRange()
-
-    img.DrawImage()
-
-    RemoveBG()
-    SetUnifScale(10000)
-    plt.show()
+    tp = PDA()
+    tp.SetBFD(1)
+    tp.Update()
+    tp.RunTest()
 
 
 def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
@@ -101,11 +93,7 @@ def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"Ne
         print("Propagating RB took ", time.time() - recorder)
         recorder = time.time()
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
         #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
         #print(mainRB.ToString(30))
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
@@ -186,10 +174,8 @@ def ImgRefLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename =
         print("Propagating RB took ", time.time() - recorder)
         recorder = time.time()
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=True)
 
-        reflectedRB, _tir, _vig = imager.IntersectRays(reflectedRB)
         refImage= imager.IntegralRays(reflectedRB, baseImg=refImage, polarized=True)
 
         #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
@@ -267,11 +253,7 @@ def FocusFalloffLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, file
         print("Propagating RB took ", time.time() - recorder)
         recorder = time.time()
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
         #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
         #print(mainRB.ToString(30))
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
@@ -366,11 +348,7 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
         print("Propagating RB took ", time.time() - recorder)
         recorder = time.time()
 
-        mainRB, _tir, _vig = imager.IntersectRays(mainRB)
-
         # mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        # mainRBZ, _tir, _vig = imager.IntersectRays(mainRBZ)
-        # mainRP.Append(mainRB, _tir, _vig)
         # print(mainRB.ToString(30))
 
         image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
@@ -467,6 +445,25 @@ def ISAnamorphicTest():
     IS.Render(focusDistance=1000, renderTime=4*60, fileName="EvennessTest4MinNewExp", realTimeUpdate=False, flareGlare=False)
     # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
+def ISSphericalTest():
+    from ImagingSystem import ImagingSystem
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from Util.Globals import RefreshRNG
+    from Imagers.PDA import PDA
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens.AddSurfaceDefect()
+
+    imager = PDA(horiPx=1920)
+
+    IS = ImagingSystem(lens, imager)
+    IS.object = ExampleStack3D()
+
+    RefreshRNG(3452345)
+    # Render the scene into an image
+    IS.Render(focusDistance=6700, renderTime=30*60, fileName="DNGTest", realTimeUpdate=False, flareGlare=False)
+    # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
+
 
 def HeliosComparison():
     from ImagingSystem import ImagingSystem
@@ -556,11 +553,11 @@ def main():
     # StackTestDigital(renderTime, distance[18], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
-    ISAnamorphicTest()
-    # PureArtifactTest()
+    # ISAnamorphicTest()
+    ISSphericalTest()
     # HeliosComparison()
     # ISSpotTest()
-    # PureArtifactTest()
+    # PDAT()
 
 
     # FocusFalloffLenSelect(r"resources/Zmx/SpeedMaster50f0.95.zmx", renderTime, 1350, "FalloffTestSpeedMaster", realTimeUpdate=False)

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.ImageIO import ImageConversion, SaveAsEXR
+from Util.ImageIO import ImageConversion
 from Util.Misc import ProgressBar
 from ObjectSpace.ImageStack import ImageStack
 
@@ -56,7 +56,7 @@ class ImagingSystem:
     def Render(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         image = self.imager.AcquireEmpty()
@@ -87,7 +87,6 @@ class ImagingSystem:
         while (True):
             mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), self._sourcePerSample)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
@@ -95,7 +94,6 @@ class ImagingSystem:
                 # While it is possible to enable refection on the previous pass, it would eat up all the computer memories (first GPU, then the shared) and reach the matrix size limit of the CUDA eigenvector calculation limit. Since only the outliers make major contributions to the flare and glare effects, here we flag the flareGlare in the EmitTowards and request only the highlights to emit rays. Then calculate them alone.
                 fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
                 _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
-                fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
                 fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
 
 
@@ -111,22 +109,24 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= (
-                    iterationCount
-                    * (sourceCoveragePerIteration)
-                    / self._transmissionLoss
+                self.imager.SaveImage(
+                    fileName,
+                    sourceImg=image,
+                    scalar=(
+                        self._transmissionLoss
+                        / (iterationCount * sourceCoveragePerIteration)
+                    )
                 )
-                fn = fileName
-                SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 if flareGlare:
-                    fgImage /= (
-                        iterationCount
-                        * flareCoveragePerIteration
-                        / self._transmissionLoss
+                    self.imager.SaveImage(
+                        fileName + "FlareGlare",
+                        sourceImg=fgImage,
+                        scalar=(
+                            self._transmissionLoss
+                            / (iterationCount * flareCoveragePerIteration)
+                        )
                     )
-                    fn = fileName+"FlareGlare"
-                    SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 break
 
@@ -135,7 +135,7 @@ class ImagingSystem:
 
     def RenderFlareOnly(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         fgImage = self.imager.AcquireEmpty()
@@ -159,7 +159,6 @@ class ImagingSystem:
             # Only render the flare/glare reflection pass; skip the sequential image pass entirely.
             fgRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 4, flareGlare=True)
             _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
-            fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
             fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
 
             if realTimeUpdate:
@@ -173,13 +172,14 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                fgImage /= (
-                    iterationCount
-                    * flareCoveragePerIteration
-                    / self._transmissionLoss
+                self.imager.SaveImage(
+                    fileName + "FlareGlare",
+                    sourceImg=fgImage,
+                    scalar=(
+                        self._transmissionLoss
+                        / (iterationCount * flareCoveragePerIteration)
+                    )
                 )
-                fn = fileName+"FlareGlare"
-                SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
                 break
 
             recorder = time.time()
@@ -191,7 +191,7 @@ class ImagingSystem:
             raise RuntimeError("ImagingSystem.SingleLayerAlpha(): self.singleObject cannot be None.")
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         alphaChannelName = "X"
@@ -238,14 +238,12 @@ class ImagingSystem:
 
             mainRB = self.singleObject.EmitTowards(targets, self._sourcePerSample)
             mainRB, _mainRP, _reflectedRB = self.lens.Propagate(mainRB, reflection=False)
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             self.imager._AOVAverageCounts = beautyAOVAverageCounts
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
             beautyAOVAverageCounts = self.imager._AOVAverageCounts
 
             alphaRB = alphaStack.EmitTowards(targets, self._sourcePerSample, flareGlare=False)
             alphaRB, _alphaRP, _alphaReflectedRB = self.lens.Propagate(alphaRB, reflection=False)
-            alphaRB, _alphaTir, _alphaVig = self.imager.IntersectRays(alphaRB)
             self.imager._AOVAverageCounts = alphaAOVAverageCounts
             alphaImage = self.imager.IntegralRays(alphaRB, baseImg=alphaImage, polarized=False)
             alphaAOVAverageCounts = self.imager._AOVAverageCounts
@@ -253,7 +251,6 @@ class ImagingSystem:
             if flareGlare:
                 fgRB = self.singleObject.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
                 _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
-                fgRB, _tir, _vig = self.imager.IntersectRays(fgRB)
                 self.imager._AOVAverageCounts = flareAOVAverageCounts
                 fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
                 flareAOVAverageCounts = self.imager._AOVAverageCounts
@@ -269,11 +266,7 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= (
-                    iterationCount
-                    * sourceCoveragePerIteration
-                    / self._transmissionLoss
-                )
+                imageScalar = self._transmissionLoss / (iterationCount * sourceCoveragePerIteration)
 
                 alphaImageChannel = 3 + alphaChannelIndex
                 if alphaImage.shape[-1] <= alphaImageChannel:
@@ -283,26 +276,22 @@ class ImagingSystem:
 
                 alpha = bd.clip(1.0 - alphaImage[:, :, alphaImageChannel], 0.0, 1.0)
 
-                fn = fileName
-                SaveAsEXR(
-                    image[:, :, :3],
-                    r"resources/Results",
-                    fn,
-                    alpha,
-                    "A",
-                    flipHori=False,
-                    flipVert=True,
-                    rotate=True
+                self.imager.SaveImage(
+                    fileName,
+                    sourceImg=image[:, :, :3],
+                    scalar=imageScalar,
+                    extraChannels=(alpha, "A")
                 )
 
                 if flareGlare:
-                    fgImage /= (
-                        iterationCount
-                        * flareCoveragePerIteration
-                        / self._transmissionLoss
+                    self.imager.SaveImage(
+                        fileName + "FlareGlare",
+                        sourceImg=fgImage,
+                        scalar=(
+                            self._transmissionLoss
+                            / (iterationCount * flareCoveragePerIteration)
+                        )
                     )
-                    fn = fileName + "FlareGlare"
-                    SaveAsEXR(fgImage, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 self.imager._AOVAverageCounts = previousAOVAverageCounts
                 break
@@ -326,7 +315,7 @@ class ImagingSystem:
         gridPointSource.GenerateGridSpots(xAngle, yAngle, dist=objectDistance, sampleField=sample)
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         image = self.imager.AcquireEmpty()
@@ -349,7 +338,6 @@ class ImagingSystem:
         while (True):
             mainRB = gridPointSource.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 20480)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
             # print(mainRB.ToString())
 
@@ -366,9 +354,11 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= iterationCount * sourceCoveragePerIteration
-                fn = fileName
-                SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
+                self.imager.SaveImage(
+                    fileName,
+                    sourceImg=image,
+                    scalar=1 / (iterationCount * sourceCoveragePerIteration)
+                )
                 break
 
             recorder = time.time()
@@ -378,7 +368,7 @@ class ImagingSystem:
         from ObjectSpace.Image2DFlat import Image2DFlat
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         ISO12233C = Image2DFlat()
@@ -405,7 +395,6 @@ class ImagingSystem:
         while (True):
             mainRB = ISO12233C.ReceiveAndEmitTowards( self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), None,  self._sourcePerSample)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
 
@@ -420,13 +409,14 @@ class ImagingSystem:
             ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= (
-                    iterationCount
-                    * sourceCoveragePerIteration
-                    / self._transmissionLoss
+                self.imager.SaveImage(
+                    fileName,
+                    sourceImg=image,
+                    scalar=(
+                        self._transmissionLoss
+                        / (iterationCount * sourceCoveragePerIteration)
+                    )
                 )
-                fn = fileName
-                SaveAsEXR(image, r"resources/Results", fn, flipHori=False, flipVert=True, rotate=True)
 
                 break
 
@@ -435,7 +425,7 @@ class ImagingSystem:
 
     def T_OutlierRender(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
         self.imager.SetLensLength(self.lens.totalAxialLength)
-        self.imager.BFD = self.lens.BestFocusBFD(focusDistance)
+        self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
         image = self.imager.AcquireEmpty()
@@ -465,7 +455,6 @@ class ImagingSystem:
                 mainRB,
                 reflection=False
             )
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             image = self.imager.IntegralRays(
                 mainRB,
                 baseImg=image,
@@ -486,20 +475,16 @@ class ImagingSystem:
             )
 
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                image /= (
-                    iterationCount
-                    * sourceCoveragePerIteration
-                    / self._transmissionLoss
-                )
-                SaveAsEXR(
-                    image,
-                    r"resources/Results",
+                self.imager.SaveImage(
                     fileName,
-                    flipHori=False,
-                    flipVert=True,
-                    rotate=True
+                    sourceImg=image,
+                    scalar=(
+                        self._transmissionLoss
+                        / (iterationCount * sourceCoveragePerIteration)
+                    )
                 )
                 break
+
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

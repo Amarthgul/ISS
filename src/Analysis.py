@@ -107,7 +107,6 @@ class Analysis():
             mainRB, mainRP, _ = self.lens.Propagate(mainRB)
 
             # Form spot on imager
-            mainRB, _tir, _vig = self.imager.IntersectRays(mainRB)
             image = self.imager.IntegralRays(mainRB)
 
             # from Util.ImageIO import ImageConversion, CleanDisplay

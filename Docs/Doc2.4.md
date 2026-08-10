@@ -412,4 +412,8 @@ The reason is likely because that the Canon EF 50mm f/1.2 L was designed to have
 
 ## 2.4.8 - Aperture control 
 
+The aperture in a lens is arguably the most important surface. Its location  matters significantly to aberration correction; its size often dictates the entrance pupil and consequently the f number; and its shape is the largest contributor to defocused spot shapes, i.e., bokeh. 
+
+In many other applications, the aperture control is limited to size only, and changing the size only alters the diameter of a virtual circle. Here, the aperture control is driven by several blades, who, together, form the diaphragm and controls both the shape and size of the entrance pupil. 
+
 

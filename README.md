@@ -182,6 +182,10 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
   Treating the diaphragm shape as a diffraction grating, and use Fraunhofer diffraction to calculate sun stars of the lens. 
 
+- Saving image as `DNG`.  
+
+  The framework's ability of replicating Bayer filters also gives the ability to save an image as the common `DNG` raw photo format. 
+
 - **Automatic optical material matching**.
 
   Given the index of refraction, the Abbe number, and a selected Fraunhofer line, automatically locate the materials with the closet stat. 
