@@ -1,18 +1,11 @@
 
 
-import PIL.Image
-import OpenEXR, Imath
-
 from .Points import PointsSource
 from .Images import Image2D
 
 from Util.Backend import backend as bd
-from Util.Globals import (
-    ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE,
-    KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, ORIGIN, RNG
-)
-from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor, RemoveBG
-from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
+from Util.Globals import INFINITY, FAR_DISTANCE, UP_DIR, RNG
+from Util.Misc import Magnitude, ArrayRotate
 from Raytracing.RayBatch import RayBatch
 
 
@@ -24,10 +17,6 @@ class Image2DFlat(Image2D):
         """Unsigned unit in mm. If anchors are not explicitly stated, assume image at infinity"""
         self.distance = INFINITY
 
-        """Unsigned unit in degree. If anchors are not explicitly stated, assume image in 3D fills a horizontal angle of view. Default value 40 degrees, which is a 50mm on 135 format."""
-        self.horizontalAoV = 40
-        # Note that since this AoV describes the image and not the lens, decreasing this attribute will make the image smaller, as if the lens is having a higher AoV.
-
         """4 points data in Vec3. The 4 anchor points that pins the image in 3D space """
         self.pointAnchor = None
 
@@ -35,35 +24,6 @@ class Image2DFlat(Image2D):
 
         """Height/width of each pixel, assuming square pixels"""
         self.pixelPitch = None
-
-        self._opacity = None
-        self._opacityArray = None
-
-    def LoadFrom8bit(self, imgPath):
-        """
-        For common 8 bit image formats like jpg, bmp, and png. If a png is not 8 bit, do not use this method. Find the right bit depth method instead.
-        """
-
-        # Read and save the original
-        imgPath = RectPath(imgPath)
-        self._fileMaster = PIL.Image.open(imgPath).convert("RGB")
-
-        self._Update()
-
-
-    def LoadFrom8BitPNG(self, imgPath):
-        # Read and save the original
-        imgPath = RectPath(imgPath)
-        self._fileMaster = PIL.Image.open(imgPath).convert("RGBA")
-        # if self._fileMaster.mode != "RGBA":
-        #     self._fileMaster = self._fileMaster.convert("RGBA")
-
-        r, g, b, self._opacity = self._fileMaster.split()
-
-        self._fileMaster = self._fileMaster.convert("RGB")
-
-        self._Update()
-
 
     def SetupTransitionTest(self, rotateDegree=45, scale=2):
         """
@@ -83,42 +43,6 @@ class Image2DFlat(Image2D):
         self._GeneratePointSources()
 
 
-    def LoadFromEXR(self, imgPath):
-        """
-        Load only the RGB info from an EXR image. Other channels are ignored.
-        """
-        exrPath = RectPath(imgPath)
-
-        exr = OpenEXR.InputFile(exrPath)
-
-        # EXR header tells us the image size
-        header = exr.header()
-        dw = header['dataWindow']
-        width = dw.max.x - dw.min.x + 1
-        height = dw.max.y - dw.min.y + 1
-
-        # EXR stores channels as strings like "R", "G", "B"
-        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-
-        # Read raw channel strings
-        r_str = exr.channel('R', FLOAT)
-        g_str = exr.channel('G', FLOAT)
-        b_str = exr.channel('B', FLOAT)
-
-        # Convert to float32 NumPy arrays
-        r = bd.frombuffer(r_str, dtype=bd.float32).reshape((height, width))
-        g = bd.frombuffer(g_str, dtype=bd.float32).reshape((height, width))
-        b = bd.frombuffer(b_str, dtype=bd.float32).reshape((height, width))
-
-        # Stack to H×W×3
-        rgb = bd.stack([r, g, b], axis=-1)
-        self.rgbArray = bd.stack([r, g, b], axis=-1)
-
-
-    def EmitTowards(self, targets, sampleCount, flareGlare=False):
-        return self.ReceiveAndEmitTowards(targets,  incidents=None, sampleCount= sampleCount, useHighlightSources = flareGlare)
-
-
     def ReceiveAndEmitTowards(self, targets, incidents=None, sampleCount=64, useHighlightSources=False):
         """
         Receive an incident RayBatch, cull it against this flat image's opacity
@@ -136,11 +60,11 @@ class Image2DFlat(Image2D):
             # When this is the furthest layer
             return emitted
 
-        if self._opacityArray is None:
+        if self.alphaArray is None:
             return incidents.Copy().Merge(emitted)
 
         alpha_eps = 1e-6
-        if not bd.any(self._opacityArray > alpha_eps):
+        if not bd.any(self.alphaArray > alpha_eps):
             return incidents.Copy().Merge(emitted)
 
         if self.pointAnchor is None:
@@ -178,7 +102,7 @@ class Image2DFlat(Image2D):
         if not bd.any(valid_hit):
             return incidents.Copy().Merge(emitted)
 
-        H, W = self._opacityArray.shape
+        H, W = self.alphaArray.shape
         x_img = u * (W - 1)
         y_img = v * (H - 1)
 
@@ -199,10 +123,10 @@ class Image2DFlat(Image2D):
         w01 = (1.0 - fx) * fy
         w11 = fx * fy
 
-        a00 = self._opacityArray[y0, x0]
-        a10 = self._opacityArray[y0, x1]
-        a01 = self._opacityArray[y1, x0]
-        a11 = self._opacityArray[y1, x1]
+        a00 = self.alphaArray[y0, x0]
+        a10 = self.alphaArray[y0, x1]
+        a01 = self.alphaArray[y1, x0]
+        a11 = self.alphaArray[y1, x1]
 
         alpha_local = w00 * a00 + w10 * a10 + w01 * a01 + w11 * a11
         alpha_local = bd.clip(alpha_local, 0.0, 1.0)
@@ -223,29 +147,15 @@ class Image2DFlat(Image2D):
     # ==================================================================
 
     def _Update(self):
+        """Refresh an assigned PIL master through the shared 8-bit loader."""
+        return self._Load8bitImage(self._fileMaster)
 
-        # Resize the input if needed
-        if self.imageDimensionOverride is not None:
-            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            imageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
-            if self._opacity is not None:
-                if self.imageDimensionOverride is not None:
-                    opacity_img = self._opacity.resize((self.imageDimensionOverride, newHeight))
-                else:
-                    opacity_img = self._opacity
-                self._opacityArray = bd.array(opacity_img).astype(PRECISION_TYPE) / 255.0
-            else:
-                self._opacityArray = None
-        else:
-            self.imageDimensionOverride = self._fileMaster.width
-            imageFile = self._fileMaster
 
-        # Convert into array format
-        self.rgbArray = bd.array(imageFile)
+    def _RGBLoaded(self):
+        self._GeneratePointSources()
 
-        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in
-        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
 
+    def _EXRLoaded(self):
         self._GeneratePointSources()
 
     def _GeneratePointSources(self):
@@ -258,10 +168,10 @@ class Image2DFlat(Image2D):
             self._CreateAnchors()
 
         # This method of updating pixel pitch only works when the image is a spatial rectangle, is it stretches, then this will become uneven
-        self.pixelPitch = Magnitude(self.pointAnchor[1] - self.pointAnchor[0]) / self.imageDimensionOverride
-
         sampleX = self.rgbArray.shape[1]
         sampleY = self.rgbArray.shape[0]
+
+        self.pixelPitch = Magnitude(self.pointAnchor[1] - self.pointAnchor[0]) / sampleX
 
         u = bd.linspace(0, 1, sampleX)  # Interpolation values in x-direction
         v = bd.linspace(0, 1, sampleY)  # Interpolation values in y-direction
@@ -284,12 +194,11 @@ class Image2DFlat(Image2D):
         gridPositions = gridPositions.reshape(sampleY * sampleX, 3)
         gridColors = self.rgbArray.reshape(sampleY * sampleX, 3)
 
-        mask = None
-        if self._opacityArray is not None:
-            flat_opacity = self._opacityArray.reshape(sampleY * sampleX)
-            mask = flat_opacity > 0
-            gridPositions = gridPositions[mask]
-            gridColors = gridColors[mask]
+        # Preserve the full raster so a fixed per-layer sampleCount remains
+        # proportional to image coverage when this image is used in a stack.
+        if self.alphaArray is not None:
+            active = self.alphaArray.reshape(sampleY * sampleX) > 0
+            gridColors = gridColors * active[:, None]
 
         aov_cols = []
         self.pointSourceAOVNames = []
@@ -306,9 +215,6 @@ class Image2DFlat(Image2D):
                     )
 
                 flat_aov = aov.reshape(sampleY * sampleX)
-                if mask is not None:
-                    flat_aov = flat_aov[mask]
-
                 aov_cols.append(flat_aov.reshape(-1, 1))
                 self.pointSourceAOVNames.append(name)
 
@@ -333,7 +239,7 @@ class Image2DFlat(Image2D):
         rad = bd.deg2rad(self.horizontalAoV) / 2
 
         halfX = bd.abs(bd.tan(rad) * zDist)
-        halfY = halfX * bd.abs(self._fileMaster.height / self._fileMaster.width)
+        halfY = halfX * bd.abs(self.rgbArray.shape[0] / self.rgbArray.shape[1])
 
         self.pointAnchor = bd.array([
             [-halfX, -halfY, zDist],

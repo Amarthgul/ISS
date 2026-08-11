@@ -3,7 +3,6 @@
 
 import PIL.Image
 import matplotlib.pyplot as plt
-import OpenEXR, Imath
 
 import sys
 import os
@@ -37,9 +36,6 @@ class Image2DVariDepth(Image2D):
         """This extends from the flat image to contain varied depth."""
         super().__init__()
 
-        """RGB array of the image"""
-        self.rgbArray = None
-
         """This is the distance calculated from zArray and zDepthMappingRange."""
         self.zDistance = None
 
@@ -47,17 +43,8 @@ class Image2DVariDepth(Image2D):
         This is the direct value of the image representing the z depth, not the actual physical distance used to calculate. Although in the case of EXR, zArray and zDistance is regarded as the same."""
         self.zArray = None
 
-        """Alpha/opacity array of the image (optional, e.g. EXR)"""
-        self.alphaArray = None
-
         """Selected EXR depth channel name."""
         self.depthChannelName = None
-
-        """Selected EXR alpha channel name."""
-        self.alphaChannelName = None
-
-        """Because this is a secondary imaging process, an angle of view of the image source is needed. Value is unsigned unit in degree. Default value 40 degrees, which is a 50mm on 135 format."""
-        self.horizontalAoV = 40
 
         """Stores the calculated 3D Cartesian coordinates (X, Y, Z) of the opaque pixels."""
         self.geometry3d = None
@@ -65,21 +52,11 @@ class Image2DVariDepth(Image2D):
         """Flag: if True, zArray is already in physical units from EXR and should be used directly."""
         self._usingEXRDirectDepth = False
 
-        """Master image file. For EXR this could include the alpha and the z depth"""
-        self._fileMaster = None 
-
         """Separate file for the Z depth"""
         self._fileZ = None 
 
-        """Point source object built from the image"""
-        self.pointSource = None
-
         """When using EXR, the unit in Z may not be the same. This is the file unit to millimeter conversion. """
         self.zUnitConversion = 10
-
-        """When set to an int, the image object will be resampled with image width replaced with this attribute"""
-        self.imageDimensionOverride = None 
-
 
         """Z depth read form the input are in the range of [0, 1]. However, for actual imaging, this apparently is a not a valid distance range. This attribute is used to map the z depth into a more realistic range. By default, the range is set to 1.5m to 500m, i.e., typically portrait distance to infinity"""
         self.zDepthMappingRange = bd.array([KNOB_DISTANCE, FAR_DISTANCE])
@@ -110,147 +87,64 @@ class Image2DVariDepth(Image2D):
         if(zImgPath is not None):
             self.LoadFrom8bitZ(zImgPath)
 
-        self.Refresh()
-
-
-    def LoadFrom8bitRGB(self, rgbImgPath):
-        """
-        Load an RGB image from the given path. 
-        """
-        rgbImgPath = RectPath(rgbImgPath)
-
-        # Read and save the master file  
-        self._fileMaster = PIL.Image.open(rgbImgPath).convert("RGB")
-         # Resize the input if needed 
-        if(self.imageDimensionOverride is not None):
-            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            RGBImageFile = self._fileMaster.resize((self.imageDimensionOverride, newHeight))
-        else:
-            RGBImageFile = self._fileMaster
-
-        # Convert into array format 
-        self.rgbArray = bd.array(RGBImageFile)
-
-        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
-        self.rgbArray = self.rgbArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
-
-        # 8-bit path: no alpha, and depth is NOT “direct EXR depth”
-        self.alphaArray = None
-        self.AOVs = None
-        self.AOVNames = []
-        self.pointSourceAOVNames = []
-        self.depthChannelName = None
-        self.alphaChannelName = None
-        self._usingEXRDirectDepth = False
+        return self
 
 
     def LoadFrom8bitZ(self, zImgPath):
-
         zImgPath = RectPath(zImgPath)
+        self._fileZ = PIL.Image.open(zImgPath)
 
-        # Read and save the z depth file 
-        self._fileZ = PIL.Image.open(zImgPath).convert("L")
-
-        # Resize the input if needed 
-        if(self.imageDimensionOverride is not None):
-            newHeight = int(self._fileMaster.height * (self.imageDimensionOverride / self._fileMaster.width))
-            ZImageFile = self._fileZ.resize((self.imageDimensionOverride, newHeight))
+        if self._ImageHasAlpha(self._fileZ):
+            depthImage = self._ResizePILImage(self._fileZ.convert("RGBA"))
+            depthArray = bd.array(depthImage).astype(PRECISION_TYPE)
+            self.zArray = bd.mean(depthArray[..., :3], axis=2) / (TWO ** 8 - 1)
+            depthAlpha = depthArray[..., 3] / (TWO ** 8 - 1)
+            if self.alphaArray is None:
+                self.alphaArray = depthAlpha
+            else:
+                self.alphaArray = self.alphaArray * depthAlpha
         else:
-            ZImageFile = self._fileZ
+            depthImage = self._ResizePILImage(self._fileZ.convert("L"))
+            self.zArray = (
+                bd.array(depthImage).astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+            )
 
-        # Convert into array format 
-        self.zArray = bd.array(ZImageFile)
-
-        # Normalize into [0, 1 range], this is where the 8 in 8 bit kicks in 
-        self.zArray = self.zArray.astype(PRECISION_TYPE) / (TWO ** 8 - 1)
-
+        self._usingEXRDirectDepth = False
         self._UpdateDepthRange()
+        self._DepthLoaded()
+        return self
 
 
-    def LoadFromEXR(self, exrPath, depthChannelNames=("Z", "Z.R", "depth", "Depth.Z", "depth.Z"),
-                    alphaChannelNames=("A", "alpha", "Opacity")):
+    def Refresh(self, appendAOV=False):
+        self._GeneratePolarPointSources(appendAOV=appendAOV)
+        self.ConstructHighlightPoints()
+        return self
 
-        exrPath = RectPath(exrPath)
 
-        channelsFromEXR = self._ReadEXR(exrPath, depthChannelNames, alphaChannelNames)
+    def UpdatePointSources(self, appendAOV=False):
+        return self.Refresh(appendAOV=appendAOV)
 
-        rgb = channelsFromEXR["rgb"]
-        depth = channelsFromEXR["depth"]
-        alpha = channelsFromEXR["alpha"]
-        aov_dict = channelsFromEXR.get("AOVs", {})
-        aov_names = channelsFromEXR.get("AOVNames", list(aov_dict.keys()))
 
-        if rgb is None:
-            raise ValueError(
-                "EXR does not contain RGB channels ('R', 'G', 'B')."
-            )
-        if depth is None:
-            raise ValueError(
-                f"EXR does not contain any supported depth channels: {depthChannelNames}"
-            )
+    def _ResetLoadedImageFeatures(self):
+        self.zArray = None
+        self._fileZ = None
+        self.depthChannelName = None
+        self._usingEXRDirectDepth = False
 
-        # ------------------------------------------------------------------
-        # Optional resize to match imageDimensionOverride (nearest neighbor).
-        # ------------------------------------------------------------------
-        if self.imageDimensionOverride is not None:
-            h, w, _ = rgb.shape
-            new_w = int(self.imageDimensionOverride)
-            new_h = int(h * (new_w / w))
 
-            y_idx = bd.linspace(0, h - 1, new_h).astype(bd.int64)
-            x_idx = bd.linspace(0, w - 1, new_w).astype(bd.int64)
-
-            idx2d = bd.ix_(y_idx, x_idx)
-
-            rgb = rgb[idx2d]    # (new_h, new_w, 3)
-            depth = depth[idx2d]  # (new_h, new_w)
-            if alpha is not None:
-                alpha = alpha[idx2d]  # (new_h, new_w)
-
-            # Resize all additional AOV channels the same way
-            resized_aovs = {}
-            for name in aov_names:
-                resized_aovs[name] = aov_dict[name][idx2d]
-            aov_dict = resized_aovs
-
-        # ------------------------------------------------------------------
-        # EXR depth is assumed to be in physical units already.
-        # zArray stores EXR depth; zDistance is signed (negative towards object).
-        # ------------------------------------------------------------------
-        self.rgbArray = rgb.astype(PRECISION_TYPE)
-
-        self.zArray = depth.astype(PRECISION_TYPE) * self.zUnitConversion
+    def _LoadEXRFeatures(self, channels):
+        self.zArray = channels["depth"].astype(PRECISION_TYPE) * self.zUnitConversion
         self.zDistance = -self.zArray
-
-        self.alphaArray = (
-            alpha.astype(PRECISION_TYPE) if alpha is not None else None
-        )
-
-        self.depthChannelName = channelsFromEXR["depth_name"]
-        self.alphaChannelName = channelsFromEXR["alpha_name"]
-        self.AOVNames = [name for name in aov_names if name in aov_dict]
-        self.AOVs = (
-            {name: aov_dict[name].astype(PRECISION_TYPE) for name in self.AOVNames}
-            if self.AOVNames else None
-        )
-
-        # Mark direct-depth EXR mode
+        self.depthChannelName = channels["depth_name"]
         self._usingEXRDirectDepth = True
 
-        # Keep the original EXR path as "master" reference
-        self._fileMaster = exrPath
+
+    def _DepthLoaded(self):
+        self.Refresh()
 
 
-        self._GeneratePolarPointSources(appendAOV=True)
-        self.ConstructHighlightPoints()
-
-
-    def EmitTowards(self, targets, sampleCount, flareGlare=False):
-
-        if flareGlare:
-            return  self.EmitHighlightSamplesTowards(targets, sampleCount)
-        else:
-            return self.EmitSamplesToward(targets, sampleCount)
+    def _EXRLoaded(self):
+        self.Refresh(appendAOV=True)
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
@@ -925,90 +819,6 @@ class Image2DVariDepth(Image2D):
         return RayBatch(incidents.value[keep_mask])
 
 
-    def _ReadEXR(self, exrPath, depthChannelNames, alphaChannelNames):
-        """
-        Read an EXR image and its channels.
-        """
-        exr = OpenEXR.InputFile(exrPath)
-        header = exr.header()
-        dw = header['dataWindow']
-        width = dw.max.x - dw.min.x + 1
-        height = dw.max.y - dw.min.y + 1
-
-        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-        available = list(header["channels"].keys())
-
-        def read_channel(name):
-            """Return H×W float32 array, or None if missing."""
-            if name not in available:
-                return None
-            arr = bd.frombuffer(exr.channel(name, FLOAT), dtype=bd.float32)
-            return arr.reshape(height, width)
-
-        # -------------------------------- Read RGB --------------------------------
-        r = read_channel("R")
-        g = read_channel("G")
-        b = read_channel("B")
-
-        if r is not None and g is not None and b is not None:
-            rgb = bd.stack([r, g, b], axis=-1)  # (H, W, 3)
-        else:
-            rgb = None
-
-        # ----------- Read Depth (supports multiple naming conventions) -----------
-        depth = None
-        depth_name_sel = None
-        for dname in depthChannelNames:
-            d = read_channel(dname)
-            if d is not None:
-                depth = d
-                depth_name_sel = dname
-                break
-
-        # ----------------------------Read Alpha/Opacity ---------------------------
-        alpha = None
-        alpha_name_sel = None
-        for aname in alphaChannelNames:
-            a = read_channel(aname)
-            if a is not None:
-                alpha = a
-                alpha_name_sel = aname
-                break
-
-        # ------------------------ Read additional AOV channels --------------------
-        used_names = set()
-        if r is not None and g is not None and b is not None:
-            used_names.update(["R", "G", "B"])
-        if depth is not None and depth_name_sel is not None:
-            used_names.add(depth_name_sel)
-        if alpha is not None and alpha_name_sel is not None:
-            used_names.add(alpha_name_sel)
-
-        aov_dict = {}
-        aov_names = []
-        for ch_name in available:
-            if ch_name in used_names:
-                continue
-            arr = read_channel(ch_name)
-            if arr is not None:
-                aov_names.append(ch_name)
-                aov_dict[ch_name] = arr  # H×W
-
-        return {
-            "rgb": rgb,
-            "r": r,
-            "g": g,
-            "b": b,
-            "alpha": alpha,
-            "depth": depth,
-            "channels": available,
-            "AOVs": aov_dict,
-            "AOVNames": aov_names,
-            "depth_name": depth_name_sel,
-            "alpha_name": alpha_name_sel,
-        }
-
-
     def _GeneratePolarPointSources(self, appendAOV=False):
         """
         Generate point sources from the image where each pixel is represented 
@@ -1047,7 +857,7 @@ class Image2DVariDepth(Image2D):
         D = self.zDistance + bd.swapaxes(zClipDist, 0, 1)  # (sampleY, sampleX)
 
         # Jitter in same layout, then flatten (pixel-wise)
-        self.jitterPerPoint = self._AngularJitter(
+        jitter = self._AngularJitter(
             half_horizontal, half_vertical, sampleY, sampleX, D
         ).reshape(sampleY * sampleX)
 
@@ -1058,6 +868,15 @@ class Image2DVariDepth(Image2D):
         # Colors flattened in same order
         colors = self.rgbArray.reshape(sampleY * sampleX, 3)
         self.pointSourceAOVNames = []
+        self.jitterPerPoint = jitter
+
+        # Keep the complete raster in the sampling population, including
+        # alpha-zero pixels. ImageStack gives every layer the same sampleCount;
+        # removing transparent points would concentrate that count onto the
+        # remaining pixels and make sparse layers appear too bright.
+        if self.alphaArray is not None:
+            active = self.alphaArray.reshape(sampleY * sampleX) > 0
+            colors = colors * active[:, None]
 
         if appendAOV:
             # Maybe sometimes AOV are not necessary to be included

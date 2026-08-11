@@ -84,9 +84,9 @@ class PDA(StdImager):
             "uniqueCameraModel": "ISS Virtual PDA",
             "software": "ISS Optical Simulation",
             "colorMatrix1": (
-                1.0, 0.0, 0.0,
-                0.0, 1.0, 0.0,
-                0.0, 0.0, 1.0
+                3.2404542, -1.5371385, -0.4985314,
+                -0.9692660, 1.8760108, 0.0415560,
+                0.0556434, -0.2040259, 1.0572252
             ),
             "asShotNeutral": (1.0, 1.0, 1.0),
             "calibrationIlluminant1": 21,

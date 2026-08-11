@@ -461,7 +461,7 @@ def ISSphericalTest():
 
     RefreshRNG(3452345)
     # Render the scene into an image
-    IS.Render(focusDistance=6700, renderTime=30*60, fileName="DNGTest", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=6700, renderTime=2*60, fileName="DNGTest120min", realTimeUpdate=False, flareGlare=False)
     # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
 

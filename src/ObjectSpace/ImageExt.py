@@ -4,24 +4,15 @@
 
 
 
-import PIL.Image
 import matplotlib.pyplot as plt
-import OpenEXR, Imath
 import numpy as np
 
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
-from Util.Globals import (
-    ZERO, ONE, TWO, INIT_ELLIPSE_TILT, INFINITY, FAR_DISTANCE,
-    KNOB_DISTANCE, PRECISION_TYPE, UP_DIR, Axis, ORIGIN, RNG
-)
-from Util.PltPlot import DrawRaybatch, Setup3Dplot, AddXYZ, SetUnifScale, DrawPoints, DrawPointsPerColor, RemoveBG
-from Util.Misc import Magnitude, ArrayRotate, PolarToCartesian, RectPath
+from Util.Globals import FAR_DISTANCE, PRECISION_TYPE, RNG
 from Raytracing.RayBatch import RayBatch
 
-from .Points import PointsSource
-from .Images import Image2D, Image2DFlat
-from .ImageVariDepth import  Image2DVariDepth
+from .ImageVariDepth import Image2DVariDepth
 
 
 
@@ -72,102 +63,16 @@ class Image2DVariHighlightExtension(Image2DVariDepth):
 
 
 
-    def LoadFrom8bitRGB(self, rgbImgPath):
-        """
-        Override the parent's 8-bit RGB loader so PNG files can preserve opacity.
-        Non-PNG formats fall back to the parent implementation.
-        """
-        import os
-        ext = os.path.splitext(str(rgbImgPath))[1].lower()
-        if ext == ".png":
-            self.LoadFrom8BitPNG(rgbImgPath)
-        else:
-            super().LoadFrom8bitRGB(rgbImgPath)
+    def _PremultiplyAlphaOnLoad(self):
+        return True
 
 
     def LoadFrom8BitPNG(self, imgPath, premultiplyAlphaForHighlight=True):
-        """
-        Load an 8-bit PNG while preserving alpha in Image2DVariDepth's infrastructure.
-
-        RGB is stored in self.rgbArray in [0,1]. Opacity is stored in self.alphaArray in [0,1].
-        When premultiplyAlphaForHighlight is True, transparent bright payloads inside PNG holes
-        will not be interpreted as clipped highlights by ReconstructHighlight().
-        """
-        imgPath = RectPath(imgPath)
-        rgba_master = PIL.Image.open(imgPath).convert("RGBA")
-        self._fileMaster = rgba_master
-
-        if self.imageDimensionOverride is not None:
-            new_h = int(rgba_master.height * (self.imageDimensionOverride / rgba_master.width))
-            rgba_img = rgba_master.resize((self.imageDimensionOverride, new_h))
-        else:
-            rgba_img = rgba_master
-
-        rgba_np = np.array(rgba_img, dtype=np.float64)
-        rgb_np = rgba_np[..., :3] / 255.0
-        alpha_np = rgba_np[..., 3] / 255.0
-
-        if premultiplyAlphaForHighlight:
-            rgb_np = rgb_np * alpha_np[..., None]
-
-        self.rgbArray = self._ToBackend(rgb_np)
-        self.alphaArray = self._ToBackend(alpha_np)
-        self._usingEXRDirectDepth = False
-
-
-    def LoadFrom8bitZ(self, zImgPath):
-        """
-        Load an 8-bit depth image where black is near and white is far.
-
-        The stored zArray stays normalized in [0,1], then _UpdateDepthRange maps it into
-        self.zDepthMappingRange and writes the signed distance into self.zDistance.
-
-        If the depth image contains opacity, it is merged into self.alphaArray so both RGB and Z
-        validity can cull transparent pixels later.
-        """
-        zImgPath = RectPath(zImgPath)
-        z_master = PIL.Image.open(zImgPath)
-        self._fileZ = z_master
-
-        has_alpha = (
-            z_master.mode in ("RGBA", "LA")
-            or (z_master.mode == "P" and "transparency" in z_master.info)
+        return self._Load8bitRGB(
+            imgPath,
+            preserveAlpha=True,
+            premultiplyAlpha=premultiplyAlphaForHighlight,
         )
-
-        if has_alpha:
-            z_rgba = z_master.convert("RGBA")
-            if self.imageDimensionOverride is not None:
-                new_h = int(z_rgba.height * (self.imageDimensionOverride / z_rgba.width))
-                z_rgba = z_rgba.resize((self.imageDimensionOverride, new_h))
-
-            z_rgba_np = np.array(z_rgba, dtype=np.float64)
-            z_gray = z_rgba_np[..., :3].mean(axis=2) / 255.0
-            z_alpha = z_rgba_np[..., 3] / 255.0
-        else:
-            z_l = z_master.convert("L")
-            if self.imageDimensionOverride is not None:
-                new_h = int(z_l.height * (self.imageDimensionOverride / z_l.width))
-                z_l = z_l.resize((self.imageDimensionOverride, new_h))
-            z_gray = np.array(z_l, dtype=np.float64) / 255.0
-            z_alpha = None
-
-        self.zArray = self._ToBackend(z_gray)
-        self._usingEXRDirectDepth = False
-
-        if z_alpha is not None:
-            z_alpha_bd = self._ToBackend(z_alpha)
-            if self.alphaArray is None:
-                self.alphaArray = z_alpha_bd
-            else:
-                # Keep a pixel only if both RGB and depth masks consider it visible.
-                self.alphaArray = self.alphaArray * z_alpha_bd
-
-        self._UpdateDepthRange()
-
-
-    def UpdatePointSources(self):
-
-        self._GeneratePolarPointSources()
 
 
     def ReconstructHighlight(self, normalize8Bit=True):
@@ -306,79 +211,6 @@ class Image2DVariHighlightExtension(Image2DVariDepth):
     # ==================================================================
     """ ====================== Private Methods ===================== """
     # ==================================================================
-
-
-    def _GeneratePolarPointSources(self, appendAOV=False):
-        """
-        Highlight-extension override of polar point generation.
-
-        Difference from Image2DVariDepth:
-        - transparent pixels are ignored immediately and never become point sources
-        - simplified for 8-bit RGB / PNG workflow only
-        - no EXR-specific AOV packing is performed
-        """
-        if self.rgbArray is None:
-            self.pointSource = None
-            self.jitterPerPoint = None
-            return
-
-        sampleY, sampleX, _ = self.rgbArray.shape
-
-        # Field of view in radians
-        horizontalAoV_rad = bd.deg2rad(self.horizontalAoV)
-        half_horizontal = horizontalAoV_rad / 2.0
-
-        verticalAoV_rad = horizontalAoV_rad * (sampleY / sampleX)
-        half_vertical = verticalAoV_rad / 2.0
-
-        # Pixel-center coordinates in [0,1]
-        x_idx = bd.arange(sampleX, dtype=PRECISION_TYPE)
-        y_idx = bd.arange(sampleY, dtype=PRECISION_TYPE)
-
-        u = (x_idx + 0.5) / sampleX
-        v = (y_idx + 0.5) / sampleY
-
-        # Grid in (y, x) order
-        U, V = bd.meshgrid(u, v, indexing="xy")
-
-        theta_x = -half_horizontal + U * horizontalAoV_rad
-        theta_y = -half_vertical + V * verticalAoV_rad
-
-        # Distance map
-        zClipDist = self._zClipDistance(
-            half_horizontal, half_vertical, sampleY, sampleX, self.nearClipping
-        )
-
-        D = self.zDistance + bd.swapaxes(zClipDist, 0, 1)
-
-        # Flatten all arrays
-        coordinates = bd.stack([theta_x, theta_y, D], axis=-1).reshape(sampleY * sampleX, 3)
-        colors = self.rgbArray.reshape(sampleY * sampleX, 3)
-        jitter = self._AngularJitter(
-            half_horizontal, half_vertical, sampleY, sampleX, D
-        ).reshape(sampleY * sampleX)
-
-        # --------------------------------------------------------------
-        # Transparency cull: fully transparent pixels never become emitters
-        # --------------------------------------------------------------
-        if self.alphaArray is not None:
-            alpha_flat = self.alphaArray.reshape(sampleY * sampleX)
-
-            # Treat only strictly positive alpha as active.
-            # This removes fully transparent PNG pixels from the point cloud.
-            keep_mask = alpha_flat > 0
-
-            coordinates = coordinates[keep_mask]
-            colors = colors[keep_mask]
-            jitter = jitter[keep_mask]
-
-        self.jitterPerPoint = jitter
-
-        points = bd.concatenate([coordinates, colors], axis=1)
-
-        self.pointSource = PointsSource(points)
-        self.pointSource.isCartesian = False
-        self.pointSource.angleInRad = True
 
 
     def _ToNumpy(self, arr):
@@ -547,42 +379,13 @@ class Image2DFlatHighlightExtension(Image2DVariHighlightExtension):
         self.zDistance = FAR_DISTANCE
 
 
-    def LoadFrom8bitRGB(self, rgbImgPath):
-        """
-        Flat-image override of 8-bit RGB loading.
-
-        Keeps the parent's RGB loading logic, but instead of expecting a separate
-        Z image, it assigns one constant depth to the entire image using
-        self.zDistance, then immediately generates the point-source cloud.
-
-        Notes
-        -----
-        - self.zDistance is treated as one unsigned physical distance parameter
-          supplied by the user/config.
-        - Internally, the system uses negative signed object-space Z, so:
-              self.zArray    : positive depth magnitude per pixel
-              self.zDistance : negative signed depth used by the geometry/ray system
-        """
-
-        # Reuse parent RGB loading behavior as much as possible.
-        super().LoadFrom8bitRGB(rgbImgPath)
-
-        if self.rgbArray is None:
-            return
-
+    def _RGBLoaded(self):
         h, w, _ = self.rgbArray.shape
-
-        # Take the user-facing flat distance and convert it into the internal convention.
         flat_depth = bd.abs(bd.array(self.zDistance, dtype=PRECISION_TYPE)).reshape(-1)[0]
-
-        # Store a constant per-pixel zArray, and signed zDistance for the engine.
         self.zArray = bd.ones((h, w), dtype=PRECISION_TYPE) * flat_depth
         self.zDistance = -flat_depth
-
-        # 8-bit flat RGB path is not EXR-direct-depth.
         self._usingEXRDirectDepth = False
-
-        self.UpdatePointSources()
+        self.Refresh()
 
 
     def ReceiveAndEmitTowards(self, targets, incidents: RayBatch = None, sampleCount: int = 64, useHighlightSources=False):

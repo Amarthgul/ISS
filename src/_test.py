@@ -213,85 +213,6 @@ def RayPathTesting(lens, AoV, imageDistance = 200000, imageMinSample = 320, real
     return elpased
 
 
-def PDATest(lens, tUVIR = 1, AoV =40, imageDistance =200000, imageMinSample=320, realTimeUpdate=True):
-    print("New test w/ im Distance ", imageDistance, " sample min ", imageMinSample)
-
-    imager = PDA()
-    if(tUVIR > 0):
-        imager.tUVIR = tUVIR
-        lens.AddRearGroup(imager.GetUVIR())
-        lens.UpdateLens()
-
-    # Assemble the imaging system
-    imager.SetLensLength(lens.totalAxialLength)
-    imager.BFD = lens.BestFocusBFD(imageDistance)
-    imager.Update()
-    print("Best focus: ", imager.BFD)
-    image = imager.AcquireEmpty()
-
-    # lens.DrawLens()
-    # SetUnifScale(50)
-    # AddXYZ()
-    # RemoveBG()
-    # imager.DrawSurface()
-    # plt.draw()
-    # plt.pause(5)
-
-    sourceImage = Image2DFlat()
-    sourceImage.horizontalAoV = AoV
-    sourceImage.imageDimensionOverride = 1920
-    sourceImage.distance = imageDistance
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
-
-    start = time.time()
-
-    iterationCount = 0
-    perIterRays = 20480  # 40960
-
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image))
-
-    while (True):
-
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), perIterRays)
-        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
-        # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-
-        if (realTimeUpdate):
-            im.set_data(ImageConversion(image))
-            plt.draw()
-            plt.pause(0.01)
-
-        # print(source.sampleRecord)
-        elpased = time.time() - start
-        imMin, imMax, imR = sourceImage.GetSampleRatios()
-
-        # print("End RB size: ", mainRB.value.shape)
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin,
-              " max: ", imMax, " -Ratio: ", imR)
-        ProgressBar(iterationCount / imageMinSample, 100)
-
-        iterationCount += 1
-
-        if (iterationCount > imageMinSample):
-            image /= 100
-            global FrameCount
-            fn = r"UVIR_Test" + str(imageDistance) + "_" + str(tUVIR)
-            SaveAsEXR(image, r"resources/Results/", fn)
-            break
-
-    FrameCount += 1
-
-    return elpased
-
-
 def CatadioptricTest():
     from Surfaces.Stop import Stop
     from Lens import Lens
@@ -373,13 +294,14 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonSerenar50f1.8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
 
     print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
-    #lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74)
-    lens.PlotSurfaceData(PlotTrackLength=74)
+    #lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
+    lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78)
+
 
 def DefocusTests():
 
