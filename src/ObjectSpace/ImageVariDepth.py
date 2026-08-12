@@ -115,14 +115,15 @@ class Image2DVariDepth(Image2D):
         return self
 
 
-    def Refresh(self, appendAOV=False):
-        self._GeneratePolarPointSources(appendAOV=appendAOV)
+    def Refresh(self, appendAOV=None):
+        """Rebuild point sources using the current ``emitAOVs`` setting."""
+        self._GeneratePolarPointSources(appendAOV=self.emitAOVs)
         self.ConstructHighlightPoints()
         return self
 
 
-    def UpdatePointSources(self, appendAOV=False):
-        return self.Refresh(appendAOV=appendAOV)
+    def UpdatePointSources(self, appendAOV=None):
+        return self.Refresh()
 
 
     def _ResetLoadedImageFeatures(self):
@@ -144,7 +145,7 @@ class Image2DVariDepth(Image2D):
 
 
     def _EXRLoaded(self):
-        self.Refresh(appendAOV=True)
+        self.Refresh()
 
 
     def EmitSamplesToward(self, targets, sampleCount=64):
@@ -195,7 +196,7 @@ class Image2DVariDepth(Image2D):
         # Update zDistance = -zArray (your convention)
         self.zDistance = -self.zArray
 
-        self._GeneratePolarPointSources(appendAOV=bool(self.pointSourceAOVNames))
+        self._GeneratePolarPointSources(appendAOV=self.emitAOVs)
 
 
     def DrawMask(self, alpha_eps=1e-6, show_zdistance=True, use_log=False, max_markers=2000):
@@ -826,6 +827,11 @@ class Image2DVariDepth(Image2D):
         theta_x and theta_y are field angles (in radians) relative to the optical axis,
         and D is the distance from the front vertex.
         """
+        # ``emitAOVs`` is the sole public opt-in. Keep the argument for
+        # compatibility with existing internal callers, but never let it
+        # bypass the image-level setting.
+        appendAOV = bool(appendAOV and self.emitAOVs)
+
         sampleY, sampleX, _ = self.rgbArray.shape  # (height, width, channels)
 
         # Field of view in radians

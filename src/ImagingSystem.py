@@ -42,7 +42,7 @@ class ImagingSystem:
         # I have no idea why this is needed, the sample ratio should have normalized the output image brightness, but still, a 10-stop compensator is required.
 
 
-        self._sourcePerSample = 1024
+        self._sourcePerSample = 10240
 
 
         self._pupilPerSample = 512

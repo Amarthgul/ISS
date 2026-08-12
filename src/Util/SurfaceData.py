@@ -440,7 +440,7 @@ def _GroupData(lens, fraunhoferLine, vertices, maxPower):
 
 
 def _MarginalRayLayoutData(lens):
-    """Return marginal-ray points, focus, and rear-principal-plane position."""
+    """Return marginal-ray data for the layout and virtual reference overlays."""
     rayPath = MarginalRayPath(lens)
     physicalIndices = [
         index for index, surface in enumerate(lens.surfaces)
@@ -450,9 +450,14 @@ def _MarginalRayLayoutData(lens):
     finalDirection = None
 
     if not rayPath.position or len(rayPath.position[0]) == 0:
-        return points, None, None
+        return points, None, None, []
 
+    initialPoint = (
+        _Scalar(rayPath.position[0][0, Axis.Z.value]),
+        _Scalar(rayPath.position[0][0, Axis.Y.value]),
+    )
     initialHeight = _Scalar(rayPath.position[0][0, Axis.Y.value])
+    propagationPoints = [initialPoint]
 
     for pathIndex, _surfaceIndex in enumerate(physicalIndices, start=1):
         if pathIndex >= len(rayPath.position):
@@ -468,6 +473,7 @@ def _MarginalRayLayoutData(lens):
             _Scalar(positions[0, Axis.Y.value]),
         )
         points.append(point)
+        propagationPoints.append(point)
         finalDirection = directions[0]
 
     focus = None
@@ -490,7 +496,61 @@ def _MarginalRayLayoutData(lens):
             if not np.isfinite(principalPlaneZ):
                 principalPlaneZ = None
 
-    return points, focus, principalPlaneZ
+    return points, focus, principalPlaneZ, propagationPoints
+
+
+def _RayHeightAtAxialPosition(propagationPoints, axialPosition):
+    """Interpolate the traced marginal ray at an axial plane."""
+    for start, end in zip(propagationPoints, propagationPoints[1:]):
+        startZ, startHeight = start
+        endZ, endHeight = end
+        if not min(startZ, endZ) <= axialPosition <= max(startZ, endZ):
+            continue
+
+        axialDistance = endZ - startZ
+        if abs(axialDistance) <= _Scalar(AXIAL_ZERO):
+            return startHeight
+
+        fraction = (axialPosition - startZ) / axialDistance
+        return startHeight + fraction * (endHeight - startHeight)
+
+    return None
+
+
+def _StopRayHeightPercentage(propagationPoints, stopZ):
+    """Return the absolute ray height and its percentage of the ray maximum."""
+    if len(propagationPoints) < 2:
+        return None
+
+    stopHeight = _RayHeightAtAxialPosition(propagationPoints, stopZ)
+    if stopHeight is None:
+        return None
+
+    maximumHeight = max(abs(height) for _position, height in propagationPoints)
+    if maximumHeight <= _Scalar(AXIAL_ZERO):
+        return None
+
+    return abs(stopHeight), abs(stopHeight) / maximumHeight * 100.0
+
+
+def _DrawStopRayHeightPercentage(axis, stopZ, propagationPoints):
+    """Label a stop with its marginal-ray height as a percentage of the maximum."""
+    result = _StopRayHeightPercentage(propagationPoints, stopZ)
+    if result is None:
+        return
+
+    rayHeight, percentage = result
+    axis.annotate(
+        f"{percentage:.1f}%",
+        xy=(stopZ, rayHeight),
+        xytext=(4, 2),
+        textcoords="offset points",
+        color="#424242",
+        ha="left",
+        va="bottom",
+        fontsize=8,
+        zorder=5,
+    )
 
 
 def _PupilProfile(lens):
@@ -679,13 +739,27 @@ def _DrawLensLayout(
             zorder=2,
         )
 
+    rayPoints = []
+    focus = None
+    principalPlaneZ = None
+    propagationPoints = []
+    hasStop = any(isinstance(surface, Stop) for surface in lens.surfaces)
+    if showRayHeight or showPrincipalPlane or hasStop:
+        (
+            rayPoints,
+            focus,
+            principalPlaneZ,
+            propagationPoints,
+        ) = _MarginalRayLayoutData(lens)
+
     layoutHeight = _LayoutHeight(lens)
     for surfaceIndex, surface in enumerate(lens.surfaces):
         if not isinstance(surface, Stop):
             continue
+        stopZ = _Scalar(surface.cumulativeThickness)
         stopHeight = _StopHeight(lens, surfaceIndex, layoutHeight)
         axis.plot(
-            [_Scalar(surface.cumulativeThickness)] * 2,
+            [stopZ] * 2,
             [0.0, stopHeight],
             color="#424242",
             alpha=0.42,
@@ -693,12 +767,7 @@ def _DrawLensLayout(
             solid_capstyle="butt",
             zorder=3,
         )
-
-    focus = None
-    rayPoints = []
-    principalPlaneZ = None
-    if showRayHeight or showPrincipalPlane:
-        rayPoints, focus, principalPlaneZ = _MarginalRayLayoutData(lens)
+        _DrawStopRayHeightPercentage(axis, stopZ, propagationPoints)
 
     if showRayHeight:
         if rayPoints:

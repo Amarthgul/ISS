@@ -447,21 +447,22 @@ def ISAnamorphicTest():
 
 def ISSphericalTest():
     from ImagingSystem import ImagingSystem
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
+    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D, ExampleStackSpotGrid
     from Util.Globals import RefreshRNG
     from Imagers.PDA import PDA
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx")).GetLens()
     lens.AddSurfaceDefect()
 
-    imager = PDA(horiPx=1920)
+    imager = PDA(horiPx=2560)
 
     IS = ImagingSystem(lens, imager)
     IS.object = ExampleStack3D()
+    # IS.object = ExampleStackSpotGrid(65)
 
     RefreshRNG(3452345)
     # Render the scene into an image
-    IS.Render(focusDistance=6700, renderTime=2*60, fileName="DNGTest120min", realTimeUpdate=False, flareGlare=False)
+    IS.Render(focusDistance=700, renderTime=2*60, fileName="DNGTest2min", realTimeUpdate=False, flareGlare=False)
     # IS.RenderFlareOnly(focusDistance=1000, renderTime= 40 * 60, fileName="AnamorphicBlueShort", realTimeUpdate=False, flareGlare=True)
 
 

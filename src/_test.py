@@ -294,13 +294,13 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
 
     print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
-    #lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
-    lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78)
+    lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
+    # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78)
 
 
 def DefocusTests():

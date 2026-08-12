@@ -202,7 +202,7 @@ class Image2DFlat(Image2D):
 
         aov_cols = []
         self.pointSourceAOVNames = []
-        if self.AOVs is not None:
+        if self.emitAOVs and self.AOVs is not None:
             for name in self.AOVNames:
                 if name not in self.AOVs:
                     continue

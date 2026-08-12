@@ -27,7 +27,7 @@ class ImageStack:
         :param nameTag: Name tag for the image for easier recognition.
         """
 
-        print("Max min of ", nameTag, ": ",  bd.max(image.rgbArray), ", ", bd.min(image.rgbArray))
+        # print("Max min of ", nameTag, ": ",  bd.max(image.rgbArray), ", ", bd.min(image.rgbArray))
 
         if nameTag == "Img":
             nameTag = "Img"+str(self.layers)
@@ -64,6 +64,9 @@ class ImageStack:
         background._fileMaster = PIL.Image.new("RGB", (int(sampleX), int(sampleY)), (255, 255, 255))
         background._Update()
 
+        # Alpha rendering consumes an explicit AOV, so both layers must opt in.
+        background.emitAOVs = True
+        image.emitAOVs = True
         background.AppendAOV(opaChannelName, 1)
         #image.rgbArray = bd.zeros_like(image.rgbArray, dtype=image.rgbArray.dtype)
 
@@ -93,6 +96,13 @@ class ImageStack:
             aligned to the unified AOV order.
         :return: unified AOV name list.
         """
+
+        # Calling UnifyAOV is an explicit request for stack-wide AOV output.
+        # Enable every image before discovering the union so all emitted ray
+        # rows receive the same schema and can be merged safely.
+        for image in self.images.values():
+            if hasattr(image, "emitAOVs"):
+                image.emitAOVs = True
 
         unifiedNames = self.GetAOVNames()
         if len(unifiedNames) == 0:
@@ -172,6 +182,9 @@ class ImageStack:
 
 
     def _ImageImplicitAOVNames(self, image):
+        if not getattr(image, "emitAOVs", False):
+            return []
+
         emittedNames = []
         if hasattr(image, "GetAOVNames"):
             emittedNames = list(image.GetAOVNames())
@@ -194,6 +207,9 @@ class ImageStack:
         Return the AOV names this image would emit, including implicit depth
         image channels when point sources have not been regenerated yet.
         """
+
+        if not getattr(image, "emitAOVs", False):
+            return []
 
         names = []
         if hasattr(image, "GetAOVNames"):
@@ -344,6 +360,59 @@ def ExampleStack2DNoGain():
 
     exampleStack.PrintLayerTags()
 
+    return exampleStack
+
+
+def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500):
+    from .Points import PointsSource
+
+    # Ordered from narrowest to widest. When the requested AoV falls between
+    # presets, use the next wider scene so its image data covers the full AoV.
+    focalLengthByAoV = (
+        (20, 105),
+        (40, 50),
+        (54, 35),
+        (65, 28),
+        (74, 24),
+    )
+    focalLength = focalLengthByAoV[-1][1]
+    for presetAoV, presetFocalLength in focalLengthByAoV:
+        if horizontalAoV <= presetAoV:
+            focalLength = presetFocalLength
+            break
+
+
+    ratio = 0.92  # Off focus spots can be too large to fit inside the imager
+    xAngle = 0.5 * ratio * horizontalAoV  # Horizontal
+    yAngle = 0.5 * ratio * horizontalAoV * (2/3)  # Vertical
+    sampleGridCount = 11
+
+    gridPointSource = PointsSource()
+    gridPointSource.isCartesian = False
+    gridPointSource.forceExposureScalar = 0.25
+    gridPointSource.GenerateGridSpots(xAngle, yAngle, dist=gridDistance, sampleField=sampleGridCount)
+
+
+    MG = Image2DVariDepth()
+    MG.horizontalAoV = horizontalAoV
+    MG.LoadFromEXR(f"resources/VarFocalScene/MG_FL{focalLength}.exr")
+
+    FG = Image2DVariDepth()
+    FG.horizontalAoV = horizontalAoV
+    FG.LoadFromEXR(f"resources/VarFocalScene/FG_FL{focalLength}.exr")
+
+    AP = Image2DVariDepth()
+    AP.horizontalAoV = horizontalAoV
+    AP.LoadFromEXR(f"resources/VarFocalScene/AP_FL{focalLength}.exr")
+
+    exampleStack = ImageStack()
+
+    exampleStack.AddImage(gridPointSource, "gridPointSource") # Technically a violation of argument type but it works
+    exampleStack.AddImage(MG, "MG")
+    exampleStack.AddImage(FG, "FG")
+    exampleStack.AddImage(AP, "AP")
+
+    exampleStack.PrintLayerTags()
     return exampleStack
 
 

@@ -37,8 +37,11 @@ class PointsSource:
         """Whether the angle is in radian"""
         self.angleInRad = False
 
-
+        """Records the number of times each point has be sampled so far."""
         self.sampleRecord = None
+
+        """Per-ray survival probability used to reduce exposure during emission."""
+        self.forceExposureScalar = 1
 
 
         self.emissionPDF = ColorPDF()
@@ -135,6 +138,7 @@ class PointsSource:
         sourceDuplicate.isCartesian = self.isCartesian
         sourceDuplicate.angleInRad = self.angleInRad
         sourceDuplicate.emissionPDF = self.emissionPDF
+        sourceDuplicate.forceExposureScalar = self.forceExposureScalar
 
         #print("Sample min/max on master:", bd.min(self.sampleRecord), bd.max(self.sampleRecord))
 
@@ -147,6 +151,15 @@ class PointsSource:
             jitter, 
             addSecondary)
         
+
+    def ReceiveAndEmitTowards(self, targets, incidents: RayBatch = None, sampleCount: int = 64,
+                              useHighlightSources=False):
+
+        poolSize = self.value.shape[0]
+        actualSample = poolSize if (sampleCount > poolSize) else sampleCount
+
+        return self.EmitSamplesToward(targets, actualSample)
+
 
     def GenerateSpots(self, xAngle, yAngle, dist=FAR_DISTANCE, sampleField=5):
         """
@@ -310,10 +323,28 @@ class PointsSource:
             return self._EmptyEmissionRayBatch(sampleSource)
 
         if COLOR_PDF:
-            return self._SamplesToTargetsEmissionChannelBased(sampleSource, targets, jitter, cosineFalloff)
-
+            emitted = self._SamplesToTargetsEmissionChannelBased(sampleSource, targets, jitter, cosineFalloff)
         else:
-            return self._SamplesToTargetsEmissionFraunhoferLine(sampleSource, targets, jitter, addSecondary, cosineFalloff)
+            emitted = self._SamplesToTargetsEmissionFraunhoferLine(sampleSource, targets, jitter, addSecondary, cosineFalloff)
+
+        return self._ApplyForceExposureDrop(emitted, sampleSource.forceExposureScalar)
+
+
+    def _ApplyForceExposureDrop(self, emitted, exposureScalar):
+        """Keep each emitted ray with probability ``exposureScalar``."""
+        exposureScalar = bd.asarray(exposureScalar)
+        if exposureScalar.ndim != 0:
+            raise ValueError("forceExposureScalar must be a scalar")
+
+        exposureScalar = bd.clip(exposureScalar, ZERO, ONE)
+        exposureScalar = exposureScalar.item()
+
+        if exposureScalar <= 0:
+            emitted.value = emitted.value[:0]
+        elif exposureScalar < 1:
+            emitted.RandomDrop(dropRate=1 - exposureScalar)
+
+        return emitted
 
 
     def _SamplesToTargetsEmissionFraunhoferLine(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):

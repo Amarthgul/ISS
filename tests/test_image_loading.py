@@ -144,7 +144,59 @@ class ImageLoadingTests(unittest.TestCase):
         self.assertEqual(flat.rgbArray.shape, (3, 8, 3))
         self.assertIsNotNone(flat.pointSource)
         self.assertEqual(vari.zArray.shape, (3, 8))
+        self.assertFalse(vari.emitAOVs)
+        self.assertEqual(vari.GetAOVNames(), [])
+        self.assertEqual(vari.pointSource.value.shape[1], 6)
+
+        vari.emitAOVs = True
         self.assertEqual(vari.GetAOVNames()[:2], ["A", "depth.Z"])
+        self.assertEqual(vari.pointSource.value.shape[1], 8)
+
+        vari.emitAOVs = False
+        self.assertEqual(vari.GetAOVNames(), [])
+        self.assertEqual(vari.pointSource.value.shape[1], 6)
+
+    def test_vari_depth_aov_emission_is_opt_in(self):
+        image = Image2DVariDepth()
+        image.rgbArray = np.ones((2, 2, 3), dtype=np.float64)
+        image.alphaArray = np.array([[1.0, 0.5], [0.25, 1.0]])
+        image.alphaChannelName = "A"
+        image.zArray = np.array([[10.0, 20.0], [30.0, 40.0]])
+        image.zDistance = -image.zArray
+        image.depthChannelName = "Z"
+        image.AOVNames = ["mask"]
+        image.AOVs = {"mask": np.array([[2.0, 3.0], [4.0, 5.0]])}
+
+        image.Refresh()
+        self.assertEqual(image.pointSource.value.shape, (4, 6))
+        self.assertEqual(image.GetAOVNames(), [])
+        rgb_only_rays = image.ReceiveAndEmitTowards(
+            np.array([[0.0, 0.0, 0.0]]),
+            sampleCount=4,
+        )
+        self.assertEqual(rgb_only_rays.value.shape[1], 12)
+
+        image.emitAOVs = True
+        self.assertEqual(image.pointSource.value.shape, (4, 9))
+        self.assertEqual(image.GetAOVNames(), ["A", "Z", "mask"])
+        np.testing.assert_allclose(
+            image.pointSource.value[:, 6:],
+            np.column_stack([
+                image.alphaArray.reshape(-1),
+                image.zArray.reshape(-1),
+                image.AOVs["mask"].reshape(-1),
+            ]),
+        )
+        aov_rays = image.ReceiveAndEmitTowards(
+            np.array([[0.0, 0.0, 0.0]]),
+            sampleCount=4,
+        )
+        self.assertEqual(aov_rays.value.shape[1], 15)
+        self.assertEqual(aov_rays.GetAoV().shape[1], 3)
+
+        image.emitAOVs = False
+        self.assertEqual(image.pointSource.value.shape, (4, 6))
+        self.assertEqual(image.GetAOVNames(), [])
 
 
 if __name__ == "__main__":
