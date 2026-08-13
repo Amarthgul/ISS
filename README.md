@@ -119,6 +119,19 @@ The framework could also model how rays bounce back from the film plate and crea
 	<img src="resources/ReadmeImg/DemoHalation.jpg" width="640">
 </p>
 
+### Digital Sensor Effects 
+
+Aside from film, the framework could also simulate digital sensors, which primarily concerns UVIR glass, Microlens Array (MLA), and Color Filtering Array (CFA). 
+
+When CFA is considered, ordinary RBG image becomes rather "unviewable". The image below shows the direct result of seeing the color data of an image behind a Bayer pattern CFA: 
+
+<p align="center">
+	<img src="resources/ReadmeImg/BayerExample.png" width="380">
+</p>
+
+As such, for digital sensor type, the framework support setting the output format as the commonly used raw photo format Digital Negative (DNG).  
+
+
 ### Additional apertures 
 
 Cine rigs contain many things that would affect the final image but are seldom noticed. For example, the matte box is a contraption in front of the lens used to hold filters/gels and provide barn doors to block unwanted lights. However, matte box also restrains the path of light, consequently affects out-of-focus highlights (which by definition makes them apertures of the system). Observe how in the image below on the left, the bokeh look as if they are cut from two sides. 

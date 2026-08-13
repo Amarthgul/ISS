@@ -37,11 +37,55 @@ The figure below shows an example of the color PDF and their aggregate. It can b
 While named "plain", the plain imager is only plain in the sense that it has no other modifiers outside or inside of it, i.e., rays are intersected and radiance are deposit directly without modifications. 
 There are still things that the plain imager is capable of. For example, some old film point and shot cameras have a curved image plane, which aims to solve the field curvature caused by the cheap lens. The plain imager is nevertheless a surface, which means it could inherit the behaviors of a lens surface and have curvature of its own. In this way, the imager itself can also be curved. 
 
-# 2.6.2 - CMOS/CCD
+# 2.6.2 - PDA 
+
 
 Digital sensors are mostly divided into two categories, CMOS and CCD, but their difference primarily lies in how they read the data. CCD does have some unique image characteristics such as blooming, but its logic also made it near impossible for motion picture production, so it can be ignored temporarily for this framework. 
 
-Since silicon based PDA has a spectral sensitivity up to 1100nm, and the framework technically has the ability to produce wavelengths in UV and IR range, there is a non-zero chance that non-visible lights will be recorded. For this purpose, it is recommended to include a bandpass filter that culls rays beyond the visible spectrum range.   
+Both CMOS and CCD sensor are treated as PDA here. Please note that this means certain phenomena caused by the circuit design of CMOS or CCD will not occur. For example, CCD blooming is not going to happen even if the brightness of the pixel meets the condition.  
+
+Since silicon based PDA has a spectral sensitivity up to 1100nm, and the framework technically has the ability to produce wavelengths in UV and IR range, there is a non-zero chance that non-visible lights will be recorded. For this purpose, it is recommended to include a bandpass filter that culls rays beyond the visible spectrum range. 
+
+The more important behavior for PDA imager type is the structures in front of them, namely: 
+
+- UVIR glass 
+- Micro Lens Array (MLA) 
+- Color Filtering Array (CFA) 
+
+Modelling the UVIR glass is quite simple. They themselves are just another 2 instances of refractive surface, which is already discussed with ample detail in chapter 2.3. The emphasis here is MLA and CFA. 
+
+For MLA, they can be treated the same as other refractive surfaces in the lens. However, there is a micro lens in front of every sensor pixel, so even for a 1920x1080 imager there will be 2073600 microlenses. Even with GPU acceleration, this is not a trivia amount to fully compute. As such, they are receiving a simplified treatment here. 
+
+First, the axial difference of the microlenses caused by the radius is ignored. That is, when a ray arrives at a plane representing the MLA, its intersection with that plane is regarded as the intersection with the conceptually spherical microlens. In this way, intersection becomes significant cheaper to compute. 
+
+The world space intersection coordinate is then mapped into the local microlens coordinate. Here, a pre-computed normal map is used to find the normal direction of the microlens surface at that intersection. 
+
+<p align="center">
+	<img src="../resources/ReadmeImg/Doc2.6/MLA_100p.png" width="256">
+</p>
+
+The normal map above probably looks quite confusing. This is because, by default, the diameter of the microlens is set to equal to the diagonal of the pixel pitch. 
+
+Shrinking the diameter to 0.25x of the default size should make it a lot easier to understand: 
+
+<p align="center">
+	<img src="../resources/ReadmeImg/Doc2.6/MLA_25p.png" width="256">
+</p>
+
+The same normal map is used for every micro lens since, as far as I know, there does not exist a photographic image sensor that has differently sized microlens. 
+
+Anyhow, the normal map here functions as a look-up table that quickly returns the normal direction of all the intersections. With the normal direction and incident direction (which is recorded directly by the ray), refraction becomes easy to calculate. 
+
+There is one case that the MLA does change. As briefly mentioned in the frst chapter, some old film lenses have an extremely large incident angle, which causes a lot of trouble for digital sensors, as the microlens cannot bend these rays to fall into the well below. Some sensor thus scales the MLA so that microlens at the edge is moved towards the optical axis. In this way, oblique rays are "pre-bent" and could thus fall into the right well. Leica sensors are famous for using this design. 
+
+CFA is next after the MLA. Here another simplification is made, as the two are regarded to sit in the same plane. 
+
+By default, Bayer pattern is used as the CFA pattern. It is possible to specify which Bayer pattern is used, `RGGB`, `BGGR`, `GRBG`, or `GBRG`
+
+One limitation the framework have set is that for the CFA to work, the system has to be operating using the channel based wavelength (refer to 2.5.1.1). The Fraunhofer interpolation could work but would be slower and less accurate. 
+
+
+
 
 # 2.6.3 - Film
 
