@@ -374,6 +374,7 @@ def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500):
         (54, 35),
         (65, 28),
         (74, 24),
+        (100, 15),
     )
     focalLength = focalLengthByAoV[-1][1]
     for presetAoV, presetFocalLength in focalLengthByAoV:
@@ -401,16 +402,18 @@ def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500):
     FG.horizontalAoV = horizontalAoV
     FG.LoadFromEXR(f"resources/VarFocalScene/FG_FL{focalLength}.exr")
 
-    AP = Image2DVariDepth()
-    AP.horizontalAoV = horizontalAoV
-    AP.LoadFromEXR(f"resources/VarFocalScene/AP_FL{focalLength}.exr")
-
     exampleStack = ImageStack()
 
     exampleStack.AddImage(gridPointSource, "gridPointSource") # Technically a violation of argument type but it works
     exampleStack.AddImage(MG, "MG")
     exampleStack.AddImage(FG, "FG")
-    exampleStack.AddImage(AP, "AP")
+
+    # The 15 mm scene has no aperture layer.
+    if focalLength != 15:
+        AP = Image2DVariDepth()
+        AP.horizontalAoV = horizontalAoV
+        AP.LoadFromEXR(f"resources/VarFocalScene/AP_FL{focalLength}.exr")
+        exampleStack.AddImage(AP, "AP")
 
     exampleStack.PrintLayerTags()
     return exampleStack

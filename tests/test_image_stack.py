@@ -30,7 +30,9 @@ class ExampleStackSpotGridTests(unittest.TestCase):
             (65, 28),
             (66, 24),
             (74, 24),
-            (75, 24),
+            (75, 15),
+            (100, 15),
+            (101, 15),
         )
 
         with (
@@ -41,16 +43,24 @@ class ExampleStackSpotGridTests(unittest.TestCase):
             for horizontalAoV, expectedFocalLength in cases:
                 with self.subTest(horizontalAoV=horizontalAoV):
                     loadFromEXR.reset_mock()
-                    ExampleStackSpotGrid(horizontalAoV)
+                    stack = ExampleStackSpotGrid(horizontalAoV)
+
+                    expectedPaths = [
+                        f"resources/VarFocalScene/MG_FL{expectedFocalLength}.exr",
+                        f"resources/VarFocalScene/FG_FL{expectedFocalLength}.exr",
+                    ]
+                    expectedLayers = ["gridPointSource", "MG", "FG"]
+                    if expectedFocalLength != 15:
+                        expectedPaths.append(
+                            f"resources/VarFocalScene/AP_FL{expectedFocalLength}.exr"
+                        )
+                        expectedLayers.append("AP")
 
                     self.assertEqual(
                         [call.args[0] for call in loadFromEXR.call_args_list],
-                        [
-                            f"resources/VarFocalScene/MG_FL{expectedFocalLength}.exr",
-                            f"resources/VarFocalScene/FG_FL{expectedFocalLength}.exr",
-                            f"resources/VarFocalScene/AP_FL{expectedFocalLength}.exr",
-                        ],
+                        expectedPaths,
                     )
+                    self.assertEqual(list(stack.images), expectedLayers)
 
 
 if __name__ == "__main__":

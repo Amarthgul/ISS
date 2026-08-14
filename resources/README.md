@@ -16,6 +16,8 @@ It contains a still life scene in the middle, and a spot grid behind as bokeh te
 
 To focus on the Roman head, the focus distance of each focal lengths are: 
 
+- 15mm focal length: 
+
 - 24mm focal length: focus at roughly 1070mm 
 
 - 28mm focal length: focus at roughly 1210mm
@@ -38,6 +40,8 @@ $$
 
 
 The apple is more obvious in the 50mm range and very much disappears in wider focal length shots. Regardless, to focus on the apple: 
+
+- 15mm focal length: nah
 
 - 24mm focal length: nah
 

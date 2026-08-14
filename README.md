@@ -131,6 +131,16 @@ When CFA is considered, ordinary RBG image becomes rather "unviewable". The imag
 
 As such, for digital sensor type, the framework support setting the output format as the commonly used raw photo format Digital Negative (DNG).  
 
+UVIR, MLA, and CFA also allows the framework to recreate a common phenomena in adapting vintage lenses: corner deterioration. 
+
+Shape wise, film is basically an ideal imager, so lenses designed for film does not have to overthink about things like exit pupil position. But when the same lens is put onto a digital sensor, the extreme oblique angles would suddenly cause corner rays to fall not into the photowell right underneath the MLA/CFA; the UVIR also introduces additional ray path difference, causing larger field curvature. 
+
+<p align="center">
+	<img src="resources/ReadmeImg/15mmComparison.png" width="640">
+</p>
+
+The image pair above shows the simulated result of the Zeiss Hologon 15mm f/8 on both ideal imager (left) and digital sensor (right). The UVIR glass added field curvature that "blurs" the corner, whereas the MLA failed to converge the light, causing rays passing through a color filter only to fall into a neighboring photowell for a different color. This is then interpreted as a color shift around the corner. 
+
 
 ### Additional apertures 
 
@@ -292,8 +302,6 @@ Most of these are either a subset or an extension of existing features...
 - Add transform for gamma corrected inputs.
 
 - Finish coatings. 
-
-- Finish MLA and CFA. 
 
 ## AI 
 

@@ -61,7 +61,7 @@ First, the axial difference of the microlenses caused by the radius is ignored. 
 The world space intersection coordinate is then mapped into the local microlens coordinate. Here, a pre-computed normal map is used to find the normal direction of the microlens surface at that intersection. 
 
 <p align="center">
-	<img src="../resources/ReadmeImg/Doc2.6/MLA_100p.png" width="256">
+	<img src="../resources/ReadmeImg/Doc2.6/MLA_100P.png" width="256">
 </p>
 
 The normal map above probably looks quite confusing. This is because, by default, the diameter of the microlens is set to equal to the diagonal of the pixel pitch. 
@@ -80,9 +80,33 @@ There is one case that the MLA does change. As briefly mentioned in the frst cha
 
 CFA is next after the MLA. Here another simplification is made, as the two are regarded to sit in the same plane. 
 
-By default, Bayer pattern is used as the CFA pattern. It is possible to specify which Bayer pattern is used, `RGGB`, `BGGR`, `GRBG`, or `GBRG`
+By default, Bayer pattern is used as the CFA pattern. It is possible to specify which Bayer pattern is used, `RGGB`, `BGGR`, `GRBG`, or `GBRG`, although the result makes no visible difference. 
 
-One limitation the framework have set is that for the CFA to work, the system has to be operating using the channel based wavelength (refer to 2.5.1.1). The Fraunhofer interpolation could work but would be slower and less accurate. 
+One limitation here is that for the CFA to work, the system has to be operating using the channel based wavelength (refer to 2.5.1.1). The Fraunhofer interpolation could work but would be slower and less accurate. 
+
+With the channel based wavelength, CFA becomes quite easy to model. If a ray is marked with the channel that is the same with the color filter it hits, then it is an automatic pass. If it is marked with a different channel, then it would be dropped probabilistically depending on a spectral response defined again by a color PDF. 
+
+Notice that, with CFA, the rays arriving at each pixel would consist of almost exclusively around a single peak wavelength. For this reason, if the data is directly saved as an image, it will look very odd: 
+
+<p align="center">
+	<img src="../resources/ReadmeImg/BayerExample.png" width="256">
+</p>
+
+Saving the image as an `EXR` thus makes little sense. To make things easier, it is better to just save the data as some photographic raw image format, such as `DNG`. When this format is opened in other software, the color filter will automatically be fed through a de-mosaic process and thus give a normal looking result. 
+
+To do that, first sum up the RGB values on each pixel, so that the image data becomes a simple 2D array (width + height) instead of a 5D array (width + height + RGB). The value on each pixel receives an optional normalization process, and is then saved into a `DNG` file. 
+
+It should be noted, however, that the RGB data saved in an DNG is the camera RGB, which often needs to be translated into XYZ and then translate back into a camera-invariant display RGB space. This process is done by a color matrix. And in the case of this framework, whose wavelength and radiance is derived from a linear RGB input (in most cases), the color matrix should be using values below: 
+
+$$
+\left[
+\begin{matrix}
+3.2404542,  & -1.5371385,  &  -0.4985314, \\
+-0.9692660, & 1.8760108,   & 0.0415560, \\
+0.0556434,  & -0.2040259,  &  1.0572252
+\end{matrix} 
+\right]
+$$
 
 
 
