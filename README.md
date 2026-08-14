@@ -136,7 +136,7 @@ UVIR, MLA, and CFA also allows the framework to recreate a common phenomena in a
 Shape wise, film is basically an ideal imager, so lenses designed for film does not have to overthink about things like exit pupil position. But when the same lens is put onto a digital sensor, the extreme oblique angles would suddenly cause corner rays to fall not into the photowell right underneath the MLA/CFA; the UVIR also introduces additional ray path difference, causing larger field curvature. 
 
 <p align="center">
-	<img src="resources/ReadmeImg/15mmComparison.png" width="640">
+	<img src="resources/ReadmeImg/15mmComparison.png" width="720">
 </p>
 
 The image pair above shows the simulated result of the Zeiss Hologon 15mm f/8 on both ideal imager (left) and digital sensor (right). The UVIR glass added field curvature that "blurs" the corner, whereas the MLA failed to converge the light, causing rays passing through a color filter only to fall into a neighboring photowell for a different color. This is then interpreted as a color shift around the corner. 
@@ -205,10 +205,6 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
   Treating the diaphragm shape as a diffraction grating, and use Fraunhofer diffraction to calculate sun stars of the lens. 
 
-- Saving image as `DNG`.  
-
-  The framework's ability of replicating Bayer filters also gives the ability to save an image as the common `DNG` raw photo format. 
-
 - **Automatic optical material matching**.
 
   Given the index of refraction, the Abbe number, and a selected Fraunhofer line, automatically locate the materials with the closet stat. 
@@ -221,6 +217,10 @@ Small manufacturing errors, such as misalignment and rotation, can also be repli
 
   A set of tools for visualize a lens or system data for education or analysis purposes, such as showing $n$, $V$ per element and optical power distribution. It also supports creating Zemax operands that clamps parameters within a range to better facilitate lens replication. 
 
+- **Help you to become a better photography YouTuber** 
+
+  By giving you a quick title generator and force everyone death scrolling to stop and watch your obnoxiously titled video. 
+  This small app is also hosted directly on [my page](https://www.amarthchen.com/blogs/photography-title-generator). 
 
 ### Expected use 
 
@@ -281,7 +281,7 @@ The concept of alpha and opacity no longer makes sense in physics, but it is pos
 	<img src="resources/ReadmeImg/Alpha.png" width="480">
 </p>
 
-(Using opacity in optics is a huge pain, more on this can be seen in 2.5.2.3 of the documentation)
+(Using opacity in optics is a huge pain in the ass, more about this can be seen in 2.5.2.3 of the documentation)
 
 ## Coding Conventions
 
@@ -310,11 +310,18 @@ The core lens construction and ray propagation are AI-free, not because of some 
 
 ## Known issues 
 
+<p align="center">
+	<img src="resources/ReadmeImg/118803856.gif" width="128">
+</p>
+
 - Close focus (relative close focus with respect to effective focal length) may result in edge ray rejections and small artifacts. This is likely caused by the implementation currently calculating the location of the scene from first vertex instead of the principal point. 
 
 - The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
 
 - Samples are now static, with the value set based on my own machine, which is almost guaranteed to be over or under-utilizing the hardware when other people run it. 
+
+- Not all real lenses are rectilinear, but the virtual cameras in other renderers are almost exclusively modelled as having a perfect rectilinear projection. this may cause some scene to be rendered with seams, especially when rendered with ultra-wide angle lenses. 
+
 
 ## Future work
 

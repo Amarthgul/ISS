@@ -24,3 +24,5 @@ resources/Saves/
 # Specific files
 MaterialLookUprResult.csv
 CurvatureOperands.csv
+
+*.ZDA

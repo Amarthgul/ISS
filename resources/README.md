@@ -28,10 +28,10 @@ To focus on the Roman head, the focus distance of each focal lengths are:
 
 - 105mm focal length: focus at roughly 3690mm
 
-Purely for the purpose of my own entertainment, a bitten apple was also placed in the foreground:
+Purely for the purpose of my own entertainment, a bitten apple was also placed in front of the fruit bowl:
 
 <p align="center">
-	<img src="ReadmeImg/StillLife40min.jpg" width="640">
+	<img src="ReadmeImg/StillLife50mmMitApfel.jpg" width="640">
 </p>
 
 $$

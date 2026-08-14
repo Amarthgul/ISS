@@ -262,14 +262,13 @@ def MaterialLookUpTest():
     # Example usage:
     excel_file = ReadSheet()
 
-    line = 'e'
+    line = 'd'
     stats = [
-        [1.79227 ,  47.15],
-        [1.81265 ,  25.24],
-        [1.62286 ,  60.08],
-        [1.72823 ,  37.85],
-        [1.81265 ,  25.24],
-        [1.62408 ,  36.11]
+        [1.6127 ,  58.6],
+        [1.6141 ,  55.1],
+        [1.6483 ,  33.8],
+        [1.7408 ,  27.7],
+        [1.744  , 44.9]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
@@ -295,13 +294,13 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Nikkor50mmf2AutoS.zmx")).GetLens()
 
     print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
     lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
-    # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78)
+    # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78) # Helios and Biotar
 
 
 def DefocusTests():
@@ -549,4 +548,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MaterialLookUpTest()
+    EFL()
