@@ -59,6 +59,9 @@ class ImagingSystem:
         self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
+
         image = self.imager.AcquireEmpty()
         fgImage = self.imager.AcquireEmpty()
 
@@ -81,7 +84,6 @@ class ImagingSystem:
             plt.ion()  # Turn on interactive mode
             fig, ax = plt.subplots()
             im = ax.imshow(ImageConversion(image, flipH=True))
-
 
         # Mein render Zyklus
         while (True):
@@ -138,6 +140,9 @@ class ImagingSystem:
         self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
+
         fgImage = self.imager.AcquireEmpty()
 
         flareCoveragePerIteration = self._SourceCoveragePerIteration(
@@ -193,6 +198,9 @@ class ImagingSystem:
         self.imager.SetLensLength(self.lens.totalAxialLength)
         self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
+
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
 
         alphaChannelName = "X"
         alphaStack = ImageStack()
@@ -305,6 +313,8 @@ class ImagingSystem:
 
         from ObjectSpace.Points import PointsSource
 
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
 
         ratio = 0.92 # Off focus spots can be too large to fit inside the imager
         xAngle = ratio * self.lens.GetAoV()[0]  # Horizontal
@@ -371,6 +381,9 @@ class ImagingSystem:
         self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
 
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
+
         ISO12233C = Image2DFlat()
         ISO12233C.distance = objectDistance
         ISO12233C.horizontalAoV = self.lens.GetAoV()[0] * 2
@@ -429,6 +442,9 @@ class ImagingSystem:
         self.imager.Update()
 
         image = self.imager.AcquireEmpty()
+
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
 
         highlightSampleCount = 4
         sourceCoveragePerIteration = self._SourceCoveragePerIteration(
