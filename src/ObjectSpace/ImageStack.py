@@ -363,7 +363,7 @@ def ExampleStack2DNoGain():
     return exampleStack
 
 
-def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500):
+def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500, gridRatio=0.92):
     from .Points import PointsSource
 
     # Ordered from narrowest to widest. When the requested AoV falls between
@@ -383,9 +383,8 @@ def ExampleStackSpotGrid(horizontalAoV=40, gridDistance = 13500):
             break
 
 
-    ratio = 0.92  # Off focus spots can be too large to fit inside the imager
-    xAngle = 0.5 * ratio * horizontalAoV  # Horizontal
-    yAngle = 0.5 * ratio * horizontalAoV * (2/3)  # Vertical
+    xAngle = 0.5 * gridRatio * horizontalAoV  # Horizontal
+    yAngle = 0.5 * gridRatio * horizontalAoV * (2/3)  # Vertical
     sampleGridCount = 11
 
     gridPointSource = PointsSource()
