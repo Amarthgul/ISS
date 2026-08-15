@@ -460,6 +460,10 @@ def ISSphericalTest():
 
     imager = PDA(horiPx=2560)
     imager.tUVIR = 2.5
+    imager.lensModel = "Helios"
+    imager.ISO = 200
+    imager.focalLength = 58
+    imager.aperture = 2
     # imager = StdImager(horiPx=2560)
 
     IS = ImagingSystem(lens, imager)
@@ -544,8 +548,8 @@ def main():
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
     # ISAnamorphicTest()
-    # ISSphericalTest()
-    HeliosComparison()
+    ISSphericalTest()
+    # HeliosComparison()
     # ISSpotTest()
     # PDAT()
 

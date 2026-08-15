@@ -315,6 +315,19 @@ def SaveAsDNG(
     if iso is not None:
         entries.append(_entry(34855, SHORT, 1, _short((iso,))))
 
+    aperture = metadata.get("aperture")
+    if aperture is not None:
+        entries.append(_entry(33437, RATIONAL, 1, _rational((aperture,))))
+
+    focalLength = metadata.get("focalLength")
+    if focalLength is not None:
+        entries.append(_entry(37386, RATIONAL, 1, _rational((focalLength,))))
+
+    lensModel = metadata.get("lensModel")
+    if lensModel is not None:
+        lensModelData = _ascii(lensModel)
+        entries.append(_entry(42036, ASCII, len(lensModelData), lensModelData))
+
     entries.sort(key=lambda item: item[0])
     ifdOffset = 8
     externalOffset = ifdOffset + 2 + 12 * len(entries) + 4

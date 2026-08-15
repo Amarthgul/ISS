@@ -94,6 +94,12 @@ class PDA(StdImager):
             "orientation": 1
         }
 
+        """Optional lens and exposure information written to DNG metadata."""
+        self.lensModel = None
+        self.ISO = None
+        self.focalLength = None
+        self.aperture = None
+
         self.rawImage = None
 
         """When enabled, an EXR image will also be saved along side the DNG"""
@@ -195,6 +201,18 @@ class PDA(StdImager):
             raise ValueError(f"Unsupported PDA output format: {self.outputFormat}")
 
         self.rawImage = self._BuildBayerMosaic(scaledImage)
+        metadata = dict(self.dngMetadata)
+        optionalMetadata = {
+            "lensModel": self.lensModel,
+            "iso": self.ISO,
+            "focalLength": self.focalLength,
+            "aperture": self.aperture
+        }
+        metadata.update(
+            (key, value)
+            for key, value in optionalMetadata.items()
+            if value is not None
+        )
         SaveAsDNG(
             self.rawImage,
             outputFolder,
@@ -203,7 +221,7 @@ class PDA(StdImager):
             bitDepth=self.rawBitDepth,
             blackLevel=self.blackLevel,
             whiteLevel=self.whiteLevel,
-            metadata=self.dngMetadata
+            metadata=metadata
         )
 
         # AOVs have no direct home in the raw DNG.  When requested, preserve
