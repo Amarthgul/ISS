@@ -264,11 +264,10 @@ def MaterialLookUpTest():
 
     line = 'd'
     stats = [
-        [1.6127 ,  58.6],
-        [1.6141 ,  55.1],
-        [1.6483 ,  33.8],
-        [1.7408 ,  27.7],
-        [1.744  , 44.9]
+        [1.62   , 60.3],
+        [1.67   , 47.2],
+        [1.649  ,  33.8],
+        [1.617  ,  36.6]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
@@ -294,44 +293,18 @@ def EFL():
     from ExampleLenses import ZeissHologon15mmf8
 
     lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Nikkor50mmf2AutoS.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/ZeissUltron50f1.8E3.zmx")).GetLens()
 
     print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
-    lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
-    # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=78) # Helios and Biotar
+    # lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
+    lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=79) # Helios and Biotar
 
+def GlassVeil():
+    from Util.GlassVeil import PlotGlassVeil
 
-def DefocusTests():
-
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-    SpotTesting(lens, objectDistance=13500, focusDistance=500, computeTime=30 * 60, realTimeUpdate=True, lensName="Helios")
-    SpotTesting(lens, objectDistance=13500, focusDistance=1500, computeTime=30 * 60, realTimeUpdate=False, lensName="Helios")
-    SpotTesting(lens, objectDistance=13500, focusDistance=135000, computeTime=30 * 60, realTimeUpdate=False, lensName="Helios")
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/Jupiter-12.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-    SpotTesting(lens, objectDistance=13500, focusDistance=1000, computeTime=30 * 60, realTimeUpdate=False, lensName="Jupiter")
-    SpotTesting(lens, objectDistance=13500, focusDistance=1500, computeTime=30 * 60, realTimeUpdate=False, lensName="Jupiter")
-    SpotTesting(lens, objectDistance=13500, focusDistance=135000, computeTime=30 * 60, realTimeUpdate=False, lensName="Jupiter")
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/LeicaSummicron50f2.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-    SpotTesting(lens, objectDistance=13500, focusDistance=1000, computeTime=30 * 60, realTimeUpdate=False, lensName="Summicron")
-    SpotTesting(lens, objectDistance=13500, focusDistance=1500, computeTime=30 * 60, realTimeUpdate=False, lensName="Summicron")
-    SpotTesting(lens, objectDistance=13500, focusDistance=135000, computeTime=30 * 60, realTimeUpdate=False, lensName="Summicron")
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-    SpotTesting(lens, objectDistance=13500, focusDistance=1500, computeTime=30 * 60, realTimeUpdate=False, lensName="CanonL")
-    SpotTesting(lens, objectDistance=13500, focusDistance=135000, computeTime=30 * 60, realTimeUpdate=False, lensName="CanonL")
+    PlotGlassVeil(catalogue=["LZOS", "SUMITA"], materials=["LZ_LF7", "LF3", "LF5"], nRange=[1.52, 1.65], VRange = [37, 45])
 
 
 def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTime=2*60*60, realTimeUpdate=False):

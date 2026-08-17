@@ -15,6 +15,7 @@ from Util.Globals import AXIAL_ZERO, Axis, LambdaLines
 from Util.PAEFL import LensPartitionFL
 from Util.RayHeight import MarginalRayPath
 
+plt.rcParams['savefig.dpi'] = 300
 
 class SurfaceDataType(Enum):
     RayHeight = 0
@@ -128,6 +129,8 @@ def PlotSurfaceData(
 
     if plt.get_backend().lower() != "agg":
         plt.show()
+
+
 
     return fig, axes
 
