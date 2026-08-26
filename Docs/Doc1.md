@@ -113,7 +113,7 @@ In comparison, another paradigm, "Planar", allows a much more flexible power dis
 
 - **Leica Summicron 50mm f/2**. A monster of a lens that willing gave up 5 lens design variables (4 radii and 1 material) but still have a performance so good that it stand tall for over forty years before seeing a successor. 
 
-- **Zeiss Planar T\* 50mm f/1.4**. Every lesson in double gauss history (power spilt, Ultron doublet, etc.) rolled into a single fast-lens package, somehow still highly affordable. 
+- **Zeiss Planar 50mm f/2**. This is actually an entire line of 6e/4g double gauss lenses (after all, it was Zeiss who invented the 6e/4g Planar paradigm). From the Contarex Planar 50mm f/2 to the modern ZM 50mm f/2, the 45mm f/2 for Contax G is also a direct derivative. 
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc1/SonnarPlannarComparasion.png" width="540">

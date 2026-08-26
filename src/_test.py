@@ -264,13 +264,13 @@ def MaterialLookUpTest():
 
     line = 'd'
     stats = [
-        [1.62   , 60.3],
-        [1.67   , 47.2],
-        [1.649  ,  33.8],
-        [1.617  ,  36.6]
+        [1.62041  ,  60.3],
+        [1.76182  ,  26.5],
+        [1.69347  ,  53.5],
+        [1.53172  ,  48.9]
     ]
 
-    result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=10, writePath=RectPath("resources/")).to_string(index=False)
+    result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=12, writePath=RectPath("resources/")).to_string(index=False)
     print("Closest matches:")
     print(result_df)
 
@@ -279,11 +279,11 @@ def CurvTest():
     from Util.ConditionClamps import RadiToCurv
 
     RadiToCurv([
-        [1.6063 ,  58.5],
-        [1.6031 ,  38.3],
-        [1.5162 ,  64.5],
-        [1.5154 ,  56.6],
-        [1.6092 ,  58.9]
+        [1.691   , 54.8],
+        [1.60881 ,   58.9],
+        [1.56732 ,   42.8],
+        [1.6727  ,  32.2],
+        [1.66672 ,   48.4]
     ],
         writeFile=True)
 
@@ -292,14 +292,17 @@ def EFL():
     from Util.PAEFL import LensPartitionFL
     from ExampleLenses import ZeissHologon15mmf8
 
-    lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/ZeissUltron50f1.8E3.zmx")).GetLens()
+    # lens = ZeissHologon15mmf8()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SPii50mmf2.zmx")).GetLens()
 
     print(lens.GetInfo())
 
     # EFL = LensPartitionFL(lens, "d")
     # lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
-    lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=79) # Helios and Biotar
+    # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=79) # Helios and Biotar
+    lens.PlotSurfaceData(PlotTrackLength=100, PlotTrackHeight=27)  # Retina
+
+
 
 def GlassVeil():
     from Util.GlassVeil import PlotGlassVeil

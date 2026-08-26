@@ -41,6 +41,7 @@ def PlotSurfaceData(
         maxPower=None,
         PlotTrackLength=None,
         PlotAllPupilPoints=False,
+        PlotTrackHeight=None,
 ):
     """
     Plot an optical layout and the tracks selected by ``displayConfig``.
@@ -49,8 +50,10 @@ def PlotSurfaceData(
     its marginal-ray overlay; the other display types control the lower tracks
     and virtual layout references. ``PlotTrackLength`` frames every aligned axis
     from the focal point back toward object space. When omitted, the lens total
-    axial track length is used. ``PlotAllPupilPoints`` draws the complete traced
-    pupil curve instead of its near-axis pupil-plane position.
+    axial track length is used. ``PlotTrackHeight`` optionally fixes the layout
+    height in millimeters when it is no greater than half ``PlotTrackLength``.
+    ``PlotAllPupilPoints`` draws the complete traced pupil curve instead of its
+    near-axis pupil-plane position.
     """
     _EnsureLensData(lens)
     if not lens.surfaces:
@@ -84,13 +87,17 @@ def PlotSurfaceData(
 
     layoutHeight = _LayoutHeight(lens)
     layoutTrackLength = _ResolvedTrackLength(lens, vertices, PlotTrackLength)
-    figHeight = 4.8 + sum(height for _trackType, height in trackSpecs) * 1.35
+    layoutTrackHeight = _ResolvedTrackHeight(
+        layoutHeight,
+        layoutTrackLength,
+        PlotTrackHeight,
+    )
     fig, axes = plt.subplots(
         1 + len(trackSpecs),
         1,
-        figsize=(max(10, layoutTrackLength * 0.24), figHeight),
+        figsize=(16, 10),
         sharex=True,
-        gridspec_kw={"height_ratios": [3.1, *(height for _type, height in trackSpecs)]},
+        gridspec_kw={"height_ratios": [1] * (1 + len(trackSpecs))},
         constrained_layout=True,
     )
     axes = np.atleast_1d(axes)
@@ -116,7 +123,9 @@ def PlotSurfaceData(
             _DrawMaterialMetric(axis, materialData, "abbe", "Vd", "#6BBF45", 1, 1.0)
 
     _ConfigureAlignment(axes, vertices, plotBounds)
-    _SetLayoutScale(layoutAxis, layoutHeight)
+    _SetLayoutScale(layoutAxis, layoutTrackHeight)
+    fig.suptitle("Lens Layout and Surface Data")
+    _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight, plotBounds)
     _DrawLayoutLengths(
         layoutAxis,
         lens,
@@ -124,8 +133,6 @@ def PlotSurfaceData(
         focus,
         principalPlaneZ if showPrincipalPlane else None,
     )
-    fig.suptitle("Lens Layout and Surface Data")
-    _MatchLayoutWidth(layoutAxis, axes[-1])
 
     if plt.get_backend().lower() != "agg":
         plt.show()
@@ -221,42 +228,67 @@ def _PlotBounds(lens, focus, trackLength):
     return objectSideLimit, focalZ
 
 
-def _SetLayoutScale(axis, layoutHeight):
+def _ResolvedTrackHeight(autoHeight, trackLength, PlotTrackHeight):
+    """Use a requested layout range only when it leaves room for data tracks."""
+    automaticHeight = autoHeight * 1.12
+    if PlotTrackHeight is None:
+        return automaticHeight
+
+    requestedHeight = _Scalar(PlotTrackHeight)
+    if (
+            np.isfinite(requestedHeight)
+            and requestedHeight > _Scalar(AXIAL_ZERO)
+            and requestedHeight / trackLength <= 0.5
+    ):
+        return requestedHeight
+
+    return automaticHeight
+
+
+def _SetLayoutScale(axis, layoutTrackHeight):
     """Apply a 1:1 physical scale while preserving the shared horizontal bounds."""
-    axis.set_ylim(0.0, layoutHeight * 1.12)
+    axis.set_ylim(0.0, layoutTrackHeight)
     axis.set_aspect("equal", adjustable="box")
 
 
-def _MatchLayoutWidth(layoutAxis, alignmentAxis):
-    """Resize the figure until the equal-scale layout shares its track width."""
-    if layoutAxis is alignmentAxis:
+def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight, plotBounds):
+    """Allocate the fixed 16:10 canvas between the layout and data tracks."""
+    if len(axes) == 1:
         return
 
-    figure = layoutAxis.figure
-    xMin, xMax = layoutAxis.get_xlim()
-    yMin, yMax = layoutAxis.get_ylim()
-    xRange = xMax - xMin
-    yRange = yMax - yMin
-    if xRange <= 0.0 or yRange <= 0.0:
+    layoutAxis = axes[0]
+    xRange = plotBounds[1] - plotBounds[0]
+    if xRange <= _Scalar(AXIAL_ZERO):
         return
 
-    # Equal aspect can otherwise letterbox the upper axis while the shared-x
-    # data tracks retain their full width. A few constrained-layout passes
-    # bring both plotting areas to the same horizontal span.
+    gridSpec = layoutAxis.get_subplotspec().get_gridspec()
+    trackCount = len(axes) - 1
+
+    # Convert the layout's mm aspect ratio to its required share of the fixed
+    # 16:10 canvas. Repeating after constrained-layout settles preserves 1:1
+    # units while all non-layout tracks receive equal remaining height.
     for _ in range(3):
         figure.canvas.draw()
-        layoutBounds = layoutAxis.get_position()
-        alignmentBounds = alignmentAxis.get_position()
-        targetWidth = (
-            layoutBounds.height
-            * figure.get_figheight()
-            * xRange
-            / (yRange * alignmentBounds.width)
+        alignmentBounds = axes[-1].get_position()
+        totalTrackHeight = sum(axis.get_position().height for axis in axes)
+        desiredLayoutHeight = (
+            alignmentBounds.width
+            * figure.get_figwidth()
+            * layoutTrackHeight
+            / xRange
         )
-
-        if abs(targetWidth - figure.get_figwidth()) <= 0.01:
+        layoutShare = desiredLayoutHeight / (
+            totalTrackHeight * figure.get_figheight()
+        )
+        # The lower track width is the horizontal reference shared by every
+        # section. Deriving the layout height from it prevents an equal-aspect
+        # layout axis from letterboxing and losing vertical alignment.
+        layoutShare = min(max(layoutShare, 0.05), 0.95)
+        heightRatios = [layoutShare, *[(1.0 - layoutShare) / trackCount] * trackCount]
+        currentRatios = gridSpec.get_height_ratios()
+        if np.allclose(currentRatios, heightRatios, atol=0.002):
             break
-        figure.set_figwidth(targetWidth)
+        gridSpec.set_height_ratios(heightRatios)
 
 
 def _LayoutLengthText(lens, vertices, focus, principalPlaneZ):

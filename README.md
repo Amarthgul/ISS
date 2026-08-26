@@ -91,15 +91,20 @@ Notice how as the aperture stops down, the depth of field increases and vignette
 	<img src="resources/ReadmeImg/BokehBlade.gif" width="480">
 </p>
 
-The image above compares the center bokeh/spot (top right) and the higher field bokeh (bottom left). Notice how, as the aperture stops down, the higher field bokeh first loses its edge aberrations before starting to reflect the aperture shape. The lens being used here is a Canon EF 50mm f/1.2 L, and is a prime example of how Double Gauss formula tends to quickly gains clarity around the image corner as the lens is stopped down. 
+The image above compares the center bokeh/spot (top right) and the higher field bokeh (bottom left). Notice how, as the aperture stops down, the higher field bokeh first loses its "edge" before starting to reflect the aperture shape. The lens being used here is a Canon EF 50mm f/1.2 L, and is a prime example of how Double Gauss formula tends to quickly reduces spherical aberration as the pupil height decreases. 
 
 ### Wavelength emission and spectral response 
 
-Many other applications solve the dispersion issues by either scaling the RGB channels or assigning the RGB color with a certain wavelength during tracing. Results from this approach may look fine on a thumbnail, but they break down once enlarged or encountering any high dispersion material.
+Current implementation of dispersion in 3D software can be classified into two types:
 
-The framework takes RGB inputs but operates entirely in wavelength. It uses a set of probability density functions to convert RGB into wavelengths, which also ensures that there will be little to no color banding regardless of sample count (also effectively outsourcing Metamerism to the user). 
+- Assign each RGB channel a wavelength, optionally interpolate between them
+- Use Cauchy formula to approximate dispersion. 
 
-The framework also has imagers whose spectral response can be customized. The image below shows the scene (default balanced emission) rendered onto an imager that has a spectral response that favors the shorter wavelength, basically a tungsten balanced film.
+They may look okay for generic entertainment purposes, but neither will ever deliver an accurate result. 
+
+This framework treats color differently. The RGB inputs are mapped into three sets of probability density functions. With the default skewed Gaussian and in a Monte Carlo setup, this could deliver near continuous wavelengths. Alternatively it can also approximate certain LED emissions that peaks near several wavelengths. More crucially, the framework obeys the real dispersion formula of over three thousands optical materials, ensuing the dispersion characteristic is as accurate as it can be (more on this in doc 2.1). 
+
+Additionally, the framework also has imagers whose spectral response can be customized. The image below shows the scene (default balanced emission) rendered onto an imager that has a spectral response that favors the shorter wavelength, mimicking a tungsten balanced film.
 
 <p align="center">
 	<img src="resources/ReadmeImg/TungstenBalance.jpg" width="640">
@@ -107,7 +112,7 @@ The framework also has imagers whose spectral response can be customized. The im
 
 ### Film emulsions 
 
-Since the framework already propagates rays at the scale of hundreds of millions or billions, another several million would not hurt too much either. The framework also models the film grain with their individual densities, making color negative film possible.
+Since the framework already propagates rays at the scale of hundreds of millions or billions, another several million would not hurt. The framework also models the film grain with their individual densities, making color negative film possible.
 
 <p align="center">
 	<img src="resources/ReadmeImg/DemoNeg.jpg" width="640">
@@ -121,7 +126,7 @@ The framework could also model how rays bounce back from the film plate and crea
 
 ### Digital Sensor Effects 
 
-Aside from film, the framework could also simulate digital sensors, which primarily concerns UVIR glass, Microlens Array (MLA), and Color Filtering Array (CFA). 
+Aside from film, the framework could also simulate digital sensor, which primarily concerns UVIR glass, Microlens Array (MLA), and Color Filtering Array (CFA). 
 
 When CFA is considered, ordinary RBG image becomes rather "unviewable". The image below shows the direct result of seeing the color data of an image behind a Bayer pattern CFA: 
 
@@ -129,20 +134,18 @@ When CFA is considered, ordinary RBG image becomes rather "unviewable". The imag
 	<img src="resources/ReadmeImg/BayerExample.png" width="380">
 </p>
 
-As such, for digital sensor type, the framework support setting the output format as the commonly used raw photo format Digital Negative (DNG).  
+As such, for digital sensor type, the framework support setting the output format as the commonly used raw photo format: Digital Negative (DNG).  
 
 UVIR, MLA, and CFA also allows the framework to recreate a common phenomena in adapting vintage lenses: corner deterioration. 
-
-Shape wise, film is basically an ideal imager, so lenses designed for film does not have to overthink about things like exit pupil position. But when the same lens is put onto a digital sensor, the extreme oblique angles would suddenly cause corner rays to fall not into the photowell right underneath the MLA/CFA; the UVIR also introduces additional ray path difference, causing larger field curvature. 
 
 <p align="center">
 	<img src="resources/ReadmeImg/15mmComparison.png" width="720">
 </p>
 
-The image pair above shows the simulated result of the Zeiss Hologon 15mm f/8 on both ideal imager (left) and digital sensor (right). The UVIR glass added field curvature that "blurs" the corner, whereas the MLA failed to converge the light, causing rays passing through a color filter only to fall into a neighboring photowell for a different color. This is then interpreted as a color shift around the corner. 
+The image pair above shows the simulated result of the Zeiss Hologon 15mm f/8 on both ideal imager (left) and digital sensor (right). The UVIR glass added field curvature that "blurs" the corner, whereas the MLA failed to converge the light, causing rays passing through a color filter only to fall into a neighboring photowell and registered as a different color. This is then interpreted as a color shift around the corner. 
 
 
-### Additional apertures 
+### Additional aperture
 
 Cine rigs contain many things that would affect the final image but are seldom noticed. For example, the matte box is a contraption in front of the lens used to hold filters/gels and provide barn doors to block unwanted lights. However, matte box also restrains the path of light, consequently affects out-of-focus highlights (which by definition makes them apertures of the system). Observe how in the image below on the left, the bokeh look as if they are cut from two sides. 
 
@@ -318,7 +321,7 @@ The core lens construction and ray propagation are AI-free, not because of some 
 
 - The proxy surface method for solving even ASPH surface is only accurate when the surface still follows a general spherical sag. If there are multiple ASPH surfaces with very aggressive coefficients, the tracing would have higher bias as the proxies becoming too wide. 
 
-- Samples are now static, with the value set based on my own machine, which is almost guaranteed to be over or under-utilizing the hardware when other people run it. 
+- Sample counts are currently static, with the value set based on my own machine, which is almost guaranteed to be over or under-utilizing the hardware when other people run it. 
 
 - Not all real lenses are rectilinear, but the virtual cameras in other renderers are almost exclusively modelled as having a perfect rectilinear projection. this may cause some scene to be rendered with seams, especially when rendered with ultra-wide angle lenses. 
 

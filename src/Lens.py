@@ -538,13 +538,15 @@ class Lens:
             maxPower=None,
             PlotTrackLength=None,
             PlotAllPupilPoints=False,
+            PlotTrackHeight=None,
     ):
 
         return PlotSurfaceData(
             self,
-            maxPower,
-            PlotTrackLength,
-            PlotAllPupilPoints,
+            maxPower=maxPower,
+            PlotTrackLength=PlotTrackLength,
+            PlotTrackHeight=PlotTrackHeight,
+            PlotAllPupilPoints=PlotAllPupilPoints,
         )
 
 
