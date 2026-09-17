@@ -24,6 +24,46 @@ class Stop(Surface):
         self.thickness = t 
         self.bladeShape = None
         self.bladeCount = 5
+        # White/True is open. The image spans +/- apertureShapeSemiDiameter
+        # about frontVertex in physical lens units; image rows run toward -y.
+        self.apertureShape = None
+        self.apertureShapeSemiDiameter = None
+        # Full-open radius used to map entrance-pupil changes onto this plane.
+        self.apertureReferenceSemiDiameter = None
+
+    def SetApertureShape(self, shape, semiDiameter):
+        """Set a grayscale/RGB image or boolean mask and its physical half-size."""
+        if not bd.isfinite(semiDiameter) or semiDiameter <= 0:
+            raise ValueError("Aperture image semi-diameter must be finite and positive")
+        shape = bd.asarray(shape)
+        if shape.ndim not in (2, 3) or min(shape.shape[:2]) == 0:
+            raise ValueError("Aperture shape must be a nonempty image or 2D mask")
+        if shape.ndim == 3 and shape.shape[2] not in (3, 4):
+            raise ValueError("Color aperture images must have RGB or RGBA channels")
+        self.apertureShape = shape.copy()
+        self.apertureShapeSemiDiameter = semiDiameter
+
+    def _ApertureMask(self, intersections):
+        local = intersections - self.frontVertex
+        opened = super()._ApertureMask(local)
+        if self.apertureShape is None:
+            return opened
+        gray = self.apertureShape
+        if gray.ndim == 3:
+            gray = gray[..., :3].mean(axis=-1)
+        gray = gray.astype(float)
+        peak = gray.max()
+        gray = gray / bd.where(peak > 0, peak, 1)
+        height, width = gray.shape
+        x = local[:, 0] / self.apertureShapeSemiDiameter
+        y = local[:, 1] / self.apertureShapeSemiDiameter
+        inside = bd.isfinite(x) & bd.isfinite(y) & (bd.abs(x) <= 1) & (bd.abs(y) <= 1)
+        # Match Pupil's pixel-center convention, but reject outside the image.
+        x = bd.where(inside, x, 0)
+        y = bd.where(inside, y, 0)
+        u = bd.clip(bd.round(x * width / 2 + (width - 1) / 2).astype(int), 0, width - 1)
+        v = bd.clip(bd.round(-y * height / 2 + (height - 1) / 2).astype(int), 0, height - 1)
+        return opened & inside & (gray[v, u] > 0.5)
 
 
     def SetFNumber(self, fNum):
@@ -82,53 +122,24 @@ class Stop(Surface):
 
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):
 
-        # If the stop is a traditional stop that has no refraction or reflection, just pass the rays directly through
-        if self.clearSemiDiameter == INFINITY:
-            # TODO: add aperture clipping of incident rays
-            incidentLength = incidentRaybatch.value.shape[0]
-            return incidentRaybatch, bd.zeros(incidentLength, dtype=bd.bool_), bd.zeros(incidentLength, dtype=bd.bool_), RayBatch()
-
-        if (self.material.name == MIRROR):
+        if self.material.name == MIRROR:
             return self.TraceMirror(incidentRaybatch, previousRI, inverted, reflection)
 
-        # First find the intersections
-        intersections, _temp, boolVig = self.Intersection(incidentRaybatch)
+        if incidentRaybatch.value is None:
+            empty = bd.zeros(0, dtype=bd.bool_)
+            return RayBatch(None), empty, empty, RayBatch(None)
 
-
-        if (self.stopOnly):
-            incidentRaybatch = incidentRaybatch.Mask(~boolVig)
-            TIR = bd.zeros_like(incidentRaybatch.Wavelength()).astype(bool)
-            return incidentRaybatch, TIR, boolVig, None
-
-        # DrawPoints(intersections) # ======= Draw call
-
-        # The normal should be pointing at the oppoiste z direction as the indicent raybatch
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig]
-        # Apply desired direction to the normals
-        normals = self.Normal(intersections)
-        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
-
-        # Truncate the rays that are vignetted
-        directions = incidentRaybatch.Direction()[~boolVig]
-
-        # Accquire the index of refractions (resp. wavelength)
-        n1 = self.material.RI(incidentRaybatch.Wavelength()[~boolVig])
-        n2 = previousRI[~boolVig]
-
-        # If the ray hits from the behind, RI needs to be swapped
-        if (inverted):
-            n1, n2 = n2, n1
-
-            # Only the non vignetted rays goes into refraction
-        refracted, TIR, _temp = Refract(directions, normals, n2, n1)
-
-        # DrawDirection(intersections, reflected, lineColor="b") # ======= Draw call
-
-        mainRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-        mainRB.SetPosition(intersections[~TIR])
-        mainRB.SetDirection(refracted)
-
-        strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
-
-        return mainRB, TIR, boolVig, strayRB
-
+        # A stop absorbs blocked rays and leaves transmitted direction,
+        # wavelength and polarization unchanged, from either side.
+        position = incidentRaybatch.Position()
+        direction = incidentRaybatch.Direction()
+        denominator = direction @ self._axis
+        parallel = bd.isclose(denominator, 0)
+        distance = ((self.frontVertex - position) @ self._axis) / bd.where(parallel, 1, denominator)
+        intersections = position + distance[:, None] * direction
+        valid = (~parallel) & (distance >= -1e-10) & self._ApertureMask(intersections)
+        mainRB = RayBatch(bd.copy(incidentRaybatch.value[valid]))
+        mainRB.SetPosition(intersections[valid])
+        tir = bd.zeros(mainRB.value.shape[0], dtype=bd.bool_)
+        stray = RayBatch(bd.copy(incidentRaybatch.value[:0]))
+        return mainRB, tir, ~valid, stray

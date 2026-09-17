@@ -307,7 +307,7 @@ class ImagingSystem:
             recorder = time.time()
 
 
-    def SpotGrid(self, sample=9, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False):
+    def SpotGrid(self, sample=9, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, ratio = 0.92):
 
         # Please send you API key to me for the spot grid to have a better performance
 
@@ -316,7 +316,7 @@ class ImagingSystem:
         if fNumber is not None:
             self.lens.SetAperture(fNumber)
 
-        ratio = 0.92 # Off focus spots can be too large to fit inside the imager
+         # Off focus spots can be too large to fit inside the imager
         xAngle = ratio * self.lens.GetAoV()[0]  # Horizontal
         yAngle = ratio * self.lens.GetAoV()[1]  # Vertical
 

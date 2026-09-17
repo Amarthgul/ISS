@@ -601,7 +601,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
 
     def toImage(self):
         arr = self.toArray()
-        return rgbFromRGBA(bd.asnumpy(arr))
+        return rgbFromRGBA(arr.get() if hasattr(arr, "get") else arr)
 
 
     def Reset(self):
@@ -657,8 +657,7 @@ class SingleEndPinnedDiaphragm(ApertureDiaphragm):
     def CalculateRatio(self):
         """Calculate the current the pupil size compare to the full pupil size"""
 
-        # Proudly introduce my genius solution to cupy and numpy compatibility issue :D
-        currentImg = bd.array(rgbFromRGBA(bd.asnumpy(self.toArray())))
+        currentImg = bd.array(self.toImage())
 
 
         if currentImg.dtype == bd.uint8:

@@ -274,33 +274,51 @@ class Lens:
         """
 
 
-        calculatedPupilDiameter = self.focalLength / fNumber
-        # in millimeter or whatever the focal length is using
-
+        if not bd.isfinite(fNumber) or fNumber <= 0:
+            raise ValueError("f-number must be finite and positive")
+        self.fNumber = constant(fNumber)
         fullPupilDiameter = self.entrancePupil.GetMaxPupilSize()
-
+        calculatedPupilDiameter = bd.minimum(self.focalLength / fNumber, fullPupilDiameter)
         ratio = calculatedPupilDiameter**2 / fullPupilDiameter**2
-        if ratio < 1:
+        stop = self.surfaces[self.stopIndex]
+        if stop.apertureReferenceSemiDiameter is None:
+            # Catadioptric/afocal setups may not trace an entrance pupil.
+            if bd.isfinite(stop.clearSemiDiameter):
+                stop.apertureReferenceSemiDiameter = bd.copy(stop.clearSemiDiameter)
+            else:
+                neighbors = [self.surfaces[i].clearSemiDiameter
+                             for i in (self.stopIndex - 1, self.stopIndex + 1)
+                             if 0 <= i < len(self.surfaces)]
+                stop.apertureReferenceSemiDiameter = bd.min(bd.asarray(neighbors))
+        referenceSD = stop.apertureReferenceSemiDiameter
+        if useDiaphragm:
             self.diaphragm.Reset()
             self.diaphragm.DuplicateAroundCenter()
-            self.diaphragm.StopDownToRatio(ratio)
-        print("desired ratio: ", ratio)
-
-        if useDiaphragm:
-            self.entrancePupil.SetPupilShape(self.diaphragm.toImage(), ratio)
+            if ratio < 1:
+                self.diaphragm.StopDownToRatio(ratio)
+            shape = self.diaphragm.toImage()
+            # Always map the image to the full-open pupil/stop, including
+            # when switching back from a circular aperture.
+            self.entrancePupil.SetPupilSize(fullPupilDiameter / TWO)
+            self.entrancePupil.SetPupilShape(shape, ratio)
+            stop.clearSemiDiameter = bd.copy(referenceSD)
+            stop.SetApertureShape(shape, referenceSD)
         else:
             self.entrancePupil.SetPupilSize(calculatedPupilDiameter / TWO)
-        
+            stop.apertureShape = None
+            stop.apertureShapeSemiDiameter = None
+            stop.clearSemiDiameter = referenceSD * bd.sqrt(ratio)
+
 
     def Propagate(self, rayBatch, recordPath=False, reflection=False, iteCount=2):
         """
-        Propagate the raybatch through the lens. 
+        Propagate the raybatch through the lens.
 
-        :param recordPath: when enabled, all paths of rays will be recorded. For production use, turn this off to avoid unnecessary memory usage. 
+        :param recordPath: when enabled, all paths of rays will be recorded. For production use, turn this off to avoid unnecessary memory usage.
         :param reflection: when enabled, rays will reflect based on the Fresnel reflectance, non-sequential rays propagation will also be calculated. This defaults to "False" in order to reduce time and memory consumption.
-        :param iteCount: number of iterations for calculating non-sequential propagation. Due to reflected rays will also have both refraction and reflection, the number of rays will increase geometrically. Ite Count larger than 3 could potentially stagger the computer. 
-        
-        :return: primary imaging RB, ray path if recorded, and the reflected RB. 
+        :param iteCount: number of iterations for calculating non-sequential propagation. Due to reflected rays will also have both refraction and reflection, the number of rays will increase geometrically. Ite Count larger than 3 could potentially stagger the computer.
+
+        :return: primary imaging RB, ray path if recorded, and the reflected RB.
         """
 
         if self._hasMirrorElement:
@@ -310,36 +328,37 @@ class Lens:
             self.rayPath = RayPath()
             self.rayPath.Append(rayBatch, None, None)
 
-        reflectedRB = RayBatch()
+        reflectedRB = RayBatch(bd.copy(rayBatch.value[:0]))
 
         # This pass of propagation traces the primary imaging components, for photographic application, that is the refractive imaging.
-        
+
         for i in range(len(self.surfaces)):
-            if not isinstance(self.surfaces[i], Stop):
-                rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
-                    rayBatch, 
-                    self._FindPreviousRI(i, rayBatch), 
-                    reflection = reflection)
+            rayBatch, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                rayBatch,
+                self._FindPreviousRI(i, rayBatch),
+                reflection = reflection)
 
-                # The index of main RB is where they are after a surface
-                rayBatch.SetIndex(i)
+            # The index of main RB is where they are after a surface
+            rayBatch.SetIndex(i)
 
-                # If reflection is enabled, the reflected rays will be created, recorded, and returned during the process.
-                if(reflection):
-                    # For the reflected rays, the surface index means where they are before a surface
+            # If reflection is enabled, the reflected rays will be created, recorded, and returned during the process.
+            if(reflection):
+                # For the reflected rays, the surface index means where they are before a surface
+                if _reflectedRB is not None and not _reflectedRB.IsNoneType():
+                    _reflectedRB.SetIndex(i - 1)
                     _reflectedRB.RadiantKill()
                     reflectedRB.Merge(_reflectedRB)
 
 
-                
-                if(recordPath):
-                    self.rayPath.Append(rayBatch, _tir, _vig)
+
+            if(recordPath):
+                self.rayPath.Append(rayBatch, _tir, _vig)
 
 
         # DrawRaybatch(reflectedRB, lLength=2, lineColor="r") # =========== Draw call
-        
 
-        if (reflection):
+
+        if reflection and not reflectedRB.IsNoneType():
             AltMethod = True
             if(AltMethod):
                 reflectedRBC = reflectedRB.Copy()
@@ -357,8 +376,7 @@ class Lens:
                     reflectedRBC = remainderRB
 
                 if holderRB.IsNoneType():
-                    reflectedRB = self._PropagateReflectedThrough(reflectedRB)
-                    reflectedRB = reflectedRB.GetDirectionalRay()
+                    reflectedRB = RayBatch(bd.copy(rayBatch.value[:0]))
                 else:
                     reflectedRB = holderRB.GetDirectionalRay()
 
@@ -383,7 +401,7 @@ class Lens:
 
         # self.rayPath.DrawPath(40)
 
-        # Return the sequential and non-sequential rays. Note that since this is the first pass of non-sequential propagation, most non-sequential rays are pointing at object space, there needs to be further calculations for them to arrive at the imager. 
+        # Return the sequential and non-sequential rays. Note that since this is the first pass of non-sequential propagation, most non-sequential rays are pointing at object space, there needs to be further calculations for them to arrive at the imager.
         return rayBatch, self.rayPath, reflectedRB
 
 
@@ -1017,6 +1035,11 @@ class Lens:
             stopSD = bd.min(bd.array([priorSD, postSD])) - AXIAL_ZERO
 
 
+        stop = self.surfaces[self.stopIndex]
+        if bd.isfinite(stop.clearSemiDiameter) and stop.apertureReferenceSemiDiameter is None:
+            stopSD = bd.minimum(stopSD, stop.clearSemiDiameter)
+        stop.apertureReferenceSemiDiameter = bd.copy(stopSD)
+
         self.entrancePupil.sampleWavelength = wavelength
         colors = plt.get_cmap('tab10').colors
 
@@ -1270,38 +1293,38 @@ class Lens:
             # Find the rays that are in the current surface space
             inSurfaceRB = reflectedRB.GetRaysAt(i-1)
 
-            if(self.IsPhysicalSurface(i)):
-                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
-                    inSurfaceRB, 
-                    self._FindPreviousRI(i, inSurfaceRB), 
-                    reflection = True,
-                    useClearBoundary = True)
+            _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                inSurfaceRB,
+                self._FindPreviousRI(i, inSurfaceRB),
+                reflection = True,
+                useClearBoundary = True)
 
-                # _surfaceRB would be the ones that entered surface i
-                _surfaceRB.SetIndex(i)
+            # _surfaceRB would be the ones that entered surface i
+            _surfaceRB.SetIndex(i)
 
-                returnRB.Merge(_surfaceRB)
+            returnRB.Merge(_surfaceRB)
 
             """========================================================================="""
 
             # Reset inSurfaceRB and append the reflected rays if previous step generated any
             inSurfaceRB = reflectedRB.GetRaysAt(i - 1)
-            if (not _reflectedRB.IsNone()): inSurfaceRB.Merge(_reflectedRB)
+            if _reflectedRB is not None: inSurfaceRB.Merge(_reflectedRB)
 
-            if(self.IsPhysicalSurface(i - 1)):
-                # Try to find the ones that will interact with the previous surface
-                _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i - 1].Trace(
-                    inSurfaceRB,
-                    self._FindPreviousRI(i - 1, inSurfaceRB),
-                    inverted = True,
-                    reflection = True,
-                    useClearBoundary = False)
-                
-                # _surfaceRB are rays that are refracted into the next space 
-                _surfaceRB.SetIndex(i - 1)
+            # Try to find the ones that will interact with the previous surface
+            _surfaceRB, _tir, _vig, _reflectedRB = self.surfaces[i - 1].Trace(
+                inSurfaceRB,
+                self._FindPreviousRI(i - 1, inSurfaceRB),
+                inverted = True,
+                reflection = True,
+                useClearBoundary = False)
 
-                returnRB.Merge(_surfaceRB)
-                returnRB.Merge(_reflectedRB)
+            # _surfaceRB are rays that are refracted into the next space
+            _surfaceRB.SetIndex(i - 2)
+            if _reflectedRB is not None and not _reflectedRB.IsNoneType():
+                _reflectedRB.SetIndex(i - 1)
+
+            returnRB.Merge(_surfaceRB)
+            returnRB.Merge(_reflectedRB)
 
 
         return returnRB, None
@@ -1322,9 +1345,6 @@ class Lens:
         # From last surface back toward the first, carrying each surface's backward reflection into the previous surface's space by refraction.
         for i in range(len(self.surfaces) - 1, 0, -1):
 
-            # Skip this surface if it's a stop or other virtual surface type
-            if not self.IsPhysicalSurface(i):
-                continue
 
             # Reflected rays are indexed by the space before surface i, which is i - 1.
             # Get only the rays facing backward and merge them into the backward propagation RB.
@@ -1333,7 +1353,7 @@ class Lens:
             if iterRB.IsNoneType():
                 continue
 
-            previousSurfaceIndex = self._PreviousSurfaceIndex(i)
+            previousSurfaceIndex = i - 1
 
             # Trace these rays at the previous surface, i.e., send them backward.
             iterRB, _tir, _vig, _reflectedRB = self.surfaces[previousSurfaceIndex].Trace(
@@ -1347,7 +1367,9 @@ class Lens:
             #print("Reflected in ", i ,"th surface: ", _reflectedRB.PolarizedRadiance().sum())
 
             # The iterRB should now be in the previous surface space
-            iterRB.SetIndex(previousSurfaceIndex)
+            iterRB.SetIndex(previousSurfaceIndex - 1)
+            if _reflectedRB is not None and not _reflectedRB.IsNoneType():
+                _reflectedRB.SetIndex(previousSurfaceIndex)
 
             # Append the reflected rays in this surface into the return RB for record. During the backward propagation, holder is only used to hold the scatter reflections in each surface tracing.
             holderRB.Merge(_reflectedRB)
@@ -1377,8 +1399,6 @@ class Lens:
         # Starting from the first physical surface, carry the backward-reflected rays forward through the stack, together with any forward-facing content already present in reflectedRB at each surface.
         for i in range(1, len(self.surfaces)):
 
-            # Skip this surface if it's a stop or other virtual surface type
-            if not self.IsPhysicalSurface(i): continue
 
             # Get rays in the currently surface space that are also facing to the image side, then merge these rays into the iterRB
             if not holderRB.IsNoneType():
@@ -1403,6 +1423,8 @@ class Lens:
             )
 
             iterRB.SetIndex(i)
+            if _reflectedRB is not None and not _reflectedRB.IsNoneType():
+                _reflectedRB.SetIndex(i - 1)
 
             # Put the unused rays into remainRB
             remainRB.Merge(_reflectedRB)
@@ -1427,20 +1449,23 @@ class Lens:
 
         for i in range(1, len(self.surfaces)):
 
-            if(not isinstance(self.surfaces[i], Stop)):
 
-                # Find the rays that are in the current surface space.
-                # Since the index means "which surface is the ray located after", a minus one is needed.
-                inSurfaceRB = reflectedRB.GetRaysAt(i-1)
-                returnRB.Merge(inSurfaceRB)
+            # Find the rays that are in the current surface space.
+            # Since the index means "which surface is the ray located after", a minus one is needed.
+            inSurfaceRB = reflectedRB.GetRaysAt(i-1)
+            returnRB.Merge(inSurfaceRB)
 
-                # Explicitly disable the reflection 
-                returnRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
-                        returnRB, 
-                        self._FindPreviousRI(i, returnRB), 
-                        reflection = False)
+            if returnRB.IsNoneType():
+                continue
 
-                returnRB.RadiantKill()
+            # Explicitly disable the reflection
+            returnRB, _tir, _vig, _reflectedRB = self.surfaces[i].Trace(
+                    returnRB,
+                    self._FindPreviousRI(i, returnRB),
+                    reflection = False)
+
+            returnRB.SetIndex(i)
+            returnRB.RadiantKill()
 
         return returnRB
 

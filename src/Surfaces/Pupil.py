@@ -97,6 +97,7 @@ class Pupil(VirtualSurface):
             warnings.warn("The pupil size is larger than possible. Max possible size is used instead.")
             semiDiameter = self._maxPupilSD
         
+        self._alphaShape = None
         self.clearSemiDiameter = semiDiameter
 
         self._CheckStopSize()
