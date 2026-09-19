@@ -182,7 +182,6 @@ class ImagingSystem:
                     sourceImg=fgImage,
                     scalar=(
                         self._transmissionLoss
-                        / (iterationCount * flareCoveragePerIteration)
                     )
                 )
                 break

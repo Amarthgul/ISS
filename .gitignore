@@ -13,7 +13,7 @@ __pycache__/
 /python/__pycache__/
 resources/Results/
 resources/Saves/
-
+tests/
 
 
 .DS_Store
@@ -24,5 +24,8 @@ resources/Saves/
 # Specific files
 MaterialLookUprResult.csv
 CurvatureOperands.csv
+tests/MitsubaDev.py
 
 *.ZDA
+
+tests/MitsubaDev.py

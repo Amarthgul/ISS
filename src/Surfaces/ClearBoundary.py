@@ -162,7 +162,8 @@ class ClearBoundary():
         # Interpolate between the two reflected directions.
         # specularReflection = 1 gives pure mirror reflection;
         # specularReflection = 0 gives pure Lambertian reflection.
-        specularReflection = bd.clip(self.specularReflection, 0.0, 1.0)
+        # This setting is a Python scalar; CuPy's clip expects an array.
+        specularReflection = min(max(self.specularReflection, 0.0), 1.0)
         reflected = ArrayNormalized(
             mirrorReflected * specularReflection +
             lambertReflected * (1 - specularReflection)

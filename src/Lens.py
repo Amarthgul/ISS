@@ -240,7 +240,7 @@ class Lens:
             return
 
         self._PartitionGroups()
-        # self._CreateClearBoundary()
+        self._CreateClearBoundary()
 
         # Afocal system does not have a principal plane and the entrance pupil is the first stop 
         if(self.isAfocal):

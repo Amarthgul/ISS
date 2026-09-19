@@ -479,11 +479,19 @@ def ISSphericalTest():
 def HeliosComparison():
     from ImagingSystem import ImagingSystem
     from Imagers.PDA import PDA
+    from Imagers.Standard import StdImager
     from ObjectSpace.ImageStack import ExampleStackSpotGrid
     from Util.Globals import RefreshRNG
     import time
 
+    Sonnar =  LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    Sonnar.AddSurfaceDefect(0.2)
 
+    imager = StdImager(horiPx=6000)
+    SonnarIS = ImagingSystem(Sonnar, imager)
+    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1350, renderTime=4 * 60, fileName="SonnarGrid", realTimeUpdate=False, ratio=0.9)
+
+    return
     # Create or load a lens
     Helios = LensFromZmx(RectPath(r"resources/Zmx/Helios-44.zmx")).GetLens()
     Helios.AddSurfaceDefect(0.2)
@@ -527,6 +535,27 @@ def PureArtifactTest():
     d.ShowNormalMap(512)
 
 
+def FlareTest():
+    from ImagingSystem import ImagingSystem
+    from Imagers.PDA import PDA
+    from Imagers.Standard import StdImager
+    from ObjectSpace.ImageStack import ExampleStackSpotGrid
+    from Util.Globals import RefreshRNG
+    from ObjectSpace.Points import PointsSource
+
+    Helios = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    Helios.AddSurfaceDefect(0.2)
+
+    imager = StdImager(horiPx=6000)
+    HeliosIS = ImagingSystem(Helios, imager)
+    pt = PointsSource()
+    pt.isCartesian = False
+    pt.SetPoints(bd.array([[16, 10, -1000, 1, 1, 1]]))
+    HeliosIS.object = pt
+
+    HeliosIS.RenderFlareOnly(focusDistance=1350, fNumber=4, renderTime=2 * 60, fileName="Helios", realTimeUpdate=False)
+
+
 def main():
 
     from Util.Backend import backend_name
@@ -548,8 +577,9 @@ def main():
     # StackTestDigital(renderTime, distance[19], "NewRacking", realTimeUpdate=False, infoArg=1)
     # StackTestDigital(renderTime, distance[20], "NewRacking", realTimeUpdate=False, infoArg=1)
     # ISAnamorphicTest()
-    ISSphericalTest()
+    # ISSphericalTest()
     # HeliosComparison()
+    FlareTest()
     # ISSpotTest()
     # PDAT()
 
