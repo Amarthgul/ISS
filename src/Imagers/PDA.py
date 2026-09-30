@@ -1,6 +1,7 @@
 
 from .Standard import StdImager
 from Material import Material
+from Raytracing.Polarization import DielectricCoherency
 from Surfaces.Surface import Surface
 from Util.Globals import INFINITY, ZERO, ONE, RNG
 from Util.Backend import backend as bd
@@ -531,7 +532,11 @@ class PDA(StdImager):
         # Such rays do not reach the photodiode.
         raybatch.Mask(transmitted)
         if not raybatch.IsNoneType():
-            raybatch.SetDirection(refracted[transmitted])
+            raybatch.SetRadianceTerms(DielectricCoherency(
+                raybatch.RadianceTerms(), directions[transmitted],
+                surfaceNormals[transmitted], refracted[transmitted],
+                incidentRI[transmitted], mlaRI[transmitted]))
+            raybatch.SetDirection(refracted[transmitted], transport=False)
 
         return raybatch
 

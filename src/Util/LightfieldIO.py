@@ -14,7 +14,7 @@ class LightfieldIO:
 
     Each ray stores nine values: x, y, dx, dy, dz, wavelength (nm), and
     polarization coefficients in RayBatch column order (7, 8, 9): the two
-    diagonal terms followed by the ellipse tilt. Coordinates retain their
+    coherency diagonals Cxx, Cyy followed by real cross-correlation Cxy. Coordinates retain their
     input units. The shared reference_z is stored once per file.
 
     NPZ stores float32 arrays named ``rays`` (N, 9) and ``reference_z`` (scalar).
@@ -27,6 +27,8 @@ class LightfieldIO:
     Reading returns an (N, 12) float32 RayBatch on the configured backend.
     Surface index and RGB channel are zero, and there are no AOV columns.
     Original ray origins cannot be recovered; loaded origins lie on the plane.
+    Files must use coherency coefficients; legacy ellipse data needs explicit
+    conversion or regeneration. The NPZ array layout is unchanged.
 
     Example::
 
@@ -34,7 +36,7 @@ class LightfieldIO:
         recovered = LightfieldIO.Read("lightfield.csv")
     """
 
-    _COLUMNS = "x,y,dx,dy,dz,wavelength,polarization_1,polarization_2,tilt"
+    _COLUMNS = "x,y,dx,dy,dz,wavelength,Cxx,Cyy,Cxy"
 
     @staticmethod
     def _Path(filePath):

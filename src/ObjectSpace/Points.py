@@ -500,9 +500,9 @@ class PointsSource:
         # Polarization / meta columns
         # ------------------------------------------------------------------
         temp = bd.ones(4)
-        temp[0] = ONE  # Sagittal radiant
-        temp[1] = ONE  # Tangential radiant
-        temp[2] = INIT_ELLIPSE_TILT  # Phase difference
+        temp[0] = ONE / 2  # Cxx
+        temp[1] = ONE / 2  # Cyy
+        temp[2] = INIT_ELLIPSE_TILT  # Real cross-correlation
         temp[3] = bd.zeros_like(temp[3])  # Surface index
 
         core = bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
@@ -577,8 +577,8 @@ class PointsSource:
 
         # meta columns (radiance stays ONE; we increase sample count instead)
         temp = bd.ones(4)
-        temp[0] = ONE  # Sagittal radiant
-        temp[1] = ONE  # Tangential radiant
+        temp[0] = ONE / 2  # Cxx
+        temp[1] = ONE / 2  # Cyy
         temp[2] = INIT_ELLIPSE_TILT
         temp[3] = bd.zeros_like(temp[3])
 

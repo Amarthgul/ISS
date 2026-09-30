@@ -11,7 +11,7 @@ from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY
 from Util.PltPlot import DrawSpherical, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance
+from Raytracing.Polarization import DielectricCoherency
 from Raytracing.RayBatch import RayBatch 
 from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitField
@@ -214,7 +214,10 @@ class Surface1:
         # This _temp is for a different use from the _temp above 
         _temp = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         _temp.SetPosition(intersections[~TIR])
-        _temp.SetDirection(refracted)
+        _temp.SetDirection(refracted, transport=False)
+        _temp.SetRadianceTerms(DielectricCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig][~TIR], directions[~TIR],
+            normals[~TIR], refracted, previousRI[~TIR], currentRI[~TIR]))
 
         return _temp, TIR, boolVig
 
@@ -256,61 +259,20 @@ class Surface1:
 
         refractedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         refractedRB.SetPosition(intersections[~TIR])
-        refractedRB.SetDirection(refracted)
+        refractedRB.SetDirection(refracted, transport=False)
 
         reflectedRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig]))
         reflectedRB.SetPosition(intersections)
-        reflectedRB.SetDirection(reflected)
+        reflectedRB.SetDirection(reflected, transport=False)
 
-        tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
-        tirRB.SetPosition(intersections[TIR])
-        tirRB.SetDirection(reflected[TIR])
+        refractedRB.SetRadianceTerms(DielectricCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig][~TIR], directions[~TIR],
+            normals[~TIR], refracted, n2[~TIR], n1[~TIR]))
+        reflectedRB.SetRadianceTerms(DielectricCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig], directions, normals,
+            reflected, n2, n1, reflection=True))
 
-        #print(tirRB.PolarizedRadiance())
-
-        # ==============================================================
-        # Polarization 
-
-        # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
-
-        # Accquire s and p direction for polarization, reflection and refraction 
-        senkrecht, parallel = SenkrechtUndParallel(directions, normals)
-
-        # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
-        # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
-
-        # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-        DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
-
-        senkrecht = senkrecht[~TIR][:, :2] * R_s[:, bd.newaxis]
-        parallel  = parallel[~TIR][:, :2]  * R_p[:, bd.newaxis]
-
-        # for pos, mat in zip(intersections, incidentRaybatch.PolarizationMat()[~boolVig]):
-        #     DrawEllipse(mat, pos)# ============ Draw call
-        
-        refractedRB = PolarizeRB(refractedRB, senkrecht, parallel)
-
-
-        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-            DrawEllipse(mat, pos, lColor="m")# ============ Draw call
-
-        #print(reflectedRB.PolarizationMat())
-        reflectedRB.Mask(~TIR)
-        reflectedRB = ResidueRB(reflectedRB, senkrecht, parallel)
-        #print(reflectedRB.PolarizationMat(), "\n\n\n\n\n")
-
-        # for pos, mat in zip(intersections, refractedRB.PolarizationMat()):
-        #     DrawEllipse(mat, pos)# ============ Draw call
-
-        for pos, mat in zip(intersections, reflectedRB.PolarizationMat()):
-            DrawEllipse(mat, pos, lColor="c")# ============ Draw call
-
-        # print(refractedRB.PolarizedRadiance())
-        # print(reflectedRB.PolarizedRadiance())
-        # print("\n\n")
-
-        return refractedRB, TIR, boolVig, reflectedRB.Merge(tirRB)
+        return refractedRB, TIR, boolVig, reflectedRB
     
 
     # ==================================================================

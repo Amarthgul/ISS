@@ -42,10 +42,10 @@ class ImagingSystem:
         # I have no idea why this is needed, the sample ratio should have normalized the output image brightness, but still, a 10-stop compensator is required.
 
 
-        self._sourcePerSample = 10240
+        self.sourcePerSample = 2048
 
 
-        self._pupilPerSample = 512
+        self.pupilPerSample = 512
 
 
     def RenderNamePattern(self, rex):
@@ -67,7 +67,7 @@ class ImagingSystem:
 
         sourceCoveragePerIteration = self._SourceCoveragePerIteration(
             self.object,
-            self._sourcePerSample
+            self.sourcePerSample
         )
         flareCoveragePerIteration = None
         if flareGlare:
@@ -87,7 +87,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), self._sourcePerSample)
+            mainRB = self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(self.pupilPerSample), self.sourcePerSample)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
@@ -217,7 +217,7 @@ class ImagingSystem:
 
         sourceCoveragePerIteration = self._SourceCoveragePerIteration(
             self.singleObject,
-            self._sourcePerSample
+            self.sourcePerSample
         )
         flareCoveragePerIteration = None
         if flareGlare:
@@ -241,15 +241,15 @@ class ImagingSystem:
             im = ax.imshow(ImageConversion(image, flipH=True))
 
         while True:
-            targets = self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample)
+            targets = self.lens.entrancePupil.GetSamplePoints(self.pupilPerSample)
 
-            mainRB = self.singleObject.EmitTowards(targets, self._sourcePerSample)
+            mainRB = self.singleObject.EmitTowards(targets, self.sourcePerSample)
             mainRB, _mainRP, _reflectedRB = self.lens.Propagate(mainRB, reflection=False)
             self.imager._AOVAverageCounts = beautyAOVAverageCounts
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
             beautyAOVAverageCounts = self.imager._AOVAverageCounts
 
-            alphaRB = alphaStack.EmitTowards(targets, self._sourcePerSample, flareGlare=False)
+            alphaRB = alphaStack.EmitTowards(targets, self.sourcePerSample, flareGlare=False)
             alphaRB, _alphaRP, _alphaReflectedRB = self.lens.Propagate(alphaRB, reflection=False)
             self.imager._AOVAverageCounts = alphaAOVAverageCounts
             alphaImage = self.imager.IntegralRays(alphaRB, baseImg=alphaImage, polarized=False)
@@ -392,7 +392,7 @@ class ImagingSystem:
 
         sourceCoveragePerIteration = self._SourceCoveragePerIteration(
             ISO12233C,
-            self._sourcePerSample
+            self.sourcePerSample
         )
 
         iterationCount = 0
@@ -405,7 +405,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = ISO12233C.ReceiveAndEmitTowards( self.lens.entrancePupil.GetSamplePoints(self._pupilPerSample), None,  self._sourcePerSample)
+            mainRB = ISO12233C.ReceiveAndEmitTowards(self.lens.entrancePupil.GetSamplePoints(self.pupilPerSample), None, self.sourcePerSample)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
 
             image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)

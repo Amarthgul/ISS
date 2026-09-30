@@ -661,17 +661,15 @@ class StdImager(Surface):
 
         Reports:
           - basic sanity checks (NaN/Inf) on position, direction, wavelength
-          - polarization term stats (Φ, i_Φ, b)
-          - validity of the 2x2 polarization ellipse matrix [[Φ, b],[b, i_Φ]]
-            using SPD checks (a>0, d>0, det>0)
-          - a fast "polarized radiance" proxy computed from closed-form eigenvalues
-            (avoids bd.linalg.eigh to keep this diagnostic cheap)
+          - real coherency coefficient statistics (Cxx, Cyy, Cxy)
+          - positive-semidefinite validity; rank-one and zero states are valid
+          - total ray power, Cxx + Cyy
 
         Returns a multi-line string (safe to print).
         """
 
         rb = intersectRayBatch
-        if rb is None or getattr(rb, "value", None) is None:
+        if rb is None or rb.value is None:
             return "[IncidentStats] RayBatch is None."
 
         val = rb.value
@@ -679,21 +677,8 @@ class StdImager(Surface):
             return "[IncidentStats] RayBatch is empty."
 
         # ---------- helpers ----------
-        def _to_cpu(x):
-            # works for numpy scalars/arrays and cupy
-            try:
-                return x.get()
-            except Exception:
-                return x
-
         def _scalar(x):
-            # convert backend scalar to python float
-            x = _to_cpu(x)
-            try:
-                return float(x)
-            except Exception:
-                # fallback for 0-d arrays
-                return float(getattr(x, "item", lambda: x)())
+            return float(x)
 
         def _istat(arr):
             arr = bd.asarray(arr)
@@ -723,12 +708,7 @@ class StdImager(Surface):
         b = val[:, 9]
 
         # channel (optional, but your RayBatch defines it at col 11)
-        chan = None
-        if val.shape[1] > 11:
-            try:
-                chan = val[:, 11].astype(int)
-            except Exception:
-                chan = None
+        chan = val[:, 11].astype(int) if val.shape[1] > 11 else None
 
         # ---------- finiteness checks ----------
         pos_bad = ~bd.isfinite(pos).all(axis=1)
@@ -745,15 +725,14 @@ class StdImager(Surface):
         d = iPhi
         c = b
 
-        # SPD conditions (necessary & sufficient for symmetric 2x2):
-        # a > 0, d > 0, det = a*d - c^2 > 0
+        # PSD conditions include zero and fully polarized states.
         det = a * d - c * c
 
         eps_det = 1e-12
         eps_eig = 1e-12
 
-        neg_diag = (a <= 0) | (d <= 0)
-        bad_det = det <= eps_det
+        neg_diag = (a < 0) | (d < 0)
+        bad_det = det < -eps_det * (a + d)**2
 
         # closed-form eigenvalues for symmetric 2x2
         tr = a + d
@@ -766,14 +745,10 @@ class StdImager(Surface):
 
         near_singular = min_eig <= eps_eig
 
-        pol_invalid = pol_bad | neg_diag | bad_det | near_singular
+        pol_invalid = pol_bad | neg_diag | bad_det
 
-        # ---------- radiance proxy (same structure as RayBatch.PolarizedRadiance) ----------
-        # semi-axis = 1/sqrt(eig); radiance = (semi1 + semi2)/2
-        # clamp eigenvalues to avoid inf/nan from numerical noise
-        eig1c = bd.maximum(eig1, eps_eig)
-        eig2c = bd.maximum(eig2, eps_eig)
-        rad_proxy = (1 / bd.sqrt(eig1c) + 1 / bd.sqrt(eig2c)) / 2
+        # Detector power is the trace, independent of polarization orientation.
+        rad_proxy = a + d
 
         rad_stats = _istat(rad_proxy)
         phi_stats = _istat(Phi)
@@ -804,7 +779,7 @@ class StdImager(Surface):
             f"  non-finite: pos={cnt_pos_bad}, dir={cnt_dir_bad}, wl={cnt_wl_bad}, pol_terms={cnt_pol_bad}, any={cnt_bad_any}"
         )
         lines.append(
-            f"  pol-matrix issues: neg_diag={cnt_neg_diag}, det<=eps={cnt_bad_det}, min_eig<=eps={cnt_near_sing}, invalid_any={cnt_pol_invalid}"
+            f"  pol-matrix issues: neg_diag={cnt_neg_diag}, negative_det={cnt_bad_det}, rank_deficient={cnt_near_sing}, invalid_any={cnt_pol_invalid}"
         )
 
         def _fmt_stat(name, s):
@@ -813,11 +788,11 @@ class StdImager(Surface):
             return (f"  {name}: min={s['min']:.6g}, max={s['max']:.6g}, "
                     f"mean={s['mean']:.6g}, std={s['std']:.6g}, finite_n={s['finite_n']}")
 
-        lines.append(_fmt_stat("radiance_proxy", rad_stats))
-        lines.append(_fmt_stat("Phi(Φ)", phi_stats))
-        lines.append(_fmt_stat("iPhi(i_Φ)", iphi_stats))
-        lines.append(_fmt_stat("tilt(b)", b_stats))
-        lines.append(_fmt_stat("det(Φ*i_Φ-b^2)", det_stats))
+        lines.append(_fmt_stat("power", rad_stats))
+        lines.append(_fmt_stat("Cxx", phi_stats))
+        lines.append(_fmt_stat("Cyy", iphi_stats))
+        lines.append(_fmt_stat("Cxy", b_stats))
+        lines.append(_fmt_stat("det(C)", det_stats))
         lines.append(_fmt_stat("min_eig", mineig_stats))
 
         # Optional: per-channel radiance proxy stats (if channel exists)

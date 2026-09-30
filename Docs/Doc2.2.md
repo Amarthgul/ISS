@@ -132,6 +132,170 @@ Since it is known for sure that the working scenario for this entire framework w
 
 Up till this point, the discussion of refraction and reflection has been limited to their directions. For the intensity of the rays, it might seem easy to use a single scalar value to record the radiance, but in certain scenarios this might not be enough. Especially when considering the complicated things that may happen at a surface. 
 
+
+## Real coherency representation
+
+The current implementation records three real coefficients for each ray. These describe the distribution of power between transverse polarization components, rather than the boundary of a radiance ellipse. Rays are mutually incoherent: powers from independent rays are added at the detector, without interference between their optical phases. However, the two transverse components of one ray may still be correlated. Discarding that correlation would also discard the orientation of linear polarization.
+
+Let $\mathbf{k}$ be the unit propagation direction, and let $\mathbf{e}_x$ and $\mathbf{e}_y$ be unit vectors such that $(\mathbf{e}_x,\mathbf{e}_y,\mathbf{k})$ is an orthonormal, right-handed frame. In this frame the real coherency matrix is
+
+$$
+C=\begin{bmatrix}a&b\\b&c\end{bmatrix}
+=\begin{bmatrix}
+\langle |E_x|^2\rangle&\operatorname{Re}\langle E_x E_y^*\rangle\\
+\operatorname{Re}\langle E_x E_y^*\rangle&\langle |E_y|^2\rangle
+\end{bmatrix}.
+$$
+
+The field components here include the normalization needed to express their mean squared magnitudes as ray power weights. The brackets denote a time or ensemble average. No optical phase or time-resolved electric field is stored by the tracer.
+
+The total power weight and the equivalent linear Stokes parameters are
+
+$$
+I=\operatorname{tr}(C)=a+c,\qquad Q=a-c,\qquad U=2b.
+$$
+
+In the existing ray array, columns 7, 8, and 9 contain $a,c,b$, respectively. `RadianceTerms()` returns the matrix-order tuple $(a,b,c)$. This keeps the ray width unchanged. The methods named `Radiance()` and `PolarizedRadiance()` both return $I$. Strictly, this is a Monte Carlo ray power weight, not radiance per unit projected area and solid angle; refraction changes the ray bundle geometry. Consequently, power conservation is used at an interface, without introducing an additional $n^2$ radiance factor into the ray weight.
+
+A physical matrix is positive semidefinite:
+
+$$
+a\geq0,\qquad c\geq0,\qquad ac-b^2\geq0.
+$$
+
+Zero eigenvalues are allowed. They occur for fully linearly polarized light, including the surviving component of a Brewster reflection. A zero matrix describes a ray with zero power. Neither state requires division by an eigenvalue or a special minimum intensity.
+
+An unpolarized source of power $I_0$ starts with
+
+$$
+C_0=\frac{I_0}{2}\begin{bmatrix}1&0\\0&1\end{bmatrix}.
+$$
+
+For a linear analyzer pointing along the transverse unit vector $\mathbf{u}=(\cos\alpha,\sin\alpha)^T$, the measured power is
+
+$$
+I_\alpha=\mathbf{u}^T C\mathbf{u}
+=a\cos^2\alpha+2b\sin\alpha\cos\alpha+c\sin^2\alpha
+=\frac12\left(I+Q\cos2\alpha+U\sin2\alpha\right).
+$$
+
+This gives Malus' law for a fully linearly polarized input. Two orthogonal analyzers always satisfy $I_\alpha+I_{\alpha+\pi/2}=I$. A detector without a polarization analyzer therefore only needs the sum $a+c$, regardless of the reference frame. Incoherent contributions expressed in the same frame add as matrices; an ordinary detector may sum their traces directly even when the rays arrive from different directions.
+
+> Figure placeholder: show unpolarized, partially linearly polarized, and fully linearly polarized states, together with their analyzer response $I_\alpha$. Distinguish this response from the radial extent of a geometric ellipse.
+
+## Transverse frames and the incidence plane
+
+The coefficients need a reference frame, but storing two additional 3D vectors per ray is unnecessary. The implementation deterministically selects the Cartesian axis $\mathbf{h}$ least aligned with $\mathbf{k}$, breaking ties in x, y, z order, and constructs
+
+$$
+\mathbf{e}_x=\frac{\mathbf{h}-(\mathbf{h}\cdot\mathbf{k})\mathbf{k}}
+{\|\mathbf{h}-(\mathbf{h}\cdot\mathbf{k})\mathbf{k}\|},\qquad
+\mathbf{e}_y=\mathbf{k}\times\mathbf{e}_x.
+$$
+
+This canonical frame can be reconstructed from the ray direction at any time. Its axis choice can change as the direction changes; the coherency coefficients must be transformed with it. Merely dropping a 3D vector's z component does not produce transverse polarization coordinates.
+
+At a specular interface, let $\mathbf{n}$ be the unit normal facing the incident medium. The local axes are
+
+$$
+\mathbf{s}=\frac{\mathbf{k}_i\times\mathbf{n}}
+{\|\mathbf{k}_i\times\mathbf{n}\|},\qquad
+\mathbf{p}_i=\mathbf{k}_i\times\mathbf{s},\qquad
+\mathbf{p}_o=\mathbf{k}_o\times\mathbf{s}.
+$$
+
+The incoming and outgoing p axes differ because each must be transverse to its own ray. At normal incidence the incidence plane is undefined. The implementation chooses the incident canonical x axis for s when $\|\mathbf{k}_i\times\mathbf{n}\|\leq10^{-12}$; the isotropic interface has no preferred transverse direction in the exact normal-incidence limit.
+
+Define the $3\times2$ matrices $B_i=[\mathbf{e}_{xi},\mathbf{e}_{yi}]$, $B_o=[\mathbf{e}_{xo},\mathbf{e}_{yo}]$, $S_i=[\mathbf{s},\mathbf{p}_i]$, and $S_o=[\mathbf{s},\mathbf{p}_o]$. For local amplitude multipliers $f_s,f_p$, the complete map between the canonical frames is
+
+$$
+J=B_o^T S_o
+\begin{bmatrix}f_s&0\\0&f_p\end{bmatrix}
+S_i^T B_i,\qquad C_o=J C_i J^T.
+$$
+
+Thus each interaction consists of a change into the incident s/p coordinates, the optical action, and a change into the outgoing canonical coordinates. This retains the off-diagonal correlation even when successive incidence planes are not aligned.
+
+> Figure placeholder: a refracting and reflecting ray at one surface, showing separate transverse incident, reflected, and transmitted p axes, their common s axis, and each ray's canonical frame.
+
+## Fresnel power splitting
+
+For positive real refractive indices $n_i,n_t$, write $c_i=|\mathbf{k}_i\cdot\mathbf{n}|$ and
+
+$$
+\Delta=1-\left(\frac{n_i}{n_t}\right)^2(1-c_i^2),\qquad
+c_t=\sqrt{\Delta}.
+$$
+
+For $\Delta\geq0$, the signed reflection amplitudes in the preceding s/p convention are
+
+$$
+r_s=\frac{n_i c_i-n_t c_t}{n_i c_i+n_t c_t},\qquad
+r_p=\frac{n_t c_i-n_i c_t}{n_t c_i+n_i c_t}.
+$$
+
+The power reflectances are $R_s=r_s^2$ and $R_p=r_p^2$. The sign of $r_p$ differs from some Fresnel conventions because those choose the outgoing p axis differently. Power reflectance alone hides this distinction, but transporting $C_{sp}$ requires the signed product $r_s r_p$ and a consistent basis.
+
+For a lossless interface, the power transmittances are $T_s=1-R_s$ and $T_p=1-R_p$. The tracer uses power-normalized transmission amplitudes
+
+$$
+\tau_s=\sqrt{T_s},\qquad \tau_p=\sqrt{T_p}.
+$$
+
+These include the flux normalization that would otherwise accompany the field transmission coefficients: $T=(n_t c_t)/(n_i c_i)\,|t|^2$ away from the grazing limit. In local s/p coordinates, if $C_i=\left[\begin{smallmatrix}a&b\\b&c\end{smallmatrix}\right]$, then
+
+$$
+C_r=\begin{bmatrix}R_s a&r_s r_p b\\r_s r_p b&R_p c\end{bmatrix},\qquad
+C_t=\begin{bmatrix}T_s a&\tau_s\tau_p b\\\tau_s\tau_p b&T_p c\end{bmatrix}.
+$$
+
+Both branches are calculated from the original incident state. Transmission is not obtained by subtracting the reflected matrix: the branches have different propagation frames and their cross-correlations do not obey that subtraction rule. Their powers do obey
+
+$$
+I_r+I_t=(R_s+T_s)a+(R_p+T_p)c=a+c=I_i.
+$$
+
+For example, an unpolarized unit-power ray at normal incidence from air into index 1.5 produces reflected power 0.04 and transmitted power 0.96. At Brewster's angle, $r_p=0$ and a purely p-polarized incident ray has zero reflected power. For equal refractive indices the interface is transparent, including the limiting grazing case.
+
+Disabling stray-ray generation only suppresses the reflected output; it does not disable the transmitted Fresnel loss. The primary surface trace, its transmission-only variant, clear boundaries, and sensor/microlens refraction use the same coherency transport. The standalone MLA retains its transmission-only output contract: TIR rays have zero transmitted power and do not spawn a reflected branch there.
+
+## Scope of the three-coefficient model
+
+The full coherency matrix is complex Hermitian and has four real degrees of freedom. Its imaginary off-diagonal component supplies the circular Stokes parameter $V$. The three-coefficient model assumes that component is absent. Real Jones maps at ordinary lossless dielectric interfaces preserve this restriction, so arbitrary sequences of such interactions are represented without an ellipse approximation. Mutual incoherence between different rays by itself is not sufficient to justify dropping $V$.
+
+TIR occurs when $\Delta<0$. Its exact reflection amplitudes have unit magnitude but generally different phases, which can convert linear polarization into elliptical polarization. The current real model explicitly approximates TIR by $r_s=r_p=1$ and $\tau_s=\tau_p=0$ in the local s/p frames. It preserves power and the local real coherency state, but omits retardance. It therefore does not reproduce general polarization evolution after TIR. The ideal mirror and the existing simplified metal boundary use $r_s=-1,r_p=1$; they are not complex-index metal or thin-film coating models.
+
+Prescribed direction changes, such as haze and the diffuse part of a clear-boundary reflection, use minimal-rotation transport. For incoming and outgoing directions, set $\mathbf{v}=\mathbf{k}_i\times\mathbf{k}_o$ and $d=\mathbf{k}_i\cdot\mathbf{k}_o$. Away from exact reversal, a transverse vector is transported by
+
+$$
+R\mathbf{e}=\mathbf{e}+\mathbf{v}\times\mathbf{e}
++\frac{\mathbf{v}\times(\mathbf{v}\times\mathbf{e})}{1+d}.
+$$
+
+At reversal the chosen half-turn axis is the incident canonical x axis. The rotated transverse frame is then expressed in the outgoing canonical frame. This preserves power and the degree of linear polarization; it is a nondepolarizing approximation for the existing directional scattering models, not a polarized scattering law. A rigid scene transform instead rotates both the ray and its field axes by the actual scene rotation, including rotation about the ray itself.
+
+Scalar attenuation multiplies all three coefficients by the same nonnegative factor. Any explicitly added unpolarized ambient power is split equally between the two diagonals. Such optional absorption or ambient models are separate from the lossless interface conservation statement above.
+
+## Evaluation and storage
+
+No eigendecomposition is needed to propagate or measure power. If $J=\left[\begin{smallmatrix}u&v\\w&z\end{smallmatrix}\right]$, the three output coefficients are evaluated directly:
+
+$$
+\begin{aligned}
+a'&=u^2a+2uvb+v^2c,\\
+b'&=uwa+(uz+vw)b+vzc,\\
+c'&=w^2a+2wzb+z^2c.
+\end{aligned}
+$$
+
+Power readout is a single addition per ray. Zero-power and fully polarized states remain finite, and every real congruence transform preserves positive semidefiniteness. Numerical tolerances are used for geometric degeneracies and explicit diagnostics, rather than to inflate dark polarization components. The calling contract supplies aligned arrays, unit directions and normals, physical coherency states, and positive real refractive indices; the transport routines do not perform type or attribute discovery.
+
+The coefficient semantics have changed even though the core ray-array width has not. Saved light fields containing the old ellipse coefficients must be regenerated or explicitly converted; they must not be silently treated as coherency data. The CSV coefficient headings are now `Cxx,Cyy,Cxy`; the NPZ array layout is unchanged. For a positive-definite legacy ellipse matrix $A$, the interpretation $C=\tfrac12 A^{-1/2}$ preserves its former semiaxis-average power, but cannot recover polarization information already discarded by the old propagation method. Stop-emitted diagnostic rays now store their launch angle as the first AOV (column 12), leaving column 9 exclusively for the polarization cross-correlation.
+
+# 2.2.3.1 Legacy method
+
+This section is for a legacy version of the polarization implementation that no longer applies. Its ellipse construction and TIR statements below are retained as historical descriptions, not as the physical model used by the current tracer.
+
 A ray traveling in a refractive medium reaching at another refractive medium is almost never fully refracted, rather, some reflection will likely to happen depending on the angle on incident. The amount of reflection is different along the two different directions. It might be fitting to model the change to be based on two primary directions, $s$ and $p$ (not the ETF). 
 
 $s$ stands for senkrecht, German for “perpendicular”, representing the wave direction perpendicular to the incident plane; $p$ stands for parallel (also a German word), representing the wave direction parallel to the incident plane. The reflectance on the two direction is defined by the Fresnel equation: 

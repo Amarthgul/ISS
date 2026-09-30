@@ -5,23 +5,24 @@
 from Util.Backend import backend as bd 
 from Util.Backend import backend_name
 from Util.Globals import NORMAL_RADIANT, INIT_ELLIPSE_TILT, ZERO, ONE, TWO, LambdaLines, RADIANT_KILL, Axis, RNG
-from Util.Misc import Normalized
+from Util.Misc import Normalized, ArrayNormalized
+from Raytracing.Polarization import TransportCoherency, RotateCoherency
 
 
 class RayBatch:
     """
     Raybatch data are organized in the form of:
     [
-       [x, y, z, v_x, v_y, v_z, λ, Φ, i_Φ, b, s, C, (optional)AOV1, (optional)AOV2, ...],
+       [x, y, z, v_x, v_y, v_z, λ, Cxx, Cyy, Cxy, s, channel, (optional)AOV1, (optional)AOV2, ...],
        [...], [...], ...
     ]
     """
     # x, y, z:          Root position of the ray    (0, 1, 2)
     # v_x, v_y, v_z:    Direction of the ray        (3, 4, 5)
     # λ:                Wavelength of the ray in nm (6)
-    # Φ:                Polarized Radiance term 1   (7)
-    # i_Φ:              Polarized Radiance term 2   (8)
-    # b:                Polarization ellipse tilt   (9)
+    # Cxx:              Transverse component power (7)
+    # Cyy:              Transverse component power (8)
+    # Cxy:              Real cross-correlation     (9)
     # s:                Surface index               (10)
     # C:                Color channel of RGB        (11)
     # Optional AoVs                                 (12+)
@@ -40,7 +41,7 @@ class RayBatch:
 
     def Transform(self, transformationMatrix):
         """
-        Apply a 4x4 3D transformation matrix to the ray positions and directions.
+        Apply a rigid 4x4 transform to positions, directions and polarization.
 
         Positions are transformed as homogeneous points (w=1), so translation applies.
         Directions are transformed as homogeneous vectors (w=0), so translation does not apply.
@@ -63,7 +64,10 @@ class RayBatch:
         zeros = bd.zeros((direction.shape[0], 1), dtype=direction.dtype)
         dir_h = bd.concatenate((direction, zeros), axis=1)  # (N, 4)
         dir_t = dir_h @ M.T
-        self.value[:, 3:6] = Normalized(dir_t[:, :3])
+        new_direction = ArrayNormalized(dir_t[:, :3])
+        self.SetRadianceTerms(RotateCoherency(
+            self.RadianceTerms(), direction, new_direction, M[:3, :3]))
+        self.value[:, 3:6] = new_direction
 
         return self
 
@@ -82,55 +86,28 @@ class RayBatch:
 
     def RadianceTerms(self):
         """
-        Get the 3 constituents of the polarized radiance.
+        Return coherency terms in matrix order (Cxx, Cxy, Cyy).
         """
         return self.value[:, [7, 9, 8]]
 
 
     def Radiance(self):
-        """
-        DO NOT USE
-        """
-        # Technically this is not really radiance since it does not integral over a solid angle 
-        return self.value[:, 7]
-    
+        """Total ray power weight: the trace of the coherency matrix."""
+        return self.value[:, 7] + self.value[:, 8]
+
 
     def PolarizedRadiance(self, polarized=True):
+        """Power seen by a detector without an analyzer.
+
+        The retained polarized argument no longer selects a different readout:
+        total power is the trace for every polarization state.
         """
-        Radiance as area of the polarization ellipse. 
-
-        :param polarized: defaults to true and will calculate the radiance based on the polarizaton ellipse. Disable this could signifacntly increase memory and speed. 
-        """
-
-        # For generalized purpose, this method is used for almost all radiance inquiries. However, calculating the polarized radiance brings a huge memory and speed loss, as such, an additional option is coded here to directly skip the ellipse calculation. 
-        if(not polarized):
-            return self.Radiance()
-
-        # Accquire eigen value and eigen vector 
-        # if(backend_name == "cupy"):
-        #     pol = self.PolarizationMat()
-        #     val, vec = bd.linalg.eigh(pol)
-        # else:
-        #     val, vec = bd.linalg.eig(self.PolarizationMat())
-
-        pol = self.PolarizationMat()
-        # Use Hermitian eigensolver for symmetric 2x2; gives real, ordered eigenvalues
-        val, _ = bd.linalg.eigh(pol)
-        # Clamp to avoid negatives/zeros due to numerical noise
-        eps = 1e-12
-        val = bd.maximum(val, eps)
-
-
-        # Semi axis of the polariztion ellipse 
-        semi = ONE / bd.sqrt(val)
-
-        # To ensure radiance conservation, a simple addition and normalization is used here
-        return (semi[:, 0] + semi[:, 1]) / 2
+        return self.Radiance()
 
 
     def PolarizationMat(self):
         """
-        Return the radiance and polarization term as an ellipse matrix. 
+        Return the real positive-semidefinite transverse coherency matrix.
         """
         sliced = self.value[:, [7, 9, 8]]  
 
@@ -141,20 +118,12 @@ class RayBatch:
 
 
     def SanitizePolarization(self):
-        """
-        Drop rays whose polarization parameters (columns 7,8,9) are missing or non-finite.
-        Returns (self, removed_count).
-        """
-
-        rad = self.PolarizedRadiance()
-
-        noneMask = bd.array([x is None for x in rad.get()])
-        good = rad >= 0 & rad <= 1
-        good = good & ~noneMask
-
-        self.value = self.value[good]
-
-        return self
+        """Explicit diagnostic filter; zero and rank-one states are valid."""
+        a, b, c = self.RadianceTerms().T
+        tolerance = 1e-12 * (a + c)**2
+        good = bd.all(bd.isfinite(self.value[:, 7:10]), axis=1)
+        good &= (a >= 0) & (c >= 0) & (a*c - b*b >= -tolerance)
+        return self.Mask(good)
 
 
     def SurfaceIndex(self):
@@ -204,9 +173,15 @@ class RayBatch:
         self.value[:, :3] = positions[:, :]
 
 
-    def SetDirection(self, directions):
-        if(directions.shape[1] != 3): 
-            raise ValueError("Expect directions to have a dimension of (#, 3)")
+    def SetDirection(self, directions, transport=True):
+        """Set unit directions with minimal-rotation polarization transport.
+
+        Interface callers pass transport=False and set the physical outgoing
+        coherency separately. Direction initialization also uses False.
+        """
+        if transport:
+            self.SetRadianceTerms(TransportCoherency(
+                self.RadianceTerms(), self.Direction(), directions))
         self.value[:, 3:6] = directions
 
 
@@ -229,7 +204,7 @@ class RayBatch:
         :param polarM: polarization matrices, each entry is a 2x2 matrix.
         """
         a = polarM[:, 0, 0]
-        c = polarM[:, 0, 1] # The tilt term 
+        c = polarM[:, 0, 1] # Real cross-correlation
         b = polarM[:, 1, 1]
 
         temp = bd.stack((a, b, c), axis=0).T
@@ -261,33 +236,8 @@ class RayBatch:
 
 
     def RadianceChange(self, ratio):
-        """
-        Doesn't work well. Often introduce outliers, try not to use this thing.
-
-        """
-        # Change the 3 polarized radiance terms so that total radiance is higher or lower.
-
-        ratio = bd.asarray(ratio)
-
-        if bd.any(ratio <= 0):
-            raise ValueError("Radiance change ratio must be positive.")
-
-        # FIX: Remove the 'ONE / (ratio ** 2)' logic.
-        # To get 85% radiance, we need a scale factor of 0.85.
-        scale = ratio
-
-        # Scalar case
-        if ratio.ndim == 0:
-            self.value[:, [7, 8, 9]] *= scale
-            return self
-
-        # Per-ray case
-        if ratio.ndim != 1 or ratio.shape[0] != self.value.shape[0]:
-            raise ValueError("Per-ray ratio must have shape (ray_count,)")
-
-        scale = scale.reshape(-1, 1)
-        self.value[:, [7, 8, 9]] *= scale
-
+        """Scale power by a nonnegative scalar or one factor per ray."""
+        self.value[:, 7:10] *= bd.asarray(ratio).reshape(-1, 1)
         return self
 
 
@@ -460,9 +410,9 @@ def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
     pos = bd.tile(pos, (size, 1))
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     # 4th term in temp is the durface index 
     
     return RayBatch(
@@ -480,9 +430,9 @@ def GenerateBeam(position, direction, size=16, wavelength=LambdaLines['D']):
     temp = bd.zeros(5)
 
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     # 4th term in temp is the durface index 
     
     return RayBatch(

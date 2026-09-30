@@ -7,7 +7,7 @@ from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateBeam
 from Raytracing.Reflection import Reflect
 from Raytracing.Refraction import Refract
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
+from Raytracing.Polarization import InterfaceCoherency
 from Util.Backend import backend as bd
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
@@ -64,7 +64,9 @@ class MetalBoundary(ClearBoundary):
 
         # Calculate the reflection directions and directly update the reflected RB
         reflected = Reflect(reflectedRB.Direction(), normals)
-        reflectedRB.SetDirection(reflected)
+        reflectedRB.SetRadianceTerms(InterfaceCoherency(
+            reflectedRB.RadianceTerms(), directions, normals, reflected, -1.0, 1.0))
+        reflectedRB.SetDirection(reflected, transport=False)
 
         print("Before culling: ", reflectedRB.value.shape)
         reflectedRB.RandomDrop(self.absorption)

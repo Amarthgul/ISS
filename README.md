@@ -76,6 +76,8 @@ This also allows the recreation of the iconic anamorphic strake flares. The imag
 	<img src="resources/ReadmeImg/AnamorphicRenderFlareOnly.jpg" width="640">
 </p>
 
+These flares are from the same demo scene. Their creation are simply exploiting the definition of stray ray in a refractive imaging system by marking any ray that deviated from the sequential path and trace over them. 
+
 
 ### Diaphragm blade and aperture control 
 

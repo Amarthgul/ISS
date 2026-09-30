@@ -21,7 +21,7 @@ def rays(x, z=-1, dz=1, index=-1, y=0):
     data[:, 2] = z
     data[:, 5] = dz
     data[:, 6] = 550
-    data[:, 7:9] = 1
+    data[:, 7:9] = 0.5
     data[:, 10] = index
     return RayBatch(data)
 

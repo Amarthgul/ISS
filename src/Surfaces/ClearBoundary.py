@@ -8,7 +8,7 @@ from Material import Material
 from Raytracing.RayBatch import RayBatch, GenerateBeam
 from Raytracing.Reflection import Reflect, LambertianReflect
 from Raytracing.Refraction import Refract
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
+from Raytracing.Polarization import DielectricCoherency
 from Util.Backend import backend as bd 
 from Util.Backend import constant
 from Util.MathFunctions import NewtonSolver
@@ -118,7 +118,7 @@ class ClearBoundary():
             # When the CB is a cylinder
             pointingDir = ArrayNormalized(self.E1.center - intersections)
             pointingDir[:, Axis.Z.value] = 0
-            return pointingDir
+            return ArrayNormalized(pointingDir)
         else:
             if(E1Z > E2Z):
                 E1Z, E2Z = E2Z, E1Z
@@ -168,7 +168,6 @@ class ClearBoundary():
             mirrorReflected * specularReflection +
             lambertReflected * (1 - specularReflection)
         )
-        reflectedRB.SetDirection(reflected)
 
         # Couple diffuse intensity to the sampled outgoing direction.
         # For the Lambertian branch, brighter contributions stay closer to the
@@ -179,41 +178,17 @@ class ClearBoundary():
             specularReflection +
             (1 - specularReflection) * lambertIntensity * lambertCos
         )
-        reflectedRB.SetRadianceTerms(
-            reflectedRB.RadianceTerms() * reflectionIntensity[:, None]
-        )
-
-        # Accquire the index of refractions (resp. wavelength)
         n1 = previousRI[_mask]
         n2 = self.exteriorCoating.RI(reflectedRB.Wavelength())
-        # If the ray hits from the behind, RI needs to be swapped 
-        if(inverted):
-            n1, n2 = n2, n1 
+        if inverted:
+            n1, n2 = n2, n1
 
-        # Calculate the refraction for the polaried radiance ellipses 
-        # Refracted rays themselves are not used since they no longer contribute to the imaging process. 
-        refracted, TIR, _temp = Refract(directions, normals, n1, n2)
-
-        # Accquire the reflectance ratio for the polarized radiance ellipses
-        R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
-        # Accquire s and p directional vector 
-        senkrecht, parallel = SenkrechtUndParallel(directions[~TIR], normals[~TIR])
-        # nonTIRRB is a temporary RayBatch that only contains the non-TIR rays
-        nonTIRRB = RayBatch(reflectedRB.value[~TIR])
-        # Calculate the quantitative reflectance on the local s and p direction.
-        senkrecht, parallel = QuantitativePolarize(
-                nonTIRRB.PolarizationMat(),
-                senkrecht[:, :2], 
-                parallel[:, :2], 
-                R_s, 
-                R_p
-            )
-        # Modify the polarization ellipse of the nonTIR rays based on the quantitative reflectance just calculated. 
-        nonTIRRB = ResidueRB(nonTIRRB, senkrecht, parallel)
-
-        # The direction of the reflected, including TIR, are already set previously. 
-        # So here only need to merge the nonTIR, whose raidance ellipse just got modified, with the TIR rays of the original raybatch.
-        reflectedRB = nonTIRRB.Merge(RayBatch(reflectedRB.value[TIR]))
+        reflectedRB.SetRadianceTerms(DielectricCoherency(
+            reflectedRB.RadianceTerms(), directions, normals, mirrorReflected,
+            n1, n2, reflection=True))
+        reflectedRB.SetDirection(mirrorReflected, transport=False)
+        reflectedRB.SetDirection(reflected)
+        reflectedRB.RadianceChange(reflectionIntensity)
 
         absorption = min(max(self.absorption, 0.0), 1.0)
         reflectedRB.RandomDrop(absorption)

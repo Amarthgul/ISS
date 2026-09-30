@@ -3,7 +3,7 @@
 from Util.Backend import backend as bd
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR
 from Raytracing.Reflection import Reflect
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
+from Raytracing.Polarization import DielectricCoherency
 from Raytracing.RayBatch import RayBatch
 from Material import Material
 
@@ -111,7 +111,7 @@ class MLA(Surface):
         o = incidentRaybatch.Position()     # shape (N, 3)
         d = incidentRaybatch.Direction()    # shape (N, 3)
         lam = incidentRaybatch.Wavelength()    # shape (N,)
-        L   = incidentRaybatch.RadianceTerms()    # shape (N,)
+        L   = incidentRaybatch.RadianceTerms()    # shape (N, 3): Cxx, Cxy, Cyy
 
         ox, oy, oz = o[:, 0], o[:, 1], o[:, 2]
         dx, dy, dz = d[:, 0], d[:, 1], d[:, 2]
@@ -271,6 +271,17 @@ class MLA(Surface):
 
             if bd.any(final_valid):
                 idx_valid = idx[final_valid]
+                d0 = bd.stack((dx_l, dy_l, dz_l), axis=1)[final_valid]
+                d1 = bd.stack((dx1, dy1, dz1), axis=1)[final_valid]
+                d2 = bd.stack((dx2, dy2, dz2), axis=1)[final_valid]
+                normal_top = bd.stack((nx, ny, nz), axis=1)[final_valid]
+                normal_bot = bd.stack((nx_b, ny_b, nz_b), axis=1)[final_valid]
+                transmitted_terms = DielectricCoherency(
+                    L[idx_valid], d0, normal_top, d1,
+                    n_up_l[final_valid], n_ml_l[final_valid])
+                L[idx_valid] = DielectricCoherency(
+                    transmitted_terms, d1, normal_bot, d2,
+                    n_ml_l[final_valid], n_dn_l[final_valid])
 
                 qx[idx_valid] = qx_l[final_valid]
                 qy[idx_valid] = qy_l[final_valid]
@@ -279,12 +290,11 @@ class MLA(Surface):
                 dy_out[idx_valid] = dy2[final_valid]
                 dz_out[idx_valid] = dz2[final_valid]
 
-        # ----------------- 6. Build output RayBatch -----------------
-        # Again, map this to your actual RayBatch constructor/fields.
-        refractedRB = RayBatch()
-        refractedRB.o = bd.stack([qx, qy, qz], axis=-1)
-        refractedRB.d = bd.stack([dx_out, dy_out, dz_out], axis=-1)
-        refractedRB.w = lam
+        # TIR has no transmitted branch; this MLA does not emit stray rays.
+        L[TIR] = 0.0
+        refractedRB = incidentRaybatch.Copy()
+        refractedRB.SetPosition(bd.stack([qx, qy, qz], axis=-1))
+        refractedRB.SetDirection(bd.stack([dx_out, dy_out, dz_out], axis=-1), transport=False)
         refractedRB.SetRadianceTerms(L)
 
         # No explicit reflections modeled here
@@ -372,6 +382,8 @@ class MLA(Surface):
         returns (dx_out, dy_out, dz_out, tir_mask)
         """
         # cos of incident angle: c = -n·d  (assuming d points towards interface)
+        orientation = bd.where(nx*dx + ny*dy + nz*dz > 0, -1.0, 1.0)
+        nx, ny, nz = nx*orientation, ny*orientation, nz*orientation
         c = -(nx * dx + ny * dy + nz * dz)
 
         eta = n1 / n2

@@ -50,10 +50,10 @@ KNOB_DISTANCE = bd.array(1500)
 
 # The default radiant value for the raybatch
 NORMAL_RADIANT = 1
-# This is set so that the 2 directions of the radiant have a normalized value of 1.
+# Total unpolarized ray power; each coherency diagonal receives half.
 
 
-# initial phase difference for the two directions of radiant 
+# Initial real cross-correlation; legacy constant name retained.
 INIT_ELLIPSE_TILT = 0
 
 

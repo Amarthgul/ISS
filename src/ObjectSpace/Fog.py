@@ -125,12 +125,12 @@ class FogAttenuator(Attenuator):
             T = bd.exp(-r_eff / Lext)      # (N,)
             T = T.reshape(-1, 1)           # (N,1) for broadcasting
 
-            # Current polarized radiance terms: (a, tilt, b)
+            # Current polarized radiance terms: (Cxx, Cxy, Cyy)
             rad = scattered.RadianceTerms()   # (N,3)
 
             # Unpolarized, white-ish ambient: same diag, zero tilt
-            a_env = self.ambient_level
-            b_env = self.ambient_level
+            a_env = self.ambient_level / 2
+            b_env = self.ambient_level / 2
             c_env = 0.0   # no tilt
 
             a_vec = bd.full((N,), a_env)

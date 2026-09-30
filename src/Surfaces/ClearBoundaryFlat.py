@@ -3,7 +3,7 @@ from Surfaces.ClearBoundary import ClearBoundary
 from Raytracing.RayBatch import RayBatch
 from Raytracing.Reflection import Reflect, LambertianReflect
 from Raytracing.Refraction import Refract
-from Raytracing.Polarization import SenkrechtUndParallel, ResidueRB, FresnelReflectance, QuantitativePolarize
+from Raytracing.Polarization import DielectricCoherency
 from Util.Backend import backend as bd
 from Util.Misc import ArrayNormalized
 from Util.PltPlot import DrawPlane
@@ -91,12 +91,11 @@ class ClearBoundaryFlat(ClearBoundary):
         mirrorReflected = Reflect(directions, normals)
         lambertReflected, lambertIntensity = LambertianReflect(normals, outputPer=1)
 
-        specularReflection = bd.clip(self.specularReflection, 0.0, 1.0)
+        specularReflection = min(max(self.specularReflection, 0.0), 1.0)
         reflected = ArrayNormalized(
             mirrorReflected * specularReflection +
             lambertReflected * (1 - specularReflection)
         )
-        reflectedRB.SetDirection(reflected)
 
         lambertCos = bd.sum(reflected * normals, axis=1)
         lambertCos = bd.clip(lambertCos, 0.0, 1.0)
@@ -104,44 +103,17 @@ class ClearBoundaryFlat(ClearBoundary):
             specularReflection +
             (1 - specularReflection) * lambertIntensity * lambertCos
         )
-        reflectedRB.SetRadianceTerms(
-            reflectedRB.RadianceTerms() * reflectionIntensity[:, None]
-        )
-
         n1 = previousRI[mask]
         n2 = self.exteriorCoating.RI(reflectedRB.Wavelength())
         if inverted:
             n1, n2 = n2, n1
 
-        refracted, TIR, _temp = Refract(directions, normals, n1, n2)
-        nonTIRMask = ~TIR
-
-        if self._Any(nonTIRMask):
-            R_s, R_p = FresnelReflectance(
-                normals[nonTIRMask],
-                directions[nonTIRMask],
-                refracted,
-                n1[nonTIRMask],
-                n2[nonTIRMask]
-            )
-            senkrecht, parallel = SenkrechtUndParallel(
-                directions[nonTIRMask],
-                normals[nonTIRMask]
-            )
-
-            nonTIRRB = RayBatch(reflectedRB.value[nonTIRMask])
-            senkrecht, parallel = QuantitativePolarize(
-                nonTIRRB.PolarizationMat(),
-                senkrecht[:, :2],
-                parallel[:, :2],
-                R_s,
-                R_p
-            )
-            nonTIRRB = ResidueRB(nonTIRRB, senkrecht, parallel)
-
-            reflectedRB = nonTIRRB.Merge(RayBatch(reflectedRB.value[TIR]))
-        else:
-            reflectedRB = RayBatch(reflectedRB.value[TIR])
+        reflectedRB.SetRadianceTerms(DielectricCoherency(
+            reflectedRB.RadianceTerms(), directions, normals, mirrorReflected,
+            n1, n2, reflection=True))
+        reflectedRB.SetDirection(mirrorReflected, transport=False)
+        reflectedRB.SetDirection(reflected)
+        reflectedRB.RadianceChange(reflectionIntensity)
 
         absorption = min(max(self.absorption, 0.0), 1.0)
         reflectedRB.RandomDrop(absorption)

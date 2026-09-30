@@ -187,9 +187,9 @@ def InitRays(r, sd, posP, wavelength = 550):
 
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     mat2 = bd.tile(temp, (vecs.shape[0], 1))
     mat = bd.hstack((bd.hstack((mat1, vecs)), mat2))
 
@@ -235,7 +235,7 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
         angularSteps = bd.linspace(-bd.pi / 2, bd.pi / 2, numRays)
 
         # Generate directional vectors in the YZ plane pointing towards -Z
-        vectors = bd.array([(0, bd.sin(a), -bd.cos(a)) for a in angularSteps])
+        vectors = bd.stack((bd.zeros_like(angularSteps), bd.sin(angularSteps), -bd.cos(angularSteps)), axis=1)
     else:
         stopCT = stopVertex[2]
 
@@ -247,33 +247,19 @@ def EmitFromStop(stopIndex, stopVertex, previousSD, nextSD, previousSDT, nextSDT
 
         angularSteps = bd.linspace(-theta, theta, numRays)
         
-        vectors = bd.array([(ZERO, bd.sin(a), bd.cos(a)) for a in angularSteps])
+        vectors = bd.stack((bd.zeros_like(angularSteps), bd.sin(angularSteps), bd.cos(angularSteps)), axis=1)
 
     vertices = bd.tile(stopVertex, (vectors.shape[0], 1))
-    temp = bd.zeros(3)
-    temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp = bd.tile(temp, (vectors.shape[0], 1))
-    
+    metadata = bd.zeros((vectors.shape[0], 6))
+    metadata[:, 0] = wavelength
+    metadata[:, 1:3] = NORMAL_RADIANT / 2
+    metadata[:, 4] = stopIndex
 
-    # concatenate creates a new array so the two new arry should be independent of each other
+    # Launch angle is an AOV (column 12), never a polarization coefficient.
     objectSideRB = RayBatch(bd.concatenate([
-        vertices, 
-        -vectors, 
-        temp, 
-        angularSteps[:, bd.newaxis], 
-        bd.tile(constant(stopIndex), (vectors.shape[0], 1))],
-    axis=1))
+        vertices, -vectors, metadata, angularSteps[:, None]], axis=1))
     imageSideRB = RayBatch(bd.concatenate([
-        vertices, 
-        vectors, 
-        temp, 
-        angularSteps[:, bd.newaxis], 
-        bd.tile(constant(stopIndex), (vectors.shape[0], 1))],
-    axis=1))
-    # Note that phase difference is replaced with angles. 
-    # This record the angle of the rays so that after propagation, the angle can be used to find the entrance pupil. 
+        vertices, vectors, metadata, angularSteps[:, None]], axis=1))
 
     return objectSideRB, imageSideRB
 
@@ -317,9 +303,9 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['d'], planar=Tr
 
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     
     return RayBatch(
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
@@ -364,9 +350,9 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
 
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = ONE    # Sagittal radiant
-    temp[2] = ONE    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = ONE / 2    # Cxx
+    temp[2] = ONE / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     
     return RayBatch(
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
@@ -411,9 +397,9 @@ def EmitFieldMultispectral(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTa
 
     temp = bd.zeros(5)
     temp[0] = LambdaLines['d']
-    temp[1] = ONE    # Sagittal radiant
-    temp[2] = ONE    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = ONE / 2    # Cxx
+    temp[2] = ONE / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     
     mainRB =  RayBatch(
         bd.concatenate([position, direction, bd.tile(temp, (numRays, 1))], axis=1)
@@ -483,9 +469,9 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
     emissionPoint = bd.tile(emissionPoint, (numRays, 1))
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     
     return RayBatch(
         bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)
@@ -505,9 +491,9 @@ def EmitFromPointFullFrontal(emissionPoint, numRays=20, wavelength = LambdaLines
     emissionPoint = bd.tile(emissionPoint, (numRays, 1))
     temp = bd.zeros(5)
     temp[0] = wavelength
-    temp[1] = NORMAL_RADIANT    # Sagittal radiant
-    temp[2] = NORMAL_RADIANT    # Tangential radiant
-    temp[3] = INIT_ELLIPSE_TILT   # Phase difference 
+    temp[1] = NORMAL_RADIANT / 2    # Cxx
+    temp[2] = NORMAL_RADIANT / 2    # Cyy
+    temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
     
     return RayBatch(
         bd.concatenate([emissionPoint, vectors, bd.tile(temp, (numRays, 1))], axis=1)

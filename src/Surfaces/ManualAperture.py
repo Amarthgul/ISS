@@ -81,7 +81,7 @@ class ManualAperture(Surface):
 
         outRB = RayBatch(bd.copy(incidentRaybatch.value[valid]))
         outRB.SetPosition(intersections_all[valid])
-        outRB.SetDirection(direction[valid])
+        outRB.SetDirection(direction[valid], transport=False)
 
         TIR = bd.zeros(outRB.Wavelength().shape[0], dtype=bd.bool_)
 

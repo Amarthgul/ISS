@@ -13,7 +13,8 @@ __pycache__/
 /python/__pycache__/
 resources/Results/
 resources/Saves/
-tests/
+tests/*
+!tests/test_polarization.py
 
 
 .DS_Store

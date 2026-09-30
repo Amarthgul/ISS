@@ -1,256 +1,125 @@
+"""Real coherency transport; terms are (Cxx, Cxy, Cyy) in a ray-local frame.
 
-
+Directions and normals are unit vectors. Indices are positive and real.
+Circular polarization and phase retardance (including TIR) are omitted.
+Operations accept empty batches and use the configured NumPy/CuPy backend.
+"""
 
 from Util.Backend import backend as bd
-from Util.Globals import ONE, NEAR_ZERO
-from Util.Misc import ArrayNormalized, Magnitude, ArrayMagnitude
-from Raytracing.RayBatch import RayBatch
 
 
+def TransverseBasis(direction):
+    """Deterministic right-handed (x, y, direction) frame, with no stored axes."""
+    reference = bd.eye(3, dtype=direction.dtype)[bd.argmin(bd.abs(direction), axis=1)]
+    x = reference - bd.sum(reference * direction, axis=1)[:, None] * direction
+    x /= bd.linalg.norm(x, axis=1)[:, None]
+    return x, bd.cross(direction, x)
 
-def ModifyEllipse(A, v, add=False):
-    """
-    Modify an ellipse to expand or contract in the direction of vector `v`.
-    
-    :param A: 2x2 positive definite matrix defining the original ellipse (ndarray).
-    :param v: 2D vector specifying direction and magnitude (ndarray). 
-    :param add: when set to True, ellipse will be expanded, otherwise contracted. 
 
-    :return: bd.ndarray: New 2x2 matrix defining the modified ellipse
-    """
-
-    # Number of ellipses / vectors
-    n = v.shape[0]
-
-    # Compute direction angles (theta) for each vector in v.
-    theta = bd.arctan2(v[:, 1], v[:, 0])  # shape (n,)
-    c = bd.cos(theta)
-    s = bd.sin(theta)
-    
-    # Construct rotation matrices R for each sample, shape (n, 2, 2)
-    R = bd.stack([bd.stack([c, -s], axis=1),
-                  bd.stack([s,  c], axis=1)], axis=1)
-    
-    # Compute vector magnitudes m for each vector v.
-    m = bd.linalg.norm(v, axis=1)  # shape (n,)
-    
-    # Compute the quadratic form v^T * A * v for each sample.
-    # This yields a 1D array of length n.
-    vAv = bd.einsum('ni,nij,nj->n', v, A, v)
-    
-    # Compute scaling factor s_factor for the modification.
-    if add:
-        # For expansion, s_factor = sqrt(v^T A v)
-        s_factor = bd.sqrt(vAv)
-    else:
-        # For contraction, compute the original length L in direction v:
-        L = m / bd.sqrt(vAv)
-        # New length L_new is reduced by m:
-        L_new = L - m
-        s_factor = L_new / L
-    
-    # Build a diagonal scaling matrix S for each sample.
-    # S[i] = diag(s_factor[i], 1), shape (n, 2, 2)
-    S = bd.tile(bd.eye(2), (n, 1, 1))
-    S[:, 0, 0] = s_factor
-
-    # Compute the inverse of S.
-    S_inv = bd.tile(bd.eye(2), (n, 1, 1))
-    S_inv[:, 0, 0] = 1.0 / s_factor
-
-    # Compute the combined transformation matrix: M_inv = R * S_inv * R^T.
-    R_T = bd.transpose(R, (0, 2, 1))
-    M_inv = bd.matmul(bd.matmul(R, S_inv), R_T)
-    
-    # Finally, compute the new ellipse matrix:
-    # A_new = M_inv^T * A * M_inv for each sample.
-    M_inv_T = bd.transpose(M_inv, (0, 2, 1))
-    A_new = bd.matmul(bd.matmul(M_inv_T, A), M_inv)
-    
-    return A_new
+def TransformCoherency(terms, j00, j01, j10, j11):
+    """Apply a real Jones map J C J.T directly to the three coefficients."""
+    a, b, c = terms.T
+    return bd.stack((
+        j00*j00*a + 2*j00*j01*b + j01*j01*c,
+        j00*j10*a + (j00*j11 + j01*j10)*b + j01*j11*c,
+        j10*j10*a + 2*j10*j11*b + j11*j11*c,
+    ), axis=1)
 
 
 def SenkrechtUndParallel(incident, normal):
+    """Incident s/p frame; at normal incidence choose the ray's x axis as s."""
+    s = bd.cross(incident, normal)
+    length = bd.linalg.norm(s, axis=1)
+    axial = length <= 1e-12
+    s /= bd.where(axial, 1.0, length)[:, None]
+    fallback, _ = TransverseBasis(incident)
+    s = bd.where(axial[:, None], fallback, s)
+    return s, bd.cross(incident, s)
+
+
+def FresnelAmplitudes(incident, normal, n_in, n_out):
+    """Signed r_s/r_p and power-normalized t_s/t_p.
+
+    Local p = cross(direction, s) on both sides. TIR uses r_s=r_p=1,
+    neglecting differential phase while preserving reflected power.
     """
-    Berechnen Sie die p und s Polarisationsrichtung bei der gegebenen Einfalls- und Normalrichtung.
-    """
-    # Oh nein es gibt ein deutsche Verfahren! 
-    
-    senkrecht = ArrayNormalized(bd.cross(incident, normal))
-
-    # Manuelles Zuweisen des senkrechten Vektors
-    senkrecht[bd.all(bd.isnan(senkrecht), axis=1)] = bd.array([1, 0, 0])
-
-    # Note that if incident is the reverse of normal, this means a perpendicular ray. Which will not have polarization effects, only partial reflection based on the transmission. For these rays, the senkrecht calculation above will return Nan, so will the the parallel.
-
-    return senkrecht, ArrayNormalized(bd.cross(normal, senkrecht))
+    ci = bd.clip(bd.abs(bd.sum(incident * normal, axis=1)), 0.0, 1.0)
+    discriminant = 1.0 - (n_in / n_out)**2 * (1.0 - ci*ci)
+    ct = bd.sqrt(bd.maximum(discriminant, 0.0))
+    ds = n_in*ci + n_out*ct
+    dp = n_out*ci + n_in*ct
+    rs = (n_in*ci - n_out*ct) / bd.where(ds == 0, 1.0, ds)
+    rp = (n_out*ci - n_in*ct) / bd.where(dp == 0, 1.0, dp)
+    same_medium = n_in == n_out
+    rs = bd.where(same_medium, 0.0, rs)
+    rp = bd.where(same_medium, 0.0, rp)
+    tir = discriminant < 0.0
+    rs = bd.where(tir, 1.0, rs)
+    rp = bd.where(tir, 1.0, rp)
+    return rs, rp, bd.sqrt(bd.maximum(1.0-rs*rs, 0.0)), bd.sqrt(bd.maximum(1.0-rp*rp, 0.0))
 
 
 def FresnelReflectance(normals, incident, refracted, n1, n2):
+    """Power reflectances with n1 incident and n2 outgoing; legacy signature."""
+    rs, rp, _, _ = FresnelAmplitudes(incident, normals, n1, n2)
+    return rs*rs, rp*rp
+
+
+def InterfaceCoherency(terms, incident, normal, outgoing, amplitude_s, amplitude_p):
+    """Map canonical incident coefficients through a specular interface."""
+    s, pi = SenkrechtUndParallel(incident, normal)
+    po = bd.cross(outgoing, s)
+    xi, yi = TransverseBasis(incident)
+    xo, yo = TransverseBasis(outgoing)
+    # J = B_out.T [s, p_out] diag(amplitudes) [s, p_in].T B_in.
+    si_x = bd.sum(s*xi, axis=1)
+    si_y = bd.sum(s*yi, axis=1)
+    pi_x = bd.sum(pi*xi, axis=1)
+    pi_y = bd.sum(pi*yi, axis=1)
+    so_x = amplitude_s * bd.sum(s*xo, axis=1)
+    so_y = amplitude_s * bd.sum(s*yo, axis=1)
+    po_x = amplitude_p * bd.sum(po*xo, axis=1)
+    po_y = amplitude_p * bd.sum(po*yo, axis=1)
+    return TransformCoherency(terms,
+        so_x*si_x + po_x*pi_x, so_x*si_y + po_x*pi_y,
+        so_y*si_x + po_y*pi_x, so_y*si_y + po_y*pi_y)
+
+
+def DielectricCoherency(terms, incident, normal, outgoing, n_in, n_out, reflection=False):
+    """One reflected or transmitted branch, always using the incident state."""
+    rs, rp, ts, tp = FresnelAmplitudes(incident, normal, n_in, n_out)
+    if reflection:
+        return InterfaceCoherency(terms, incident, normal, outgoing, rs, rp)
+    return InterfaceCoherency(terms, incident, normal, outgoing, ts, tp)
+
+
+def TransportCoherency(terms, incident, outgoing):
+    """Minimal-rotation transport for prescribed direction changes.
+
+    This is the nondepolarizing approximation used by haze/diffuse samplers.
+    Exact reversal rotates by pi about the incident canonical x axis.
     """
-    Given the normal, incident, and refracted vectors, calculate the reflectance ratio along the senkrecht and parallel direction (Fresnel equation).
-    """
-
-    # Normal direction should always be pointing at the same side as whatever is being calculated, thus the abs is needed. Without abs, the R_s and R_p can become bigger than 1 and the raidance will go totally out of hand. 
-    cosThetaI = bd.abs(bd.sum(normals * incident, axis=1)) / (ArrayMagnitude(normals) * ArrayMagnitude(incident))
-    cosThetaT = bd.abs(bd.sum(normals * refracted, axis=1)) / (ArrayMagnitude(normals) * ArrayMagnitude(refracted))
-
-    # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-    R_s = bd.abs( (n1*cosThetaI-n2*cosThetaT)/(n1*cosThetaI+n2*cosThetaT) ) ** 2
-    R_p = bd.abs( (n1*cosThetaT-n2*cosThetaI)/(n1*cosThetaT+n2*cosThetaI) ) ** 2
-
-    return R_s, R_p
-
-
-def EllipseHeights(A, u, v):
-    """
-    Compute heights for two perpendicular vectors simultaneously.
-    
-    :param A: (n, 2, 2) ellipse matrices
-    :param u: (n, 2) first vectors
-    :param v: (n, 2) second vectors (⊥ to u)
-        
-    :return: (h_u, h_v) heights in u and v directions
-    """
-
-    # Combined computation
-    M = bd.stack([u, v], axis=-1)  # Shape: (..., 2, 2)
-    quad_terms = bd.einsum('...ki,...kj,...ij->...k', M, M, A)
-
-    norms = bd.linalg.norm(M, axis=-2)  # Shape: (..., 2)
-    h_u = norms[..., 0] / bd.sqrt(quad_terms[..., 0])
-    h_v = norms[..., 1] / bd.sqrt(quad_terms[..., 1])
-    
-    return h_u, h_v
+    xi, _ = TransverseBasis(incident)
+    v = bd.cross(incident, outgoing)
+    cosine = bd.clip(bd.sum(incident*outgoing, axis=1), -1.0, 1.0)
+    reverse = cosine <= -1.0 + 1e-12
+    denominator = bd.where(reverse, 1.0, 1.0+cosine)[:, None]
+    xr = xi + bd.cross(v, xi) + bd.cross(v, bd.cross(v, xi)) / denominator
+    xr = bd.where(reverse[:, None], xi, xr)
+    xr -= bd.sum(xr*outgoing, axis=1)[:, None] * outgoing
+    xr /= bd.linalg.norm(xr, axis=1)[:, None]
+    yr = bd.cross(outgoing, xr)
+    xo, yo = TransverseBasis(outgoing)
+    return TransformCoherency(terms,
+        bd.sum(xo*xr, axis=1), bd.sum(xo*yr, axis=1),
+        bd.sum(yo*xr, axis=1), bd.sum(yo*yr, axis=1))
 
 
-def QuantitativePolarize(A, s, p, R_s, R_p):
-    """
-    Given the incident polarized radiance ellipse, the local s and p direction, and the corresponding s and p direction reflectance ratio, calculate the quantitative reflectance on the local s and p direction.
-
-    :param A: (n, 2, 2) quadratic form of the polarized radiance ellipse. 
-    :param s: (n, 2) array for local senkrecht direction. 
-    :param p: (n, 2) array for local parallel direction. 
-    :param R_s: (n,) reflectance ratio for senkrecht direction. 
-    :param R_p: (n,) reflectance ratio for parallel direction.
-
-    :return: quantitative reflectance on the local s and p direction.
-    """
-
-    # s and p should have already been normalized since SenkrechtUndParallel() contains a normalization process 
-    # s = ArrayNormalized(s)
-    # p = ArrayNormalized(p)
-
-    baseHeightS, baseHeightP = EllipseHeights(A, s, p)
-
-    return s * (baseHeightS * R_s)[:, bd.newaxis], p * (baseHeightP * R_p)[:, bd.newaxis]
-
-
-def PolarizeRB(rb, v_s, v_p, add=False):
-    """
-    Given a raybatch, modify it on senkrecht and parallel direction. This is best used on refracted rays as they have their polarized radiance ellipse already defined. 
-
-    :return: modified raybatch. 
-    """
-
-    ellipseM = rb.PolarizationMat()
-    if ellipseM.shape[0] != v_s.shape[0] or ellipseM.shape[0] != v_p.shape[0]:
-        raise ValueError(
-            "PolarizeRB row count mismatch: raybatch, senkrecht, and parallel "
-            f"must align, got {ellipseM.shape[0]}, {v_s.shape[0]}, {v_p.shape[0]}"
-        )
-
-    ellipseM = ModifyEllipse(ellipseM, v_s, add)
-    ellipseM = ModifyEllipse(ellipseM, v_p, add)
-
-    rb.SetPolarization(ellipseM)
-
-    return rb
-
-
-def CreateEllipseFromFectors(u, v):
-    """
-    Creates ellipse matrices for multiple pairs of perpendicular vectors.
-    
-    :param u: (N, 2) array of 2D vectors
-    :param v: (N, 2) array of 2D vectors (each pair must be perpendicular)
-        
-    :return: bd.ndarray: (N, 2, 2) array of ellipse matrices
-    """
-
-    batch_size = u.shape[0]
-    
-    # Compute magnitudes
-    norms_u = bd.linalg.norm(u, axis=1, keepdims=True)
-    norms_v = bd.linalg.norm(v, axis=1, keepdims=True)
-    
-    # Handle zero vectors gracefully
-    norms_u = bd.where(norms_u == 0, 1, norms_u)  # Prevent division by zero
-    norms_v = bd.where(norms_v == 0, 1, norms_v)
-    
-    # Create orthonormal basis
-    e1 = u / norms_u
-    e2 = v / norms_v
-    
-    # Construct rotation matrices (batch_size, 2, 2)
-    R = bd.stack([e1, e2], axis=2)
-    
-    # Create scaling matrices (batch_size, 2, 2)
-    D = bd.zeros((batch_size, 2, 2))
-    D[:, 0, 0] = bd.where(norms_u.ravel() == 0, 0, 1/(norms_u**2).ravel())
-    D[:, 1, 1] = bd.where(norms_v.ravel() == 0, 0, 1/(norms_v**2).ravel())
-    
-    # Compute transformed matrices using Einstein summation
-    A = bd.einsum('nij,njk,nlk->nil', R, D, R)
-    
-    return A
-
-
-def ResidueRB(rb, v_s, v_p):
-    """
-    Given a raybatch as the base, create an raybatch whose polarization component is based on the given senkrecht and parallel component. This is better used for non-TIR reflections. 
-    """
-
-    if rb.value.shape[0] != v_s.shape[0] or rb.value.shape[0] != v_p.shape[0]:
-        raise ValueError(
-            "ResidueRB row count mismatch: raybatch, senkrecht, and parallel "
-            f"must align, got {rb.value.shape[0]}, {v_s.shape[0]}, {v_p.shape[0]}"
-        )
-
-    ms = CreateEllipseFromFectors(v_s, v_p)
-
-    rb.SetPolarization(ms)
-
-    return rb
-
-
-def main():
-    inc = ArrayNormalized(bd.array([[0.1, 0.1, 0.9], [0, 0, 1]]))
-    nor = ArrayNormalized(bd.array([[0, 0, -1], [0, 0, -1]]))
-
-    #print(SenkrechtUndParallel(inc, nor))
-
-    A = bd.array([[[2, 0.5],
-                   [0.5, 1.0]],
-                  [[1.5, 0.2],
-                   [0.2, 1.2]]])  # shape (2, 2, 2)
-    
-    A = bd.array([[[1e-9, 0],
-                   [0, 1e-9]],
-                  [[1e-9, 0],
-                   [0, 1e-9]]])  # shape (2, 2, 2)
-    
-    v = bd.array([[1.0, 0.5],
-                [-0.3, 0.8]])  # shape (2, 2)
-
-
-    id = bd.array([[1., 0.], 
-                    [0., 1.]])
-
-    # Expand the ellipses in the direction of v.
-    # A_modified = ModifyEllipse(A, v, add=True)
-    print("Eigen:\n", bd.linalg.eigh(id))
-
-
-if __name__ == "__main__":
-    main()
+def RotateCoherency(terms, incident, outgoing, rotation):
+    """Rotate the ray and electric-field axes by a rigid 3D rotation."""
+    xi, yi = TransverseBasis(incident)
+    xo, yo = TransverseBasis(outgoing)
+    xr, yr = xi @ rotation.T, yi @ rotation.T
+    return TransformCoherency(terms,
+        bd.sum(xo*xr, axis=1), bd.sum(xo*yr, axis=1),
+        bd.sum(yo*xr, axis=1), bd.sum(yo*yr, axis=1))

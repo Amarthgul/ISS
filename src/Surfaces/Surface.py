@@ -11,7 +11,7 @@ from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SUR
 from Util.PltPlot import DrawSpherical, DrawSphericalRectangular, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
 from Raytracing.Refraction import Refract
 from Raytracing.Reflection import Reflect
-from Raytracing.Polarization import SenkrechtUndParallel, PolarizeRB, ResidueRB, FresnelReflectance, QuantitativePolarize
+from Raytracing.Polarization import DielectricCoherency, InterfaceCoherency
 from Raytracing.RayBatch import RayBatch 
 from Raytracing.Raypath import RayPath
 from Raytracing.Emission import EmitField
@@ -427,10 +427,9 @@ class Surface:
             TIR = bd.zeros(0, dtype=bd.bool_)
             return emptyRB, TIR, boolVig
 
-        # 2) Normal orientation: make normals oppose incident z-direction
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig]
+        # 2) Orient normals against the incident rays.
         normals = self.Normal(intersections)
-        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+        normals[bd.sum(incidentRaybatch.Direction()[~boolVig] * normals, axis=1) > 0] *= -1
 
         # DrawNormal(intersections, normals) # Draw call ======================
 
@@ -464,7 +463,11 @@ class Surface:
         out_values = bd.copy(incidentRaybatch.value[~boolVig][~TIR][good])
         outRB = RayBatch(out_values)
         outRB.SetPosition(intersections[~TIR][good])
-        outRB.SetDirection(refracted[good])
+        outRB.SetDirection(refracted[good], transport=False)
+        outRB.SetRadianceTerms(DielectricCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig][~TIR][good],
+            directions[~TIR][good], normals[~TIR][good], refracted[good],
+            previousRI[~TIR][good], currentRI[~TIR][good]))
 
         # 7) Return:
         #    - RayBatch for rays that refract forward and are not vignetted or TIR
@@ -507,11 +510,9 @@ class Surface:
 
         #DrawPoints(intersections) # ======= Draw call
 
-        # The normal should be pointing at the oppoiste z direction as the indicent raybatch 
-        desiredDirection = -bd.sign(incidentRaybatch.Direction()[:, 2])[~boolVig] 
-        # Apply desired direction to the normals 
+        # Orient normals against the incident rays.
         normals = self.Normal(intersections)
-        normals[desiredDirection != bd.sign(normals[:, 2])] *= -1
+        normals[bd.sum(incidentRaybatch.Direction()[~boolVig] * normals, axis=1) > 0] *= -1
 
         if self.onionRing is not None:
             normals = self.onionRing.NormalBlend(normals, intersections)
@@ -531,53 +532,35 @@ class Surface:
 
         mainRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
         mainRB.SetPosition(intersections[~TIR])
-        mainRB.SetDirection(refracted)
+        mainRB.SetDirection(refracted, transport=False)
+        mainRB.SetRadianceTerms(DielectricCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig][~TIR],
+            directions[~TIR], normals[~TIR], refracted, n2[~TIR], n1[~TIR]))
 
-        strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
+        strayRB = None
 
 
         if(reflection):
             # These reflected are the reflected component form the refracted due to fresnel
             reflected = Reflect(directions, normals)
 
+            strayRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][~TIR]))
             strayRB.SetPosition(intersections[~TIR])
-            strayRB.SetDirection(reflected[~TIR])
+            strayRB.SetDirection(reflected[~TIR], transport=False)
+            strayRB.SetRadianceTerms(DielectricCoherency(
+                incidentRaybatch.RadianceTerms()[~boolVig][~TIR],
+                directions[~TIR], normals[~TIR], reflected[~TIR],
+                n2[~TIR], n1[~TIR], reflection=True))
 
 
             # TIR are the reverted selection
             tirRB = RayBatch(bd.copy(incidentRaybatch.value[~boolVig][TIR]))
             tirRB.SetPosition(intersections[TIR])
-            tirRB.SetDirection(reflected[TIR])
-
-
-            # ==============================================================
-            # ========================= Polarization =======================
-
-            # Reflectance ratio along senkrecht and parallel direction (Fresnel equation)
-            R_s, R_p = FresnelReflectance(normals[~TIR], directions[~TIR], refracted, n1[~TIR], n2[~TIR])
-            
-
-            # Acquire s and p direction for polarization, reflection and refraction
-            senkrecht, parallel = SenkrechtUndParallel(directions, normals)
-            
-
-            # DrawDirection(intersections, senkrecht, lineColor="r", lineLength=1) # ============ Draw call
-            # DrawDirection(intersections, parallel, lineColor="b", lineLength=1) # ============ Draw call
-
-            # DrawDirection(intersections, normals, lineColor="g", lineLength=2)# ============ Draw call
-            # DrawDirection(intersections, reflected, lineColor="purple", lineLength=2)# ============ Draw call
-
-            senkrecht, parallel = QuantitativePolarize(
-                incidentRaybatch.PolarizationMat()[~boolVig][~TIR],
-                senkrecht[~TIR][:, :2], 
-                parallel[~TIR][:, :2], 
-                R_s, 
-                R_p
-            )
-
-            mainRB = PolarizeRB(mainRB, senkrecht, parallel)
-            
-            strayRB = ResidueRB(strayRB, senkrecht, parallel)
+            tirRB.SetDirection(reflected[TIR], transport=False)
+            tirRB.SetRadianceTerms(DielectricCoherency(
+                incidentRaybatch.RadianceTerms()[~boolVig][TIR],
+                directions[TIR], normals[TIR], reflected[TIR],
+                n2[TIR], n1[TIR], reflection=True))
 
 
             if self.coating is not None:
@@ -645,7 +628,11 @@ class Surface:
         out_values = bd.copy(incidentRaybatch.value[~boolVig])
         mainRB = RayBatch(out_values)
         mainRB.SetPosition(intersections)
-        mainRB.SetDirection(reflected)
+        mainRB.SetDirection(reflected, transport=False)
+        # Ideal conductor convention: r_s=-1, r_p=+1 in the local s/p frames.
+        mainRB.SetRadianceTerms(InterfaceCoherency(
+            incidentRaybatch.RadianceTerms()[~boolVig], directions, normals,
+            reflected, -1.0, 1.0))
 
         # No TIR when surface is literally a mirror
         TIR = bd.zeros(mainRB.Wavelength().shape[0], dtype=bd.bool_)
@@ -751,10 +738,8 @@ class Surface:
         # Optional transmission loss only for rays that actually scatter. Untouched rays remain fully untouched.
         if self.hazeTransmissionLoss > 0:
             throughput = ONE - self.hazeTransmissionLoss
-            aff = affectMask.astype(raybatch.value.dtype if hasattr(raybatch.value, "dtype") else float)
-            aff = aff.reshape(-1, 1)
-
-            raybatch.value[:, 7:10] *= (ONE - aff + aff * throughput)
+            aff = affectMask.astype(raybatch.value.dtype)
+            raybatch.RadianceChange(ONE - aff + aff * throughput)
 
         return raybatch
 
