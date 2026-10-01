@@ -932,6 +932,7 @@ class Image2DVariDepth(Image2D):
         self.pointSource = PointsSource(points)
         self.pointSource.isCartesian = False
         self.pointSource.angleInRad = True
+        self.UpdateStats()
 
 
     def _zClipDistance(self, horizontalHalfRad, verticalHalfRad,

@@ -222,6 +222,7 @@ class Image2DFlat(Image2D):
         if aov_cols:
             gridData = bd.concatenate([gridData, bd.concatenate(aov_cols, axis=1)], axis=1)
         self.pointSource = PointsSource(gridData)
+        self.UpdateStats()
 
         # Concatenate the position and color
         # gridPositions = bd.concatenate([gridPositions, gridColors], axis=1)

@@ -27,6 +27,9 @@ class Image2D:
         
         self.rgbArray = None 
 
+        """Optional per-pixel Z depth, in the stored channel's units."""
+        self.zArray = None
+
         """Original image file"""
         self._fileMaster = None 
 
@@ -68,6 +71,9 @@ class Image2D:
 
         """Same as jitterPerPoint but for the pointSourceHigh"""
         self.jitterPerPointHigh = None
+
+
+        self.stats = {}
 
 
     @property
@@ -139,6 +145,10 @@ class Image2D:
             if channels["alpha"] is not None else None
         )
         self.alphaChannelName = channels["alpha_name"]
+        self.zArray = (
+            channels["depth"].astype(PRECISION_TYPE)
+            if channels["depth"] is not None else None
+        )
 
         aov_dict = channels["AOVs"]
         self.AOVNames = [name for name in channels["AOVNames"] if name in aov_dict]
@@ -149,6 +159,7 @@ class Image2D:
 
         self._LoadEXRFeatures(channels)
         self._EXRLoaded()
+        self.UpdateStats()
         return self
 
 
@@ -159,175 +170,6 @@ class Image2D:
             sampleCount=sampleCount,
             useHighlightSources=flareGlare,
         )
-
-
-    def _Load8bitRGB(self, rgbImgPath, preserveAlpha=True, premultiplyAlpha=None):
-        rgbImgPath = RectPath(rgbImgPath)
-        imageMaster = PIL.Image.open(rgbImgPath)
-        return self._Load8bitImage(
-            imageMaster,
-            preserveAlpha=preserveAlpha,
-            premultiplyAlpha=premultiplyAlpha,
-        )
-
-
-    def _Load8bitImage(self, imageMaster, preserveAlpha=True, premultiplyAlpha=None):
-        hasAlpha = preserveAlpha and self._ImageHasAlpha(imageMaster)
-        imageMaster = imageMaster.convert("RGBA" if hasAlpha else "RGB")
-        imageFile = self._ResizePILImage(imageMaster)
-
-        self._ResetLoadedImageState()
-        self._fileMaster = imageMaster
-
-        imageArray = bd.array(imageFile).astype(PRECISION_TYPE) / (TWO ** 8 - 1)
-        self.rgbArray = imageArray[..., :3]
-        self.alphaArray = imageArray[..., 3] if hasAlpha else None
-
-        if premultiplyAlpha is None:
-            premultiplyAlpha = self._PremultiplyAlphaOnLoad()
-        if premultiplyAlpha and self.alphaArray is not None:
-            self.rgbArray = self.rgbArray * self.alphaArray[..., None]
-
-        self._RGBLoaded()
-        return self
-
-
-    def _ResizePILImage(self, image):
-        if self.imageDimensionOverride is None:
-            return image
-
-        newWidth = int(self.imageDimensionOverride)
-        newHeight = int(image.height * (newWidth / image.width))
-        return image.resize((newWidth, newHeight))
-
-
-    def _ImageHasAlpha(self, image):
-        return (
-            image.mode in ("RGBA", "LA")
-            or (image.mode == "P" and "transparency" in image.info)
-        )
-
-
-    def _ResetLoadedImageState(self):
-        self.alphaArray = None
-        self.alphaChannelName = None
-        self.AOVs = None
-        self.AOVNames = []
-        self.pointSourceAOVNames = []
-        self.pointSource = None
-        self.pointSourceHigh = None
-        self.jitterPerPoint = None
-        self.jitterPerPointHigh = None
-        self._ResetLoadedImageFeatures()
-
-
-    def _ReadEXR(self, exrPath, depthChannelNames, alphaChannelNames):
-        """Read RGB, depth, alpha, and all remaining EXR channels."""
-        import OpenEXR
-        import Imath
-
-        exr = OpenEXR.InputFile(exrPath)
-        header = exr.header()
-        dw = header["dataWindow"]
-        width = dw.max.x - dw.min.x + 1
-        height = dw.max.y - dw.min.y + 1
-
-        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-        available = list(header["channels"].keys())
-
-        def read_channel(name):
-            if name not in available:
-                return None
-            arr = bd.frombuffer(exr.channel(name, FLOAT), dtype=bd.float32)
-            return arr.reshape(height, width)
-
-        r = read_channel("R")
-        g = read_channel("G")
-        b = read_channel("B")
-        rgb = bd.stack([r, g, b], axis=-1)
-
-        depth = None
-        depthName = None
-        for name in depthChannelNames:
-            depth = read_channel(name)
-            if depth is not None:
-                depthName = name
-                break
-
-        alpha = None
-        alphaName = None
-        for name in alphaChannelNames:
-            alpha = read_channel(name)
-            if alpha is not None:
-                alphaName = name
-                break
-
-        usedNames = {"R", "G", "B"}
-        if depthName is not None:
-            usedNames.add(depthName)
-        if alphaName is not None:
-            usedNames.add(alphaName)
-
-        aovNames = [name for name in available if name not in usedNames]
-        aovs = {name: read_channel(name) for name in aovNames}
-
-        return {
-            "rgb": rgb,
-            "r": r,
-            "g": g,
-            "b": b,
-            "alpha": alpha,
-            "depth": depth,
-            "channels": available,
-            "AOVs": aovs,
-            "AOVNames": aovNames,
-            "depth_name": depthName,
-            "alpha_name": alphaName,
-        }
-
-
-    def _ResizeEXRChannels(self, channels):
-        if self.imageDimensionOverride is None:
-            return channels
-
-        height, width, _ = channels["rgb"].shape
-        newWidth = int(self.imageDimensionOverride)
-        newHeight = int(height * (newWidth / width))
-        yIndex = bd.linspace(0, height - 1, newHeight).astype(bd.int64)
-        xIndex = bd.linspace(0, width - 1, newWidth).astype(bd.int64)
-        index = bd.ix_(yIndex, xIndex)
-
-        channels["rgb"] = channels["rgb"][index]
-        if channels["depth"] is not None:
-            channels["depth"] = channels["depth"][index]
-        if channels["alpha"] is not None:
-            channels["alpha"] = channels["alpha"][index]
-        channels["AOVs"] = {
-            name: channels["AOVs"][name][index]
-            for name in channels["AOVNames"]
-        }
-        return channels
-
-
-    # Loading feature hooks. Subclasses implement only the stages they own.
-    def _ResetLoadedImageFeatures(self):
-        pass
-
-
-    def _PremultiplyAlphaOnLoad(self):
-        return False
-
-
-    def _RGBLoaded(self):
-        pass
-
-
-    def _LoadEXRFeatures(self, channels):
-        pass
-
-
-    def _EXRLoaded(self):
-        pass
 
 
     def AppendAOV(self, name, values):
@@ -463,6 +305,7 @@ class Image2D:
         """
         self.pointSource = PointsSource()
         self.pointSource.GenerateSpots(xAngle, yAngle, dist, sampleField)
+        self.UpdateStats()
 
 
     def GetSampleRatios(self):
@@ -580,6 +423,236 @@ class Image2D:
         pass
 
 
+    def GetInfo(self):
+        """Format the cached channel statistics, omitting absent channels."""
+        if not self.stats:
+            return "No image statistics available."
+
+        lines = []
+        for name, values in self.stats.items():
+            line = f"{name}: mean={values['mean']:.6g}"
+            if name != "opacity":
+                line += f", std={values['std']:.6g}"
+            lines.append(line)
+        return "\n".join(lines)
+
+
+    def UpdateStats(self):
+        """Cache statistics of the current RGB, opacity and optional Z arrays.
+
+        ``stats`` maps R/G/B/Z to dictionaries with ``mean`` and ``std``
+        (population standard deviation), and opacity to a ``mean`` dictionary.
+        RGB and Z use opacity as a weight, normalized by total opacity;
+        alpha-zero pixels are excluded before arithmetic. Opacity's mean uses
+        every pixel. Without opacity, all pixels have equal weight. An entirely
+        transparent image has NaN RGB/Z statistics because no samples contribute.
+        Values describe the stored arrays, including any loading transformations.
+        """
+        self.stats = {}
+        if self.rgbArray is None:
+            return self.stats
+
+        if self.alphaArray is None:
+            active = bd.ones(self.rgbArray.shape[:2], dtype=bool)
+            weights = bd.ones(int(active.sum()), dtype=PRECISION_TYPE)
+        else:
+            active = self.alphaArray > 0
+            weights = self.alphaArray[active]
+
+        weight_sum = weights.sum()
+
+        def moments(values):
+            if weight_sum == 0:
+                return {"mean": float("nan"), "std": float("nan")}
+            values = values[active]
+            mean = bd.sum(values * weights) / weight_sum
+            variance = bd.sum(weights * (values - mean) ** 2) / weight_sum
+            return {"mean": float(mean), "std": float(bd.sqrt(variance))}
+
+        for index, name in enumerate(("R", "G", "B")):
+            self.stats[name] = moments(self.rgbArray[..., index])
+        if self.alphaArray is not None:
+            self.stats["opacity"] = {"mean": float(bd.mean(self.alphaArray))}
+        if self.zArray is not None:
+            self.stats["Z"] = moments(self.zArray)
+        return self.stats
+
+
+    # ==================================================================
+    """ ====================== Private Methods ===================== """
+    # ==================================================================
+
+
+    def _Load8bitRGB(self, rgbImgPath, preserveAlpha=True, premultiplyAlpha=None):
+        rgbImgPath = RectPath(rgbImgPath)
+        imageMaster = PIL.Image.open(rgbImgPath)
+        return self._Load8bitImage(
+            imageMaster,
+            preserveAlpha=preserveAlpha,
+            premultiplyAlpha=premultiplyAlpha,
+        )
+
+
+    def _Load8bitImage(self, imageMaster, preserveAlpha=True, premultiplyAlpha=None):
+        hasAlpha = preserveAlpha and self._ImageHasAlpha(imageMaster)
+        imageMaster = imageMaster.convert("RGBA" if hasAlpha else "RGB")
+        imageFile = self._ResizePILImage(imageMaster)
+
+        self._ResetLoadedImageState()
+        self._fileMaster = imageMaster
+
+        imageArray = bd.array(imageFile).astype(PRECISION_TYPE) / (TWO ** 8 - 1)
+        self.rgbArray = imageArray[..., :3]
+        self.alphaArray = imageArray[..., 3] if hasAlpha else None
+
+        if premultiplyAlpha is None:
+            premultiplyAlpha = self._PremultiplyAlphaOnLoad()
+        if premultiplyAlpha and self.alphaArray is not None:
+            self.rgbArray = self.rgbArray * self.alphaArray[..., None]
+
+        self._RGBLoaded()
+        self.UpdateStats()
+        return self
+
+
+    def _ResizePILImage(self, image):
+        if self.imageDimensionOverride is None:
+            return image
+
+        newWidth = int(self.imageDimensionOverride)
+        newHeight = int(image.height * (newWidth / image.width))
+        return image.resize((newWidth, newHeight))
+
+
+    def _ImageHasAlpha(self, image):
+        return (
+            image.mode in ("RGBA", "LA")
+            or (image.mode == "P" and "transparency" in image.info)
+        )
+
+
+    def _ResetLoadedImageState(self):
+        self.stats = {}
+        self.zArray = None
+        self.alphaArray = None
+        self.alphaChannelName = None
+        self.AOVs = None
+        self.AOVNames = []
+        self.pointSourceAOVNames = []
+        self.pointSource = None
+        self.pointSourceHigh = None
+        self.jitterPerPoint = None
+        self.jitterPerPointHigh = None
+        self._ResetLoadedImageFeatures()
+
+
+    def _ReadEXR(self, exrPath, depthChannelNames, alphaChannelNames):
+        """Read RGB, depth, alpha, and all remaining EXR channels."""
+        import OpenEXR
+        import Imath
+
+        exr = OpenEXR.InputFile(exrPath)
+        header = exr.header()
+        dw = header["dataWindow"]
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        available = list(header["channels"].keys())
+
+        def read_channel(name):
+            if name not in available:
+                return None
+            arr = bd.frombuffer(exr.channel(name, FLOAT), dtype=bd.float32)
+            return arr.reshape(height, width)
+
+        r = read_channel("R")
+        g = read_channel("G")
+        b = read_channel("B")
+        rgb = bd.stack([r, g, b], axis=-1)
+
+        depth = None
+        depthName = None
+        for name in depthChannelNames:
+            depth = read_channel(name)
+            if depth is not None:
+                depthName = name
+                break
+
+        alpha = None
+        alphaName = None
+        for name in alphaChannelNames:
+            alpha = read_channel(name)
+            if alpha is not None:
+                alphaName = name
+                break
+
+        usedNames = {"R", "G", "B"}
+        if depthName is not None:
+            usedNames.add(depthName)
+        if alphaName is not None:
+            usedNames.add(alphaName)
+
+        aovNames = [name for name in available if name not in usedNames]
+        aovs = {name: read_channel(name) for name in aovNames}
+
+        return {
+            "rgb": rgb,
+            "r": r,
+            "g": g,
+            "b": b,
+            "alpha": alpha,
+            "depth": depth,
+            "channels": available,
+            "AOVs": aovs,
+            "AOVNames": aovNames,
+            "depth_name": depthName,
+            "alpha_name": alphaName,
+        }
+
+
+    def _ResizeEXRChannels(self, channels):
+        if self.imageDimensionOverride is None:
+            return channels
+
+        height, width, _ = channels["rgb"].shape
+        newWidth = int(self.imageDimensionOverride)
+        newHeight = int(height * (newWidth / width))
+        yIndex = bd.linspace(0, height - 1, newHeight).astype(bd.int64)
+        xIndex = bd.linspace(0, width - 1, newWidth).astype(bd.int64)
+        index = bd.ix_(yIndex, xIndex)
+
+        channels["rgb"] = channels["rgb"][index]
+        if channels["depth"] is not None:
+            channels["depth"] = channels["depth"][index]
+        if channels["alpha"] is not None:
+            channels["alpha"] = channels["alpha"][index]
+        channels["AOVs"] = {
+            name: channels["AOVs"][name][index]
+            for name in channels["AOVNames"]
+        }
+        return channels
+
+
+    # Loading feature hooks. Subclasses implement only the stages they own.
+    def _ResetLoadedImageFeatures(self):
+        pass
+
+
+    def _PremultiplyAlphaOnLoad(self):
+        return False
+
+
+    def _RGBLoaded(self):
+        pass
+
+
+    def _LoadEXRFeatures(self, channels):
+        pass
+
+
+    def _EXRLoaded(self):
+        pass
 
 
 def main():

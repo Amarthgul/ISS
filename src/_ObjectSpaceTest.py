@@ -384,7 +384,8 @@ def HeliosComparison():
 
     imager = StdImager(horiPx=6000)
     SonnarIS = ImagingSystem(Sonnar, imager)
-    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1350, renderTime=4 * 60, fileName="SonnarGrid", realTimeUpdate=False, ratio=0.9)
+    SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
+    SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
 
     return
     # Create or load a lens
@@ -417,18 +418,21 @@ def MitsubaEXR():
 
     lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
     print(lens.GetInfo())
-    imager = StdImager(horiPx=512, w=36, h=36)
+    imager = StdImager(horiPx=1024, w=36, h=36)
     IS = ImagingSystem(lens, imager)
 
     FG = Image2DVariDepth()
+    FG.zUnitConversion = 1
     FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
-    FG.LoadFromEXR(r"resources/MistsubaEXR.exr")
+    FG.LoadFromEXR(r"resources/MitsubaCalib.exr")
     IS.object = FG
 
+    print(FG.GetInfo())
+
     RefreshRNG(435789)
-    IS.sourcePerSample = 1024
+    IS.sourcePerSample = 20480
     IS.pupilPerSample = 256
-    IS.Render(focusDistance=1500, renderTime=2 * 60, fileName="Mitsuba", flareGlare=False)
+    IS.Render(focusDistance=1200, renderTime=15 * 60, fileName="Mitsuba", flareGlare=False)
 
 
 def PureArtifactTest():
