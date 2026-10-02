@@ -1,30 +1,19 @@
-
-
-from PIL import Image
 import time
 import matplotlib.pyplot as plt
-import OpenEXR
 
 from Util.Backend import backend as bd
-from Util.ImageIO import ImageConversion, ImageConversionAverage, SaveAsEXR
-from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, DrawPoints, RemoveBG
+from Util.ImageIO import ImageConversion, SaveAsEXR
+from Util.PltPlot import DrawRaybatch, AddXYZ, SetUnifScale, RemoveBG
 from ZmxReader import LensFromZmx
-from Util.Sampling import CircularDistribution
 from Util.Misc import ProgressBar, AngleFieldToCartesian, SoundAlarm, RectPath
-from Util.Globals import PRECISION_TYPE, INFINITY
-from Util.MaterialLookup import FindClosestMaterials, ReadSheet
-from ExampleLenses import Biotar50mmf14, Helios58mmf2, CanonFD50mmf18, ZeissHologon15mmf8, Mug, Sonnar50mmF15, CanonEF50mmf12L, Zhongyi50f095, Industar50_50mmf35
+from Util.MaterialLookup import ReadSheet
 from Imagers.Standard import StdImager
-from Imagers.PDA import PDA
 from Surfaces.Surface import Surface
 from ObjectSpace.Points import PointsSource
 from ObjectSpace.Image2DFlat import Image2DFlat
-from ObjectSpace.ImageVariDepth import Image2DVariDepth
-from Raytracing.Emission import EmitField, EmitFieldMultispectral
-from Raytracing.Raypath import RayPath
+from Raytracing.Emission import EmitField
 
-
-FrameCount = 0 
+FrameCount = 0
 
 # This is used to reduce the amount of samples when running on local machines that does not have too much power to dispose
 sampleMultiplier = 0.1
@@ -291,10 +280,13 @@ def CurvTest():
         writeFile=True)
 
 
-def EFL():
-    from Util.PAEFL import LensPartitionFL
-    from ExampleLenses import ZeissHologon15mmf8
+def Seidel():
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx")).GetLens()
+    result = lens.ComputeSeidel(fieldAngle=20, wavelength=587.56)
+    print(result.surfaces[0].coefficients.AsTuple())
 
+
+def EFL():
     # lens = ZeissHologon15mmf8()
     lens = LensFromZmx(RectPath(r"resources/Zmx/Biogon35f2.8.zmx")).GetLens()
 
@@ -309,7 +301,7 @@ def EFL():
 
 
 def GlassVeil():
-    from Util.GlassVeil import PlotGlassVeil
+    from src.Util.Analysis.GlassVeil import PlotGlassVeil
 
     PlotGlassVeil(catalogue=["LZOS", "SUMITA"], materials=["LZ_LF7", "LF3", "LF5"], nRange=[1.52, 1.65], VRange = [37, 45])
 
@@ -385,7 +377,7 @@ def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTi
 
 
 def HighlightReconTest():
-    from ObjectSpace.ImageExt import Image2DVariHighlightExtension, Image2DFlatHighlightExtension
+    from ObjectSpace.ImageExt import Image2DVariHighlightExtension
     from Util.Misc import RectPath
 
     imgEx = Image2DVariHighlightExtension()
@@ -528,4 +520,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MaterialLookUpTest()
+    Seidel()

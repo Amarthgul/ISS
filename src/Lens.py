@@ -1,27 +1,20 @@
-
-
-
-import time
-from enum import Enum
-import numpy as np 
+import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import re
 
-from Util.PltPlot import DrawSpherical, DrawRaybatch, DrawPoint, DrawDirection, DrawPoints, SetUnifScale, AddXYZ, RemoveBG
 from Util.Backend import constant
 from Util.Backend import backend as bd 
-from Util.Globals import ZERO, ONE, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR, MIRROR, RNG
-from Util.ColorWavelength import WavelengthToRGB
-from Util.Misc import AxialDistance, TransversalDistance, RectPath
+from Util.Globals import ZERO, TWO, Axis, LambdaLines, AXIAL_ZERO, PBR, MIRROR, RNG
+from Util.Misc import TransversalDistance, RectPath
 from Util.SpatialEllipse import SpatialCircle
 from Util.Sampling import RandomEllipticalDistribution
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
-from Util.PAEFL import LensPartitionFL
-from Util.SurfaceData import PlotSurfaceData
+from Util.Analysis.PAEFL import LensPartitionFL
+from Util.Analysis.SurfaceData import PlotSurfaceData
+from Util.Analysis.Seidel import ComputeSeidel
 
 from Surfaces.Stop import Stop
-from Surfaces.Surface import Surface, FieldStopType
+from Surfaces.Surface import FieldStopType
 from Surfaces.EvenAspheric import EvenAspheric
 from Surfaces.Pupil import Pupil
 from Surfaces.PrincipalPlane import PrincipalPlane
@@ -30,9 +23,9 @@ from Surfaces.ClearBoundaryFlat import ClearBoundaryFlat
 from Surfaces.MetalBoundary import MetalBoundary
 
 from Material import Material
-from Raytracing.RayBatch import RayBatch, GenerateEmpty
+from Raytracing.RayBatch import RayBatch
 from Raytracing.Raypath import RayPath
-from Raytracing.Emission import EmitFromStop, EmitFromObjectSpace, EmitFromPoint, EmitField, EmitFromPointFullFrontal
+from Raytracing.Emission import EmitFromObjectSpace, EmitFromPoint, EmitField, EmitFromPointFullFrontal
 
 
 
@@ -549,6 +542,20 @@ class Lens:
         info = re.sub(r'(?<=\s)inf(?=\s)', 'INFINITY', info)
 
         return info
+
+
+    def ComputeSeidel(self, fieldAngle=1.0, wavelength=LambdaLines["d"],
+                      objectDistance=float("inf"), objectHeight=0.0,
+                      pupilSemiDiameter=None, stopSemiDiameter=None):
+        """Compute five monochromatic Seidel sums and per-surface contributions.
+
+        Field angle is degrees, wavelength nm, and all lengths mm. At finite
+        objectDistance use objectHeight instead of fieldAngle. The aperture
+        defaults to the current entrance-pupil radius; stopSemiDiameter can
+        instead explicitly normalize the marginal ray at the stop.
+        """
+        return ComputeSeidel(self, fieldAngle, wavelength, objectDistance,
+                             objectHeight, pupilSemiDiameter, stopSemiDiameter)
 
 
     def PlotSurfaceData(

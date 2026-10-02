@@ -21,6 +21,7 @@ class Stop(Surface):
     """
     def __init__(self, t):
         super().__init__(INFINITY, t, INFINITY, DEFAULT_MAT_NAME)
+        self.stopOnly = True
         self.thickness = t 
         self.bladeShape = None
         self.bladeCount = 5

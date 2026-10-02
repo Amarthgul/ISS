@@ -10,7 +10,7 @@ from ObjectSpace.Points import PointsSource
 from Util.Backend import backend as bd
 import math
 
-class Analysis():
+class Distortion():
     def __init__(self, lens, imager):
         self.lens = lens
         self.imager = imager
@@ -21,7 +21,7 @@ class Analysis():
         self.distortionData = None
 
 
-    def Distortion(self, objectT, maxFieldAngleX=0, maxFieldAngleY=0, samplePoints=10):
+    def Calculate(self, objectT, maxFieldAngleX=0, maxFieldAngleY=0, samplePoints=10):
         """
         Calculate the geometric distortion of the system.
 
@@ -242,8 +242,8 @@ class Analysis():
         # --- Compute distortion for each object distance
         for objectDistance in objectTs:
             # IMPORTANT: correct argument order
-            self.Distortion(objectDistance, maxFieldAngleX=maxFieldAngleX, maxFieldAngleY=maxFieldAngleY,
-                            samplePoints=samplePoints)
+            self.Calculate(objectDistance, maxFieldAngleX=maxFieldAngleX, maxFieldAngleY=maxFieldAngleY,
+                           samplePoints=samplePoints)
 
             dd = self.distortionData
 

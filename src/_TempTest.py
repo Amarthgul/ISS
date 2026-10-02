@@ -1,10 +1,7 @@
-
-
-from Util.Backend import backend as bd
 from Util.Misc import RectPath
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from Util.Diffraction import Diffraction, SensorSpec
-from Util.Misc import NumpyConversion
+
 
 def BladeTest():
     import matplotlib.pyplot as plt
@@ -41,7 +38,7 @@ def BladeTest():
 
 def DifTest():
     from ObjectSpace.Images import Image2DFlat
-    from Util.ImageIO import ImageConversion, CleanDisplay
+    from Util.ImageIO import CleanDisplay
     import matplotlib.pyplot as plt
 
     image = Image2DFlat()
@@ -80,7 +77,7 @@ def DifTest():
 def CentroidTest():
     from Util.Centroid import Centroid
     from ObjectSpace.Images import Image2DFlat
-    from Util.ImageIO import ImageConversion, CleanDisplay
+    from Util.ImageIO import CleanDisplay
     import matplotlib.pyplot as plt
 
     image = Image2DFlat()
@@ -105,7 +102,7 @@ def CentroidTest():
 
 
 def DistTest():
-    from Analysis import Analysis
+    from src.Util.Analysis.Distortion import Distortion
     from ZmxReader import LensFromZmx
     from Imagers.Standard import StdImager
 
@@ -118,7 +115,7 @@ def DistTest():
     imager = StdImager(lens.BestFocusBFD(1500), w=40, h=40, horiPx=6000)
     imager.SetLensLength(lens.totalAxialLength)
 
-    ansys = Analysis(lens, imager)
+    ansys = Distortion(lens, imager)
     # sth = ansys.Distortion(2000, samplePoints=7)
     # print(ansys.distortionData)
     # ansys.PlotDistortionPercentage()

@@ -12,8 +12,8 @@ import numpy as np
 from Surfaces.Stop import Stop
 from Util.Backend import constant
 from Util.Globals import AXIAL_ZERO, Axis, LambdaLines
-from Util.PAEFL import LensPartitionFL
-from Util.RayHeight import MarginalRayPath
+from .PAEFL import LensPartitionFL
+from .RayHeight import MarginalRayPath
 
 plt.rcParams['savefig.dpi'] = 300
 

@@ -36,6 +36,20 @@ class EvenAspheric(Surface):
         self.cType = CurvatureType.EvenAspheric
 
 
+    def ParaxialGeometry(self):
+        """Include A2 in vertex curvature and K/A4 in the quartic sag.
+
+        asphCoef retains the existing [A2, A4, A6, ...] convention; lenses
+        starting at fourth order supply a zero first entry. Higher terms do
+        not affect first-order tracing or the primary Seidel aberrations.
+        """
+        baseCurvature = 1.0 / float(self.radius)
+        a2 = float(self.asphCoef[0]) if len(self.asphCoef) > 0 else 0.0
+        a4 = float(self.asphCoef[1]) if len(self.asphCoef) > 1 else 0.0
+        return (baseCurvature + 2.0 * a2,
+                (1.0 + float(self.K)) * baseCurvature**3 / 8.0 + a4)
+
+
     def SetCumulative(self, cumulativeT):
         """
         Given the cumulative thickness, calculate the vertices. Foe even aspheric, this also computes the bounding proxy geometry.

@@ -265,6 +265,12 @@ class Surface:
         return self.material.RI(wavelength)
 
 
+    def ParaxialGeometry(self):
+        """Return vertex curvature and r^4 sag coefficient in mm units."""
+        curvature = 1.0 / float(self.radius)
+        return curvature, curvature**3 / 8.0
+
+
     def DrawSurface(self, DrawBoundary=True):
 
         if self.fieldStop == FieldStopType.Rectangular:

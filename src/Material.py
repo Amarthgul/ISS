@@ -49,9 +49,13 @@ class Material:
 
     def RI(self, lam):
         """
-        The index of refraction of the material at given wavelength. 
-        : param lam: lambda wavelength. 
+        Refractive index at scalar or array wavelengths in nanometers.
+
+        Normalize at this public boundary: CuPy's ones_like requires an
+        array, and integer wavelength arrays must become floating point
+        before dispersion formulas use negative powers.
         """
+        lam = bd.asarray(lam, dtype=bd.float64)
         if(self.name == "AIR"):
             # Air got the constant RI of 1 
             return bd.ones_like(lam)
@@ -444,10 +448,8 @@ class Material:
 
 
     def _LamUnitConversion(self, lam):
-        if isinstance(lam, float):
-            return lam/1000.0
-        else:
-            return bd.array(bd.copy(lam) / 1000.0)
+        """Convert nm to micrometers without copying existing float64 arrays."""
+        return bd.asarray(lam, dtype=bd.float64) / 1000.0
 
 
 class MonochromaticMaterial(Material):
@@ -460,7 +462,7 @@ class MonochromaticMaterial(Material):
         """
         For mono material, the RI is a constant regardless of wavelength. 
         """
-        return bd.ones_like(lam) * self.monoRI
+        return bd.ones_like(bd.asarray(lam, dtype=bd.float64)) * self.monoRI
 
 
 def CreateMaterialRefractiveIndicesTable(
