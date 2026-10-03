@@ -283,12 +283,29 @@ def CurvTest():
 def Seidel():
     lens = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx")).GetLens()
     result = lens.ComputeSeidel(fieldAngle=20, wavelength=587.56)
-    print(result.surfaces[0].coefficients.AsTuple())
+
+    reference = lens.ComputeSeidelCoefficients(referenceField=10.0)
+
+    # Per-surface spherical-aberration coefficients
+    sa = [row.coefficients.W040 for row in reference.surfaces]
+
+    # Cumulative correction through the lens
+    saCumulative = [
+        row.W040 for row in reference.CumulativeCoefficients()
+    ]
+
+    # Seidel sums and selected-field evaluation
+    sums = reference.seidel
+    onAxis = reference.EvaluateField(0.0)
+
+    print(saCumulative)
 
 
 def EFL():
     # lens = ZeissHologon15mmf8()
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Biogon35f2.8.zmx")).GetLens()
+    from Util.Analysis.SurfaceData import displayConfigSeidel
+
+    lens = LensFromZmx(RectPath(r"resources/Zmx/ZeissUltron50f1.8E3.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -296,7 +313,13 @@ def EFL():
     # lens.PlotSurfaceData(maxPower = 1/43.47, PlotTrackLength=74) # Summicron
     # lens.PlotSurfaceData(maxPower = 1/64, PlotTrackLength=79) # Helios and Biotar
     # lens.PlotSurfaceData(PlotTrackLength=100, PlotTrackHeight=27)  # Retina
-    lens.PlotSurfaceData(PlotTrackLength=44, PlotTrackHeight=14)
+    # lens.PlotSurfaceData(PlotTrackLength=44, PlotTrackHeight=14)
+
+    lens.PlotSurfaceData(
+        DisplayConfig=displayConfigSeidel,
+        SeidelReferenceField=23.0,
+        PlotTrackLength=74
+    )
 
 
 
@@ -520,4 +543,4 @@ def main():
 
 
 if __name__ == "__main__":
-    Seidel()
+    EFL()

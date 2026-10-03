@@ -84,6 +84,8 @@ for environment in ("AIR", "BAF9"):
                          Surface(70, 4, 20, "BK7"), Surface(-60, 0, 20)]
         lens.stopIndex = 2
         lens.entrancePupil.clearSemiDiameter = bd.asarray(3.0)
+        reference = lens.ComputeSeidelCoefficients(referenceField=bd.asarray(10.0),
+                                                  objectDistance=bd.asarray(800.0))
         for settings in ({}, {"wavelength": 550},
                          {"fieldAngle": bd.asarray(6.0), "wavelength": bd.asarray(587.56),
                           "objectDistance": bd.asarray(math.inf)},
@@ -99,7 +101,11 @@ for environment in ("AIR", "BAF9"):
                                   row.chiefIncident.height, row.chiefIncident.slope])
             analyses.append({"totals": result.totals.AsTuple(), "histories": histories,
                              "matrix": result.paraxial.systemMatrix,
-                             "partial": result.SumSurfaces(1, 3).AsTuple()})
+                             "partial": result.SumSurfaces(1, 3).AsTuple(),
+                             "reference": [row.coefficients.AsTuple() for row in reference.surfaces],
+                             "cumulative": [row.AsTuple() for row in reference.CumulativeCoefficients()],
+                             "evaluatedZero": reference.EvaluateField(bd.asarray(0.)).totals.AsTuple(),
+                             "evaluatedNegative": reference.EvaluateField(bd.asarray(-20.)).totals.AsTuple()})
         # Direct entry points must also accept scalar wavelengths and GPU
         # indices without leaving device scalars in their host matrices.
         matrix, index = SurfaceMatrix(front, bd.asarray(1.0), 550)

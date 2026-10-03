@@ -17,6 +17,7 @@ tests/*
 !tests/test_polarization.py
 !tests/test_seidel.py
 !tests/test_seidel_backend.py
+!tests/test_surface_data.py
 
 
 .DS_Store
@@ -32,3 +33,6 @@ tests/MitsubaDev.py
 *.ZDA
 
 tests/MitsubaDev.py
+tests/test_seidel.py
+tests/test_seidel_backend.py
+tests/test_surface_data.py

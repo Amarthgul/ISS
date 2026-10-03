@@ -1,12 +1,14 @@
-"""Five monochromatic Seidel sums from full-system paraxial rays.
+"""Monochromatic Seidel sums and reference wavefront coefficients.
 
 The Welford convention is used: S1 spherical, S2 coma, S3 astigmatism,
 S4 Petzval field curvature, S5 distortion. Values are unconverted coefficients
 in mm, including the chosen pupil/field scale, rather than transverse errors,
-distortion percentages, or waves. Chromatic terms and plotting are separate.
+distortion percentages, or waves. ComputeSeidelCoefficients additionally
+returns per-surface coefficients of the combined field/pupil polynomial at
+a fixed reference normalization. Chromatic terms and plotting are separate.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 
 from Util.Globals import LambdaLines
@@ -30,6 +32,34 @@ class SeidelCoefficients:
                 "astigmatism": self.S3, "fieldCurvature": self.S4,
                 "distortion": self.S5}
 
+    def ToWavefront(self):
+        """Convert to pupil-polynomial amplitudes in mm, at this field."""
+        return WavefrontCoefficients(self.S1 / 8.0, self.S2 / 2.0,
+                                     self.S3 / 2.0, (self.S3 + self.S4) / 4.0,
+                                     self.S5 / 2.0)
+
+
+@dataclass(frozen=True)
+class WavefrontCoefficients:
+    """Coefficients of rho^4, h*rho^3*cos(phi), h^2*rho^2*cos(phi)^2,
+    h^2*rho^2, and h^3*rho*cos(phi), with normalized field h.
+
+    All values are mm, not waves. W220 is the polynomial field-curvature
+    coefficient (S3 + S4)/4; the separate Petzval coefficient is S4/4.
+    """
+    W040: float = 0.0
+    W131: float = 0.0
+    W222: float = 0.0
+    W220: float = 0.0
+    W311: float = 0.0
+
+    def AsTuple(self):
+        return self.W040, self.W131, self.W222, self.W220, self.W311
+
+    def AsDict(self):
+        return {"W040": self.W040, "W131": self.W131, "W222": self.W222,
+                "W220": self.W220, "W311": self.W311}
+
 
 @dataclass(frozen=True)
 class SurfaceSeidel:
@@ -52,6 +82,66 @@ class SeidelResult:
         if last is None:
             last = len(self.surfaces) - 1
         return _Sum(row.coefficients for row in self.surfaces[first:last + 1])
+
+    def CumulativeSums(self):
+        """Return the selected-field sum through each surface, inclusively."""
+        return tuple(self.SumSurfaces(0, index) for index in range(len(self.surfaces)))
+
+
+@dataclass(frozen=True)
+class SurfaceWavefront:
+    surfaceIndex: int
+    sphericalBase: WavefrontCoefficients
+    asphericDeparture: WavefrontCoefficients
+    coefficients: WavefrontCoefficients
+
+
+@dataclass(frozen=True)
+class SeidelReferenceResult:
+    """Field-independent coefficients for h = field / referenceField.
+
+    Aperture, wavelength, conjugate and nonzero reference field are fixed.
+    ``seidel`` retains the corresponding reference-field Seidel sums and rays.
+    """
+    surfaces: tuple[SurfaceWavefront, ...]
+    totals: WavefrontCoefficients
+    seidel: SeidelResult
+    referenceField: float
+    fieldUnits: str
+    units: str = "mm"
+
+    def SumSurfaces(self, first=0, last=None):
+        """Sum field-independent coefficients over an inclusive surface range."""
+        return self.seidel.SumSurfaces(first, last).ToWavefront()
+
+    def CumulativeCoefficients(self):
+        """Return coefficient sums through each surface for correction plots."""
+        return tuple(value.ToWavefront() for value in self.seidel.CumulativeSums())
+
+    def EvaluateField(self, field):
+        """Return selected-field Seidel sums and matching histories, without
+        retracing the lens. Field uses fieldUnits; zero and negative fields
+        are valid. The reference coefficients remain unchanged.
+        """
+        field = float(field)
+        factor = field / self.referenceField
+        reference = self.seidel.paraxial
+        histories = tuple(replace(
+            row,
+            chiefIncident=replace(row.chiefIncident,
+                                  height=row.chiefIncident.height * factor,
+                                  slope=row.chiefIncident.slope * factor),
+            chiefOutgoing=replace(row.chiefOutgoing,
+                                  height=row.chiefOutgoing.height * factor,
+                                  slope=row.chiefOutgoing.slope * factor))
+            for row in reference.surfaces)
+        paraxial = replace(reference, surfaces=histories,
+                           lagrangeInvariant=reference.lagrangeInvariant * factor)
+        if math.isinf(reference.objectDistance):
+            paraxial = replace(paraxial, fieldAngle=field)
+        else:
+            paraxial = replace(paraxial, objectHeight=field)
+        return CalculateSeidel(paraxial)
 
 
 def _Sum(coefficients):
@@ -113,3 +203,31 @@ def ComputeSeidel(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
     return CalculateSeidel(TraceLens(
         lens, fieldAngle, wavelength, objectDistance, objectHeight,
         pupilSemiDiameter, stopSemiDiameter))
+
+
+def ComputeSeidelCoefficients(lens, referenceField=1.0,
+                              wavelength=LambdaLines["d"], objectDistance=math.inf,
+                              pupilSemiDiameter=None, stopSemiDiameter=None):
+    """Return field-independent wavefront coefficients and reference sums.
+
+    referenceField must be nonzero: degrees for an infinite object, signed
+    object height in mm for a finite object. Its default is 1 degree or 1 mm,
+    respectively. Field-independent means coefficients of the combined
+    field/pupil polynomial for h = field/referenceField, at the fixed aperture,
+    wavelength and conjugate. The result can evaluate any selected field,
+    including zero, through EvaluateField(), without retracing the lens.
+    """
+    referenceField = float(referenceField)
+    objectDistance = float(objectDistance)
+    if math.isinf(objectDistance):
+        fieldAngle, objectHeight, fieldUnits = referenceField, 0.0, "degrees"
+    else:
+        fieldAngle, objectHeight, fieldUnits = 0.0, referenceField, "mm"
+    seidel = ComputeSeidel(lens, fieldAngle, wavelength, objectDistance,
+                           objectHeight, pupilSemiDiameter, stopSemiDiameter)
+    rows = tuple(SurfaceWavefront(row.surfaceIndex, row.sphericalBase.ToWavefront(),
+                                 row.asphericDeparture.ToWavefront(),
+                                 row.coefficients.ToWavefront())
+                 for row in seidel.surfaces)
+    return SeidelReferenceResult(rows, seidel.totals.ToWavefront(), seidel,
+                                 referenceField, fieldUnits)

@@ -11,7 +11,7 @@ from Util.Sampling import RandomEllipticalDistribution
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from Util.Analysis.PAEFL import LensPartitionFL
 from Util.Analysis.SurfaceData import PlotSurfaceData
-from Util.Analysis.Seidel import ComputeSeidel
+from Util.Analysis.Seidel import ComputeSeidel, ComputeSeidelCoefficients
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import FieldStopType
@@ -558,12 +558,29 @@ class Lens:
                              objectHeight, pupilSemiDiameter, stopSemiDiameter)
 
 
+    def ComputeSeidelCoefficients(self, referenceField=1.0,
+                                  wavelength=LambdaLines["d"],
+                                  objectDistance=float("inf"),
+                                  pupilSemiDiameter=None, stopSemiDiameter=None):
+        """Return field-independent wavefront coefficients at each surface.
+
+        referenceField is nonzero: degrees at infinity or object height in mm
+        at finite conjugates. The result retains reference-field Seidel sums
+        and supports cumulative coefficients and selected-field evaluation.
+        """
+        return ComputeSeidelCoefficients(self, referenceField, wavelength,
+                                         objectDistance, pupilSemiDiameter,
+                                         stopSemiDiameter)
+
+
     def PlotSurfaceData(
             self,
             maxPower=None,
             PlotTrackLength=None,
             PlotAllPupilPoints=False,
             PlotTrackHeight=None,
+            DisplayConfig=None,
+            SeidelReferenceField=1.0,
     ):
 
         return PlotSurfaceData(
@@ -572,6 +589,8 @@ class Lens:
             PlotTrackLength=PlotTrackLength,
             PlotTrackHeight=PlotTrackHeight,
             PlotAllPupilPoints=PlotAllPupilPoints,
+            DisplayConfig=DisplayConfig,
+            SeidelReferenceField=SeidelReferenceField,
         )
 
 

@@ -7,6 +7,7 @@ from enum import Enum
 
 import math
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
 import numpy as np
 
 from Surfaces.Stop import Stop
@@ -24,6 +25,11 @@ class SurfaceDataType(Enum):
     AbbeNumber = 3
     PrincipalPlane = 4
     EntrancePupil = 5
+    SeidelW040 = 6
+    SeidelW131 = 7
+    SeidelW222 = 8
+    SeidelW220 = 9
+    SeidelW311 = 10
 
 
 displayConfig = [
@@ -35,6 +41,26 @@ displayConfig = [
     SurfaceDataType.EntrancePupil,
 ]
 
+displayConfigSeidel = [
+    SurfaceDataType.RayHeight,
+    SurfaceDataType.PrincipalPlane,
+    SurfaceDataType.EntrancePupil,
+    SurfaceDataType.SeidelW040,
+    SurfaceDataType.SeidelW131,
+    SurfaceDataType.SeidelW222,
+    SurfaceDataType.SeidelW220,
+    SurfaceDataType.SeidelW311
+]
+
+
+_SeidelTracks = {
+    SurfaceDataType.SeidelW040: ("W040", "#A63832"),
+    SurfaceDataType.SeidelW131: ("W131", "#3B8E53"),
+    SurfaceDataType.SeidelW222: ("W222", "#8064AD"),
+    SurfaceDataType.SeidelW220: ("W220", "#2696A1"),
+    SurfaceDataType.SeidelW311: ("W311", "#D29A2E"),
+}
+
 
 def PlotSurfaceData(
         lens,
@@ -42,6 +68,8 @@ def PlotSurfaceData(
         PlotTrackLength=None,
         PlotAllPupilPoints=False,
         PlotTrackHeight=None,
+        DisplayConfig=None,
+        SeidelReferenceField=1.0,
 ):
     """
     Plot an optical layout and the tracks selected by ``displayConfig``.
@@ -54,6 +82,13 @@ def PlotSurfaceData(
     height in millimeters when it is no greater than half ``PlotTrackLength``.
     ``PlotAllPupilPoints`` draws the complete traced pupil curve instead of its
     near-axis pupil-plane position.
+
+    ``DisplayConfig`` optionally selects tracks for this call; otherwise the
+    module's ``displayConfig`` is used. ``displayConfigSeidel`` is a preset,
+    and any Seidel type can be mixed with the existing prescription tracks.
+    Seidel bars show cumulative wavefront coefficients in mm after each
+    surface, over its following axial thickness. ``SeidelReferenceField``
+    defines their nonzero reference field in degrees for an infinite object.
     """
     _EnsureLensData(lens)
     if not lens.surfaces:
@@ -61,7 +96,7 @@ def PlotSurfaceData(
 
     fraunhoferLine = "d"
     vertices = _SurfaceVertices(lens)
-    selectedTypes = set(displayConfig)
+    selectedTypes = set(displayConfig if DisplayConfig is None else DisplayConfig)
     showRayHeight = SurfaceDataType.RayHeight in selectedTypes
     showPrincipalPlane = SurfaceDataType.PrincipalPlane in selectedTypes
     showEntrancePupil = SurfaceDataType.EntrancePupil in selectedTypes
@@ -73,6 +108,9 @@ def PlotSurfaceData(
         trackSpecs.append((SurfaceDataType.RefractiveIndex, 1.1))
     if SurfaceDataType.AbbeNumber in selectedTypes:
         trackSpecs.append((SurfaceDataType.AbbeNumber, 1.1))
+    for trackType in _SeidelTracks:
+        if trackType in selectedTypes:
+            trackSpecs.append((trackType, 1.1))
 
     materialData = None
     if any(trackType in selectedTypes for trackType in (
@@ -84,6 +122,10 @@ def PlotSurfaceData(
     groupData = None
     if SurfaceDataType.OpticalPower in selectedTypes:
         groupData = _GroupData(lens, fraunhoferLine, vertices, maxPower)
+
+    seidelData = None
+    if selectedTypes.intersection(_SeidelTracks):
+        seidelData = _SeidelData(lens, fraunhoferLine, vertices, SeidelReferenceField)
 
     layoutHeight = _LayoutHeight(lens)
     layoutTrackLength = _ResolvedTrackLength(lens, vertices, PlotTrackLength)
@@ -118,14 +160,22 @@ def PlotSurfaceData(
         if trackType == SurfaceDataType.OpticalPower:
             _DrawGroupPower(axis, groupData)
         elif trackType == SurfaceDataType.RefractiveIndex:
-            _DrawMaterialMetric(axis, materialData, "ri", f"n{fraunhoferLine}", "#3B6FB6", 3, 0.01)
+            _DrawSurfaceMetric(axis, materialData, "ri", f"n{fraunhoferLine}", "#3B6FB6", 3, 0.01)
         elif trackType == SurfaceDataType.AbbeNumber:
-            _DrawMaterialMetric(axis, materialData, "abbe", "Vd", "#6BBF45", 1, 1.0)
+            _DrawSurfaceMetric(axis, materialData, "abbe", "Vd", "#6BBF45", 1, 1.0)
+        elif trackType in _SeidelTracks:
+            key, color = _SeidelTracks[trackType]
+            _DrawSurfaceMetric(axis, seidelData, key, f"Σ {key} (mm)", color,
+                               3, 1e-12, numberFormat=".3g", includeZero=True)
 
     _ConfigureAlignment(axes, vertices, plotBounds)
     _SetLayoutScale(layoutAxis, layoutTrackHeight)
     fig.suptitle("Lens Layout and Surface Data")
-    _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight, plotBounds)
+    if seidelData is not None:
+        fig.suptitle("Lens Layout and Surface Data\n"
+                     f"Seidel reference field: {float(SeidelReferenceField):g}°; "
+                     f"wavelength: {float(LambdaLines[fraunhoferLine]):g} nm")
+    _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight)
     _DrawLayoutLengths(
         layoutAxis,
         lens,
@@ -251,44 +301,75 @@ def _SetLayoutScale(axis, layoutTrackHeight):
     axis.set_aspect("equal", adjustable="box")
 
 
-def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight, plotBounds):
-    """Allocate the fixed 16:10 canvas between the layout and data tracks."""
+def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight):
+    """Keep the layout at physical scale and reserve readable data tracks."""
     if len(axes) == 1:
         return
 
     layoutAxis = axes[0]
-    xRange = plotBounds[1] - plotBounds[0]
+    # Adding surface ticks can expand Matplotlib's shared limits beyond the
+    # requested bounds. Physical aspect must use the final displayed span.
+    left, right = layoutAxis.get_xlim()
+    xRange = right - left
     if xRange <= _Scalar(AXIAL_ZERO):
         return
 
     gridSpec = layoutAxis.get_subplotspec().get_gridspec()
     trackCount = len(axes) - 1
 
-    # Convert the layout's mm aspect ratio to its required share of the fixed
-    # 16:10 canvas. Repeating after constrained-layout settles preserves 1:1
-    # units while all non-layout tracks receive equal remaining height.
-    for _ in range(3):
+    minimumTrackHeight = 1.0  # Inches, excluding ticks and other decorations.
+    # Measure unshrunk grid cells while constrained layout settles. Temporarily
+    # disable equal aspect so its unused space cannot affect layout margins or
+    # feed back into the next allocation and squeeze the data tracks.
+    layoutAxis.set_aspect("auto")
+    for _ in range(8):
         figure.canvas.draw()
         alignmentBounds = axes[-1].get_position()
-        totalTrackHeight = sum(axis.get_position().height for axis in axes)
+        availableHeight = sum(
+            axis.get_position(original=True).height for axis in axes
+        ) * figure.get_figheight()
         desiredLayoutHeight = (
             alignmentBounds.width
             * figure.get_figwidth()
             * layoutTrackHeight
             / xRange
         )
-        layoutShare = desiredLayoutHeight / (
-            totalTrackHeight * figure.get_figheight()
+        requiredHeight = desiredLayoutHeight + trackCount * minimumTrackHeight
+        extraHeight = max(0.0, requiredHeight - availableHeight)
+        if extraHeight > 0.01:
+            figure.set_size_inches(
+                figure.get_figwidth(), figure.get_figheight() + extraHeight,
+                forward=True,
+            )
+        trackHeight = max(
+            minimumTrackHeight, (availableHeight - desiredLayoutHeight) / trackCount
         )
-        # The lower track width is the horizontal reference shared by every
-        # section. Deriving the layout height from it prevents an equal-aspect
-        # layout axis from letterboxing and losing vertical alignment.
-        layoutShare = min(max(layoutShare, 0.05), 0.95)
-        heightRatios = [layoutShare, *[(1.0 - layoutShare) / trackCount] * trackCount]
+        heightRatios = [desiredLayoutHeight, *[trackHeight] * trackCount]
         currentRatios = gridSpec.get_height_ratios()
-        if np.allclose(currentRatios, heightRatios, atol=0.002):
+        if extraHeight <= 0.01 and np.allclose(currentRatios, heightRatios, atol=0.002):
             break
         gridSpec.set_height_ratios(heightRatios)
+    layoutAxis.set_aspect("equal", adjustable="box")
+    _AlignTrackWidths(axes)
+    figure.canvas.draw()
+
+
+def _AlignTrackWidths(axes):
+    """Follow the equal-aspect layout's displayed width on every redraw."""
+    layoutAxis = axes[0]
+
+    def alignedPosition(axis, renderer):
+        # get_position applies the layout's aspect at the current figure size.
+        # Preserve each data track's vertical grid slot while following the
+        # layout's active horizontal bounds, including after window resizing.
+        layoutBounds = layoutAxis.get_position()
+        trackBounds = axis.get_position(original=True)
+        return Bbox.from_bounds(
+            layoutBounds.x0, trackBounds.y0, layoutBounds.width, trackBounds.height
+        )
+
+    for axis in axes[1:]:
+        axis.set_axes_locator(alignedPosition)
 
 
 def _LayoutLengthText(lens, vertices, focus, principalPlaneZ):
@@ -344,22 +425,43 @@ def _SurfaceProfile(surface, sampleCount=80):
 
 
 def _ElementPolygon(frontSurface, rearSurface):
-    """Return a closed positive-half polygon for one glass element."""
+    """Follow the surface profiles and their clear boundary, including bevels."""
     frontZ, frontY = _SurfaceProfile(frontSurface)
     rearZ, rearY = _SurfaceProfile(rearSurface)
+    frontRim = (frontZ[-1], frontY[-1])
+    rearRim = (rearZ[-1], rearY[-1])
+    rimPath = [frontRim]
+    segments = _BoundarySegments([rearSurface])
+    while segments and not np.allclose(rimPath[-1], rearRim, rtol=1e-7, atol=1e-8):
+        for index, (start, end) in enumerate(segments):
+            if np.allclose(rimPath[-1], start, rtol=1e-7, atol=1e-8):
+                rimPath.append(end)
+            elif np.allclose(rimPath[-1], end, rtol=1e-7, atol=1e-8):
+                rimPath.append(start)
+            else:
+                continue
+            segments.pop(index)
+            break
+        else:
+            break
+
+    # Prescriptions without a connecting boundary retain a direct rim edge.
+    if not np.allclose(rimPath[-1], rearRim, rtol=1e-7, atol=1e-8):
+        rimPath = [frontRim, rearRim]
+    intermediateRim = np.asarray(rimPath).reshape(-1, 2)[1:-1]
 
     return (
-        np.concatenate((frontZ, rearZ[::-1])),
-        np.concatenate((frontY, rearY[::-1])),
+        np.concatenate((frontZ, intermediateRim[:, 0], rearZ[::-1])),
+        np.concatenate((frontY, intermediateRim[:, 1], rearY[::-1])),
     )
 
 
-def _BoundarySegments(lens):
+def _BoundarySegments(surfaces):
     """Extract positive-half clear-boundary segments from the lens prescription."""
     segments = []
     seen = set()
 
-    for surface in lens.surfaces:
+    for surface in surfaces:
         boundaries = [
             getattr(surface, "clearBoundaryL", None),
             getattr(surface, "clearBoundaryT", None),
@@ -435,6 +537,25 @@ def _MaterialData(lens, fraunhoferLine, vertices):
             "abbe": abbe,
         })
 
+    return data
+
+
+def _SeidelData(lens, fraunhoferLine, vertices, referenceField):
+    """Collect cumulative coefficients, including air gaps and stop spans.
+
+    All terms come from one full-system reference trace. A coefficient
+    already includes its surface's contribution before its thickness span
+    is drawn. The final span uses the last surface's prescription thickness.
+    """
+    reference = lens.ComputeSeidelCoefficients(
+        referenceField=referenceField, wavelength=LambdaLines[fraunhoferLine])
+    data = []
+    for index, coefficients in enumerate(reference.CumulativeCoefficients()):
+        left = vertices[index]
+        right = (vertices[index + 1] if index < len(vertices) - 1
+                 else left + _Scalar(lens.surfaces[index].thickness))
+        data.append({"index": index, "left": left, "right": right,
+                     **coefficients.AsDict()})
     return data
 
 
@@ -765,7 +886,7 @@ def _DrawLensLayout(
         profileZ, profileY = _SurfaceProfile(surface)
         axis.plot(profileZ, profileY, color="#69737B", linewidth=1.1, zorder=2)
 
-    for start, end in _BoundarySegments(lens):
+    for start, end in _BoundarySegments(lens.surfaces):
         axis.plot(
             [start[0], end[0]],
             [start[1], end[1]],
@@ -878,11 +999,17 @@ def _DrawGroupPower(axis, groups):
     axis.set_yticklabels(["-max power", "0", "+max power"])
 
 
-def _DrawMaterialMetric(axis, data, key, label, color, decimals, minimumPadding):
+def _DrawSurfaceMetric(axis, data, key, label, color, decimals, minimumPadding,
+                       numberFormat=None, includeZero=False):
     """Draw one prescription metric using its physical surface spans."""
     values = [item[key] for item in data if item[key] is not None]
-    limits = _MetricLimits(values, minimumPadding)
+    limits = _MetricLimits([0.0, *values] if includeZero else values, minimumPadding)
+    if numberFormat is None:
+        numberFormat = f".{decimals}f"
+    if includeZero:
+        axis.axhline(0.0, color="0.25", linewidth=0.8)
 
+    previousValue = None
     for item in data:
         value = item[key]
         width = item["right"] - item["left"]
@@ -900,16 +1027,20 @@ def _DrawMaterialMetric(axis, data, key, label, color, decimals, minimumPadding)
             linewidth=0.8,
         )
 
-        if limits is not None:
+        # Stops retain the cumulative value; repeating the same label on a
+        # short adjacent span crowds otherwise aligned coefficient tracks.
+        if limits is not None and (not includeZero or value != previousValue):
+            below = includeZero and value < 0
             axis.text(
                 item["left"] + width / 2.0,
-                value + limits[2] * 0.25,
-                f"{value:.{decimals}f}",
+                value + limits[2] * (-0.25 if below else 0.25),
+                format(value, numberFormat),
                 ha="center",
-                va="bottom",
+                va="top" if below else "bottom",
                 fontsize=8,
                 color=color,
             )
+        previousValue = value
 
     if limits is None:
         axis.set_ylim((1.4, 2.2) if key == "ri" else (20, 90))

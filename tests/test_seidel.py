@@ -17,7 +17,7 @@ from Surfaces.Stop import Stop
 from Surfaces.EvenAspheric import EvenAspheric
 from Util.Analysis.Paraxial import SystemMatrix, TraceLens
 from Util.Analysis.PAEFL import SingleGroup
-from Util.Analysis.Seidel import ComputeSeidel, CalculateSeidel
+from Util.Analysis.Seidel import ComputeSeidel, CalculateSeidel, ComputeSeidelCoefficients
 
 
 def surface(radius, thickness, index=1.0):
@@ -82,6 +82,63 @@ def exact_image_position(lens, x, y, angle, imageZ):
 
 
 class SeidelTests(unittest.TestCase):
+    def test_reference_coefficients_survive_zero_field(self):
+        lens = objective()
+        reference = lens.ComputeSeidelCoefficients(referenceField=5.0)
+        selected = reference.EvaluateField(0.0)
+        np.testing.assert_array_equal(values(selected.totals)[1:], np.zeros(4))
+        self.assertNotEqual(reference.totals.W131, 0.0)
+        self.assertNotEqual(reference.totals.W222, 0.0)
+        self.assertNotEqual(reference.totals.W311, 0.0)
+        self.assertAlmostEqual(selected.totals.S1 / 8, reference.totals.W040)
+        self.assertEqual(reference.seidel.paraxial.fieldAngle, 5.0)
+        self.assertEqual(selected.paraxial.fieldAngle, 0.0)
+        self.assertEqual(selected.paraxial.lagrangeInvariant, 0.0)
+
+    def test_reference_evaluation_matches_direct_full_trace(self):
+        lens = objective()
+        for conjugate in ({}, {"objectDistance": 800.0}):
+            reference = ComputeSeidelCoefficients(lens, referenceField=7.0, **conjugate)
+            for field in (-12.0, 0.0, 3.0, 7.0):
+                evaluated = reference.EvaluateField(field)
+                if conjugate:
+                    direct = ComputeSeidel(lens, objectHeight=field, **conjugate)
+                else:
+                    direct = ComputeSeidel(lens, fieldAngle=field)
+                np.testing.assert_allclose(values(evaluated.totals), values(direct.totals), atol=1e-15)
+                for actual, expected in zip(evaluated.surfaces, direct.surfaces):
+                    np.testing.assert_allclose(values(actual.coefficients), values(expected.coefficients), atol=1e-15)
+                for actual, expected in zip(evaluated.paraxial.surfaces, direct.paraxial.surfaces):
+                    self.assertAlmostEqual(actual.chiefIncident.height, expected.chiefIncident.height)
+                    self.assertAlmostEqual(actual.chiefOutgoing.slope, expected.chiefOutgoing.slope)
+            self.assertEqual(reference.fieldUnits, "mm" if conjugate else "degrees")
+
+    def test_cumulative_reference_coefficients_and_conversion(self):
+        lens = objective()
+        reference = ComputeSeidelCoefficients(lens, referenceField=5.0)
+        increments = np.array([row.coefficients.AsTuple() for row in reference.surfaces])
+        cumulative = np.array([row.AsTuple() for row in reference.CumulativeCoefficients()])
+        np.testing.assert_allclose(cumulative, np.cumsum(increments, axis=0), atol=1e-15)
+        np.testing.assert_allclose(cumulative[-1], reference.totals.AsTuple())
+        np.testing.assert_allclose(reference.SumSurfaces(1, 3).AsTuple(), increments[1:4].sum(axis=0))
+        np.testing.assert_allclose(values(reference.seidel.CumulativeSums()[-1]), values(reference.seidel.totals))
+        for row, raw in zip(reference.surfaces, reference.seidel.surfaces):
+            wave = row.coefficients
+            np.testing.assert_allclose([8*wave.W040, 2*wave.W131, 2*wave.W222,
+                                       4*wave.W220 - 2*wave.W222, 2*wave.W311],
+                                       values(raw.coefficients), atol=1e-15)
+            np.testing.assert_allclose(row.coefficients.AsTuple(),
+                                       np.array(row.sphericalBase.AsTuple()) + row.asphericDeparture.AsTuple())
+
+    def test_reference_field_defines_normalization_not_evaluation_field(self):
+        lens = objective()
+        first = ComputeSeidelCoefficients(lens, referenceField=2.0)
+        second = ComputeSeidelCoefficients(lens, referenceField=4.0)
+        np.testing.assert_allclose(second.totals.AsTuple(),
+                                   np.array(first.totals.AsTuple()) * [1, 2, 4, 4, 8])
+        np.testing.assert_allclose(values(first.EvaluateField(6).totals),
+                                   values(second.EvaluateField(6).totals), atol=1e-15)
+
     def test_thick_lens_efl_and_stop_medium(self):
         surfaces = [surface(50.0, 5.0, 1.5), surface(-50.0, 0.0)]
         self.assertAlmostEqual(float(SingleGroup(surfaces)), 3000.0 / 59.0)

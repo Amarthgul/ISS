@@ -76,6 +76,112 @@ incident and outgoing marginal/chief `RayState` values (height, slope), indices
 of refraction, vertex position, effective curvature, and quartic sag coefficient.
 Positions are reconstructed from thicknesses relative to the first vertex.
 
+## Field-independent coefficients and cumulative correction
+
+Use `lens.ComputeSeidelCoefficients()` (or the standalone function in
+`Util.Analysis.Seidel`) to calculate the coefficients of a combined field/pupil
+wavefront polynomial. It uses a fixed, nonzero reference field and defines
+`h = field / referenceField`. Coefficients depend on the aperture, wavelength,
+conjugate and chosen reference normalization, but do not change when evaluating
+a different field, including zero.
+
+```python
+reference = lens.ComputeSeidelCoefficients(referenceField=10.0)
+
+# Each physical surface's field-independent wavefront coefficients in mm.
+for row in reference.surfaces:
+    print(row.surfaceIndex, row.coefficients.AsDict())
+
+# Suitable for a plot of how spherical aberration is corrected through the lens.
+surfaceIndices = [row.surfaceIndex for row in reference.surfaces]
+saContributions = [row.coefficients.W040 for row in reference.surfaces]
+saCumulative = [row.W040 for row in reference.CumulativeCoefficients()]
+
+# Reference-field Seidel sums are retained alongside the wavefront coefficients.
+print(reference.seidel.totals.AsDict())
+print(reference.SumSurfaces(first=2, last=5).AsDict())
+
+# Selected-field sums with matching chief-ray histories; no new lens trace.
+onAxis = reference.EvaluateField(0.0)
+offAxis = reference.EvaluateField(20.0)
+```
+
+The polynomial is
+
+```
+W = W040*rho^4 + W131*h*rho^3*cos(phi)
+  + W222*h^2*rho^2*cos(phi)^2 + W220*h^2*rho^2
+  + W311*h^3*rho*cos(phi)
+```
+
+`rho` is normalized pupil radius. The values are coefficients, not the complete
+evaluated polynomial terms, and are in mm rather than waves. The conversions
+from reference-field Seidel sums are `W040=S1/8`, `W131=S2/2`, `W222=S3/2`,
+`W220=(S3+S4)/4`, and `W311=S5/2`. W220 includes the astigmatic contribution;
+the separate Petzval term is S4/4. `SeidelCoefficients.ToWavefront()` performs
+these conversions for any selected-field sum, but those converted amplitudes
+still include that selected field's powers. The reference API supplies the
+field-independent polynomial interpretation.
+
+`referenceField` defaults to 1 degree at infinity or 1 mm of object height for
+a finite `objectDistance`. It must be nonzero. `reference.fieldUnits` records
+the units to use with `EvaluateField()`. At finite conjugates, for example:
+
+```python
+reference = lens.ComputeSeidelCoefficients(objectDistance=800.0, referenceField=35.0)
+selected = reference.EvaluateField(0.0)  # zero object height, in mm
+```
+
+`reference.surfaces` retains spherical-base and aspheric-departure coefficients
+separately. `reference.CumulativeCoefficients()` and
+`reference.seidel.CumulativeSums()` return inclusive running totals aligned with
+the surface order. Their final entries equal the corresponding system totals;
+every contribution is derived from the same full-system rays.
+
+## Surface-data plotting
+
+The Seidel tracks use the same aligned subplots and bars as the existing
+prescription tracks. They plot cumulative wavefront coefficients, not individual
+surface contributions or selected-field Seidel sums.
+
+```python
+from Util.Analysis.SurfaceData import SurfaceDataType, displayConfigSeidel
+
+fig, axes = lens.PlotSurfaceData(
+    DisplayConfig=displayConfigSeidel,
+    SeidelReferenceField=10.0,
+    PlotTrackLength=100.0,
+)
+
+# Mix any of the five Seidel types with existing data tracks.
+fig, axes = lens.PlotSurfaceData(DisplayConfig=[
+    SurfaceDataType.OpticalPower,
+    SurfaceDataType.RefractiveIndex,
+    SurfaceDataType.AbbeNumber,
+    SurfaceDataType.SeidelW040,
+])
+```
+
+Omitting `DisplayConfig` retains the module's `displayConfig` selection. The
+five types are `SeidelW040`, `SeidelW131`, `SeidelW222`, `SeidelW220`, and
+`SeidelW311`; each adds one track. All selected Seidel tracks share one reference
+calculation. `SeidelReferenceField` defaults to 1 degree and is recorded in the
+figure title; wavelength is the surface-data plot's d line (587.56 nm).
+
+Bar height is the inclusive cumulative coefficient after that surface. The bar
+extends from its vertex to the next vertex, or over the final surface's prescribed
+thickness. Air gaps and stops retain the accumulated value. Zero-width spans
+produce no bar, but their contributions remain in subsequent cumulative values.
+Seidel axes include zero, preserve signed heights, and use significant-digit
+labels to keep small coefficients visible. Values are in mm at normalized field
+`h = field / SeidelReferenceField`.
+
+The figure starts at 16 by 10 inches and grows vertically when needed to reserve
+one inch of plotting height for each data track. The lens retains equal physical
+scale and the same horizontal alignment as the coefficient and material tracks.
+The data tracks follow the layout's displayed width on every redraw, preserving
+axial alignment when the plot window is resized or the figure is exported.
+
 ## Even aspheres
 
 The existing coefficient ordering remains `[A2, A4, A6, ...]`. To start with A4,
