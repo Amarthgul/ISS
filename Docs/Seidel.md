@@ -32,7 +32,8 @@ coefficients need not trace the lens twice.
   maximum photographic field. Supply the field you want to evaluate.
 - `objectDistance` defaults to infinity. For a finite object, supply its positive
   distance back from the first vertex and its signed `objectHeight` in mm.
-  `fieldAngle` is ignored for finite objects. Heights and slopes refer to the
+  `fieldAngle` is ignored for finite objects unless `objectHeight=None`, which
+  selects an angular chief-ray field at that distance. Heights and slopes refer to the
   positive meridional Y direction; propagation is toward positive Z.
 - `pupilSemiDiameter` defaults to `lens.entrancePupil.clearSemiDiameter`, the
   current working pupil radius, not the maximum full-open diameter. At finite
@@ -75,6 +76,266 @@ invariant, system transfer matrix, and surface histories. Each history contains
 incident and outgoing marginal/chief `RayState` values (height, slope), indices
 of refraction, vertex position, effective curvature, and quartic sag coefficient.
 Positions are reconstructed from thicknesses relative to the first vertex.
+
+## Defocused objects with axial defocus excluded
+
+Use `objectDistance` for the actual object and `focusDistance` for the object
+distance defining the sensor's paraxial focus reference. Both are in mm,
+measured back from the first vertex; infinity is supported. `focusDistance=None`
+uses `objectDistance`, preserving the existing matched-conjugate calculation.
+The added arguments are appended to the existing signatures, so existing
+positional calls retain their meaning.
+
+```python
+# The current prescription must already be configured for focus at 1.35 m.
+reference = lens.ComputeSeidelCoefficients(
+    objectDistance=13500.0,
+    focusDistance=1350.0,
+    referenceField=10.0,
+    referenceFieldUnits="degrees",
+    stopSemiDiameter=3.0,
+)
+print(reference.totals.AsDict())  # Exactly the five Seidel wavefront coefficients
+trace = reference.seidel.paraxial
+print(trace.objectImageZ, trace.focusImageZ, trace.imageDefocus)  # mm
+selected = reference.EvaluateField(-5.0)  # degrees with this normalization
+```
+
+`TraceLens()`, standalone and Lens `ComputeSeidel()`, and standalone and Lens
+`ComputeSeidelCoefficients()` accept `focusDistance`. The prescription, pupil,
+and imager are never changed. For a floating-element lens, configure its surface
+thicknesses for the intended focus first; this analysis does not call
+`BestFocusBFD()` or interpolate floating-element positions. The focus reference
+is Gaussian/paraxial, not the sampled real-ray best-RMS focus used by rendering.
+
+### Conjugates and the excluded term
+
+Let the system matrix from the first to the last vertex be
+
+$$
+M=\begin{pmatrix}A&B\\C&D\end{pmatrix}.
+$$
+
+An axial ray from object distance $d$ has initial slope $u_0=y_0/d$.
+Its outgoing height and slope are $(A+B/d)y_0$ and $(C+D/d)y_0$.
+Consequently the Gaussian image distance after the last vertex is
+
+$$
+L(d)=-\frac{A+B/d}{C+D/d},\qquad 1/\infty=0.
+$$
+
+`trace.ImageDistance(d)` evaluates this expression; omitting `d` uses the
+actual object distance. A zero denominator represents an image at infinity.
+Writing $z_N$ for the last vertex position, the recorded image planes are
+
+$$
+z_{\mathrm{object}}=z_N+L(d_{\mathrm{object}}),\qquad
+z_{\mathrm{focus}}=z_N+L(d_{\mathrm{focus}}),\qquad
+\Delta z=z_{\mathrm{focus}}-z_{\mathrm{object}}.
+$$
+
+These are `objectImageZ`, `focusImageZ`, and `imageDefocus`. Positive defocus
+places the focus-reference plane farther toward positive Z. Matched conjugates
+give zero defocus, including when their Gaussian image is at infinity. A finite
+axial mismatch requires both image planes to be finite.
+
+The axial focus mismatch supplies the quadratic pupil term $W_{020}\rho^2$.
+The requested calculation excludes that term and evaluates the five Seidel
+terms relative to the actual object's Gaussian conjugate, using the unchanged
+surface equations below. No $W_{020}$ is added to `totals`, surface contributions,
+partial sums, cumulative sums, or `EvaluateField()` results. All marginal/chief
+rays and the invariant use **objectDistance**, not **focusDistance**.
+
+Thus changing only `focusDistance` leaves all five coefficients unchanged;
+changing `objectDistance` generally changes them, even at the same angular
+field. This is the aberration content of the defocused zone, rather than a
+transverse ray-error prediction at the displaced sensor. Spherical aberration,
+astigmatism and field curvature remain intact. In particular, `W220` is retained:
+it is field-dependent curvature, not the excluded axial focus offset. No fitted
+Zernike defocus is subtracted from these conventional Seidel coefficients.
+
+### Angular fields across object distances
+
+`referenceFieldUnits=None` retains the existing convention: degrees at infinity
+and signed object height in mm at finite conjugates. For finite conjugates the
+other supported choice is `referenceFieldUnits="degrees"`. In that mode both
+`referenceField` and `EvaluateField(field)` use the signed incident paraxial
+chief-ray slope expressed in degrees, consistently with the infinite-object
+API. No exact-angle tangent correction is introduced in this first-order model.
+
+If the transfer matrix to the stop has first row $(a,b)$, the entrance pupil is
+at $z_p=b/a$ relative to the first vertex. For angular reference slope
+$\alpha=\operatorname{radians}(\mathrm{referenceField})$, finite-object aiming is
+
+$$
+\bar u_0=\alpha,\qquad \bar y_0=-z_p\alpha,\qquad
+H_{\mathrm{object}}=-(d_{\mathrm{object}}+z_p)\alpha.
+$$
+
+Here $H_{\mathrm{object}}$ is stored as `paraxial.objectHeight`; the minus sign
+follows propagation toward positive Z. This angle is referenced to the entrance
+pupil, rather than the first vertex, and scales object height with its distance
+from that pupil. Supply `objectHeight=None` to `ComputeSeidel()` or `TraceLens()`
+to obtain the same aiming directly with `fieldAngle`. In angular mode
+`paraxial.fieldAngle` also retains the specified field for finite objects.
+`EvaluateField()` scales both chief-ray histories and the derived object height
+while retaining the focus and object conjugates.
+
+For comparisons at constant angle of view, use the same angular reference field
+and aperture normalization at every object distance. An explicit stop radius is
+convenient when comparing a fixed physical aperture. This does not automatically
+keep the same sensor framing if lens geometry or angular magnification changes.
+
+## Calculation of the Seidel sums
+
+The equations below describe `CalculateSeidel()` as implemented in
+`src/Util/Analysis/Seidel.py`. Lowercase `s` denotes one surface's contribution;
+uppercase `S` denotes a sum over surfaces. Every contribution uses the marginal
+and chief rays traced through the **complete lens**, including when only a
+subset of surfaces is summed.
+
+### Paraxial ray histories
+
+At surface `i`, the notation is:
+
+| Symbol | Meaning | Units |
+| --- | --- | --- |
+| $y_i, u_i$ | Incident marginal-ray height and slope | mm, dimensionless |
+| $\bar y_i, \bar u_i$ | Incident chief-ray height and slope | mm, dimensionless |
+| $u'_i, \bar u'_i$ | Outgoing marginal/chief slopes | dimensionless |
+| $n_i, n'_i$ | Incident and outgoing refractive indices at the selected wavelength | dimensionless |
+| $c_i$ | Effective vertex curvature, including A2 for an even asphere | mm$^{-1}$ |
+| $t_i$ | Axial thickness following the surface | mm |
+| $q_i$ | Coefficient of $r^4$ in the surface sag expansion | mm$^{-3}$ |
+
+Slope means `dy/dz`, represented by the paraxial angle in radians, rather than
+the reduced slope `n*u`. Signed heights increase toward positive Y and rays
+propagate toward positive Z. Refraction and translation follow
+
+$$
+u'_i = \frac{n_i}{n'_i}u_i
+       + \frac{n_i-n'_i}{n'_i}c_i y_i,
+\qquad
+y_{i+1} = y_i + t_i u'_i.
+$$
+
+The chief ray follows the same equations with barred heights and slopes.
+Refraction leaves height unchanged at the surface; the outgoing slope becomes
+the next surface's incident slope after translation.
+
+`TraceLens()` first computes the transfer matrix from the first vertex to the
+stop. If its first row is `(a, b)`, the chief ray is aimed so that
+`a*chiefHeight + b*chiefSlope = 0`. At infinity, its initial slope is
+`radians(fieldAngle)` and its initial height is `-(b/a)*chiefSlope`; the marginal
+ray has zero initial slope and is scaled by the chosen pupil or stop radius.
+At finite conjugates, the chief ray starts at the specified object height and
+the marginal ray starts on the object axis. Both are aimed and normalized using
+the same stop matrix. Thus aperture and field normalization enter the equations
+through the ray heights and slopes, rather than through a later scale factor.
+
+### Spherical-base contributions
+
+For each surface, calculate the marginal and chief incidence quantities and
+the optical invariant:
+
+$$
+A_i = n_i(u_i+c_i y_i),
+\qquad
+\bar A_i = n_i(\bar u_i+c_i\bar y_i),
+\qquad
+H = n_i(y_i\bar u_i-\bar y_i u_i).
+$$
+
+`TraceLens()` evaluates `H` from the initial ray pair and retains it for every
+surface. It is invariant under the paraxial refractions and translations.
+Define the following differences, with outgoing values minus incident values:
+
+$$
+D_i = \frac{u'_i}{n'_i}-\frac{u_i}{n_i},
+\qquad
+P_i = c_i\left(\frac{1}{n'_i}-\frac{1}{n_i}\right),
+\qquad
+E_i = \frac{1}{(n'_i)^2}-\frac{1}{n_i^2}.
+$$
+
+The five contributions stored in `sphericalBase` are
+
+$$
+\begin{aligned}
+s^{\mathrm{base}}_{1,i} &= -A_i^2 y_i D_i, \\
+s^{\mathrm{base}}_{2,i} &= -A_i\bar A_i y_i D_i, \\
+s^{\mathrm{base}}_{3,i} &= -\bar A_i^2 y_i D_i, \\
+s^{\mathrm{base}}_{4,i} &= -H^2 P_i, \\
+s^{\mathrm{base}}_{5,i} &= -\bar A_i\left[
+    \bar A_i^2 y_i E_i
+    -(2y_i\bar A_i-\bar y_i A_i)\bar y_i P_i
+    \right].
+\end{aligned}
+$$
+
+The distortion expression is the division-free form used in the code. It does
+not divide by `A`, so normal marginal incidence remains regular. These signs
+follow this implementation's Welford convention and ray-coordinate definitions.
+For an asphere, `sphericalBase` refers to a sphere with the **effective vertex
+curvature** `c`, rather than necessarily the prescription radius `R`.
+
+### Aspheric contributions
+
+The sag near the vertex is
+
+$$
+z(r) = \frac{c_i}{2}r^2 + q_i r^4 + O(r^6).
+$$
+
+A sphere with the same vertex curvature has quartic coefficient `c_i^3/8`.
+The quartic departure and its Seidel scale are therefore
+
+$$
+d_i = q_i-\frac{c_i^3}{8},
+\qquad
+G_i = 8(n'_i-n_i)d_i.
+$$
+
+The contributions stored in `asphericDeparture` are
+
+$$
+\begin{aligned}
+s^{\mathrm{asph}}_{1,i} &= G_i y_i^4, \\
+s^{\mathrm{asph}}_{2,i} &= G_i y_i^3\bar y_i, \\
+s^{\mathrm{asph}}_{3,i} &= G_i y_i^2\bar y_i^2, \\
+s^{\mathrm{asph}}_{4,i} &= 0, \\
+s^{\mathrm{asph}}_{5,i} &= G_i y_i\bar y_i^3.
+\end{aligned}
+$$
+
+For a spherical surface, `d_i = 0`. For an even asphere, use
+`c_i = 1/R_i + 2*A2_i` and `q_i = (1+K_i)/(8*R_i^3) + A4_i`, as described
+under [Even aspheres](#even-aspheres). A2 changes both the paraxial rays and the
+reference sphere used to calculate the departure. The height-product form
+above avoids division by marginal height when it is zero.
+
+### Surface, cumulative, and system sums
+
+For each aberration `k = 1, ..., 5`, the combined surface contribution and the
+inclusive cumulative sum through surface `j` are
+
+$$
+s_{k,i} = s^{\mathrm{base}}_{k,i}+s^{\mathrm{asph}}_{k,i},
+\qquad
+S_k^{(j)} = \sum_{i=0}^{j}s_{k,i}.
+$$
+
+For `N` surfaces, the system sum is $S_k=S_k^{(N-1)}$. An inclusive partial
+sum is $S_k^{[a,b]}=\sum_{i=a}^{b}s_{k,i}$. The implementation uses
+`math.fsum` to accumulate each of the five components.
+
+`surfaces[i].coefficients` stores `s_{k,i}`, `CumulativeSums()[j]` stores
+`S_k^(j)`, `totals` stores `S_k`, and `SumSurfaces(a, b)` stores the partial
+sum. Partial sums retain the original full-system ray histories; they do not
+retrace the selected surfaces as an isolated lens. A non-refracting stop has
+`n' = n` and `u' = u`, so all five of its contributions vanish. Translation
+through an air gap changes the ray heights used at the following surface but
+adds no separate Seidel contribution.
 
 ## Field-independent coefficients and cumulative correction
 
@@ -122,6 +383,58 @@ the separate Petzval term is S4/4. `SeidelCoefficients.ToWavefront()` performs
 these conversions for any selected-field sum, but those converted amplitudes
 still include that selected field's powers. The reference API supplies the
 field-independent polynomial interpretation.
+
+### Calculation of the wavefront coefficients
+
+`ComputeSeidelCoefficients()` traces at the chosen nonzero `referenceField`,
+calculates the surface contributions and sums above, and then calls
+`ToWavefront()`. At that reference field, `h = 1`. The conversion applies to
+individual surface contributions, cumulative sums, partial sums, and system
+totals alike:
+
+| Wavefront coefficient | Single surface | System total | Polynomial term |
+| --- | --- | --- | --- |
+| $W_{040}$ | $w_{040,i}=s_{1,i}/8$ | $W_{040}=S_1/8$ | $W_{040}\rho^4$ |
+| $W_{131}$ | $w_{131,i}=s_{2,i}/2$ | $W_{131}=S_2/2$ | $W_{131}h\rho^3\cos\phi$ |
+| $W_{222}$ | $w_{222,i}=s_{3,i}/2$ | $W_{222}=S_3/2$ | $W_{222}h^2\rho^2\cos^2\phi$ |
+| $W_{220}$ | $w_{220,i}=(s_{3,i}+s_{4,i})/4$ | $W_{220}=(S_3+S_4)/4$ | $W_{220}h^2\rho^2$ |
+| $W_{311}$ | $w_{311,i}=s_{5,i}/2$ | $W_{311}=S_5/2$ | $W_{311}h^3\rho\cos\phi$ |
+
+Because the conversion is linear, converting a cumulative Seidel sum gives the
+same result as adding the converted surface contributions:
+
+$$
+W_{\alpha}^{(j)}=\sum_{i=0}^{j}w_{\alpha,i}.
+$$
+
+For example, the plotted spherical-aberration coefficient after surface `j` is
+
+$$
+W_{040}^{(j)}
+=\frac{1}{8}\sum_{i=0}^{j}
+\left[-A_i^2 y_i D_i+G_i y_i^4\right].
+$$
+
+The coefficient is the scalar $W_{040}^{(j)}$; multiplying it by $\rho^4$
+evaluates its wavefront contribution at a particular normalized pupil radius.
+All five coefficients have units of mm because both `rho` and `h` are
+dimensionless. For wavefront values in waves, divide by the wavelength in mm,
+`wavelength_nm * 1e-6`.
+
+At another field, define `h = field/referenceField`. `EvaluateField()` scales
+the chief-ray heights, chief-ray slopes, and invariant by `h`, leaving the
+marginal ray unchanged. The selected-field Seidel sums then scale as
+
+$$
+(S_1,S_2,S_3,S_4,S_5)(h)
+=\left(S_1,\ hS_2,\ h^2S_3,\ h^2S_4,\ h^3S_5\right)_{\mathrm{reference}}.
+$$
+
+The stored reference `W` coefficients remain unchanged. At `h = 0`, the four
+off-axis polynomial terms vanish, even though their reference coefficients can
+remain nonzero. Changing the reference field itself changes the normalization
+and therefore scales `W131`, `W222`, `W220`, and `W311` by the corresponding
+first, second, second, and third powers of the reference-field ratio.
 
 `referenceField` defaults to 1 degree at infinity or 1 mm of object height for
 a finite `objectDistance`. It must be nonzero. `reference.fieldUnits` records
@@ -223,23 +536,3 @@ The framework's existing `from Util.Backend import backend as bd` imports bind
 the backend at module import time. Switching it after those modules are loaded
 does not update their bound references. The backend regression tests therefore
 run CPU and CUDA analyses in separate processes.
-
-## Validation
-
-`tests/test_seidel.py` checks reference interface values, thick-lens EFL, medium
-continuity through an embedded stop, chief-ray aiming, the optical invariant,
-finite conjugates, aperture/field scaling, partial sums, A2 geometry and regular
-zero-height/normal-incidence cases. Independent sag-intersection and exact Snell
-traces verify the primary transverse ray errors for all five terms on spherical
-and A2/A4 aspheric prescriptions. Zemax export parity has not been verified.
-
-```powershell
-python -m unittest discover -s tests -p test_seidel.py -v
-python -m unittest discover -s tests -p test_seidel_backend.py -v
-```
-
-The backend tests compare real material models, all nine dispersion paths,
-scalar and vector wavelengths, spherical and A2/A4 prescriptions, finite
-conjugates, non-air environments, matrix/EFL calculations and partial sums.
-CUDA testing requires CuPy and a working CUDA device; it is skipped when CuPy
-is not installed.

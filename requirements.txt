@@ -1,0 +1,8 @@
+matplotlib~=3.10.5
+numpy~=2.0.1
+OpenEXR~=3.3.5
+opencv-python~=5.0.0.93
+scipy~=1.16.0
+svgpathtools~=1.7.2
+pillow~=11.3.0
+pandas~=2.3.2

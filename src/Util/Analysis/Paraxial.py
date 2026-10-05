@@ -80,17 +80,56 @@ class ParaxialResult:
     stopIndex: int
     lagrangeInvariant: float
     systemMatrix: tuple
+    focusDistance: float = math.inf
+
+    def ImageDistance(self, objectDistance=None):
+        """Gaussian image distance from the last vertex, in mm.
+
+        The prescription is held fixed. An axial image at infinity is
+        represented by math.inf rather than dividing by a zero slope.
+        """
+        if objectDistance is None:
+            objectDistance = self.objectDistance
+        vergence = 1.0 / float(objectDistance)
+        a, b = self.systemMatrix[0]
+        c, d = self.systemMatrix[1]
+        slope = c + d * vergence
+        return -(a + b * vergence) / slope if slope != 0.0 else math.inf
+
+    @property
+    def objectImageZ(self):
+        """Actual object's Gaussian image Z relative to the first vertex."""
+        return self.surfaces[-1].vertexZ + self.ImageDistance()
+
+    @property
+    def focusImageZ(self):
+        """Paraxial sensor-reference Z for focusDistance, in mm."""
+        return self.surfaces[-1].vertexZ + self.ImageDistance(self.focusDistance)
+
+    @property
+    def imageDefocus(self):
+        """Focus-reference Z minus actual image Z; zero for matched conjugates."""
+        if self.focusDistance == self.objectDistance:
+            return 0.0
+        return self.focusImageZ - self.objectImageZ
 
 
 def TraceLens(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
               objectDistance=math.inf, objectHeight=0.0,
-              pupilSemiDiameter=None, stopSemiDiameter=None):
+              pupilSemiDiameter=None, stopSemiDiameter=None, focusDistance=None):
     """Trace a marginal/chief pair through the complete prescription.
 
     ``fieldAngle`` is the signed incident slope expressed in degrees for an
     infinite object (default: a 1-degree reference field). At finite conjugates,
     ``objectDistance`` is positive, measured back from the first vertex, and
     ``objectHeight`` defines the field in mm; fieldAngle is then ignored.
+    Set objectHeight=None to use fieldAngle as the incident chief-ray slope
+    at a finite conjugate, preserving an angular field across distances.
+
+    focusDistance is the object distance defining the paraxial sensor
+    reference, in mm; None uses objectDistance. It neither changes the
+    prescription nor the actual-object rays. The result retains both Gaussian
+    image planes so Seidel analysis can exclude their axial defocus.
 
     The chief ray is aimed at lens.stopIndex. An explicit stopSemiDiameter
     scales the marginal ray at that stop. Otherwise pupilSemiDiameter, or the
@@ -105,7 +144,7 @@ def TraceLens(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
     wavelength = float(wavelength)
     fieldAngle = float(fieldAngle)
     objectDistance = float(objectDistance)
-    objectHeight = float(objectHeight)
+    focusDistance = objectDistance if focusDistance is None else float(focusDistance)
     initialRI = float(lens.env.RI(wavelength))
 
     # Only the incident height at the stop is needed for aiming. Refraction
@@ -119,7 +158,12 @@ def TraceLens(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
         chiefHeight = -pupilZ * chiefSlope
         marginalSlope = 0.0
         objectHeight = 0.0
+    elif objectHeight is None:
+        chiefSlope = math.radians(fieldAngle)
+        chiefHeight = -pupilZ * chiefSlope
+        objectHeight = -(objectDistance + pupilZ) * chiefSlope
     else:
+        objectHeight = float(objectHeight)
         chiefSlope = -objectHeight / (objectDistance + pupilZ)
         chiefHeight = objectHeight + objectDistance * chiefSlope
         fieldAngle = 0.0
@@ -173,4 +217,5 @@ def TraceLens(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
 
     return ParaxialResult(tuple(histories), wavelength, objectDistance,
                           objectHeight, float(fieldAngle), float(pupilSemiDiameter),
-                          float(stopSemiDiameter), lens.stopIndex, invariant, matrix)
+                          float(stopSemiDiameter), lens.stopIndex, invariant, matrix,
+                          focusDistance)

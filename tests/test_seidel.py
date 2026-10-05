@@ -82,6 +82,127 @@ def exact_image_position(lens, x, y, angle, imageZ):
 
 
 class SeidelTests(unittest.TestCase):
+    def test_lens_default_reference_preserves_positive_angular_field(self):
+        # PlotSurfaceData forwards the reference field and wavelength only.
+        # Its positive angular field must not fall through to object height.
+        lens = objective()
+        reference = lens.ComputeSeidelCoefficients(referenceField=20.0,
+                                                  wavelength=587.56)
+        trace = reference.seidel.paraxial
+        self.assertEqual(reference.fieldUnits, "degrees")
+        self.assertEqual(trace.fieldAngle, 20.0)
+        self.assertAlmostEqual(trace.surfaces[0].chiefIncident.slope,
+                               math.radians(20.0))
+        self.assertAlmostEqual(trace.surfaces[lens.stopIndex].chiefIncident.height, 0.0)
+
+    def test_defocused_conjugates_preserve_five_terms_and_prescription(self):
+        lens = objective()
+        thicknesses = [float(s.thickness) for s in lens.surfaces]
+        settings = dict(objectDistance=13500.0, referenceField=10.0,
+                        referenceFieldUnits="degrees", stopSemiDiameter=2.0)
+        matched = lens.ComputeSeidelCoefficients(focusDistance=None, **settings)
+        explicit = lens.ComputeSeidelCoefficients(focusDistance=13500.0, **settings)
+        defocused = lens.ComputeSeidelCoefficients(focusDistance=1350.0, **settings)
+        for result in (explicit, defocused):
+            np.testing.assert_array_equal(result.totals.AsTuple(), matched.totals.AsTuple())
+            for actual, expected in zip(result.surfaces, matched.surfaces):
+                self.assertEqual(actual, expected)
+            self.assertEqual(result.CumulativeCoefficients(), matched.CumulativeCoefficients())
+            self.assertEqual(result.SumSurfaces(1, 3), matched.SumSurfaces(1, 3))
+            self.assertEqual(len(result.totals.AsTuple()), 5)
+        self.assertEqual(matched.seidel.paraxial.focusDistance, 13500.0)
+        self.assertEqual(matched.seidel.paraxial.imageDefocus, 0.0)
+        self.assertGreater(defocused.seidel.paraxial.imageDefocus, 0.0)
+        focusedObject = lens.ComputeSeidelCoefficients(
+            objectDistance=1350.0, focusDistance=1350.0, referenceField=10.0,
+            referenceFieldUnits="degrees", stopSemiDiameter=2.0)
+        self.assertFalse(np.allclose(defocused.totals.AsTuple(),
+                                     focusedObject.totals.AsTuple(), rtol=1e-5, atol=0.0))
+        self.assertEqual([float(s.thickness) for s in lens.surfaces], thicknesses)
+        self.assertIsNone(lens.focalPoint)
+        self.assertIsNone(lens.surfaces[0].frontVertex)
+
+    def test_focus_reference_matches_independent_interface_conjugates(self):
+        lens = objective()
+        lens.surfaces = [Stop(0.0), surface(50.0, 0.0, 1.5)]
+        lens.stopIndex = 0
+        for actual, focus in ((13500.0, 1350.0), (math.inf, 1350.0),
+                              (13500.0, math.inf), (math.inf, math.inf)):
+            trace = TraceLens(lens, objectDistance=actual, focusDistance=focus)
+            # Independent Gaussian refraction: n'/L = (n'-n)/R - n/d.
+            actualImage = 1.5 / (.5 / 50.0 - 1.0 / actual)
+            focusImage = 1.5 / (.5 / 50.0 - 1.0 / focus)
+            self.assertAlmostEqual(trace.objectImageZ, actualImage)
+            self.assertAlmostEqual(trace.focusImageZ, focusImage)
+            self.assertAlmostEqual(trace.imageDefocus, focusImage - actualImage)
+        # A plane interface at infinite conjugates remains usable by Seidel.
+        lens.surfaces[1] = surface(math.inf, 0.0, 1.5)
+        trace = TraceLens(lens)
+        self.assertTrue(math.isinf(trace.objectImageZ))
+        self.assertTrue(math.isinf(trace.focusImageZ))
+        self.assertEqual(trace.imageDefocus, 0.0)
+
+    def test_finite_angular_field_aiming_and_evaluation(self):
+        lens = objective()
+        reference = lens.ComputeSeidelCoefficients(
+            referenceField=7.0, referenceFieldUnits="degrees",
+            objectDistance=13500.0, focusDistance=1350.0, stopSemiDiameter=2.0)
+        trace = reference.seidel.paraxial
+        self.assertEqual(reference.fieldUnits, "degrees")
+        self.assertEqual(trace.fieldAngle, 7.0)
+        self.assertAlmostEqual(trace.surfaces[0].chiefIncident.slope, math.radians(7.0))
+        self.assertAlmostEqual(trace.surfaces[lens.stopIndex].chiefIncident.height, 0.0)
+        initial = trace.surfaces[0].chiefIncident
+        self.assertAlmostEqual(initial.height - trace.objectDistance * initial.slope,
+                               trace.objectHeight)
+        heightBased = lens.ComputeSeidel(
+            objectDistance=13500.0, objectHeight=trace.objectHeight,
+            focusDistance=1350.0, stopSemiDiameter=2.0)
+        np.testing.assert_allclose(values(heightBased.totals), values(reference.seidel.totals),
+                                   rtol=1e-13, atol=1e-15)
+        for field in (-12.0, 0.0, 3.0, 7.0):
+            evaluated = reference.EvaluateField(field)
+            direct = lens.ComputeSeidel(
+                fieldAngle=field, objectHeight=None, objectDistance=13500.0,
+                focusDistance=1350.0, stopSemiDiameter=2.0)
+            np.testing.assert_allclose(values(evaluated.totals), values(direct.totals), atol=1e-15)
+            self.assertEqual(evaluated.paraxial.fieldAngle, field)
+            self.assertAlmostEqual(evaluated.paraxial.objectHeight, direct.paraxial.objectHeight)
+            self.assertEqual(evaluated.paraxial.focusDistance, 1350.0)
+            self.assertEqual(evaluated.paraxial.imageDefocus, trace.imageDefocus)
+            for actual, expected in zip(evaluated.paraxial.surfaces, direct.paraxial.surfaces):
+                self.assertAlmostEqual(actual.chiefIncident.height, expected.chiefIncident.height)
+                self.assertAlmostEqual(actual.chiefOutgoing.slope, expected.chiefOutgoing.slope)
+
+    def test_finite_angular_field_has_infinite_conjugate_limit(self):
+        lens = objective()
+        settings = dict(referenceField=3.0, referenceFieldUnits="degrees",
+                        focusDistance=1350.0, stopSemiDiameter=2.0)
+        infinite = ComputeSeidelCoefficients(lens, **settings)
+        for distance in (1350.0, 13500.0):
+            finite = ComputeSeidelCoefficients(lens, objectDistance=distance, **settings)
+            self.assertEqual(finite.seidel.paraxial.surfaces[0].chiefIncident,
+                             infinite.seidel.paraxial.surfaces[0].chiefIncident)
+        distant = ComputeSeidelCoefficients(lens, objectDistance=1e12, **settings)
+        np.testing.assert_allclose(distant.totals.AsTuple(), infinite.totals.AsTuple(), rtol=1e-8)
+
+    def test_defocused_finite_spherical_matches_exact_snell_trace(self):
+        lens = objective()
+        lens.surfaces = [Stop(0.0), surface(50.0, 5.0, 1.5), surface(-50.0, 0.0)]
+        lens.stopIndex = 0
+        result = ComputeSeidel(lens, objectDistance=13500.0, focusDistance=1350.0,
+                               objectHeight=0.0, pupilSemiDiameter=1.0)
+        last = result.paraxial.surfaces[-1]
+        predicted = result.totals.S1 / (2.0 * last.outgoingRI * last.marginalOutgoing.slope)
+        errors = []
+        for height in (.2, .1):
+            # Launch the finite-conjugate axial ray at the first vertex.
+            angle = math.atan(height / 13500.0)
+            errors.append(exact_image_position(lens, 0.0, height, angle,
+                                               result.paraxial.objectImageZ)[1] / height**3)
+        extrapolated = (4 * errors[1] - errors[0]) / 3
+        self.assertAlmostEqual(extrapolated, predicted, delta=abs(predicted) * 1e-6)
+
     def test_reference_coefficients_survive_zero_field(self):
         lens = objective()
         reference = lens.ComputeSeidelCoefficients(referenceField=5.0)

@@ -137,8 +137,9 @@ class SeidelReferenceResult:
             for row in reference.surfaces)
         paraxial = replace(reference, surfaces=histories,
                            lagrangeInvariant=reference.lagrangeInvariant * factor)
-        if math.isinf(reference.objectDistance):
-            paraxial = replace(paraxial, fieldAngle=field)
+        if self.fieldUnits == "degrees":
+            paraxial = replace(paraxial, fieldAngle=field,
+                               objectHeight=reference.objectHeight * factor)
         else:
             paraxial = replace(paraxial, objectHeight=field)
         return CalculateSeidel(paraxial)
@@ -193,21 +194,26 @@ def CalculateSeidel(paraxial):
 
 def ComputeSeidel(lens, fieldAngle=1.0, wavelength=LambdaLines["d"],
                   objectDistance=math.inf, objectHeight=0.0,
-                  pupilSemiDiameter=None, stopSemiDiameter=None):
+                  pupilSemiDiameter=None, stopSemiDiameter=None, focusDistance=None):
     """Return per-surface coefficients, totals, settings, and ray histories.
 
     See TraceLens for aperture/conjugate definitions. Wavelength is numeric
     nanometers; fieldAngle is degrees (default 1). Use objectHeight in mm for
     finite conjugates. No lens update, real-ray clipping, or imager is required.
+    objectHeight=None uses angular field at finite conjugates. focusDistance
+    sets the paraxial sensor reference (None matches objectDistance), without
+    changing the prescription. Only the five actual-conjugate aberrations are
+    returned; the image-plane mismatch contributes no W020 to these sums.
     """
     return CalculateSeidel(TraceLens(
         lens, fieldAngle, wavelength, objectDistance, objectHeight,
-        pupilSemiDiameter, stopSemiDiameter))
+        pupilSemiDiameter, stopSemiDiameter, focusDistance))
 
 
 def ComputeSeidelCoefficients(lens, referenceField=1.0,
                               wavelength=LambdaLines["d"], objectDistance=math.inf,
-                              pupilSemiDiameter=None, stopSemiDiameter=None):
+                              pupilSemiDiameter=None, stopSemiDiameter=None,
+                              focusDistance=None, referenceFieldUnits=None):
     """Return field-independent wavefront coefficients and reference sums.
 
     referenceField must be nonzero: degrees for an infinite object, signed
@@ -216,15 +222,27 @@ def ComputeSeidelCoefficients(lens, referenceField=1.0,
     field/pupil polynomial for h = field/referenceField, at the fixed aperture,
     wavelength and conjugate. The result can evaluate any selected field,
     including zero, through EvaluateField(), without retracing the lens.
+
+    focusDistance is in mm; None matches objectDistance. The current lens
+    configuration is retained and the focus-plane defocus is excluded, while
+    all five actual-object Seidel terms (including field curvature) remain.
+    seidel.paraxial records focusDistance and both Gaussian image planes.
+    referenceFieldUnits=None preserves the legacy units above. Use "degrees"
+    for angular fields at any distance, defined by the incident chief-ray
+    slope; finite object height is then derived at the entrance-pupil plane.
     """
     referenceField = float(referenceField)
     objectDistance = float(objectDistance)
-    if math.isinf(objectDistance):
-        fieldAngle, objectHeight, fieldUnits = referenceField, 0.0, "degrees"
+    fieldUnits = referenceFieldUnits
+    if fieldUnits is None:
+        fieldUnits = "degrees" if math.isinf(objectDistance) else "mm"
+    if fieldUnits == "degrees":
+        fieldAngle, objectHeight = referenceField, None
     else:
-        fieldAngle, objectHeight, fieldUnits = 0.0, referenceField, "mm"
+        fieldAngle, objectHeight = 0.0, referenceField
     seidel = ComputeSeidel(lens, fieldAngle, wavelength, objectDistance,
-                           objectHeight, pupilSemiDiameter, stopSemiDiameter)
+                           objectHeight, pupilSemiDiameter, stopSemiDiameter,
+                           focusDistance)
     rows = tuple(SurfaceWavefront(row.surfaceIndex, row.sphericalBase.ToWavefront(),
                                  row.asphericDeparture.ToWavefront(),
                                  row.coefficients.ToWavefront())

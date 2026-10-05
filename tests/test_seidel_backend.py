@@ -86,6 +86,11 @@ for environment in ("AIR", "BAF9"):
         lens.entrancePupil.clearSemiDiameter = bd.asarray(3.0)
         reference = lens.ComputeSeidelCoefficients(referenceField=bd.asarray(10.0),
                                                   objectDistance=bd.asarray(800.0))
+        defocused = lens.ComputeSeidelCoefficients(
+            referenceField=bd.asarray(5.0), referenceFieldUnits="degrees",
+            objectDistance=bd.asarray(13500.0), focusDistance=bd.asarray(1350.0),
+            stopSemiDiameter=bd.asarray(2.0))
+        defocusTrace = defocused.seidel.paraxial
         for settings in ({}, {"wavelength": 550},
                          {"fieldAngle": bd.asarray(6.0), "wavelength": bd.asarray(587.56),
                           "objectDistance": bd.asarray(math.inf)},
@@ -105,7 +110,11 @@ for environment in ("AIR", "BAF9"):
                              "reference": [row.coefficients.AsTuple() for row in reference.surfaces],
                              "cumulative": [row.AsTuple() for row in reference.CumulativeCoefficients()],
                              "evaluatedZero": reference.EvaluateField(bd.asarray(0.)).totals.AsTuple(),
-                             "evaluatedNegative": reference.EvaluateField(bd.asarray(-20.)).totals.AsTuple()})
+                             "evaluatedNegative": reference.EvaluateField(bd.asarray(-20.)).totals.AsTuple(),
+                             "defocused": defocused.totals.AsTuple(),
+                             "defocusPlanes": [defocusTrace.objectImageZ, defocusTrace.focusImageZ,
+                                               defocusTrace.imageDefocus, defocusTrace.focusDistance],
+                             "defocusedNegative": defocused.EvaluateField(bd.asarray(-10.)).totals.AsTuple()})
         # Direct entry points must also accept scalar wavelengths and GPU
         # indices without leaving device scalars in their host matrices.
         matrix, index = SurfaceMatrix(front, bd.asarray(1.0), 550)

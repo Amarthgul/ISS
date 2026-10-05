@@ -280,27 +280,6 @@ def CurvTest():
         writeFile=True)
 
 
-def Seidel():
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonFD50f1.8.zmx")).GetLens()
-    result = lens.ComputeSeidel(fieldAngle=20, wavelength=587.56)
-
-    reference = lens.ComputeSeidelCoefficients(referenceField=10.0)
-
-    # Per-surface spherical-aberration coefficients
-    sa = [row.coefficients.W040 for row in reference.surfaces]
-
-    # Cumulative correction through the lens
-    saCumulative = [
-        row.W040 for row in reference.CumulativeCoefficients()
-    ]
-
-    # Seidel sums and selected-field evaluation
-    sums = reference.seidel
-    onAxis = reference.EvaluateField(0.0)
-
-    print(saCumulative)
-
-
 def EFL():
     # lens = ZeissHologon15mmf8()
     from Util.Analysis.SurfaceData import displayConfigSeidel
@@ -318,7 +297,7 @@ def EFL():
     lens.PlotSurfaceData(
         DisplayConfig=displayConfigSeidel,
         SeidelReferenceField=23.0,
-        PlotTrackLength=74
+        PlotTrackLength=79,
     )
 
 

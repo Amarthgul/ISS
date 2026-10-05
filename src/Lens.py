@@ -546,31 +546,41 @@ class Lens:
 
     def ComputeSeidel(self, fieldAngle=1.0, wavelength=LambdaLines["d"],
                       objectDistance=float("inf"), objectHeight=0.0,
-                      pupilSemiDiameter=None, stopSemiDiameter=None):
+                      pupilSemiDiameter=None, stopSemiDiameter=None, focusDistance=None):
         """Compute five monochromatic Seidel sums and per-surface contributions.
 
         Field angle is degrees, wavelength nm, and all lengths mm. At finite
         objectDistance use objectHeight instead of fieldAngle. The aperture
         defaults to the current entrance-pupil radius; stopSemiDiameter can
         instead explicitly normalize the marginal ray at the stop.
+        objectHeight=None uses angular field at finite conjugates. focusDistance
+        (mm, None matches objectDistance) defines a paraxial sensor reference;
+        its defocus is excluded and the current prescription is held fixed.
         """
-        return ComputeSeidel(self, fieldAngle, wavelength, objectDistance,
-                             objectHeight, pupilSemiDiameter, stopSemiDiameter)
+        return ComputeSeidel(self, fieldAngle, wavelength, objectDistance=objectDistance,
+                             objectHeight=objectHeight, pupilSemiDiameter=pupilSemiDiameter, stopSemiDiameter=stopSemiDiameter,
+                             focusDistance=focusDistance)
 
 
     def ComputeSeidelCoefficients(self, referenceField=1.0,
                                   wavelength=LambdaLines["d"],
                                   objectDistance=float("inf"),
-                                  pupilSemiDiameter=None, stopSemiDiameter=None):
+                                  pupilSemiDiameter=None, stopSemiDiameter=None,
+                                  focusDistance=None, referenceFieldUnits="degrees"):
         """Return field-independent wavefront coefficients at each surface.
 
         referenceField is nonzero: degrees at infinity or object height in mm
         at finite conjugates. The result retains reference-field Seidel sums
         and supports cumulative coefficients and selected-field evaluation.
+        Use referenceFieldUnits="degrees" to preserve angular field across
+        finite/infinite object distances. focusDistance (mm) defaults to the
+        object distance; its paraxial defocus is excluded from the five terms.
+        Configure focusing elements beforehand: this method does not move them.
         """
         return ComputeSeidelCoefficients(self, referenceField, wavelength,
                                          objectDistance, pupilSemiDiameter,
-                                         stopSemiDiameter)
+                                         stopSemiDiameter, focusDistance,
+                                         referenceFieldUnits)
 
 
     def PlotSurfaceData(
