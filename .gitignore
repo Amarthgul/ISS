@@ -36,3 +36,4 @@ tests/MitsubaDev.py
 tests/test_seidel.py
 tests/test_seidel_backend.py
 tests/test_surface_data.py
+/outputs

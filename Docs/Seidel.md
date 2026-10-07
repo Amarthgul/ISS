@@ -113,7 +113,8 @@ is Gaussian/paraxial, not the sampled real-ray best-RMS focus used by rendering.
 Let the system matrix from the first to the last vertex be
 
 $$
-M=\begin{pmatrix}A&B\\C&D\end{pmatrix}.
+M=\begin{pmatrix}A & B \\ 
+C & D \end{pmatrix}.
 $$
 
 An axial ray from object distance $d$ has initial slope $u_0=y_0/d$.
@@ -165,7 +166,7 @@ API. No exact-angle tangent correction is introduced in this first-order model.
 
 If the transfer matrix to the stop has first row $(a,b)$, the entrance pupil is
 at $z_p=b/a$ relative to the first vertex. For angular reference slope
-$\alpha=\operatorname{radians}(\mathrm{referenceField})$, finite-object aiming is
+$\alpha=\textrm{radians}(\mathrm{referenceField})$, finite-object aiming is
 
 $$
 \bar u_0=\alpha,\qquad \bar y_0=-z_p\alpha,\qquad
@@ -198,15 +199,15 @@ subset of surfaces is summed.
 
 At surface `i`, the notation is:
 
-| Symbol | Meaning | Units |
-| --- | --- | --- |
-| $y_i, u_i$ | Incident marginal-ray height and slope | mm, dimensionless |
-| $\bar y_i, \bar u_i$ | Incident chief-ray height and slope | mm, dimensionless |
-| $u'_i, \bar u'_i$ | Outgoing marginal/chief slopes | dimensionless |
-| $n_i, n'_i$ | Incident and outgoing refractive indices at the selected wavelength | dimensionless |
-| $c_i$ | Effective vertex curvature, including A2 for an even asphere | mm$^{-1}$ |
-| $t_i$ | Axial thickness following the surface | mm |
-| $q_i$ | Coefficient of $r^4$ in the surface sag expansion | mm$^{-3}$ |
+| Symbol | Meaning | Units               |
+| --- | --- |---------------------|
+| $y_i, u_i$ | Incident marginal-ray height and slope | $mm$, dimensionless |
+| $\bar y_i, \bar u_i$ | Incident chief-ray height and slope | $mm$, dimensionless |
+| $u'_i, \bar u'_i$ | Outgoing marginal/chief slopes | dimensionless       |
+| $n_i, n'_i$ | Incident and outgoing refractive indices at the selected wavelength | dimensionless       |
+| $c_i$ | Effective vertex curvature, including A2 for an even asphere | $mm^{-1}$           |
+| $t_i$ | Axial thickness following the surface | $mm$                |
+| $q_i$ | Coefficient of $r^4$ in the surface sag expansion | $mm^{-3}$           |
 
 Slope means `dy/dz`, represented by the paraxial angle in radians, rather than
 the reduced slope `n*u`. Signed heights increase toward positive Y and rays
