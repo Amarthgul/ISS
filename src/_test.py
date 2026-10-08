@@ -302,6 +302,28 @@ def EFL():
 
 
 
+def EqualConjugate():
+    """Analyze the EFL example prescription at its exact 1:1 conjugates."""
+    from Util.Analysis.EqualConjugate import (
+        ComputeEqualConjugateSeidel, PlotEqualConjugateSeidel,
+    )
+
+    reader = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx"))
+    lens = reader.GetLens(autoUpdate=False)
+    # This reader omits the stop's DIAM when no CLAP is present. Preserve the
+    # ZMX aperture directly and avoid the separate real-ray pupil update.
+    lens.stopIndex = next(i for i, surface in enumerate(lens.surfaces) if surface.stopOnly)
+    stopData = next(row for row in reader._SurfDict if "STOP" in row)
+    lens.surfaces[lens.stopIndex].clearSemiDiameter = float(stopData["DIAM"][0])
+    # Finite fields are object heights in mm, rather than EFL's field degrees.
+    # Omitting distances uses 2*calculated EFL from each principal plane.
+    # For a true 50 mm EFL, explicit objectDistance=100, imageDistance=100
+    # gives the same geometry (distanceReference="principal" by default).
+    result = ComputeEqualConjugateSeidel(lens, referenceField=23.0)
+    print(result.Report())
+    return PlotEqualConjugateSeidel(lens, result=result)
+
+
 def GlassVeil():
     from src.Util.Analysis.GlassVeil import PlotGlassVeil
 
@@ -522,4 +544,4 @@ def main():
 
 
 if __name__ == "__main__":
-    EFL()
+    EqualConjugate()
