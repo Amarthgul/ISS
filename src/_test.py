@@ -247,23 +247,28 @@ def CatadioptricTest():
 
 def MaterialLookUpTest():
     from Util.Misc import RectPath
-    from Util.MaterialLookup import FindClosestMaterialsBatch
+    from Util.MaterialLookup import FindClosestMaterialsBatch, FindClosestMaterialsByLines
     # Example usage:
     excel_file = ReadSheet()
 
     line = 'd'
     stats = [
-        [1.589 ,   61.2],
-        [1.497 ,   81.6],
-        [1.785 ,   25.9],
-        [1.772 ,   49.7],
-        [1.806 ,   40.9],
-        [1.772 ,   49.7],
-        [1.728 ,   28.4],
-        [1.772 ,   49.7]
+        [1.65128 ,   35.9],
+        [1.653  ,  46.2],
+        [1.741  ,  34.5],
+        [1.5012 ,   56.6],
+        [1.6913 ,   54.9]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=12, writePath=RectPath("resources/")).to_string(index=False)
+
+
+    lines = ["D", "G'"]
+    targets = [
+        [1.56384 ,   1.57532],
+        [1.64769 ,   1.67249]
+    ]
+    # result_df = FindClosestMaterialsByLines(excel_file, lines, targets, top_k=12, writePath=RectPath("resources/")).to_string(index=False)
     print("Closest matches:")
     print(result_df)
 
@@ -284,7 +289,7 @@ def EFL():
     # lens = ZeissHologon15mmf8()
     from Util.Analysis.SurfaceData import displayConfigSeidel
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/RudolphPlanar50f4.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/PlanarContarex50f2.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -544,4 +549,4 @@ def main():
 
 
 if __name__ == "__main__":
-    EqualConjugate()
+    EFL()

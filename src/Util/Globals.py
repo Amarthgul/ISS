@@ -126,7 +126,8 @@ HORI_DIR = bd.array([1, 0, 0])
 # and material RI and Abbe calculation 
 LambdaLines = {
     "i" : 365.01,  # Default UV cut 
-    "h" : 404.66, 
+    "h" : 404.66,
+    "G'": 434.047,
     "g" : 435.84,  # Default B
     "F'": 479.99, 
     "F" : 486.13,  # Default secondary 

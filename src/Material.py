@@ -35,10 +35,10 @@ class Material:
     When initialized with a string of material name, this class will try to find it among over 3000 available materials in the material catalog library. This can then be used to model the dispersion of light.
     If nothing is passed in, this material will be treated as a default material, usually Air, with a constant RI of 1 regardless of wavelength.
     """
-    def __init__(self, name = DEFAULT_MAT_NAME):
+    def __init__(self, name = DEFAULT_MAT_NAME, category = None):
         self.name = name 
 
-        self.category = None 
+        self.category = category
         self.Formula = None 
 
         self.glassTable = None 
@@ -110,7 +110,12 @@ class Material:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 file_path = os.path.join(script_dir, "AbbeGlassTable.xlsx")
                 df = pd.read_excel(file_path)
-            found = df[df["Name"] == self.name].iloc[0]
+            matches = df[df["Name"] == self.name]
+            if self.category is not None:
+                matches = matches[matches["Cate"] == self.category]
+            if matches.empty:
+                raise ValueError(f"Material {self.name!r} in category {self.category!r} not found")
+            found = matches.iloc[0]
             # Same name material should have the same parameter so it should not matter 
             formula = found["Formula"]
             self.category = found["Cate"]
