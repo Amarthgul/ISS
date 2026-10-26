@@ -496,6 +496,52 @@ scale and the same horizontal alignment as the coefficient and material tracks.
 The data tracks follow the layout's displayed width on every redraw, preserving
 axial alignment when the plot window is resized or the figure is exported.
 
+## Chromatic surface correction tracks
+
+```python
+from Util.Analysis import SurfaceData
+
+# Fraunhofer lines are plotted in this order; use 2 to 5 lines.
+SurfaceData.chromaticLines = ["C", "d", "F"]
+fig, axes = lens.PlotSurfaceData(
+    DisplayConfig=SurfaceData.displayConfigSeidelC,
+    SeidelReferenceField=1.0,
+    SeidelObjectDistance=float("inf"),
+    SeidelFocusDistance=float("inf"),
+)
+```
+
+The preset selects `SeidelW040C`. Replace it with `SeidelW131C`, `SeidelW222C`,
+`SeidelW220C`, or `SeidelW311C` to compare another coefficient. Select one
+chromatic coefficient per plot. Under the layout, each wavelength receives a
+cumulative coefficient track in mm on a common vertical scale, colored by its
+approximate spectral hue (for example, C red, d amber, and F blue-cyan). UV and
+IR lines use violet and deep red. The unsigned spread track remains gray and
+shows `max(cumulative W) - min(cumulative W)` across wavelengths at each surface,
+so it measures the remaining chromatic spread after correction through that
+surface, rather than the cumulative sum of individual surface spreads.
+
+Including `SurfaceDataType.SeidelSigned` adds another subplot after the spread
+plot. Its bars show `W(chromaticLines[-1]) - W(chromaticLines[0])` using the
+cumulative coefficient at each surface, in mm. The axis label names the two
+lines in subtraction order; positive and negative values preserve wavelength
+ordering reversals. The current `displayConfigSeidelC` preset includes this
+option. Remove it to show only the wavelength panels and unsigned spread.
+Lines are assumed to be ordered monotonically by wavelength and are used
+exactly as supplied, without sorting or checking their order.
+
+The first wavelength resolves the physical stop radius from the current
+entrance-pupil radius. That stop radius stays fixed for all subsequent traces.
+`SeidelObjectDistance` and `SeidelFocusDistance` default to infinity and are
+measured in mm back from the first vertex. For finite objects, the reference
+angle resolves an object height at the first wavelength; that same object
+point is then used at every wavelength. The layout uses the same real-ray
+surface intersections, pupil display and focus framing as the other
+`DisplayConfig` options, including support for `PlotAllPupilPoints`.
+The prescription is held fixed. Axial defocus from the common
+focus plane is excluded from these five coefficients; this is a comparison of
+their wavelength dependence, rather than a complete polychromatic wavefront.
+
 ## Even aspheres
 
 The existing coefficient ordering remains `[A2, A4, A6, ...]`. To start with A4,

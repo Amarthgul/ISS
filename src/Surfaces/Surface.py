@@ -479,7 +479,9 @@ class Surface:
         #    - RayBatch for rays that refract forward and are not vignetted or TIR
         #    - TIR-like mask for non-vignetted rays (now also marks flipped rays)
         #    - geometric vignette mask for all incoming rays (unchanged length N)
-        return outRB, bad, boolVig
+        rejected = TIR.copy()
+        rejected[~TIR] |= flipped
+        return outRB, rejected, boolVig
 
 
     def Trace(self, incidentRaybatch, previousRI, inverted=False, reflection=False, useClearBoundary=False):

@@ -591,6 +591,8 @@ class Lens:
             PlotTrackHeight=None,
             DisplayConfig=None,
             SeidelReferenceField=1.0,
+            SeidelObjectDistance=float("inf"),
+            SeidelFocusDistance=float("inf"),
     ):
 
         return PlotSurfaceData(
@@ -601,6 +603,8 @@ class Lens:
             PlotAllPupilPoints=PlotAllPupilPoints,
             DisplayConfig=DisplayConfig,
             SeidelReferenceField=SeidelReferenceField,
+            SeidelObjectDistance=SeidelObjectDistance,
+            SeidelFocusDistance=SeidelFocusDistance,
         )
 
 

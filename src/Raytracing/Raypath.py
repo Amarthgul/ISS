@@ -26,8 +26,9 @@ class RayPath():
         Append a raybatch to the path. 
 
         :param raybatch: The raybatch to be recorded.
-        :param reflected: bool array of reflected rays.
-        :param vignetted: bool array of vignetted rays.
+        :param reflected: rejection mask after geometric vignetting (TIR or
+            direction flips); positions/directions already exclude these rays.
+        :param vignetted: geometric rejection mask over incoming rays.
         """
 
         if (self.position is None):
@@ -71,18 +72,18 @@ class RayPath():
             # so that both set of points have the same size 
             if(len(self.position[i+1]) == 0): break 
             DrawLines(
-                self.position[i][~self.vignetted[i+1]][~self.reflected[i+1]],    
+                self.position[i][self._SurvivingIndices(i+1)],
                 self.position[i+1], 
                 lineColor = color, 
                 lineWidth = 0.5
             )
 
         # Draw the last point
-        if(expendEnd > 0):
+        if(expendEnd > 0 and len(self.position[-1]) > 0):
             i = len(self.direction)-1
             DrawNormal(
-                self.position[i][~self.reflected[i]], 
-                self.direction[i][~self.reflected[i]], 
+                self.position[i],
+                self.direction[i],
                 lineColor = color,
                 lineLength = expendEnd
                 )
@@ -167,7 +168,7 @@ class RayPath():
         # Since a plane can cover several surfaces, iterate through all the segments 
         for i in range(posCount):
             if(i < posCount-1):
-                thisPos = self.position[i][~self.vignetted[i+1]]
+                thisPos = self.position[i][self._SurvivingIndices(i+1)]
                 nextPos = self.position[i+1]
                 temp = self._LineSegmentIntersection(
                         thisPos, nextPos, 
@@ -187,48 +188,44 @@ class RayPath():
         return intersections
 
 
+    def _SurvivingIndices(self, step):
+        """Map a recorded outgoing batch to indices in the preceding batch."""
+        indices = bd.arange(len(self.position[step-1]))
+        if self.vignetted[step] is not None:
+            indices = indices[~self.vignetted[step]]
+        if self.reflected[step] is not None:
+            indices = indices[~self.reflected[step]]
+        return indices
+
+
     def PruneAll(self):
+        """Return an independent path containing only rays reaching its end.
+
+        Each transition first removes geometric vignetting, then TIR/direction
+        flips. Compose these mappings backward to preserve ray identity without
+        modifying the original masks or applying them to already-filtered rays.
         """
-        Prune all the rays that are vignetted or reflected, leaving only the refeacted rays. Not that this only works for refractive optics. 
-        """
-        doppelganger = RayPath()
-        doppelganger.position = list.copy(self.position)
-        doppelganger.direction = list.copy(self.direction)
-        doppelganger.reflected = list.copy(self.reflected)
-        doppelganger.vignetted = list.copy(self.vignetted)
+        out = RayPath()
+        if not self.position:
+            return out
 
-        ineffective = doppelganger.vignetted[len(doppelganger.position)-1] 
-        ineffective[~ineffective] &= doppelganger.reflected[len(doppelganger.position)-1]
+        selected = bd.arange(len(self.position[-1]))
+        count = len(selected)
+        out.position = [None] * len(self.position)
+        out.direction = [None] * len(self.direction)
+        for step in range(len(self.position)-1, -1, -1):
+            out.position[step] = self.position[step][selected].copy()
+            out.direction[step] = self.direction[step][selected].copy()
+            if step > 0:
+                selected = self._SurvivingIndices(step)[selected]
 
-        for i in range(len(doppelganger.position)-1, -1, -1):
-            if(i < len(doppelganger.position)-1 and i >1):
-                # Bool AND the ineffective rays 
-                doppelganger.vignetted[i-1][~doppelganger.vignetted[i-1]] |= doppelganger.vignetted[i]
-                doppelganger.reflected[i-1][~doppelganger.vignetted[i]] |= doppelganger.reflected[i][~doppelganger.vignetted[i+1]]
-
-                # Merge the reflected and vignetted 
-                ineffective = doppelganger.vignetted[i] 
-                ineffective[~doppelganger.vignetted[i]] |= doppelganger.reflected[i][~doppelganger.vignetted[i+1]]
-
-                # Apply the ineffective rays to prune the positions  and directions 
-                doppelganger.position[i-1] = doppelganger.position[i-1][~ineffective]
-                doppelganger.direction[i-1] = doppelganger.direction[i-1][~ineffective]
-        
-        # In the event of the raypath containing the emission source, index 0 is None
-        if(doppelganger.vignetted[0] == None):
-            # In this case, the vignetted mask of the emission needs to be manually applied from the first entry
-            temp = doppelganger.vignetted[1]
-            temp[~temp] = ineffective[~ineffective]
-            ineffective = temp
-            doppelganger.position[0] = doppelganger.position[0][~ineffective]
-            doppelganger.direction[0] = doppelganger.direction[0][~ineffective]
-
-        # Since ray positions and directions are all pruned, reset all vignetted and relfected masks to false. 
-        for i in range(len(doppelganger.position)-1, 0, -1):
-            doppelganger.vignetted[i] = bd.zeros(len(doppelganger.position[i])).astype(bd.bool_)
-            doppelganger.reflected[i] = bd.zeros(len(doppelganger.position[i])).astype(bd.bool_)
-
-        return doppelganger
+        # The first record has no preceding recorded batch. Its original masks
+        # describe an external transition and are no longer needed after pruning.
+        out.vignetted = [None] + [bd.zeros(count, dtype=bd.bool_)
+                                  for _ in self.position[1:]]
+        out.reflected = [None] + [bd.zeros(count, dtype=bd.bool_)
+                                  for _ in self.position[1:]]
+        return out
 
 
     def EndToEndIntersection(self):

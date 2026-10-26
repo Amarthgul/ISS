@@ -7,6 +7,7 @@ from enum import Enum
 
 import math
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgb
 from matplotlib.transforms import Bbox
 import numpy as np
 
@@ -17,6 +18,10 @@ from .PAEFL import LensPartitionFL
 from .RayHeight import MarginalRayPath
 
 plt.rcParams['savefig.dpi'] = 300
+
+chromaticLines = [
+    "C", "d", "F"
+]
 
 class SurfaceDataType(Enum):
     RayHeight = 0
@@ -30,6 +35,12 @@ class SurfaceDataType(Enum):
     SeidelW222 = 8
     SeidelW220 = 9
     SeidelW311 = 10
+    SeidelW040C = 11
+    SeidelW131C = 12
+    SeidelW222C = 13
+    SeidelW220C = 14
+    SeidelW311C = 15
+    SeidelSigned = 16
 
 
 displayConfig = [
@@ -52,6 +63,14 @@ displayConfigSeidel = [
     SurfaceDataType.SeidelW311
 ]
 
+displayConfigSeidelC = [
+    SurfaceDataType.RayHeight,
+    SurfaceDataType.PrincipalPlane,
+    SurfaceDataType.EntrancePupil,
+    SurfaceDataType.SeidelW131C,
+    SurfaceDataType.SeidelSigned
+]
+
 
 _SeidelTracks = {
     SurfaceDataType.SeidelW040: ("W040", "#A63832"),
@@ -59,6 +78,11 @@ _SeidelTracks = {
     SurfaceDataType.SeidelW222: ("W222", "#8064AD"),
     SurfaceDataType.SeidelW220: ("W220", "#2696A1"),
     SurfaceDataType.SeidelW311: ("W311", "#D29A2E"),
+}
+
+_ChromaticSeidelTracks = {
+    SurfaceDataType[track.name + "C"]: spec
+    for track, spec in _SeidelTracks.items()
 }
 
 
@@ -70,6 +94,8 @@ def PlotSurfaceData(
         PlotTrackHeight=None,
         DisplayConfig=None,
         SeidelReferenceField=1.0,
+        SeidelObjectDistance=math.inf,
+        SeidelFocusDistance=math.inf,
 ):
     """
     Plot an optical layout and the tracks selected by ``displayConfig``.
@@ -89,6 +115,16 @@ def PlotSurfaceData(
     Seidel bars show cumulative wavefront coefficients in mm after each
     surface, over its following axial thickness. ``SeidelReferenceField``
     defines their nonzero reference field in degrees for an infinite object.
+    Chromatic Seidel types add one track per ``chromaticLines`` entry and a
+    pointwise max-minus-min cumulative track. The wavelength panels share a
+    vertical scale. Including ``SeidelSigned`` adds a final cumulative track
+    of the last chromatic line minus the first, retaining its sign. The line
+    ordering is used as supplied.
+    Distances are mm back from the first vertex; both default
+    to infinity. The first line defines the physical stop radius, finite
+    object point for the entire comparison. Focus-plane defocus is excluded
+    from the five coefficients. The layout uses the same real surface
+    intersections and pupil display as the other configurations.
     """
     _EnsureLensData(lens)
     if not lens.surfaces:
@@ -101,6 +137,14 @@ def PlotSurfaceData(
     showPrincipalPlane = SurfaceDataType.PrincipalPlane in selectedTypes
     showEntrancePupil = SurfaceDataType.EntrancePupil in selectedTypes
     trackSpecs = []
+    chromaticType = next((track for track in _ChromaticSeidelTracks
+                          if track in selectedTypes), None)
+    chromaticData = None
+    showSeidelSigned = SurfaceDataType.SeidelSigned in selectedTypes
+    if chromaticType is not None:
+        chromaticData, _baseline = _ChromaticSeidelData(
+            lens, vertices, SeidelReferenceField,
+            SeidelObjectDistance, SeidelFocusDistance)
 
     if SurfaceDataType.OpticalPower in selectedTypes:
         trackSpecs.append((SurfaceDataType.OpticalPower, 1.0))
@@ -111,6 +155,9 @@ def PlotSurfaceData(
     for trackType in _SeidelTracks:
         if trackType in selectedTypes:
             trackSpecs.append((trackType, 1.1))
+    if chromaticData is not None:
+        chromaticTrackCount = len(chromaticData) + 1 + int(showSeidelSigned)
+        trackSpecs.extend((chromaticType, 1.1) for _ in range(chromaticTrackCount))
 
     materialData = None
     if any(trackType in selectedTypes for trackType in (
@@ -168,6 +215,11 @@ def PlotSurfaceData(
             _DrawSurfaceMetric(axis, seidelData, key, f"Σ {key} (mm)", color,
                                3, 1e-12, numberFormat=".3g", includeZero=True)
 
+    if chromaticData is not None:
+        _DrawChromaticSeidel(axes[-chromaticTrackCount:], chromaticData,
+                             _ChromaticSeidelTracks[chromaticType][0],
+                             showSigned=showSeidelSigned)
+
     _ConfigureAlignment(axes, vertices, plotBounds)
     _SetLayoutScale(layoutAxis, layoutTrackHeight)
     fig.suptitle("Lens Layout and Surface Data")
@@ -175,6 +227,11 @@ def PlotSurfaceData(
         fig.suptitle("Lens Layout and Surface Data\n"
                      f"Seidel reference field: {float(SeidelReferenceField):g}°; "
                      f"wavelength: {float(LambdaLines[fraunhoferLine]):g} nm")
+    if chromaticData is not None:
+        fig.suptitle("Lens Layout and Chromatic Seidel Correction\n"
+                     f"Reference field: {float(SeidelReferenceField):g}° at {chromaticLines[0]}; "
+                     f"object / focus distance: {float(SeidelObjectDistance):g} / "
+                     f"{float(SeidelFocusDistance):g} mm; defocus excluded")
     _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight)
     _DrawLayoutLengths(
         layoutAxis,
@@ -549,14 +606,79 @@ def _SeidelData(lens, fraunhoferLine, vertices, referenceField):
     """
     reference = lens.ComputeSeidelCoefficients(
         referenceField=referenceField, wavelength=LambdaLines[fraunhoferLine])
+    return _SeidelRows(lens, vertices, reference.CumulativeCoefficients())
+
+
+def _SeidelRows(lens, vertices, coefficients):
+    """Attach the common prescription spans to cumulative coefficients."""
     data = []
-    for index, coefficients in enumerate(reference.CumulativeCoefficients()):
+    for index, value in enumerate(coefficients):
         left = vertices[index]
         right = (vertices[index + 1] if index < len(vertices) - 1
                  else left + _Scalar(lens.surfaces[index].thickness))
         data.append({"index": index, "left": left, "right": right,
-                     **coefficients.AsDict()})
+                     **value.AsDict()})
     return data
+
+
+def _ChromaticSeidelData(lens, vertices, referenceField, objectDistance, focusDistance):
+    """Retrace each line at the first line's fixed object point and aperture.
+
+    Finite angular fields imply a wavelength-dependent object height because
+    the entrance pupil moves. Resolve that height only once, at the first line.
+    Focus settings never add defocus to W.
+    """
+    reference = lens.ComputeSeidelCoefficients(
+        referenceField=referenceField, wavelength=LambdaLines[chromaticLines[0]],
+        objectDistance=objectDistance, focusDistance=focusDistance,
+        referenceFieldUnits="degrees")
+    baseline = reference.seidel.paraxial
+    data = [_SeidelRows(lens, vertices, reference.CumulativeCoefficients())]
+    for line in chromaticLines[1:]:
+        result = lens.ComputeSeidel(
+            fieldAngle=referenceField, wavelength=LambdaLines[line],
+            objectDistance=baseline.objectDistance, objectHeight=baseline.objectHeight,
+            stopSemiDiameter=baseline.stopSemiDiameter, focusDistance=baseline.focusDistance)
+        data.append(_SeidelRows(lens, vertices,
+                               (value.ToWavefront() for value in result.CumulativeSums())))
+    return data, baseline
+
+
+def _WavelengthColor(wavelength):
+    """Approximate spectral hues, with dark enough colors for bar labels.
+
+    Clamp UV/IR lines to violet/deep red; this is a visual cue, not colorimetry.
+    """
+    wavelengths = [380., 435., 486., 546., 588., 656., 780.]
+    colors = np.array([to_rgb(color) for color in (
+        "#793FB0", "#514BC4", "#168EB0", "#369748",
+        "#C18B16", "#C74336", "#8D303D")])
+    return tuple(np.interp(float(wavelength), wavelengths, colors[:, channel])
+                 for channel in range(3))
+
+
+def _DrawChromaticSeidel(axes, data, key, showSigned=False):
+    """Draw wavelength coefficients, range, and optional signed endpoint delta."""
+    values = [0.0, *(row[key] for rows in data for row in rows)]
+    limits = _MetricLimits(values, 1e-12)
+    for axis, line, rows in zip(axes[:len(data)], chromaticLines, data):
+        _DrawSurfaceMetric(axis, rows, key,
+                           f"Σ {key} (mm)\n{line}: {float(LambdaLines[line]):g} nm",
+                           _WavelengthColor(LambdaLines[line]), 3, 1e-12,
+                           numberFormat=".3g", includeZero=True)
+        axis.set_ylim(limits[0], limits[1])
+    spread = []
+    for rows in zip(*data):
+        values = [row[key] for row in rows]
+        spread.append({**rows[0], key: max(values) - min(values)})
+    _DrawSurfaceMetric(axes[len(data)], spread, key, f"Δ Σ {key} (mm)\nmax − min",
+                       "#424242", 3, 1e-12, numberFormat=".3g", includeZero=True)
+    if showSigned:
+        signed = [{**first, key: last[key] - first[key]}
+                  for first, last in zip(data[0], data[-1])]
+        _DrawSurfaceMetric(axes[len(data) + 1], signed, key,
+                           f"Δ Σ {key} (mm)\n{chromaticLines[-1]} − {chromaticLines[0]}",
+                           "#8064AD", 3, 1e-12, numberFormat=".3g", includeZero=True)
 
 
 def _GroupData(lens, fraunhoferLine, vertices, maxPower):

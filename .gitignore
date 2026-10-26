@@ -15,6 +15,7 @@ resources/Results/
 resources/Saves/
 tests/*
 !tests/test_polarization.py
+!tests/test_raypath.py
 !tests/test_seidel.py
 !tests/test_seidel_backend.py
 !tests/test_surface_data.py
@@ -37,3 +38,4 @@ tests/test_seidel.py
 tests/test_seidel_backend.py
 tests/test_surface_data.py
 /outputs
+/tests
