@@ -27,8 +27,6 @@ This repo can be viewed as an abridged and open-source version of [FRED](https:/
 
 - [2 - Algorithm Core](Docs/Doc2.md)
 
-  - [Monochromatic Seidel Analysis](Docs/Seidel.md)
-
   - [2.1 - Optical Material](Docs/Doc2.1.md)
 
   - [2.2 - Refraction, Reflection, and Polarization](Docs/Doc2.2.md)

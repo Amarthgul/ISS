@@ -852,12 +852,20 @@ def DrawPlane(points, color = "k", opacity=0.1, ax=None):
 
 
 def DrawPupil(radius, axialDepth, num_points = 100 ,surfaceColor = "b",  ax=None):
+    """Revolve paired radius/depth samples around the optical axis.
+
+    Scalars and one-dimensional profiles are supported; a scalar radius or
+    depth is broadcast across the other profile. Convert GPU arrays only at
+    this plotting boundary, retaining each sample's axial depth.
+    """
     if(RENDER_MODE):
         return
 
     ax = CheckAX(ax)
-    radius = _as_float(radius)
-    axialDepth = _as_float(axialDepth)
+    radius, axialDepth = np.broadcast_arrays(
+        np.atleast_1d(_as_numpy(radius)),
+        np.atleast_1d(_as_numpy(axialDepth)),
+    )
 
     # Parametric equation for the disk
     theta = np.linspace(0, 2 * np.pi, num_points)

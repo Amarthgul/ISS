@@ -625,7 +625,7 @@ def main():
     # exampleLens = CanonEF50mmf12L()
     # exampleLens = Industar50_50mmf35()
     # reader = LensFromZmx(RectPath(r"resources/Zmx/AdaptAll500mmf8.zmx"))
-    reader = LensFromZmx(RectPath(r"resources/Zmx/iS35_2x_40mm.zmx"))
+    reader = LensFromZmx(RectPath(r"resources/Zmx/Zunow50mmf1.1.zmx"))
 
     exampleLens = reader.GetLens()
 
@@ -635,8 +635,8 @@ def main():
     # ])
     exampleLens.UpdateLens()
 
-    exampleLens.LoadPresetKeys()
-    newB = exampleLens.BestFocusBFD(1500)
+    # exampleLens.LoadPresetKeys()
+    # newB = exampleLens.BestFocusBFD(1500)
 
     # exampleLens.FlipElement(5, True)
 
@@ -649,7 +649,7 @@ def main():
 
     exampleLens.DrawLens()
     # exampleLens.entrancePupil.DrawSamplePoints()
-    # exampleLens.entrancePupil.DrawSurface()
+    exampleLens.entrancePupil.DrawSurface()
     # exampleLens.frontPincipalPlane.DrawSamplePoints()
     
     plt.show()

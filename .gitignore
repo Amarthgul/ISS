@@ -39,3 +39,6 @@ tests/test_seidel_backend.py
 tests/test_surface_data.py
 /outputs
 /tests
+!/tests/
+/tests/*
+!tests/test_pltplot.py
