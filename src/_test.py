@@ -285,11 +285,24 @@ def CurvTest():
         writeFile=True)
 
 
+def Para502():
+    from Surfaces.Lite import LiteSystem, LiteElement, LiteStop
+
+    system = LiteSystem()
+    system.elements = [LiteElement(f=100, t=40),
+                       LiteStop(f=-100, t=60, sd=10),
+                       LiteElement(f=100)]
+    system.referenceField = 12
+    system.Update()
+    system.getYNU()
+    print(system.GetSystemData())
+
+
 def EFL():
     # lens = ZeissHologon15mmf8()
     from Util.Analysis.SurfaceData import displayConfigSeidel, displayConfigSeidelC
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Helios-44RR.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Retina‑XenonC50f2.8.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -302,9 +315,8 @@ def EFL():
     lens.PlotSurfaceData(
         DisplayConfig=displayConfigSeidel,
         SeidelReferenceField=23.0,
-        PlotTrackLength=79,
+        PlotTrackLength=100,
     )
-
 
 
 def EqualConjugate():
@@ -549,4 +561,4 @@ def main():
 
 
 if __name__ == "__main__":
-    EFL()
+    Para502()

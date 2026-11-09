@@ -24,6 +24,10 @@ def TranslationMatrix(distance):
     return ((1.0, float(distance)), (0.0, 1.0))
 
 
+def RefractionMatrix(power, incidentRI, outgoingRI):
+    return ((1.0, 0.0), (-power / outgoingRI, incidentRI / outgoingRI))
+
+
 def SurfaceMatrix(surface, previousRI, wavelength):
     """Return refraction matrix and outgoing medium; stops preserve the medium."""
     previousRI = float(previousRI)
@@ -31,9 +35,8 @@ def SurfaceMatrix(surface, previousRI, wavelength):
         return IDENTITY, previousRI
     currentRI = float(surface.RI(wavelength))
     curvature, _quartic = surface.ParaxialGeometry()
-    return ((1.0, 0.0),
-            ((previousRI - currentRI) * curvature / currentRI,
-             previousRI / currentRI)), currentRI
+    return RefractionMatrix((currentRI - previousRI) * curvature,
+                            previousRI, currentRI), currentRI
 
 
 def SystemMatrix(surfaces, wavelength=LambdaLines["d"], initialRI=1.0):
