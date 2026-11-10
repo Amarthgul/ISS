@@ -290,6 +290,9 @@ The concept of alpha and opacity no longer makes sense in physics, but it is pos
 
 ## Coding Conventions
 
+See [the project-wide coding style rules](AGENTS.md) for the design-contract,
+direct-access, validation, and exception-handling requirements for new and modified code.
+
 I must admit that there are a lot of inconsistencies in the coding convention here. 
 For example, likely due to my prior habit with `C++` and `C#`, I started the project defaulting to my normal `UpperCaseCamel` naming paradigm, but later I learned that that Python is supposed to be using the `under_score_format`... 
 Through the IDE (thanks, PyCharm) I also learned that Python `if` statement does not necessarily need the parenthesis; and that function notes have more than one standard and `:param NAME:` is not to be taken as universal. 

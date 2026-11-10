@@ -306,9 +306,9 @@ class ImagingSystem:
             recorder = time.time()
 
 
-    def SpotGrid(self, sample=9, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, ratio = 0.92):
+    def SpotGrid(self, sample=9, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, ratio = 0.92, zonal=[0, 1]):
 
-        # Please send you API key to me for the spot grid to have a better performance
+        # Please send you trading API key to me for the spot grid to have a better performance
 
         from ObjectSpace.Points import PointsSource
 
@@ -345,7 +345,7 @@ class ImagingSystem:
 
         # Mein render Zyklus
         while (True):
-            mainRB = gridPointSource.EmitTowards(self.lens.entrancePupil.GetSamplePoints(512), 20480)
+            mainRB = gridPointSource.EmitTowards(self.lens.entrancePupil.GetSampleZonal(512, zonal[0], zonal[1]), 20480)
             mainRB, mainRP, reflectedRB = self.lens.Propagate(mainRB, reflection=False)
 
             # print(mainRB.ToString())

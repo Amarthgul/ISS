@@ -384,8 +384,10 @@ def HeliosComparison():
 
     imager = StdImager(horiPx=6000)
     SonnarIS = ImagingSystem(Sonnar, imager)
-    SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
-    SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
+    # SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
+    # SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
+
+    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=120, fNumber=1.51, fileName="SonnarZonal2")
 
     return
     # Create or load a lens
@@ -498,7 +500,7 @@ def main():
     # ISSphericalTest()
     # HeliosComparison()
     # FlareTest()
-    MitsubaEXR()
+    HeliosComparison()
     # ISSpotTest()
     # PDAT()
 

@@ -160,6 +160,79 @@ class Pupil(VirtualSurface):
         # return self._pupilPointSamples[selectedIndices]
 
 
+    def GetSampleZonal(self, sampleCount=None, minHeight=0.0, maxHeight=1.0):
+        """
+        Get pupil samples between two normalized transversal heights.
+
+        For example, GetSampleZonal(1024, 0.6, 0.9) samples the zone
+        between 60% and 90% of the current pupil size. The bounds must
+        satisfy 0 <= minHeight < maxHeight <= 1.
+
+        For an alpha-shaped pupil, the zone follows copies of the aperture
+        scaled about the optical axis: outer shape minus inner shape,
+        intersected with the original aperture. Heights are therefore
+        relative to the blade outline, rather than a circular radius.
+
+        The full range [0, 1] delegates directly to GetSamplePoints,
+        preserving its sample counts, cached return, and state updates.
+
+        For a partial range with no sampleCount, filter the existing sample pool. Otherwise,
+        generate sampleCount candidates uniformly in area; alpha masking
+        can reduce the returned count, including to zero. Returns an (N, 3)
+        array without changing the pupil size, alpha shape, or sample pool.
+        """
+        if minHeight == 0 and maxHeight == 1:
+            return self.GetSamplePoints(sampleCount)
+
+        if not (0 <= minHeight < maxHeight <= 1):
+            raise ValueError("Expected 0 <= minHeight < maxHeight <= 1.")
+
+        if sampleCount is None:
+            samples = self._pupilPointSamples
+        else:
+            # A shaped zone can extend inside the circular inner radius.
+            inner = minHeight if self._alphaShape is None else 0.0
+            angles = RNG.uniform(0, 2 * bd.pi, sampleCount)
+            radii = self.clearSemiDiameter * bd.sqrt(
+                RNG.uniform(inner ** 2, maxHeight ** 2, sampleCount))
+            samples = bd.stack((radii * bd.cos(angles),
+                                radii * bd.sin(angles),
+                                bd.full(sampleCount, bd.mean(self._workingDepth))),
+                               axis=-1)
+
+        if self._alphaShape is None:
+            if sampleCount is not None:
+                return samples
+            heights = bd.linalg.norm(samples[:, :2], axis=1)
+            return samples[(heights >= minHeight * self.clearSemiDiameter) &
+                           (heights <= maxHeight * self.clearSemiDiameter)]
+
+        # Inverse-map coordinates to scale the image without resampling it.
+        gray = bd.asarray(self._alphaShape, dtype=float)
+        if gray.ndim == 3:
+            gray = gray[..., :3].mean(axis=-1)
+        peak = gray.max()
+        opened = gray > (0.5 * peak)
+        height, width = opened.shape
+
+        def inside(scale):
+            if scale == 0:
+                return bd.zeros(len(samples), dtype=bool)
+            normalized = samples[:, :2] / (self.clearSemiDiameter * scale)
+            u = normalized[:, 0] * (width / 2.0) + (width - 1) / 2.0
+            v = -normalized[:, 1] * (height / 2.0) + (height - 1) / 2.0
+            ui = bd.round(u).astype(int)
+            vi = bd.round(v).astype(int)
+            # Reject out-of-image coordinates instead of extending edge pixels.
+            in_bounds = (ui >= 0) & (ui < width) & (vi >= 0) & (vi < height)
+            in_disk = bd.sum(normalized ** 2, axis=1) <= 1.0
+            return (in_bounds & in_disk &
+                    opened[bd.clip(vi, 0, height - 1),
+                           bd.clip(ui, 0, width - 1)])
+
+        return samples[inside(1.0) & inside(maxHeight) & ~inside(minHeight)]
+
+
     def GetEvenSamplePoints(self):
         """
         This creates a set of evenly distributed points at the pupil plane.  
