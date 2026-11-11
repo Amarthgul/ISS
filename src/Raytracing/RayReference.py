@@ -109,7 +109,7 @@ class WavefrontCoefficients:
     """Wijk multiplies h^i rho^j cos(phi)^k, in mm (not waves).
 
     phi=0 is the tangential +y pupil direction. Field-only piston and
-    degrees below four are omitted. The reference is the Gaussian image,
+    degrees below four are omitted. The reference is a Gaussian sphere/plane,
     with positive W meaning reference optical path minus actual optical path.
     """
     values: dict[str, float]
@@ -146,8 +146,54 @@ def WavefrontFromTaylor(polynomial):
 
 
 @dataclass(frozen=True)
+class GaussianReference:
+    """Reference at a vertex: finite Gaussian sphere or collimated plane.
+
+    imageDistance is measured from this vertex. imageHeight is at h=1.
+    A finite image must be distinct from this vertex. When the marginal
+    slope is zero, chiefSlope specifies the normal of the reference plane.
+    """
+    imageDistance: float
+    imageHeight: float
+    refractiveIndex: float
+    chiefSlope: float
+
+    @classmethod
+    def FromSurface(cls, trace):
+        marginal, chief = trace.marginalOutgoing, trace.chiefOutgoing
+        if marginal.slope == 0.0:
+            return cls(math.inf, 0.0, trace.outgoingRI, chief.slope)
+        distance = -marginal.height / marginal.slope
+        return cls(distance, chief.height + distance * chief.slope,
+                   trace.outgoingRI, chief.slope)
+
+    def Wavefront(self, x, y, u, v, path):
+        """Close accumulated OPL on the Gaussian sphere/plane through the vertex.
+
+        Use the ray/sphere intersection, including the higher-order direction
+        and pupil geometry. The collimated branch intersects the plane with
+        normal (0, h*chiefSlope, 1). Pupil-independent phase is omitted when
+        resolving Wijk. No paraxial conversion of transverse ray errors is used.
+        """
+        h = Taylor.Variable(2, x.degree)
+        normSquared = (u * u + v * v).AddConstant(1.0)
+        if math.isinf(self.imageDistance):
+            slope = h.Scale(self.chiefSlope)
+            travel = (y * slope * normSquared.Power(0.5) *
+                      (v * slope).AddConstant(1.0).Power(-1.0)).Scale(-1.0)
+        else:
+            centerY = h.Scale(self.imageHeight)
+            distance = self.imageDistance
+            dot = (x * u + (y - centerY) * v).AddConstant(-distance) * normSquared.Power(-0.5)
+            offset = x * x + y * y - (y * centerY).Scale(2.0)
+            root = (dot * dot - offset).Power(0.5)
+            travel = dot.Scale(-1.0) - root.Scale(math.copysign(1.0, distance))
+        return WavefrontFromTaylor((path + travel.Scale(self.refractiveIndex)).Scale(-1.0))
+
+
+@dataclass(frozen=True)
 class RayReference:
-    """Fixed Gaussian image and paraxial pupil, shared by every surface.
+    """Full-system Gaussian image and common paraxial input pupil.
 
     paraxial is a ParaxialResult. The image is finite and its distance from
     the last vertex is nonzero. Distances/OPL are mm; wavelength is nm.
@@ -167,6 +213,12 @@ class RayReference:
         chief = self.paraxial.surfaces[-1].chiefOutgoing
         return chief.height + self.imageDistance * chief.slope
 
+    @property
+    def imageReference(self):
+        last = self.paraxial.surfaces[-1]
+        return GaussianReference(self.imageDistance, self.imageHeight,
+                                 last.outgoingRI, last.chiefOutgoing.slope)
+
     def Launch(self, degree):
         """Return vertex-plane x,y, slopes dx/dz,dy/dz and incident OPL."""
         px, py, h = (Taylor.Variable(axis, degree) for axis in range(3))
@@ -185,19 +237,5 @@ class RayReference:
         return x, y, u, v, path
 
     def Wavefront(self, x, y, u, v, path):
-        """OPD on a Gaussian reference sphere passing through the last vertex.
-
-        Intersect the outgoing ray with that sphere, rather than measuring
-        a straight distance to the image point (which differs at high order).
-        Signed axial radius supports real and virtual Gaussian images.
-        """
-        h = Taylor.Variable(2, x.degree)
-        centerY = h.Scale(self.imageHeight)
-        distance = self.imageDistance
-        invNorm = (u * u + v * v).AddConstant(1.0).Power(-0.5)
-        dot = (x * u + (y - centerY) * v).AddConstant(-distance) * invNorm
-        offset = x * x + y * y - (y * centerY).Scale(2.0)
-        root = (dot * dot - offset).Power(0.5)
-        travel = dot.Scale(-1.0) - root.Scale(math.copysign(1.0, distance))
-        index = self.paraxial.surfaces[-1].outgoingRI
-        return WavefrontFromTaylor((path + travel.Scale(index)).Scale(-1.0))
+        """OPD on the complete system's Gaussian reference sphere."""
+        return self.imageReference.Wavefront(x, y, u, v, path)

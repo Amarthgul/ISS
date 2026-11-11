@@ -301,9 +301,9 @@ def Para502():
 
 def EFL():
     # lens = ZeissHologon15mmf8()
-    from Util.Analysis.SurfaceData import displayConfigSeidel, displayConfigSeidelC
+    from Util.Analysis.SurfaceData import displayConfigSeidel, displayConfigSeidelC, displayConfigHigherOrder
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Retina‑XenonC50f2.8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -313,10 +313,13 @@ def EFL():
     # lens.PlotSurfaceData(PlotTrackLength=100, PlotTrackHeight=27)  # Retina
     # lens.PlotSurfaceData(PlotTrackLength=44, PlotTrackHeight=14)
 
+    result = lens.ComputeHigherOrder(maxOrder=7, referenceField=10.0)
+    print(result.wavefront.ForOrder(5).AsDict())
+
     lens.PlotSurfaceData(
-        DisplayConfig=displayConfigSeidel,
+        DisplayConfig=displayConfigHigherOrder,
         SeidelReferenceField=23.0,
-        PlotTrackLength=100,
+        PlotTrackLength=74,
     )
 
 
@@ -562,4 +565,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MaterialLookUpTest()
+    EFL()

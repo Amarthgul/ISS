@@ -9,13 +9,16 @@ Surface contributions are transverse ray errors at the common Gaussian image,
 not classical per-surface wavefront sums. Each nonlinear surface increment is
 transferred through the remaining first-order system. Upstream interactions
 are included in the increment of the surface receiving the aberrated ray.
-Full-system W coefficients are computed separately from optical path.
+Combined wavefront coefficients through each surface are computed separately
+from accumulated optical path, using each prefix's Gaussian sphere/plane.
+All prefixes retain the original input pupil, field and object. Finite prefix
+images must not coincide with their evaluation vertex.
 """
 
 from dataclasses import dataclass
 import math
 
-from Raytracing.RayReference import RayReference, Taylor, WavefrontCoefficients
+from Raytracing.RayReference import RayReference, GaussianReference, Taylor, WavefrontCoefficients
 from Util.Globals import LambdaLines
 from .Paraxial import TraceLens, MatMul, RefractionMatrix, TranslationMatrix
 
@@ -46,6 +49,8 @@ class RayAberrations:
 class SurfaceHigherOrder:
     surfaceIndex: int
     coefficients: RayAberrations
+    wavefront: WavefrontCoefficients
+    wavefrontReference: GaussianReference
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,16 @@ class HigherOrderResult:
             y = y + row.coefficients.y
             rows.append(RayAberrations(x, y))
         return tuple(rows)
+
+    def CumulativeWavefrontCoefficients(self):
+        """Combined optical-path W through each surface, in the original pupil.
+
+        Each entry uses that prefix's Gaussian reference through its vertex.
+        These are accumulated wavefronts, not sums of the ray contributions.
+        Their last entry is the complete-system wavefront. Differences between
+        entries include propagation and reference changes as well as refraction.
+        """
+        return tuple(row.wavefront for row in self.surfaces)
 
 
 def _RefractSphere(x, y, u, v, curvature, incidentRI, outgoingRI):
@@ -133,6 +148,8 @@ def ComputeHigherOrder(lens, maxOrder=7, referenceField=1.0,
     on the physical stop. The Gaussian image excludes sensor defocus.
     Wavelength is nm; ray errors and W coefficients are mm. This is a local
     expansion: fast apertures and wide fields can exceed its useful range.
+    Each surface also retains its combined optical-path wavefront and its
+    partial-system Gaussian reference, without re-aiming or renormalizing rays.
     """
     fieldUnits = referenceFieldUnits
     if fieldUnits is None:
@@ -180,13 +197,15 @@ def ComputeHigherOrder(lens, maxOrder=7, referenceField=1.0,
             contribution = RayAberrations(errorX, errorY)
             x, y, u, v = outX, outY, outU, outV
             path = path + increment
-        rows.append(SurfaceHigherOrder(index, contribution))
+        wavefrontReference = (reference.imageReference if index == len(lens.surfaces) - 1
+                              else GaussianReference.FromSurface(trace))
+        wavefront = wavefrontReference.Wavefront(x, y, u, v, path)
+        rows.append(SurfaceHigherOrder(index, contribution, wavefront, wavefrontReference))
         totalX, totalY = totalX + contribution.x, totalY + contribution.y
         if index < len(lens.surfaces) - 1:
             distance = float(surface.thickness)
             path = path + (u * u + v * v).AddConstant(1.0).Power(0.5).AddConstant(-1.0).Scale(nprime * distance)
             x, y = x + u.Scale(distance), y + v.Scale(distance)
 
-    wavefront = reference.Wavefront(x, y, u, v, path)
     return HigherOrderResult(tuple(rows), RayAberrations(totalX, totalY),
                              wavefront, reference, maxOrder)

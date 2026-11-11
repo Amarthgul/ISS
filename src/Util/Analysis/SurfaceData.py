@@ -42,6 +42,33 @@ class SurfaceDataType(Enum):
     SeidelW311C = 15
     SeidelSigned = 16
 
+    W060 = 17
+    W151 = 18
+    W240 = 19
+    W242 = 20
+    W331 = 21
+    W333 = 22
+    W420 = 23
+    W422 = 24
+    W511 = 25
+
+    W080 = 26
+    W171 = 27
+    W260 = 28
+    W262 = 29
+    W351 = 30
+    W353 = 31
+    W440 = 32
+    W442 = 33
+    W444 = 34
+    W531 = 35
+    W533 = 36
+    W620 = 37
+    W622 = 38
+    W711 = 39
+
+
+
 
 displayConfig = [
     SurfaceDataType.RayHeight,
@@ -71,6 +98,17 @@ displayConfigSeidelC = [
     SurfaceDataType.SeidelSigned
 ]
 
+displayConfigHigherOrder = [
+    SurfaceDataType.RayHeight,
+    SurfaceDataType.PrincipalPlane,
+    SurfaceDataType.EntrancePupil,
+    SurfaceDataType.W060,
+    SurfaceDataType.W151,
+    SurfaceDataType.W240,
+    SurfaceDataType.W242,
+    SurfaceDataType.W331
+]
+
 
 _SeidelTracks = {
     SurfaceDataType.SeidelW040: ("W040", "#A63832"),
@@ -83,6 +121,11 @@ _SeidelTracks = {
 _ChromaticSeidelTracks = {
     SurfaceDataType[track.name + "C"]: spec
     for track, spec in _SeidelTracks.items()
+}
+
+_HigherOrderTracks = {
+    track: (track.name, ("#A63832", "#3B8E53", "#8064AD", "#2696A1", "#D29A2E")[index % 5])
+    for index, track in enumerate(track for track in SurfaceDataType if track.name.startswith("W"))
 }
 
 
@@ -125,6 +168,14 @@ def PlotSurfaceData(
     object point for the entire comparison. Focus-plane defocus is excluded
     from the five coefficients. The layout uses the same real surface
     intersections and pupil display as the other configurations.
+
+    ``displayConfigHigherOrder`` selects fifth/seventh-order wavefront tracks,
+    in configuration order. Each is the combined optical-path wavefront through
+    that surface, relative to its partial-system Gaussian sphere/plane. Input
+    pupil and field stay fixed; references change along the lens. The last
+    value equals the complete-system W coefficient. They use the d line and the
+    same SeidelReferenceField/SeidelObjectDistance settings. Sensor defocus
+    is excluded; SeidelFocusDistance does not alter these tracks.
     """
     _EnsureLensData(lens)
     if not lens.surfaces:
@@ -132,7 +183,9 @@ def PlotSurfaceData(
 
     fraunhoferLine = "d"
     vertices = _SurfaceVertices(lens)
-    selectedTypes = set(displayConfig if DisplayConfig is None else DisplayConfig)
+    selectedConfig = displayConfig if DisplayConfig is None else DisplayConfig
+    selectedTypes = set(selectedConfig)
+    higherTracks = [track for track in selectedConfig if track in _HigherOrderTracks]
     showRayHeight = SurfaceDataType.RayHeight in selectedTypes
     showPrincipalPlane = SurfaceDataType.PrincipalPlane in selectedTypes
     showEntrancePupil = SurfaceDataType.EntrancePupil in selectedTypes
@@ -155,6 +208,7 @@ def PlotSurfaceData(
     for trackType in _SeidelTracks:
         if trackType in selectedTypes:
             trackSpecs.append((trackType, 1.1))
+    trackSpecs.extend((track, 1.1) for track in higherTracks)
     if chromaticData is not None:
         chromaticTrackCount = len(chromaticData) + 1 + int(showSeidelSigned)
         trackSpecs.extend((chromaticType, 1.1) for _ in range(chromaticTrackCount))
@@ -173,6 +227,12 @@ def PlotSurfaceData(
     seidelData = None
     if selectedTypes.intersection(_SeidelTracks):
         seidelData = _SeidelData(lens, fraunhoferLine, vertices, SeidelReferenceField)
+
+    higherData = None
+    if higherTracks:
+        order = max(int(track.name[1]) + int(track.name[2]) - 1 for track in higherTracks)
+        higherData = _HigherOrderData(lens, fraunhoferLine, vertices, order,
+                                     SeidelReferenceField, SeidelObjectDistance)
 
     layoutHeight = _LayoutHeight(lens)
     layoutTrackLength = _ResolvedTrackLength(lens, vertices, PlotTrackLength)
@@ -214,6 +274,10 @@ def PlotSurfaceData(
             key, color = _SeidelTracks[trackType]
             _DrawSurfaceMetric(axis, seidelData, key, f"Σ {key} (mm)", color,
                                3, 1e-12, numberFormat=".3g", includeZero=True)
+        elif trackType in _HigherOrderTracks:
+            key, color = _HigherOrderTracks[trackType]
+            _DrawSurfaceMetric(axis, higherData, key, f"{key} (mm)", color,
+                               3, 1e-12, numberFormat=".3g", includeZero=True)
 
     if chromaticData is not None:
         _DrawChromaticSeidel(axes[-chromaticTrackCount:], chromaticData,
@@ -232,6 +296,12 @@ def PlotSurfaceData(
                      f"Reference field: {float(SeidelReferenceField):g}° at {chromaticLines[0]}; "
                      f"object / focus distance: {float(SeidelObjectDistance):g} / "
                      f"{float(SeidelFocusDistance):g} mm; defocus excluded")
+    if higherData is not None:
+        fig.suptitle(fig._suptitle.get_text() + "\n"
+                     "Cumulative optical-path W; partial-system Gaussian references\n"
+                     f"reference field: {float(SeidelReferenceField):g}° slope; "
+                     f"object distance: {float(SeidelObjectDistance):g} mm; "
+                     f"λ = {float(LambdaLines[fraunhoferLine]):g} nm")
     _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight)
     _DrawLayoutLengths(
         layoutAxis,
@@ -607,6 +677,15 @@ def _SeidelData(lens, fraunhoferLine, vertices, referenceField):
     reference = lens.ComputeSeidelCoefficients(
         referenceField=referenceField, wavelength=LambdaLines[fraunhoferLine])
     return _SeidelRows(lens, vertices, reference.CumulativeCoefficients())
+
+
+def _HigherOrderData(lens, fraunhoferLine, vertices, order, referenceField, objectDistance):
+    """Combined optical-path wavefronts in a fixed input pupil, from one trace."""
+    result = lens.ComputeHigherOrder(
+        maxOrder=order, referenceField=referenceField,
+        wavelength=LambdaLines[fraunhoferLine], objectDistance=objectDistance,
+        referenceFieldUnits="degrees")
+    return _SeidelRows(lens, vertices, result.CumulativeWavefrontCoefficients())
 
 
 def _SeidelRows(lens, vertices, coefficients):
