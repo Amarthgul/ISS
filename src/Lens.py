@@ -12,6 +12,7 @@ from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from Util.Analysis.PAEFL import LensPartitionFL
 from Util.Analysis.SurfaceData import PlotSurfaceData
 from Util.Analysis.Seidel import ComputeSeidel, ComputeSeidelCoefficients
+from Util.Analysis.HigherOrder import ComputeHigherOrder
 
 from Surfaces.Stop import Stop
 from Surfaces.Surface import FieldStopType
@@ -581,6 +582,21 @@ class Lens:
                                          objectDistance, pupilSemiDiameter,
                                          stopSemiDiameter, focusDistance,
                                          referenceFieldUnits)
+
+
+    def ComputeHigherOrder(self, maxOrder=7, referenceField=1.0,
+                           wavelength=LambdaLines["d"], objectDistance=float("inf"),
+                           pupilSemiDiameter=None, stopSemiDiameter=None,
+                           referenceFieldUnits=None):
+        """Spherical-lens Taylor ray contributions and system wavefront.
+
+        Orders 3, 5 and 7; mm coefficients, nm wavelength. See
+        Util.Analysis.HigherOrder.ComputeHigherOrder for pupil/field conventions.
+        No lens update, clipping or sensor refocus is performed.
+        """
+        return ComputeHigherOrder(self, maxOrder, referenceField, wavelength,
+                                  objectDistance, pupilSemiDiameter,
+                                  stopSemiDiameter, referenceFieldUnits)
 
 
     def PlotSurfaceData(

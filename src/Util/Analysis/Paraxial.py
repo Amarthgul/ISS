@@ -1,8 +1,10 @@
 """First-order tracing for centered refractive photographic objectives.
 
-Lengths are millimeters, wavelengths nanometers, and ray slopes radians
-(dy/dz in the paraxial approximation). Tracing uses prescription thicknesses
-without changing the lens or invoking its real-ray update machinery.
+Lengths are millimeters, wavelengths nanometers, and ray slopes are dy/dz.
+Angular inputs express that slope in degrees: slope = radians(fieldAngle),
+so its corresponding physical ray angle is atan(slope). This linear field
+coordinate is shared by Seidel and higher-order Taylor analysis. Tracing uses
+prescription thicknesses without changing the lens or its real-ray state.
 """
 
 from dataclasses import dataclass
