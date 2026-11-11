@@ -40,7 +40,7 @@ $$
 h=\frac{\tan\alpha}{\tan\alpha_{\rm ref}}.
 $$
 
-At finite conjugates, field is proportional to object height, $h=H/H_{\rm ref}$. The angular option defines that reference height from the paraxial chief-ray slope. The existing angle-in-degrees setting represents slope through $v_{\rm ref}=\operatorname{radians}(\text{reference field})$; its physical angle is $\arctan v_{\rm ref}$.
+At finite conjugates, field is proportional to object height, $h=H/H_{\rm ref}$. The angular option defines that reference height from the paraxial chief-ray slope. The existing angle-in-degrees setting represents slope through $v_{\rm ref}=radians(\text{reference field})$; its physical angle is $\arctan v_{\rm ref}$.
 
 A term $\xi^a\eta^b h^c$ has **total degree** $a+b+c$. Ray aberration in a centered system has the expansion
 
@@ -277,7 +277,7 @@ $$
 The signed distance along the ray to the near-vertex branch of that sphere is
 
 $$
-\ell=-a-\operatorname{sgn}(b)\sqrt{a^2-d}.
+\ell=-a-sgn(b)\sqrt{a^2-d}.
 $$
 
 This choice gives $\ell=0$ for the axial ray and handles real and virtual Gaussian images. Intersecting the outgoing ray with the sphere matters: replacing this step by a straight distance from $\mathbf Q$ to the image point changes higher-order terms.
