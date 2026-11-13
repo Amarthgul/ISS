@@ -313,8 +313,8 @@ def EFL():
     # lens.PlotSurfaceData(PlotTrackLength=100, PlotTrackHeight=27)  # Retina
     # lens.PlotSurfaceData(PlotTrackLength=44, PlotTrackHeight=14)
 
-    result = lens.ComputeHigherOrder(maxOrder=7, referenceField=10.0)
-    print(result.wavefront.ForOrder(5).AsDict())
+    # result = lens.ComputeHigherOrder(maxOrder=7, referenceField=10.0)
+    # print(result.wavefront.ForOrder(5).AsDict())
 
     lens.PlotSurfaceData(
         DisplayConfig=displayConfigHigherOrder,

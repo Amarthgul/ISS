@@ -467,12 +467,12 @@ fig, axes = lens.PlotSurfaceData(
     PlotTrackLength=100.0,
 )
 
-# Mix any of the five Seidel types with existing data tracks.
+# Mix a combined optical-path wavefront track with material tracks.
 fig, axes = lens.PlotSurfaceData(DisplayConfig=[
     SurfaceDataType.OpticalPower,
     SurfaceDataType.RefractiveIndex,
     SurfaceDataType.AbbeNumber,
-    SurfaceDataType.SeidelW040,
+    SurfaceDataType.W040,
 ])
 ```
 
@@ -481,6 +481,13 @@ five types are `SeidelW040`, `SeidelW131`, `SeidelW222`, `SeidelW220`, and
 `SeidelW311`; each adds one track. All selected Seidel tracks share one reference
 calculation. `SeidelReferenceField` defaults to 1 degree and is recorded in the
 figure title; wavelength is the surface-data plot's d line (587.56 nm).
+
+Unprefixed names such as `W040` in the example above select the combined
+optical-path method instead. They can be mixed with `W060`, `W080` and other
+orders in configuration order, sharing one calculation. Use `SeidelW040`
+to select the classical Seidel sum explicitly. The `displayConfigSeidel`
+preset retains those explicit Seidel types. See [Higher-order analysis](HigherOrder.md)
+for the partial-system wavefront references used by unprefixed W tracks.
 
 Bar height is the inclusive cumulative coefficient after that surface. The bar
 extends from its vertex to the next vertex, or over the final surface's prescribed

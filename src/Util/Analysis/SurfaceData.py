@@ -30,11 +30,11 @@ class SurfaceDataType(Enum):
     AbbeNumber = 3
     PrincipalPlane = 4
     EntrancePupil = 5
-    SeidelW040 = 6
-    SeidelW131 = 7
-    SeidelW222 = 8
-    SeidelW220 = 9
-    SeidelW311 = 10
+    W040 = 6
+    W131 = 7
+    W222 = 8
+    W220 = 9
+    W311 = 10
     SeidelW040C = 11
     SeidelW131C = 12
     SeidelW222C = 13
@@ -67,6 +67,19 @@ class SurfaceDataType(Enum):
     W622 = 38
     W711 = 39
 
+    # Explicit Seidel sums remain separate from combined optical-path W tracks.
+    SeidelW040 = 40
+    SeidelW131 = 41
+    SeidelW222 = 42
+    SeidelW220 = 43
+    SeidelW311 = 44
+
+    W040C = SeidelW040C
+    W131C = SeidelW131C
+    W222C = SeidelW222C
+    W220C = SeidelW220C
+    W311C = SeidelW311C
+
 
 
 
@@ -94,7 +107,7 @@ displayConfigSeidelC = [
     SurfaceDataType.RayHeight,
     SurfaceDataType.PrincipalPlane,
     SurfaceDataType.EntrancePupil,
-    SurfaceDataType.SeidelW131C,
+    SurfaceDataType.W131C,
     SurfaceDataType.SeidelSigned
 ]
 
@@ -102,11 +115,11 @@ displayConfigHigherOrder = [
     SurfaceDataType.RayHeight,
     SurfaceDataType.PrincipalPlane,
     SurfaceDataType.EntrancePupil,
+    SurfaceDataType.W040,
     SurfaceDataType.W060,
-    SurfaceDataType.W151,
     SurfaceDataType.W240,
     SurfaceDataType.W242,
-    SurfaceDataType.W331
+    SurfaceDataType.W080
 ]
 
 
@@ -169,9 +182,11 @@ def PlotSurfaceData(
     from the five coefficients. The layout uses the same real surface
     intersections and pupil display as the other configurations.
 
-    ``displayConfigHigherOrder`` selects fifth/seventh-order wavefront tracks,
-    in configuration order. Each is the combined optical-path wavefront through
-    that surface, relative to its partial-system Gaussian sphere/plane. Input
+    ``displayConfigHigherOrder`` mixes third/fifth/seventh-order W tracks,
+    in configuration order, using one calculation through the highest selected
+    order. Unprefixed W040/W131/W222/W220/W311 use this path; SeidelW names
+    retain the separate Seidel sums. Each W track is the optical-path wavefront
+    through that surface, relative to its partial-system Gaussian sphere/plane. Input
     pupil and field stay fixed; references change along the lens. The last
     value equals the complete-system W coefficient. They use the d line and the
     same SeidelReferenceField/SeidelObjectDistance settings. Sensor defocus

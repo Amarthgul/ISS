@@ -338,6 +338,9 @@ All W values are in millimeters because pupil and field coordinates are dimensio
 
 ## 5. Combined cumulative wavefronts
 
+The selected tracks can mix third, fifth and seventh orders. For example, W040, W060, W240, W242 and W080 appear in that order in displayConfigHigherOrder. All selected terms use one optical-path calculation through the highest selected order; selecting only third-order terms requires only order three. The unprefixed SurfaceDataType names W040, W131, W222, W220 and W311 use this same wavefront method. Explicit SeidelW names retain the separate
+classical cumulative Seidel calculation.
+
 The cumulative tracks apply the optical-path calculation of Section 4 after **each surface**, using the actual Taylor ray and optical path already accumulated through the preceding lens. They do not convert transverse ray errors into wavefront coefficients.
 
 The input ray family is fixed once for the complete lens. Every intermediate calculation retains the same object, wavelength, pupil normalization and reference field. In particular, the rays are not re-aimed at a different stop when an intermediate wavefront is evaluated.

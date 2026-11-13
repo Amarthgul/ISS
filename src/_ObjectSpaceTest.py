@@ -379,7 +379,7 @@ def HeliosComparison():
     from Util.Globals import RefreshRNG
     import time
 
-    Sonnar =  LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    Sonnar =  LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens() #SonnarOptonContax50f1.5 CanonNFD50f1.4
     Sonnar.AddSurfaceDefect(0.2)
 
     imager = StdImager(horiPx=6000)
@@ -387,7 +387,7 @@ def HeliosComparison():
     # SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
     # SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
 
-    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=120, fNumber=1.51, fileName="SonnarZonal2")
+    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=8 * 60, zonal=[0, 0.15], ratio=0.9, fileName="SonnarZ100p")
 
     return
     # Create or load a lens

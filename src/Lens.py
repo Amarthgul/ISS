@@ -861,91 +861,32 @@ class Lens:
 
         self._CreateClearBoundaryInnerGroup()
 
-        if (createOuterBound):
+        if createOuterBound:
             self._CreateClearBoundaryOuterGroup()
 
 
     def _CreateClearBoundaryInnerGroup(self) -> None:
-        """Create clear boundaries that connects surfaces and make each element a sealed solid."""
+        """Connect each surface to its predecessor within the same glass group."""
 
-        #TODO: consider splitting this into methods? The current implementation has way to many if nesting...
-
-        for groupIndex, maxGroupSD in self.groupMaxSemi.items():
-            # The key here is group index, and value is the max clear semi diameter of the group
-
+        for groupIndex, group in enumerate(self.groups):
             if self._GroupHasRectangularFieldStop(groupIndex):
                 self._CreateRectangularClearBoundaryInnerGroup(groupIndex)
                 continue
 
-            LastSufraceDC = False
+            for previousIndex, currentIndex in zip(group, group[1:]):
+                previousSurface = self.surfaces[previousIndex]
+                currentSurface = self.surfaces[currentIndex]
 
-            for s in self.groups[groupIndex]:
-                # Iterate through the surfaces in the group
-
-                if (self.surfaces[s].disableBoundaryL):
-                    self._DirectConnectPrevious(s)
-                    # Then skip other checks
-                    continue
-
-                # ============ Deal with the first surface (of a group) ============
-                if (s == self.groups[groupIndex][0]):
-                    # C1 must be connected to the clear semi diameter of this surface
-                    C1 = SpatialCircle(self.surfaces[s].sdCumulative,
-                                       self.surfaces[s].clearSemiDiameter)
-
-                    # For lens groups, the first surface typically have either the same SD, or smaller SD than the group max SD, such as the first group after the stop in a Planar setup
-                    if (self.surfaces[s].clearSemiDiameter < maxGroupSD and len(self.groups[groupIndex]) >= 2):
-                        self._BevelTowardsObjectSpace(s, maxGroupSD)
-
-
-                    else:
-                        # This else case is only possible when the SD of this surface is equal to the group max SD (because itself will be the max).
-                        # So, it checks if next surface exist.
-                        if (len(self.groups[groupIndex]) >= 2):
-
-                            # Even for a single element, it may happen that the 2 surfaces have different SD.
-                            # First see if they are lucky enough to share the same SD
-                            if (self.surfaces[s + 1].clearSemiDiameter == maxGroupSD):
-                                C2 = SpatialCircle(self.surfaces[s + 1].sdCumulative, maxGroupSD)
-                                self.surfaces[s + 1].clearBoundaryL = ClearBoundary(C1, C2)
-
-                            # When the check did not pass, this means the other surface has a different SD. But since we already made sure the current surface has the max SD of the group, this means the next one can only be smaller. Thus, make a bevel towards the image space.
-                            else:
-                                self._BevelTowardsImageSpace(s+1, maxGroupSD)
-
-
-
-                # ============ Deal with the last surface (of a group) =============
-                elif (s == self.groups[groupIndex][-1]):
-
-                    # C3 must be connected to the clear semi diameter of this surface
-                    C3 = SpatialCircle(self.surfaces[s].sdCumulative,
-                                       self.surfaces[s].clearSemiDiameter)
-
-                    if (self.surfaces[s].clearSemiDiameter < maxGroupSD) and (len(self.groups[groupIndex]) >= 2):
-                        self._BevelTowardsImageSpace(s, maxGroupSD)
-
-                    elif (len(self.groups[groupIndex]) >= 2) and (
-                            self.surfaces[s].clearSemiDiameter > self.surfaces[s - 1].clearSemiDiameter) and (
-                    self.surfaces[s - 1].disableBoundaryL):
-                        self._BevelTowardsObjectSpace(s, maxGroupSD, 1)
-
-                    else:
-                        # This else is only possible when the SD of this surface is equal to the group max SD.
-                        # But being the last surface, it might also happen that the previous surface already created a boundary for it. So another check is needed.
-                        if (self.surfaces[s].clearBoundaryL == None):
-                            C2 = SpatialCircle(self.surfaces[s - 1].sdCumulative, maxGroupSD)
-                            self.surfaces[s].clearBoundaryL = ClearBoundary(C2, C3)
-
-
-                # ================ Deal with middle surface, if any ================
+                if currentSurface.disableBoundaryL:
+                    self._DirectConnectPrevious(currentIndex)
+                elif currentSurface.clearSemiDiameter < previousSurface.clearSemiDiameter:
+                    self._BevelTowardsImageSpace(currentIndex, previousSurface.clearSemiDiameter)
+                elif currentSurface.clearSemiDiameter > previousSurface.clearSemiDiameter:
+                    self._BevelTowardsObjectSpace(currentIndex, currentSurface.clearSemiDiameter, caller=1)
                 else:
-                    if (self.surfaces[s].clearSemiDiameter == self.surfaces[s - 1].clearSemiDiameter):
-                        self._DirectConnectPrevious(s)
-
-                # print("Surface ", s, " max csd ", value)
-                if (self.surfaces[s].clearSemiDiameter < maxGroupSD):
-                    pass
+                    C1 = SpatialCircle(previousSurface.sdCumulative, previousSurface.clearSemiDiameter)
+                    C2 = SpatialCircle(currentSurface.sdCumulative, currentSurface.clearSemiDiameter)
+                    currentSurface.clearBoundaryL = ClearBoundary(C1, C2)
 
 
     def _CreateRectangularClearBoundaryInnerGroup(self, groupIndex) -> None:
