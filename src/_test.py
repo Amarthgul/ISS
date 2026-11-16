@@ -303,7 +303,7 @@ def EFL():
     # lens = ZeissHologon15mmf8()
     from Util.Analysis.SurfaceData import displayConfigSeidel, displayConfigSeidelC, displayConfigHigherOrder
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Zeiss50f1.4.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -317,9 +317,9 @@ def EFL():
     # print(result.wavefront.ForOrder(5).AsDict())
 
     lens.PlotSurfaceData(
-        DisplayConfig=displayConfigHigherOrder,
+        #DisplayConfig=displayConfigSeidel, # displayConfigSeidel displayConfigHigherOrder
         SeidelReferenceField=23.0,
-        PlotTrackLength=74,
+        PlotTrackLength=79,
     )
 
 

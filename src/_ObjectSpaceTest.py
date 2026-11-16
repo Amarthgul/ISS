@@ -27,106 +27,6 @@ from Surfaces.MetalBoundary import MetalBoundary
 from Surfaces.Surface import Surface
 
 
-def PDAT():
-    from Imagers.PDA import PDA
-
-    tp = PDA()
-
-    tp.SetBFD(1)
-    tp.Update()
-    tp.RunTest()
-
-
-def StackTestFilmBalance(renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
-
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
-    from Util.Globals import Channels
-
-    print("Currently using ", backend_name)
-
-    stack = ExampleStack3D()
-    att = DepthVisualizer()
-    fog = FogAttenuator()
-
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens.UpdateLens()
-    if aperture is not None:
-        lens.SetAperture(aperture)
-
-    sr = ColorPDF()
-    #sr.gainR = 1.75
-    sr.gainG = 0.75
-    sr.gainB = 1.75
-
-    # sr.PlotDistribution()
-    # plt.show()
-
-    imager = Film(sr, lens.BestFocusBFD(focusDistance))
-    imager.dyeSpectralPairs = {
-        Channels.R: Channels.G,
-        Channels.G: Channels.R,
-        Channels.B: Channels.B,
-    }
-    #imager = StdImager(lens.BestFocusBFD(focusDistance))
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-
-    while (True):
-        recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
-        # mainRB = fog.Attenuate(mainRB)
-        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        #mainRBZ = att.Attenuate(mainRB)
-        print("Creating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        print("Propagating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        #mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        #print(mainRB.ToString(30))
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-        #imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
-        print("Integral image took ", time.time() - recorder)
-        recorder = time.time()
-
-        if (realTimeUpdate):
-            print("Max value ", bd.max(image))
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elapsed = time.time() - start
-        ProgressBar(elapsed / renderTime, 100)
-        iterationCount += 1
-
-        print("House keep took ", time.time() - recorder)
-
-
-        if (elapsed > renderTime):
-            image /= 100
-            global FrameCount
-            fn = filename
-            SaveAsEXR(image, r"resources/Results", fn+str(focusDistance))
-            #SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
-
-            break
-
-        recorder = time.time()
-
 def FocusFalloffLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, filename = r"NewPDF", aperture=None, realTimeUpdate = False):
 
     from ObjectSpace.ImageVariDepth import  Image2DVariDepth
@@ -275,6 +175,39 @@ def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Sta
             break
 
         recorder = time.time()
+
+
+def ZonalRender():
+    from ImagingSystem import ImagingSystem
+    from Imagers.PDA import PDA
+    from Imagers.Standard import StdImager
+    Sonnar = LensFromZmx(
+        RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
+    Sonnar.AddSurfaceDefect(0.2)
+
+    imager = StdImager(horiPx=6000)
+    SonnarIS = ImagingSystem(Sonnar, imager)
+    # SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
+    # SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
+
+    for i in range(10):
+        lower = i / 10
+        upper = (i + 1) / 10
+
+        SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=8 * 60, zonal=[lower, upper], ratio=0.9, fileName="SonnarZ"+str(lower))
+
+
+def ZonalAssembly():
+    from src.Util.SpotImgCropping import RunSpotCropping
+
+    outputs = RunSpotCropping(
+        focalLength=49.97645,
+        ratio=0.9,
+        direction="diagonal",
+        layout="horizontal",
+        boxSize=(3.0, 3.0),
+        padding=0.25,
+    )
 
 
 def SingleImgRens():
@@ -500,7 +433,9 @@ def main():
     # ISSphericalTest()
     # HeliosComparison()
     # FlareTest()
-    HeliosComparison()
+    # eliosComparison()
+    # ZonalAssembly()
+    ZonalRender()
     # ISSpotTest()
     # PDAT()
 
