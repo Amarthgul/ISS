@@ -43,5 +43,6 @@ tests/test_surface_data.py
 /tests/*
 !tests/test_pltplot.py
 !tests/test_spot_img_cropping.py
+!tests/test_surface_data_aberrations.py
 src/YNU.csv
 AGENTS.md

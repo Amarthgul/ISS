@@ -253,12 +253,13 @@ def MaterialLookUpTest():
 
     line = 'd'
     stats = [
-        [1.735197,   41.5909],
-        [1.43493 ,  95.23],
-        [1.682476,   48.200977],
-        [1.6205  , 38.081],
-        [1.682476,   48.200977],
-        [1.564435,   43.75028]
+        [1.50137 ,  56.4],
+        [1.7352  , 41.58],
+        [1.61484 ,  51.16],
+        [1.80518 ,  25.43],
+        [1.59551 ,  39.18],
+        [1.6988  , 55.43],
+        [1.744   ,44.77]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=12, writePath=RectPath("resources/")).to_string(index=False)
@@ -301,9 +302,9 @@ def Para502():
 
 def EFL():
     # lens = ZeissHologon15mmf8()
-    from Util.Analysis.SurfaceData import displayConfigSeidel, displayConfigSeidelC, displayConfigHigherOrder
+    from Util.Analysis.SurfaceData import displayConfigAberrations, displayConfigSeidelC
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Zeiss50f1.4.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/Rollei50f1.8.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -317,9 +318,10 @@ def EFL():
     # print(result.wavefront.ForOrder(5).AsDict())
 
     lens.PlotSurfaceData(
-        #DisplayConfig=displayConfigSeidel, # displayConfigSeidel displayConfigHigherOrder
+        DisplayConfig=displayConfigAberrations,
         SeidelReferenceField=23.0,
         PlotTrackLength=79,
+        DataTrackHeight=0.9
     )
 
 
@@ -349,122 +351,6 @@ def GlassVeil():
     from src.Util.Analysis.GlassVeil import PlotGlassVeil
 
     PlotGlassVeil(catalogue=["LZOS", "SUMITA"], materials=["LZ_LF7", "LF3", "LF5"], nRange=[1.52, 1.65], VRange = [37, 45])
-
-
-def SpeedMasterTest(lens=None, imageDistance=1500, focusDistance=1500, computeTime=2*60*60, realTimeUpdate=False):
-    print("New test w/ im Distance ", imageDistance)
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/SpeedMaster50f0.95.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-    # lens.SetAperture(5.6)
-    print(lens.GetInfo())
-
-    print("Best focus", lens.BestFocusBFD(focusDistance))  # 32.926564?
-    imager = StdImager(lens.BestFocusBFD(focusDistance))  # 32.4 lens.BestFocusBFD(imageDistance)
-
-    # Assemble the imaging system
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    sourceImage = Image2DFlat()
-    sourceImage.distance = imageDistance
-    sourceImage.horizontalAoV = lens.GetAoV()[0] * 2
-    sourceImage.imageDimensionOverride = 1920
-    sourceImage.LoadFrom8bit(r"resources/ISO12233-4k.png")
-    # Henri-Cartier-Bresson.png ISO12233-4k.png  CustomSheet.png Grid.png
-
-    start = time.time()
-
-    iterationCount = 0
-
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image))
-
-    while (True):
-
-        mainRB = sourceImage.EmitSamplesToward(lens.entrancePupil.GetSamplePoints(512), 20480)
-        # For image simulation, pupil sample still needs to be very high to avoid pattern from showing up
-        # mainRB = sourceImage.EmitSamplesToward(lens.GetFirstElementSamples(1024), perIterRays)
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-
-        if (realTimeUpdate):
-            im.set_data(ImageConversion(image))
-            plt.draw()
-            plt.pause(0.01)
-
-        # print(source.sampleRecord)
-        elpased = time.time() - start
-        imMin, imMax, imR = sourceImage.GetSampleRatios()
-
-        # print("End RB size: ", mainRB.value.shape)
-        print(iterationCount, "th iteration finished a new sample iteration after ", elpased, "  \t Min: ", imMin,
-              " max: ", imMax, " -Ratio: ", imR)
-        ProgressBar(elpased / computeTime, 100)
-
-        iterationCount += 1
-
-        if (elpased > computeTime):
-            image /= 100
-            global FrameCount
-            fn = r"SpeedMasterTest2hr"
-            SaveAsEXR(image, r"resources/Results/ISO12233", fn)
-            break
-
-    FrameCount += 1
-
-    return elpased
-
-
-def HighlightReconTest():
-    from ObjectSpace.ImageExt import Image2DVariHighlightExtension
-    from Util.Misc import RectPath
-
-    imgEx = Image2DVariHighlightExtension()
-    imgEx.zDepthMappingRange = [1000, 1500]
-    imgEx.imageDimensionOverride = 240
-    imgEx.LoadFrom8BitPNG(RectPath(r"resources/2DFrameExample_MG.png"))
-    imgEx.LoadFrom8bitZ(RectPath(r"resources/2DFrameExample_MGZ.png"))
-    imgEx.UpdatePointSources()
-    # imgEx.LoadFrom8bit(RectPath(r"resources/2DFrameExample.jpg"))
-
-    # imgEx= Image2DFlatHighlightExtension()
-    # imgEx.zDistance = 750
-    # imgEx.imageDimensionOverride = 240
-    # imgEx.LoadFrom8bitRGB(RectPath(r"resources/2DFrameExample_BG.png"))
-    # imgEx.UpdatePointSources()
-
-
-    #imgEx.ReconstructHighlight()
-    #imgEx.VisualizeLuminosityHotMap()
-    # imgEx.Show2D()
-    imgEx.DrawImage()
-    plt.show()
-
-
-def MatteBoxText():
-    from Surfaces.ManualAperture import ManualAperture
-
-    SetUnifScale(50)
-    AddXYZ()
-    RemoveBG()
-
-    reader = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx"))
-    lens = reader.GetLens()
-    lens.UpdateLens()
-
-    ma = ManualAperture()
-    ma.isCircular = False
-    lens.AddFrontGroup([ma])
-
-    lens.DrawLens()
-    plt.show()
-
 
 
 

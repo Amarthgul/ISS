@@ -459,13 +459,23 @@ prescription tracks. They plot cumulative wavefront coefficients, not individual
 surface contributions or selected-field Seidel sums.
 
 ```python
-from Util.Analysis.SurfaceData import SurfaceDataType, displayConfigSeidel
+from Util.Analysis.SurfaceData import SurfaceDataType, displayConfigAberrations
 
 fig, axes = lens.PlotSurfaceData(
-    DisplayConfig=displayConfigSeidel,
+    DisplayConfig=displayConfigAberrations,
     SeidelReferenceField=10.0,
     PlotTrackLength=100.0,
 )
+
+# Select the five classical Seidel sums explicitly.
+fig, axes = lens.PlotSurfaceData(DisplayConfig=[
+    SurfaceDataType.RayHeight,
+    SurfaceDataType.SeidelW040,
+    SurfaceDataType.SeidelW131,
+    SurfaceDataType.SeidelW222,
+    SurfaceDataType.SeidelW220,
+    SurfaceDataType.SeidelW311,
+])
 
 # Mix a combined optical-path wavefront track with material tracks.
 fig, axes = lens.PlotSurfaceData(DisplayConfig=[
@@ -485,8 +495,11 @@ figure title; wavelength is the surface-data plot's d line (587.56 nm).
 Unprefixed names such as `W040` in the example above select the combined
 optical-path method instead. They can be mixed with `W060`, `W080` and other
 orders in configuration order, sharing one calculation. Use `SeidelW040`
-to select the classical Seidel sum explicitly. The `displayConfigSeidel`
-preset retains those explicit Seidel types. See [Higher-order analysis](HigherOrder.md)
+to select the classical Seidel sum explicitly. The unified
+`displayConfigAberrations` preset replaces `displayConfigSeidel` and
+`displayConfigHigherOrder`; it selects ten optical-path W tracks across third,
+fifth and seventh order. W and explicit SeidelW tracks can be interleaved in
+configuration order. See [Higher-order analysis](HigherOrder.md)
 for the partial-system wavefront references used by unprefixed W tracks.
 
 Bar height is the inclusive cumulative coefficient after that surface. The bar
@@ -497,11 +510,34 @@ Seidel axes include zero, preserve signed heights, and use significant-digit
 labels to keep small coefficients visible. Values are in mm at normalized field
 `h = field / SeidelReferenceField`.
 
-The figure starts at 16 by 10 inches and grows vertically when needed to reserve
-one inch of plotting height for each data track. The lens retains equal physical
+Aberration figures keep a 16-inch width and start at 10 inches tall, adding
+two inches per data track beyond the default three. Five aberration tracks
+start at 14 inches tall; ten start at 24 inches, with no upper count limit.
+Figures grow further when needed to reserve at least one inch of plotting
+height for each data track. The default `displayConfig` sizing is unchanged.
+The lens retains equal physical
 scale and the same horizontal alignment as the coefficient and material tracks.
 The data tracks follow the layout's displayed width on every redraw, preserving
 axial alignment when the plot window is resized or the figure is exported.
+Toolbar saves and `fig.savefig(...)` use the original full-size canvas,
+independently of the display window dimensions. For ten aberrations the
+default 300-dpi export is 4800 by 7200 pixels. To choose a different export
+size explicitly, set `fig.exportSize = (width, height)` in inches before saving.
+
+Set `DataTrackHeight` to control the height of each lower data panel in inches,
+excluding labels and spacing. For example:
+
+```python
+fig, axes = lens.PlotSurfaceData(
+    DisplayConfig=displayConfigAberrations,
+    DataTrackHeight=0.75,
+)
+```
+
+Smaller values make the rows more compact; larger values make them taller.
+The figure retains its width and adjusts its total height, including in saved
+images. This setting applies to aberration, chromatic and prescription rows;
+the optical layout keeps its physical scale. Omit it for automatic sizing.
 
 ## Chromatic surface correction tracks
 
@@ -518,7 +554,7 @@ fig, axes = lens.PlotSurfaceData(
 )
 ```
 
-The preset selects `SeidelW040C`. Replace it with `SeidelW131C`, `SeidelW222C`,
+The preset selects `SeidelW131C`. Replace it with `SeidelW040C`, `SeidelW222C`,
 `SeidelW220C`, or `SeidelW311C` to compare another coefficient. Select one
 chromatic coefficient per plot. Under the layout, each wavelength receives a
 cumulative coefficient track in mm on a common vertical scale, colored by its
@@ -527,6 +563,7 @@ IR lines use violet and deep red. The unsigned spread track remains gray and
 shows `max(cumulative W) - min(cumulative W)` across wavelengths at each surface,
 so it measures the remaining chromatic spread after correction through that
 surface, rather than the cumulative sum of individual surface spreads.
+The redundant `W###C` aliases have been removed; use `SeidelW###C` names.
 
 Including `SurfaceDataType.SeidelSigned` adds another subplot after the spread
 plot. Its bars show `W(chromaticLines[-1]) - W(chromaticLines[0])` using the

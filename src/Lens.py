@@ -609,6 +609,7 @@ class Lens:
             SeidelReferenceField=1.0,
             SeidelObjectDistance=float("inf"),
             SeidelFocusDistance=float("inf"),
+            DataTrackHeight=None,
     ):
 
         return PlotSurfaceData(
@@ -621,6 +622,7 @@ class Lens:
             SeidelReferenceField=SeidelReferenceField,
             SeidelObjectDistance=SeidelObjectDistance,
             SeidelFocusDistance=SeidelFocusDistance,
+            DataTrackHeight=DataTrackHeight,
         )
 
 

@@ -8,6 +8,7 @@ from enum import Enum
 import math
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgb
+from matplotlib.figure import Figure
 from matplotlib.transforms import Bbox
 import numpy as np
 
@@ -74,14 +75,6 @@ class SurfaceDataType(Enum):
     SeidelW220 = 43
     SeidelW311 = 44
 
-    W040C = SeidelW040C
-    W131C = SeidelW131C
-    W222C = SeidelW222C
-    W220C = SeidelW220C
-    W311C = SeidelW311C
-
-
-
 
 displayConfig = [
     SurfaceDataType.RayHeight,
@@ -92,34 +85,28 @@ displayConfig = [
     SurfaceDataType.EntrancePupil,
 ]
 
-displayConfigSeidel = [
+displayConfigAberrations = [
     SurfaceDataType.RayHeight,
     SurfaceDataType.PrincipalPlane,
     SurfaceDataType.EntrancePupil,
-    SurfaceDataType.SeidelW040,
-    SurfaceDataType.SeidelW131,
-    SurfaceDataType.SeidelW222,
-    SurfaceDataType.SeidelW220,
-    SurfaceDataType.SeidelW311
+    SurfaceDataType.W040,
+    SurfaceDataType.W131,
+    SurfaceDataType.W222,
+    SurfaceDataType.W220,
+    SurfaceDataType.W311,
+    SurfaceDataType.W060,
+    SurfaceDataType.W151,
+    SurfaceDataType.W240,
+    SurfaceDataType.W242,
+    SurfaceDataType.W080,
 ]
 
 displayConfigSeidelC = [
     SurfaceDataType.RayHeight,
     SurfaceDataType.PrincipalPlane,
     SurfaceDataType.EntrancePupil,
-    SurfaceDataType.W131C,
+    SurfaceDataType.SeidelW131C,
     SurfaceDataType.SeidelSigned
-]
-
-displayConfigHigherOrder = [
-    SurfaceDataType.RayHeight,
-    SurfaceDataType.PrincipalPlane,
-    SurfaceDataType.EntrancePupil,
-    SurfaceDataType.W040,
-    SurfaceDataType.W060,
-    SurfaceDataType.W240,
-    SurfaceDataType.W242,
-    SurfaceDataType.W080
 ]
 
 
@@ -136,10 +123,28 @@ _ChromaticSeidelTracks = {
     for track, spec in _SeidelTracks.items()
 }
 
-_HigherOrderTracks = {
+_WavefrontTracks = {
     track: (track.name, ("#A63832", "#3B8E53", "#8064AD", "#2696A1", "#D29A2E")[index % 5])
     for index, track in enumerate(track for track in SurfaceDataType if track.name.startswith("W"))
 }
+
+
+class _SurfaceDataFigure(Figure):
+    """Keep image dimensions independent of the interactive window size."""
+
+    def savefig(self, *args, **kwargs):
+        windowSize = self.get_size_inches()
+        self.set_size_inches(self.exportSize, forward=False)
+        # Measure labels against full-width grid cells, not the narrow preview.
+        for axis in self.axes[1:]:
+            axis.set_axes_locator(None)
+        self.axes[0].set_aspect("auto")
+        self.canvas.draw()
+        self.axes[0].set_aspect("equal", adjustable="box")
+        _AlignTrackWidths(self.axes)
+        super().savefig(*args, **kwargs)
+        self.set_size_inches(windowSize, forward=False)
+        self.canvas.draw_idle()
 
 
 def PlotSurfaceData(
@@ -152,10 +157,13 @@ def PlotSurfaceData(
         SeidelReferenceField=1.0,
         SeidelObjectDistance=math.inf,
         SeidelFocusDistance=math.inf,
+        DataTrackHeight=None,
 ):
     """
     Plot an optical layout and the tracks selected by ``displayConfig``.
 
+    ``lens`` has at least one surface. Supplied ``maxPower``,
+    ``PlotTrackLength`` and ``PlotTrackHeight`` are finite positive values.
     The optical layout is always shown. ``SurfaceDataType.RayHeight`` controls
     its marginal-ray overlay; the other display types control the lower tracks
     and virtual layout references. ``PlotTrackLength`` frames every aligned axis
@@ -166,8 +174,19 @@ def PlotSurfaceData(
     near-axis pupil-plane position.
 
     ``DisplayConfig`` optionally selects tracks for this call; otherwise the
-    module's ``displayConfig`` is used. ``displayConfigSeidel`` is a preset,
-    and any Seidel type can be mixed with the existing prescription tracks.
+    module's ``displayConfig`` is used. ``displayConfigAberrations`` selects
+    third/fifth/seventh-order W tracks, and any Seidel type can be mixed with
+    them and the existing prescription tracks. Aberration plots keep the
+    16-inch width and add two inches per data track beyond the default three,
+    with no track-count limit. The lens retains its equal physical scale.
+    Saved images retain these dimensions even when the display window is
+    resized to fit the screen. ``fig.exportSize`` holds the export size in
+    inches and can be changed before calling ``fig.savefig``.
+    ``DataTrackHeight`` optionally sets each lower data panel's plotting height
+    in inches, excluding labels and spacing. Supply a finite positive value;
+    values below one inch are allowed. The canvas height adjusts to fit these
+    rows while retaining its width and the lens's physical scale. Omit it for
+    automatic sizing. It applies to aberration, chromatic and prescription rows.
     Seidel bars show cumulative wavefront coefficients in mm after each
     surface, over its following axial thickness. ``SeidelReferenceField``
     defines their nonzero reference field in degrees for an infinite object.
@@ -182,10 +201,10 @@ def PlotSurfaceData(
     from the five coefficients. The layout uses the same real surface
     intersections and pupil display as the other configurations.
 
-    ``displayConfigHigherOrder`` mixes third/fifth/seventh-order W tracks,
-    in configuration order, using one calculation through the highest selected
-    order. Unprefixed W040/W131/W222/W220/W311 use this path; SeidelW names
-    retain the separate Seidel sums. Each W track is the optical-path wavefront
+    W and SeidelW tracks follow configuration order. Unprefixed W tracks use
+    one calculation through the highest selected order, including
+    W040/W131/W222/W220/W311; SeidelW names retain the separate Seidel sums.
+    Each W track is the optical-path wavefront
     through that surface, relative to its partial-system Gaussian sphere/plane. Input
     pupil and field stay fixed; references change along the lens. The last
     value equals the complete-system W coefficient. They use the d line and the
@@ -193,18 +212,16 @@ def PlotSurfaceData(
     is excluded; SeidelFocusDistance does not alter these tracks.
     """
     _EnsureLensData(lens)
-    if not lens.surfaces:
-        raise ValueError("PlotSurfaceData requires a lens with at least one surface.")
 
     fraunhoferLine = "d"
     vertices = _SurfaceVertices(lens)
     selectedConfig = displayConfig if DisplayConfig is None else DisplayConfig
     selectedTypes = set(selectedConfig)
-    higherTracks = [track for track in selectedConfig if track in _HigherOrderTracks]
+    wavefrontTracks = [track for track in selectedConfig if track in _WavefrontTracks]
     showRayHeight = SurfaceDataType.RayHeight in selectedTypes
     showPrincipalPlane = SurfaceDataType.PrincipalPlane in selectedTypes
     showEntrancePupil = SurfaceDataType.EntrancePupil in selectedTypes
-    trackSpecs = []
+    trackTypes = []
     chromaticType = next((track for track in _ChromaticSeidelTracks
                           if track in selectedTypes), None)
     chromaticData = None
@@ -215,18 +232,16 @@ def PlotSurfaceData(
             SeidelObjectDistance, SeidelFocusDistance)
 
     if SurfaceDataType.OpticalPower in selectedTypes:
-        trackSpecs.append((SurfaceDataType.OpticalPower, 1.0))
+        trackTypes.append(SurfaceDataType.OpticalPower)
     if SurfaceDataType.RefractiveIndex in selectedTypes:
-        trackSpecs.append((SurfaceDataType.RefractiveIndex, 1.1))
+        trackTypes.append(SurfaceDataType.RefractiveIndex)
     if SurfaceDataType.AbbeNumber in selectedTypes:
-        trackSpecs.append((SurfaceDataType.AbbeNumber, 1.1))
-    for trackType in _SeidelTracks:
-        if trackType in selectedTypes:
-            trackSpecs.append((trackType, 1.1))
-    trackSpecs.extend((track, 1.1) for track in higherTracks)
+        trackTypes.append(SurfaceDataType.AbbeNumber)
+    trackTypes.extend(track for track in selectedConfig
+                      if track in _SeidelTracks or track in _WavefrontTracks)
     if chromaticData is not None:
         chromaticTrackCount = len(chromaticData) + 1 + int(showSeidelSigned)
-        trackSpecs.extend((chromaticType, 1.1) for _ in range(chromaticTrackCount))
+        trackTypes.extend([chromaticType] * chromaticTrackCount)
 
     materialData = None
     if any(trackType in selectedTypes for trackType in (
@@ -243,11 +258,11 @@ def PlotSurfaceData(
     if selectedTypes.intersection(_SeidelTracks):
         seidelData = _SeidelData(lens, fraunhoferLine, vertices, SeidelReferenceField)
 
-    higherData = None
-    if higherTracks:
-        order = max(int(track.name[1]) + int(track.name[2]) - 1 for track in higherTracks)
-        higherData = _HigherOrderData(lens, fraunhoferLine, vertices, order,
-                                     SeidelReferenceField, SeidelObjectDistance)
+    wavefrontData = None
+    if wavefrontTracks:
+        order = max(int(track.name[1]) + int(track.name[2]) - 1 for track in wavefrontTracks)
+        wavefrontData = _WavefrontData(lens, fraunhoferLine, vertices, order,
+                                      SeidelReferenceField, SeidelObjectDistance)
 
     layoutHeight = _LayoutHeight(lens)
     layoutTrackLength = _ResolvedTrackLength(lens, vertices, PlotTrackLength)
@@ -256,18 +271,21 @@ def PlotSurfaceData(
         layoutTrackLength,
         PlotTrackHeight,
     )
+    figureHeight = 10
+    if wavefrontTracks or seidelData is not None:
+        figureHeight += 2 * max(0, len(trackTypes) - 3)
     fig, axes = plt.subplots(
-        1 + len(trackSpecs),
+        1 + len(trackTypes),
         1,
-        figsize=(16, 10),
+        figsize=(16, figureHeight),
+        FigureClass=_SurfaceDataFigure,
         sharex=True,
-        gridspec_kw={"height_ratios": [1] * (1 + len(trackSpecs))},
         constrained_layout=True,
     )
     axes = np.atleast_1d(axes)
     layoutAxis = axes[0]
 
-    focus, principalPlaneZ = _DrawLensLayout(
+    focus = _DrawLensLayout(
         layoutAxis,
         lens,
         showRayHeight,
@@ -278,7 +296,7 @@ def PlotSurfaceData(
     focus = focus or _LensFocalPoint(lens)
     plotBounds = _PlotBounds(lens, focus, layoutTrackLength)
 
-    for axis, (trackType, _height) in zip(axes[1:], trackSpecs):
+    for axis, trackType in zip(axes[1:], trackTypes):
         if trackType == SurfaceDataType.OpticalPower:
             _DrawGroupPower(axis, groupData)
         elif trackType == SurfaceDataType.RefractiveIndex:
@@ -289,9 +307,9 @@ def PlotSurfaceData(
             key, color = _SeidelTracks[trackType]
             _DrawSurfaceMetric(axis, seidelData, key, f"Σ {key} (mm)", color,
                                3, 1e-12, numberFormat=".3g", includeZero=True)
-        elif trackType in _HigherOrderTracks:
-            key, color = _HigherOrderTracks[trackType]
-            _DrawSurfaceMetric(axis, higherData, key, f"{key} (mm)", color,
+        elif trackType in _WavefrontTracks:
+            key, color = _WavefrontTracks[trackType]
+            _DrawSurfaceMetric(axis, wavefrontData, key, f"{key} (mm)", color,
                                3, 1e-12, numberFormat=".3g", includeZero=True)
 
     if chromaticData is not None:
@@ -311,26 +329,18 @@ def PlotSurfaceData(
                      f"Reference field: {float(SeidelReferenceField):g}° at {chromaticLines[0]}; "
                      f"object / focus distance: {float(SeidelObjectDistance):g} / "
                      f"{float(SeidelFocusDistance):g} mm; defocus excluded")
-    if higherData is not None:
+    if wavefrontData is not None:
         fig.suptitle(fig._suptitle.get_text() + "\n"
                      "Cumulative optical-path W; partial-system Gaussian references\n"
                      f"reference field: {float(SeidelReferenceField):g}° slope; "
                      f"object distance: {float(SeidelObjectDistance):g} mm; "
                      f"λ = {float(LambdaLines[fraunhoferLine]):g} nm")
-    _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight)
-    _DrawLayoutLengths(
-        layoutAxis,
-        lens,
-        vertices,
-        focus,
-        principalPlaneZ if showPrincipalPlane else None,
-    )
+    _ConfigureVerticalSpacing(fig, axes, layoutTrackHeight, DataTrackHeight)
+    _DrawLayoutLengths(layoutAxis, lens, vertices, focus)
+    fig.exportSize = fig.get_size_inches().copy()
 
     if plt.get_backend().lower() != "agg":
         plt.show()
-
-
-
     return fig, axes
 
 
@@ -339,18 +349,8 @@ def PlotSurfaceData(
 # ==================================================================
 
 
-def _Scalar(value):
-    """Convert a NumPy or CuPy scalar to a Python float."""
-    if hasattr(value, "get"):
-        value = value.get()
-    return float(value)
-
-
 def _EnsureLensData(lens):
     """Populate groups and axial positions when they have not been calculated."""
-    if not lens.surfaces:
-        return
-
     hasRefractiveSurface = any(
         not isinstance(surface, Stop) and not surface.IsAirMaterial()
         for surface in lens.surfaces
@@ -365,47 +365,43 @@ def _EnsureLensData(lens):
     for surfaceIndex, surface in enumerate(lens.surfaces):
         surface.SetCumulative(cumulativeThickness)
         if surfaceIndex < len(lens.surfaces) - 1:
-            cumulativeThickness += _Scalar(surface.thickness)
+            cumulativeThickness += float(surface.thickness)
 
 
 def _SurfaceVertices(lens):
     """Return the axial vertex position of every surface in millimeters."""
-    return [_Scalar(surface.cumulativeThickness) for surface in lens.surfaces]
+    return [float(surface.cumulativeThickness) for surface in lens.surfaces]
 
 
 def _LayoutHeight(lens):
     """Return a finite positive aperture height for the optical layout."""
     finiteSemiDiameters = [
-        abs(_Scalar(surface.clearSemiDiameter))
+        abs(float(surface.clearSemiDiameter))
         for surface in lens.surfaces
-        if np.isfinite(_Scalar(surface.clearSemiDiameter))
+        if np.isfinite(float(surface.clearSemiDiameter))
     ]
     return max(finiteSemiDiameters, default=1.0)
 
 
 def _LensFocalPoint(lens):
     """Return the recorded system focal point as a plotting coordinate."""
-    focalPoint = getattr(lens, "focalPoint", None)
+    focalPoint = lens.focalPoint
     if focalPoint is None:
         return None
 
-    return _Scalar(focalPoint[Axis.Z.value]), 0.0
+    return float(focalPoint[Axis.Z.value]), 0.0
 
 
 def _ResolvedTrackLength(lens, vertices, PlotTrackLength):
     """Resolve the focal-point-relative horizontal plot length in millimeters."""
     if PlotTrackLength is None:
-        trackLength = getattr(lens, "totalAxialLength", None)
+        trackLength = lens.totalAxialLength
         if trackLength is None:
             trackLength = max(vertices) - min(vertices)
     else:
         trackLength = PlotTrackLength
 
-    trackLength = _Scalar(trackLength)
-    if not np.isfinite(trackLength) or trackLength <= _Scalar(AXIAL_ZERO):
-        raise ValueError("PlotTrackLength must be a finite, positive length.")
-
-    return trackLength
+    return float(trackLength)
 
 
 def _PlotBounds(lens, focus, trackLength):
@@ -414,8 +410,8 @@ def _PlotBounds(lens, focus, trackLength):
     objectSideLimit = focalZ - trackLength
 
     firstSurface = lens.surfaces[0]
-    if _Scalar(firstSurface.radius) < 0 and firstSurface.sdCumulative is not None:
-        objectSideLimit = min(objectSideLimit, _Scalar(firstSurface.sdCumulative))
+    if float(firstSurface.radius) < 0 and firstSurface.sdCumulative is not None:
+        objectSideLimit = min(objectSideLimit, float(firstSurface.sdCumulative))
 
     return objectSideLimit, focalZ
 
@@ -426,12 +422,8 @@ def _ResolvedTrackHeight(autoHeight, trackLength, PlotTrackHeight):
     if PlotTrackHeight is None:
         return automaticHeight
 
-    requestedHeight = _Scalar(PlotTrackHeight)
-    if (
-            np.isfinite(requestedHeight)
-            and requestedHeight > _Scalar(AXIAL_ZERO)
-            and requestedHeight / trackLength <= 0.5
-    ):
+    requestedHeight = float(PlotTrackHeight)
+    if requestedHeight / trackLength <= 0.5:
         return requestedHeight
 
     return automaticHeight
@@ -443,7 +435,7 @@ def _SetLayoutScale(axis, layoutTrackHeight):
     axis.set_aspect("equal", adjustable="box")
 
 
-def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight):
+def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight, dataTrackHeight=None):
     """Keep the layout at physical scale and reserve readable data tracks."""
     if len(axes) == 1:
         return
@@ -453,9 +445,6 @@ def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight):
     # requested bounds. Physical aspect must use the final displayed span.
     left, right = layoutAxis.get_xlim()
     xRange = right - left
-    if xRange <= _Scalar(AXIAL_ZERO):
-        return
-
     gridSpec = layoutAxis.get_subplotspec().get_gridspec()
     trackCount = len(axes) - 1
 
@@ -476,19 +465,23 @@ def _ConfigureVerticalSpacing(figure, axes, layoutTrackHeight):
             * layoutTrackHeight
             / xRange
         )
-        requiredHeight = desiredLayoutHeight + trackCount * minimumTrackHeight
-        extraHeight = max(0.0, requiredHeight - availableHeight)
-        if extraHeight > 0.01:
+        if dataTrackHeight is None:
+            requiredHeight = desiredLayoutHeight + trackCount * minimumTrackHeight
+            extraHeight = max(0.0, requiredHeight - availableHeight)
+            trackHeight = max(
+                minimumTrackHeight, (availableHeight - desiredLayoutHeight) / trackCount
+            )
+        else:
+            trackHeight = dataTrackHeight
+            extraHeight = desiredLayoutHeight + trackCount * trackHeight - availableHeight
+        if abs(extraHeight) > 0.01:
             figure.set_size_inches(
                 figure.get_figwidth(), figure.get_figheight() + extraHeight,
                 forward=True,
             )
-        trackHeight = max(
-            minimumTrackHeight, (availableHeight - desiredLayoutHeight) / trackCount
-        )
         heightRatios = [desiredLayoutHeight, *[trackHeight] * trackCount]
         currentRatios = gridSpec.get_height_ratios()
-        if extraHeight <= 0.01 and np.allclose(currentRatios, heightRatios, atol=0.002):
+        if abs(extraHeight) <= 0.01 and np.allclose(currentRatios, heightRatios, atol=0.002):
             break
         gridSpec.set_height_ratios(heightRatios)
     layoutAxis.set_aspect("equal", adjustable="box")
@@ -514,33 +507,29 @@ def _AlignTrackWidths(axes):
         axis.set_axes_locator(alignedPosition)
 
 
-def _LayoutLengthText(lens, vertices, focus, principalPlaneZ):
-    """Format total, optical, and optional rear-principal focal lengths."""
+def _LayoutLengthText(lens, vertices, focus):
+    """Format total and optical track lengths."""
     opticalLength = max(vertices) - min(vertices)
     if focus is not None:
         totalTrackLength = abs(focus[0] - vertices[0])
     else:
-        totalTrackLength = getattr(lens, "totalAxialLength", None)
+        totalTrackLength = lens.totalAxialLength
         if totalTrackLength is None:
             totalTrackLength = opticalLength
 
     lines = [
-        f"Total track: {_Scalar(totalTrackLength):.2f} mm",
+        f"Total track: {float(totalTrackLength):.2f} mm",
         f"Optical length: {opticalLength:.2f} mm",
     ]
-    # if principalPlaneZ is not None and focus is not None:
-    #     focalLength = focus[0] - principalPlaneZ
-    #     lines.append(f"Focal length: {focalLength:.2f} mm")
-
     return "\n".join(lines)
 
 
-def _DrawLayoutLengths(axis, lens, vertices, focus, principalPlaneZ):
+def _DrawLayoutLengths(axis, lens, vertices, focus):
     """Place the lens-length summary in the upper-right layout corner."""
     axis.text(
         0.985,
         0.975,
-        _LayoutLengthText(lens, vertices, focus, principalPlaneZ),
+        _LayoutLengthText(lens, vertices, focus),
         transform=axis.transAxes,
         ha="right",
         va="top",
@@ -552,12 +541,12 @@ def _DrawLayoutLengths(axis, lens, vertices, focus, principalPlaneZ):
 
 def _SurfaceProfile(surface, sampleCount=80):
     """Return the positive meridional profile of a spherical surface."""
-    semiDiameter = abs(_Scalar(surface.clearSemiDiameter))
-    vertexZ = _Scalar(surface.cumulativeThickness)
-    radius = _Scalar(surface.radius)
+    semiDiameter = abs(float(surface.clearSemiDiameter))
+    vertexZ = float(surface.cumulativeThickness)
+    radius = float(surface.radius)
     height = np.linspace(0.0, semiDiameter, sampleCount)
 
-    if math.isfinite(radius) and abs(radius) > _Scalar(AXIAL_ZERO):
+    if math.isfinite(radius) and abs(radius) > float(AXIAL_ZERO):
         sagTerm = np.maximum(radius * radius - height * height, 0.0)
         axial = vertexZ + radius - math.copysign(1.0, radius) * np.sqrt(sagTerm)
     else:
@@ -605,25 +594,19 @@ def _BoundarySegments(surfaces):
 
     for surface in surfaces:
         boundaries = [
-            getattr(surface, "clearBoundaryL", None),
-            getattr(surface, "clearBoundaryT", None),
-            *getattr(surface, "clearBoundaries", []),
+            surface.clearBoundaryL,
+            surface.clearBoundaryT,
+            *surface.clearBoundaries,
         ]
 
         for boundary in boundaries:
             if boundary is None or id(boundary) in seen:
                 continue
-            if not hasattr(boundary, "E1") or not hasattr(boundary, "E2"):
-                continue
-
             seen.add(id(boundary))
-            try:
-                startZ = _Scalar(boundary.E1.ZCoord())
-                endZ = _Scalar(boundary.E2.ZCoord())
-                startY = _Scalar(boundary.E1.SemiAxisMagnititude())
-                endY = _Scalar(boundary.E2.SemiAxisMagnititude())
-            except (AttributeError, TypeError):
-                continue
+            startZ = float(boundary.E1.ZCoord())
+            endZ = float(boundary.E2.ZCoord())
+            startY = float(boundary.E1.SemiAxisMagnititude())
+            endY = float(boundary.E2.SemiAxisMagnititude())
 
             segments.append(((startZ, startY), (endZ, endY)))
 
@@ -636,7 +619,6 @@ def _LensElements(lens):
         return [
             (lens.surfaces[frontIndex], lens.surfaces[rearIndex])
             for frontIndex, rearIndex in lens.lenses
-            if rearIndex < len(lens.surfaces)
         ]
 
     elements = []
@@ -661,15 +643,8 @@ def _MaterialData(lens, fraunhoferLine, vertices):
         ri = None
         abbe = None
         if not isinstance(surface, Stop) and not surface.IsAirMaterial():
-            try:
-                ri = _Scalar(surface.RI(wavelength))
-            except Exception:
-                pass
-
-            try:
-                abbe = _Scalar(surface.material.V_d())
-            except Exception:
-                pass
+            ri = float(surface.RI(wavelength))
+            abbe = float(surface.material.V_d())
 
         data.append({
             "index": index,
@@ -691,25 +666,25 @@ def _SeidelData(lens, fraunhoferLine, vertices, referenceField):
     """
     reference = lens.ComputeSeidelCoefficients(
         referenceField=referenceField, wavelength=LambdaLines[fraunhoferLine])
-    return _SeidelRows(lens, vertices, reference.CumulativeCoefficients())
+    return _CoefficientRows(lens, vertices, reference.CumulativeCoefficients())
 
 
-def _HigherOrderData(lens, fraunhoferLine, vertices, order, referenceField, objectDistance):
+def _WavefrontData(lens, fraunhoferLine, vertices, order, referenceField, objectDistance):
     """Combined optical-path wavefronts in a fixed input pupil, from one trace."""
     result = lens.ComputeHigherOrder(
         maxOrder=order, referenceField=referenceField,
         wavelength=LambdaLines[fraunhoferLine], objectDistance=objectDistance,
         referenceFieldUnits="degrees")
-    return _SeidelRows(lens, vertices, result.CumulativeWavefrontCoefficients())
+    return _CoefficientRows(lens, vertices, result.CumulativeWavefrontCoefficients())
 
 
-def _SeidelRows(lens, vertices, coefficients):
+def _CoefficientRows(lens, vertices, coefficients):
     """Attach the common prescription spans to cumulative coefficients."""
     data = []
     for index, value in enumerate(coefficients):
         left = vertices[index]
         right = (vertices[index + 1] if index < len(vertices) - 1
-                 else left + _Scalar(lens.surfaces[index].thickness))
+                 else left + float(lens.surfaces[index].thickness))
         data.append({"index": index, "left": left, "right": right,
                      **value.AsDict()})
     return data
@@ -727,13 +702,13 @@ def _ChromaticSeidelData(lens, vertices, referenceField, objectDistance, focusDi
         objectDistance=objectDistance, focusDistance=focusDistance,
         referenceFieldUnits="degrees")
     baseline = reference.seidel.paraxial
-    data = [_SeidelRows(lens, vertices, reference.CumulativeCoefficients())]
+    data = [_CoefficientRows(lens, vertices, reference.CumulativeCoefficients())]
     for line in chromaticLines[1:]:
         result = lens.ComputeSeidel(
             fieldAngle=referenceField, wavelength=LambdaLines[line],
             objectDistance=baseline.objectDistance, objectHeight=baseline.objectHeight,
             stopSemiDiameter=baseline.stopSemiDiameter, focusDistance=baseline.focusDistance)
-        data.append(_SeidelRows(lens, vertices,
+        data.append(_CoefficientRows(lens, vertices,
                                (value.ToWavefront() for value in result.CumulativeSums())))
     return data, baseline
 
@@ -777,29 +752,24 @@ def _DrawChromaticSeidel(axes, data, key, showSigned=False):
 
 def _GroupData(lens, fraunhoferLine, vertices, maxPower):
     """Collect group focal length, power, color, and horizontal span data."""
-    focalLengths = [_Scalar(value) for value in LensPartitionFL(lens, fraunhoferLine)]
+    focalLengths = [float(value) for value in LensPartitionFL(lens, fraunhoferLine)]
     powers = [
         1.0 / focalLength
-        if np.isfinite(focalLength) and abs(focalLength) > _Scalar(AXIAL_ZERO)
+        if np.isfinite(focalLength) and abs(focalLength) > float(AXIAL_ZERO)
         else 0.0
         for focalLength in focalLengths
     ]
 
     if maxPower is None:
         normalizationPower = max((abs(power) for power in powers), default=1.0)
-        if normalizationPower <= _Scalar(AXIAL_ZERO):
+        if normalizationPower <= float(AXIAL_ZERO):
             normalizationPower = 1.0
     else:
-        normalizationPower = _Scalar(maxPower)
-        if not np.isfinite(normalizationPower) or normalizationPower <= _Scalar(AXIAL_ZERO):
-            raise ValueError("maxPower must be a finite, positive optical power.")
+        normalizationPower = float(maxPower)
 
     colors = plt.get_cmap("tab10").colors
     groups = []
     for groupIndex, group in enumerate(lens.groups):
-        if not group or groupIndex >= len(focalLengths):
-            continue
-
         groups.append({
             "left": vertices[group[0]],
             "right": vertices[group[-1]],
@@ -814,59 +784,35 @@ def _GroupData(lens, fraunhoferLine, vertices, maxPower):
 def _MarginalRayLayoutData(lens):
     """Return marginal-ray data for the layout and virtual reference overlays."""
     rayPath = MarginalRayPath(lens)
-    physicalIndices = [
-        index for index, surface in enumerate(lens.surfaces)
-        if not isinstance(surface, Stop)
-    ]
     points = []
-    finalDirection = None
-
-    if not rayPath.position or len(rayPath.position[0]) == 0:
-        return points, None, None, []
-
     initialPoint = (
-        _Scalar(rayPath.position[0][0, Axis.Z.value]),
-        _Scalar(rayPath.position[0][0, Axis.Y.value]),
+        float(rayPath.position[0][0, Axis.Z.value]),
+        float(rayPath.position[0][0, Axis.Y.value]),
     )
-    initialHeight = _Scalar(rayPath.position[0][0, Axis.Y.value])
+    initialHeight = initialPoint[1]
     propagationPoints = [initialPoint]
 
-    for pathIndex, _surfaceIndex in enumerate(physicalIndices, start=1):
-        if pathIndex >= len(rayPath.position):
-            break
-
-        positions = rayPath.position[pathIndex]
-        directions = rayPath.direction[pathIndex]
-        if len(positions) == 0:
-            break
-
+    for positions in rayPath.position[1:]:
         point = (
-            _Scalar(positions[0, Axis.Z.value]),
-            _Scalar(positions[0, Axis.Y.value]),
+            float(positions[0, Axis.Z.value]),
+            float(positions[0, Axis.Y.value]),
         )
         points.append(point)
         propagationPoints.append(point)
-        finalDirection = directions[0]
 
     focus = None
-    if points and finalDirection is not None:
-        directionY = _Scalar(finalDirection[Axis.Y.value])
-        directionZ = _Scalar(finalDirection[Axis.Z.value])
-        if abs(directionY) > _Scalar(AXIAL_ZERO):
+    principalPlaneZ = None
+    if points:
+        finalDirection = rayPath.direction[-1][0]
+        directionY = float(finalDirection[Axis.Y.value])
+        directionZ = float(finalDirection[Axis.Z.value])
+        if abs(directionY) > float(AXIAL_ZERO):
             distance = -points[-1][1] / directionY
             if distance > 0:
                 focus = (points[-1][0] + distance * directionZ, 0.0)
 
-    principalPlaneZ = None
-    if points and finalDirection is not None:
-        exitHeight = points[-1][1]
-        directionY = _Scalar(finalDirection[Axis.Y.value])
-        directionZ = _Scalar(finalDirection[Axis.Z.value])
-        if abs(directionY) > _Scalar(AXIAL_ZERO):
-            distance = (initialHeight - exitHeight) / directionY
+            distance = (initialHeight - points[-1][1]) / directionY
             principalPlaneZ = points[-1][0] + distance * directionZ
-            if not np.isfinite(principalPlaneZ):
-                principalPlaneZ = None
 
     return points, focus, principalPlaneZ, propagationPoints
 
@@ -880,7 +826,7 @@ def _RayHeightAtAxialPosition(propagationPoints, axialPosition):
             continue
 
         axialDistance = endZ - startZ
-        if abs(axialDistance) <= _Scalar(AXIAL_ZERO):
+        if abs(axialDistance) <= float(AXIAL_ZERO):
             return startHeight
 
         fraction = (axialPosition - startZ) / axialDistance
@@ -899,7 +845,7 @@ def _StopRayHeightPercentage(propagationPoints, stopZ):
         return None
 
     maximumHeight = max(abs(height) for _position, height in propagationPoints)
-    if maximumHeight <= _Scalar(AXIAL_ZERO):
+    if maximumHeight <= float(AXIAL_ZERO):
         return None
 
     return abs(stopHeight), abs(stopHeight) / maximumHeight * 100.0
@@ -927,26 +873,11 @@ def _DrawStopRayHeightPercentage(axis, stopZ, propagationPoints):
 
 def _PupilProfile(lens):
     """Return positive pupil heights and their traced axial positions."""
-    pupil = getattr(lens, "entrancePupil", None)
-    if pupil is None:
-        return None
-
-    try:
-        heights, depths = pupil.GetPupilPoints()
-    except (AttributeError, TypeError):
-        return None
-
-    pointCount = min(len(heights), len(depths))
-    if pointCount == 0:
-        return None
-
+    heights, depths = lens.entrancePupil.GetPupilPoints()
     points = []
-    for index in range(pointCount):
-        try:
-            height = abs(_Scalar(heights[index]))
-            depth = _Scalar(depths[index])
-        except (TypeError, ValueError):
-            continue
+    for height, depth in zip(heights, depths):
+        height = abs(float(height))
+        depth = float(depth)
         if np.isfinite(height) and np.isfinite(depth):
             points.append((height, depth))
 
@@ -964,9 +895,8 @@ def _DrawEntrancePupil(axis, lens, layoutHeight, plotAllPoints):
         return
 
     heights, depths = profile
-    innerIndex = min(range(len(heights)), key=heights.__getitem__)
-    innerHeight = heights[innerIndex]
-    innerDepth = depths[innerIndex]
+    innerHeight = heights[0]
+    innerDepth = depths[0]
     color = "#D34C4C"
 
     if plotAllPoints and len(heights) > 1:
@@ -974,8 +904,8 @@ def _DrawEntrancePupil(axis, lens, layoutHeight, plotAllPoints):
         labelHeight = innerHeight + layoutHeight * 0.04
     else:
         pupil = lens.entrancePupil
-        semiDiameter = getattr(pupil, "clearSemiDiameter", None)
-        planeHeight = max(heights) if semiDiameter is None else abs(_Scalar(semiDiameter))
+        semiDiameter = pupil.clearSemiDiameter
+        planeHeight = max(heights) if semiDiameter is None else abs(float(semiDiameter))
         planeHeight = min(planeHeight, layoutHeight)
         axis.plot(
             [innerDepth, innerDepth],
@@ -1063,7 +993,7 @@ def _StopHeight(lens, stopIndex, layoutHeight):
         while 0 <= surfaceIndex < len(lens.surfaces):
             surface = lens.surfaces[surfaceIndex]
             if not isinstance(surface, Stop):
-                semiDiameter = abs(_Scalar(surface.clearSemiDiameter))
+                semiDiameter = abs(float(surface.clearSemiDiameter))
                 if np.isfinite(semiDiameter):
                     neighboringSemiDiameters.append(semiDiameter)
                 break
@@ -1128,7 +1058,7 @@ def _DrawLensLayout(
     for surfaceIndex, surface in enumerate(lens.surfaces):
         if not isinstance(surface, Stop):
             continue
-        stopZ = _Scalar(surface.cumulativeThickness)
+        stopZ = float(surface.cumulativeThickness)
         stopHeight = _StopHeight(lens, surfaceIndex, layoutHeight)
         axis.plot(
             [stopZ] * 2,
@@ -1163,13 +1093,13 @@ def _DrawLensLayout(
             axis,
             principalPlaneZ,
             layoutHeight,
-            _Scalar(lens.surfaces[0].cumulativeThickness),
+            float(lens.surfaces[0].cumulativeThickness),
         )
 
     axis.axhline(0.0, color="#303030", linewidth=0.9, zorder=3)
     axis.set_ylabel("Height (mm)")
 
-    return focus, principalPlaneZ
+    return focus
 
 
 def _DrawGroupPower(axis, groups):
@@ -1245,7 +1175,7 @@ def _DrawSurfaceMetric(axis, data, key, label, color, decimals, minimumPadding,
 
         # Stops retain the cumulative value; repeating the same label on a
         # short adjacent span crowds otherwise aligned coefficient tracks.
-        if limits is not None and (not includeZero or value != previousValue):
+        if not includeZero or value != previousValue:
             below = includeZero and value < 0
             axis.text(
                 item["left"] + width / 2.0,
@@ -1289,26 +1219,14 @@ def PlotSurfaceDataOld(lens, maxPower=None):
     fraunhoferLine = "d"
     FLP = 2
 
-    def _Scalar(value):
-        if hasattr(value, "get"):
-            value = value.get()
-        return float(value)
-
     def _MaterialData(surface):
         if isinstance(surface, Stop) or surface.IsAirMaterial():
             return None, None
 
         wavelength = constant(LambdaLines[fraunhoferLine])
 
-        try:
-            ri = _Scalar(surface.RI(wavelength))
-        except Exception:
-            ri = None
-
-        try:
-            abbe = _Scalar(surface.material.V_d())
-        except Exception:
-            abbe = None
+        ri = float(surface.RI(wavelength))
+        abbe = float(surface.material.V_d())
 
         return ri, abbe
 
@@ -1326,11 +1244,11 @@ def PlotSurfaceDataOld(lens, maxPower=None):
         abbeValues.append(abbe)
 
     groupFocalLengths = LensPartitionFL(lens, fraunhoferLine) if lens.groups else []
-    groupFocalLengthValues = [_Scalar(fl) for fl in groupFocalLengths]
+    groupFocalLengthValues = [float(fl) for fl in groupFocalLengths]
 
     groupPowers = [
         1.0 / fl
-        if np.isfinite(fl) and abs(fl) > _Scalar(AXIAL_ZERO)
+        if np.isfinite(fl) and abs(fl) > float(AXIAL_ZERO)
         else 0.0
         for fl in groupFocalLengthValues
     ]
@@ -1339,12 +1257,10 @@ def PlotSurfaceDataOld(lens, maxPower=None):
             [abs(power) for power in groupPowers],
             default=1.0
         )
-        if normalizationPower <= _Scalar(AXIAL_ZERO):
+        if normalizationPower <= float(AXIAL_ZERO):
             normalizationPower = 1.0
     else:
-        normalizationPower = _Scalar(maxPower)
-        if not np.isfinite(normalizationPower) or normalizationPower <= _Scalar(AXIAL_ZERO):
-            raise ValueError("maxPower must be a finite, positive optical power.")
+        normalizationPower = float(maxPower)
 
     colors = plt.get_cmap("tab10").colors
     figWidth = max(9, surfaceCount * 0.55)
@@ -1360,9 +1276,6 @@ def PlotSurfaceDataOld(lens, maxPower=None):
 
     groupAx.axhline(0, color="0.25", linewidth=0.8)
     for groupIndex, group in enumerate(lens.groups):
-        if groupIndex >= len(groupFocalLengthValues) or not group:
-            continue
-
         groupFL = groupFocalLengthValues[groupIndex]
         barHeight = groupPowers[groupIndex] / normalizationPower
 
