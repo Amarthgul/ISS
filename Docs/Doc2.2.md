@@ -142,8 +142,8 @@ Let $\mathbf{k}$ be the unit propagation direction, and let $\mathbf{e}_x$ and $
 $$
 C=\begin{bmatrix}a&b\\b&c\end{bmatrix}
 =\begin{bmatrix}
-\langle |E_x|^2\rangle&\operatorname{Re}\langle E_x E_y^*\rangle\\
-\operatorname{Re}\langle E_x E_y^*\rangle&\langle |E_y|^2\rangle
+\langle |E_x|^2\rangle&Re\langle E_x E_y^*\rangle\\
+Re\langle E_x E_y^*\rangle&\langle |E_y|^2\rangle
 \end{bmatrix}.
 $$
 
@@ -152,7 +152,7 @@ The field components here include the normalization needed to express their mean
 The total power weight and the equivalent linear Stokes parameters are
 
 $$
-I=\operatorname{tr}(C)=a+c,\qquad Q=a-c,\qquad U=2b.
+I=tr(C)=a+c,\qquad Q=a-c,\qquad U=2b.
 $$
 
 In the existing ray array, columns 7, 8, and 9 contain $a,c,b$, respectively. `RadianceTerms()` returns the matrix-order tuple $(a,b,c)$. This keeps the ray width unchanged. The methods named `Radiance()` and `PolarizedRadiance()` both return $I$. Strictly, this is a Monte Carlo ray power weight, not radiance per unit projected area and solid angle; refraction changes the ray bundle geometry. Consequently, power conservation is used at an interface, without introducing an additional $n^2$ radiance factor into the ray weight.

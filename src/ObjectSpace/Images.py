@@ -655,6 +655,29 @@ class Image2D:
         pass
 
 
+def EmptyImageSource(distance = FAR_DISTANCE, halfWidth=1500, halfHeight=1000, dimension=[1920, 1280], color=[1, 1, 1]):
+    """Return an emitting Image2DFlat filled with a linear RGB color.
+
+    Distance and half extents are in mm; dimension is (width, height) in
+    pixels. The rectangle is centered on the optical axis at z=-distance.
+    """
+    from .Image2DFlat import Image2DFlat
+
+    image = Image2DFlat()
+    image.distance = distance
+    image.rgbArray = bd.empty((dimension[1], dimension[0], 3), dtype=PRECISION_TYPE)
+    image.rgbArray[:] = bd.asarray(color, dtype=PRECISION_TYPE)
+    image.pointAnchor = bd.empty((4, 3), dtype=PRECISION_TYPE)
+    image.pointAnchor[:, 0] = bd.array([-1, 1, -1, 1]) * halfWidth
+    image.pointAnchor[:, 1] = bd.array([-1, -1, 1, 1]) * halfHeight
+    image.pointAnchor[:, 2] = -distance
+    image.imageCenter = bd.zeros(3, dtype=PRECISION_TYPE)
+    image.imageCenter[2] = -distance
+    image.horizontalAoV = bd.rad2deg(2 * bd.arctan(halfWidth / distance))
+    image._RGBLoaded()
+    return image
+
+
 def main():
     from .Image2DFlat import Image2DFlat
 

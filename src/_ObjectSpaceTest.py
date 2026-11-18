@@ -105,76 +105,22 @@ def FocusFalloffLenSelect(lensPath, renderTime = 20*60, focusDistance=5000, file
         recorder = time.time()
 
 
-def StackTest2D(iStack, renderTime = 30*60, focusDistance=1500, filename = r"Stack2DHighlightRecon", aperture=None, realTimeUpdate = False):
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack2D
-    from Imagers.Film import Film
-    from Util.ColorPDF import ColorPDF
+def LensPolarization():
+    from ImagingSystem import ImagingSystem
+    from Imagers.PDA import PDA
+    from Imagers.Standard import StdImager
+    from ObjectSpace.ImageStack import ExampleStackSpotGrid
+    from Util.Globals import RefreshRNG
+    import time
 
-    print("Currently using ", backend_name)
+    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
 
-    stack = iStack #ExampleStack2D()
+    lens.AddSurfaceDefect(0.2)
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonEF50f1.2L.zmx")).GetLens()
-    lens.UpdateLens()
-    if aperture is not None:
-        lens.SetAperture(aperture)
+    imager = StdImager(horiPx=640)
+    PolIS = ImagingSystem(lens, imager)
 
-    imager = StdImager(lens.BestFocusBFD(focusDistance))
-    # imager = StdImager(lens.BestFocusBFD(focusDistance))
-    imager.SetLensLength(lens.totalAxialLength)
-    image = imager.AcquireEmpty()
-
-    iterationCount = 0
-    start = time.time()
-    if (realTimeUpdate):
-        plt.ion()  # Turn on interactive mode
-        fig, ax = plt.subplots()
-        im = ax.imshow(ImageConversion(image, flipH=True))
-
-    while (True):
-        recorder = time.time()
-        mainRB = stack.EmitTowards(lens.entrancePupil.GetSamplePoints(512), 40960)
-        # mainRB = fog.Attenuate(mainRB)
-        # mainRB = att.ColorizeDepthZones(mainRB, 5000, 20000)
-        # mainRBZ = att.Attenuate(mainRB)
-        print("Creating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        mainRB, mainRP, reflectedRB = lens.Propagate(mainRB, reflection=False)
-        print("Propagating RB took ", time.time() - recorder)
-        recorder = time.time()
-
-        # mainRBZ, mainRP, reflectedRB = lens.Propagate(mainRBZ, reflection=False)
-        # print(mainRB.ToString(30))
-
-        image = imager.IntegralRays(mainRB, baseImg=image, polarized=False)
-        # imageZ = imager.IntegralRays(mainRBZ, baseImg=image, polarized=False)
-        print("Integral image took ", time.time() - recorder)
-        recorder = time.time()
-
-        if (realTimeUpdate):
-            print("Max value ", bd.max(image))
-            im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
-            plt.draw()
-            plt.pause(0.01)
-
-            # print(source.sampleRecord)
-        elapsed = time.time() - start
-        ProgressBar(elapsed / renderTime, 100)
-        iterationCount += 1
-
-        print("House keep took ", time.time() - recorder)
-
-        if (elapsed > renderTime):
-            image /= 100
-            global FrameCount
-            fn = filename
-            SaveAsEXR(image, r"resources/Results", fn)
-            # SaveAsEXR(imageZ, r"resources/Results", fn+"Z")
-
-            break
-
-        recorder = time.time()
+    PolIS.T_Polarization(objectDistance=13500, focusDistance=1350, renderTime=16 * 60, fileName="PolTest")
 
 
 def ZonalRender():
@@ -435,8 +381,8 @@ def main():
     # FlareTest()
     # eliosComparison()
     # ZonalAssembly()
-    ZonalRender()
-    # ISSpotTest()
+    # ZonalRender()
+    LensPolarization()
     # PDAT()
 
 

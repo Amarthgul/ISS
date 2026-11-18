@@ -435,71 +435,87 @@ class ImagingSystem:
             recorder = time.time()
 
 
-    def T_OutlierRender(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
+    """
+    T methods are all testing methods for specific and likely academic/scientific uses. 
+    """
+
+    def T_Polarization(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
+        """Render a uniform white field and save I plus _Q/_U/_AoLP/_DoLP.
+
+        Stokes powers accumulate before deriving polarization. Saved AoLP is
+        in radians in the detector basis; DoLP is a fraction. Undefined values
+        remain NaN. The primary normalized maps are retained on the imager.
+        Optional flare/glare maps use the additional FlareGlare filename suffix.
+        """
+        from ObjectSpace.Images import EmptyImageSource
+
+        ratio = 1.1
+        distance = self.objectDistance if objectDistance is None else objectDistance
         self.imager.SetLensLength(self.lens.totalAxialLength)
         self.imager.SetBFD(self.lens.BestFocusBFD(focusDistance))
         self.imager.Update()
-
-        image = self.imager.AcquireEmpty()
-
         if fNumber is not None:
             self.lens.SetAperture(fNumber)
 
-        highlightSampleCount = 4
-        sourceCoveragePerIteration = self._SourceCoveragePerIteration(
-            self.object,
-            highlightSampleCount,
-            highlightSources=True
-        )
+        angles = self.lens.GetAoV(unitInDegrees=False,
+                                  w=self.imager.width, h=self.imager.height)
+        halfSize = ratio * distance * bd.tan(angles[:2])
+        source = EmptyImageSource(
+            distance, halfSize[0], halfSize[1],
+            dimension=[self.imager.horizontalPx, self.imager.verticalPx])
+
+        # Use a small separate reflection pass, as in the ordinary renderer.
+        passes = [(False, self.pupilPerSample, self.sourcePerSample, "")]
+        if flareGlare:
+            passes.append((True, 8, 8, "FlareGlare"))
+        accumulated = [[self.imager.AcquireEmpty() for _ in range(3)] for _ in passes]
+        coverage = [self._SourceCoveragePerIteration(source, count)
+                    for _, _, count, _ in passes]
 
         iterationCount = 0
         start = time.time()
-
         if realTimeUpdate:
             plt.ion()
             fig, ax = plt.subplots()
-            im = ax.imshow(ImageConversion(image, flipH=True))
+            im = ax.imshow(ImageConversion(accumulated[0][0], flipH=True))
 
         while True:
-            mainRB = self.object.EmitTowards(
-                self.lens.entrancePupil.GetSamplePoints(8),
-                highlightSampleCount,
-                flareGlare=True
-            )
-            mainRB, _mainRP, _reflectedRB = self.lens.Propagate(
-                mainRB,
-                reflection=False
-            )
-            image = self.imager.IntegralRays(
-                mainRB,
-                baseImg=image,
-                polarized=False
-            )
+            for (reflection, pupilCount, sourceCount, _), maps in zip(passes, accumulated):
+                rays = source.EmitTowards(
+                    self.lens.entrancePupil.GetSamplePoints(pupilCount), sourceCount)
+                mainRB, _rayPath, reflectedRB = self.lens.Propagate(rays, reflection=reflection)
+                detected = reflectedRB if reflection else mainRB
+                maps[0] += self.imager.IntegralPolarization(detected)
+                maps[1] += self.imager.Q
+                maps[2] += self.imager.U
 
             if realTimeUpdate:
-                im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                im.set_data(ImageConversion(accumulated[0][0], flipV=True, maxModifier=0.1))
                 plt.draw()
                 plt.pause(0.01)
 
             elapsed = time.time() - start
             iterationCount += 1
-
-            ProgressBar(
-                self._TerminatePercent(renderTime, elapsed, iteration, iterationCount),
-                100
-            )
-
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
             if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
-                self.imager.SaveImage(
-                    fileName,
-                    sourceImg=image,
-                    scalar=(
-                        self._transmissionLoss
-                        / (iterationCount * sourceCoveragePerIteration)
-                    )
-                )
                 break
 
+        for (_, _, _, suffix), (intensity, q, u), sourceCoverage in zip(passes, accumulated, coverage):
+            scalar = self._transmissionLoss / (iterationCount * sourceCoverage)
+            intensity *= scalar
+            q *= scalar
+            u *= scalar
+            linear = bd.hypot(q, u)
+            dolp = linear / bd.where(intensity > 0, intensity, bd.nan)
+            aolp = bd.where((intensity > 0) & (linear > 0),
+                            0.5 * bd.arctan2(u, q), bd.nan)
+            for name, values in (("", intensity), ("_Q", q), ("_U", u),
+                                 ("_AoLP", aolp), ("_DoLP", dolp)):
+                self.imager.SaveImage(fileName + suffix + name, sourceImg=values)
+            if not suffix:
+                self.imager.image = intensity
+                self.imager.Q, self.imager.U = q, u
+                self.imager.AoLP, self.imager.DoLP = aolp, dolp
 
     # ==================================================================
     """ ====================== Private Methods ===================== """

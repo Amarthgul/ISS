@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from enum import Enum
 
 from Surfaces.Surface import FieldStopType, Surface
+from Raytracing.Polarization import TransportCoherency
 from Util.Backend import backend as bd
 from Util.Backend import backend_name
 from Util.PltPlot import Reset2D, DrawPlane
@@ -44,6 +45,10 @@ class StdImager(Surface):
         self.rayPath = None 
 
         self.image = None
+        self.Q = None
+        self.U = None
+        self.AoLP = None
+        self.DoLP = None
 
         """When enabled, grain will be added in the image instead of being an optional pass"""
         self.buildInGrain = False
@@ -113,6 +118,60 @@ class StdImager(Surface):
         raybatch, _tir, _vig = self.IntersectRays(raybatch)
 
         return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval, polarized=polarized)
+
+
+    def IntegralPolarization(self, raybatch):
+        """Intersect rays and return RGB Stokes I; store Q, U, AoLP and DoLP.
+
+        All maps have shape (horizontalPx, verticalPx, 3). Each call replaces
+        the polarization maps. Like IntegralRays, intersection mutates raybatch.
+        The ideal detector uses minimal-rotation transport to +Z, preserving
+        power and defining Q along detector X/Y and positive U at +45 degrees.
+        This is a ray-transport approximation, not an oblique analyzer model.
+
+        AoLP is in radians modulo pi. Dark channels have NaN AoLP/DoLP;
+        illuminated channels with zero linear polarization have NaN AoLP.
+        RGB weights follow COLOR_PDF. No outlier pruning, AOV integration,
+        or subclass sensor effects are applied; self.image is unchanged.
+        """
+        raybatch, _tir, _vig = self.IntersectRays(raybatch)
+
+        pxPitch = self.width / self.horizontalPx
+        pxOffset = bd.array([self.horizontalPx / 2, self.verticalPx / 2])
+        rayPos = bd.floor(raybatch.Position()[:, :2] / pxPitch + pxOffset).astype(int)
+        hit = bd.isclose(raybatch.value[:, 2], self._zPos)
+        hit &= ((rayPos[:, 0] >= 0) & (rayPos[:, 0] < self.horizontalPx)
+                & (rayPos[:, 1] >= 0) & (rayPos[:, 1] < self.verticalPx))
+        rayPos = rayPos[hit]
+        direction = raybatch.Direction()[hit]
+        detectorDirection = bd.zeros_like(direction)
+        detectorDirection[:, 2] = 1
+        a, b, c = TransportCoherency(
+            raybatch.RadianceTerms()[hit], direction, detectorDirection).T
+        stokes = bd.stack((a + c, a - c, 2 * b), axis=1)
+        grids = bd.zeros((self.horizontalPx, self.verticalPx, 3, 3))
+
+        if COLOR_PDF:
+            channel = raybatch.Channel()[hit].astype(int)
+            bd.add.at(grids, (rayPos[:, 0], rayPos[:, 1], channel), stokes)
+        else:
+            wavelength = raybatch.Wavelength()[hit]
+            for value in bd.unique(wavelength):
+                selected = bd.isclose(wavelength, value)
+                pos = rayPos[selected]
+                rgb = bd.asarray(WavelengthToRGB(value))
+                weighted = rgb[None, :, None] * stokes[selected, None, :]
+                bd.add.at(grids, (pos[:, 0], pos[:, 1]), weighted)
+
+        intensity = grids[:, :, :, 0]
+        self.Q = grids[:, :, :, 1]
+        self.U = grids[:, :, :, 2]
+        linear = bd.hypot(self.Q, self.U)
+        self.DoLP = linear / bd.where(intensity > 0, intensity, bd.nan)
+        self.AoLP = bd.where(
+            (intensity > 0) & (linear > 0),
+            0.5 * bd.arctan2(self.U, self.Q), bd.nan)
+        return intensity
 
 
     def DrawSurface(self):
@@ -465,6 +524,7 @@ class StdImager(Surface):
         rgb_image = bd.stack((radiantGridR, radiantGridG, radiantGridB), axis=-1)
 
         return self._CombineRGBAndAOV(rgb_image, rayPos, aovValues, baseImg)
+
 
     def _ExtractAOVValues(self, raybatch, rayMask):
         """

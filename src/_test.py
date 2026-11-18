@@ -253,13 +253,12 @@ def MaterialLookUpTest():
 
     line = 'd'
     stats = [
-        [1.50137 ,  56.4],
-        [1.7352  , 41.58],
-        [1.61484 ,  51.16],
-        [1.80518 ,  25.43],
-        [1.59551 ,  39.18],
-        [1.6988  , 55.43],
-        [1.744   ,44.77]
+        [1.62    , 36.3],
+        [1.6035  ,   53.5],
+        [1.6237  ,   47],
+        [1.6889  ,   31.1],
+        [1.6935  ,   53.5],
+        [1.6364  ,   35.4]
     ]
 
     result_df = FindClosestMaterialsBatch(excel_file, line, stats, top_k=12, writePath=RectPath("resources/")).to_string(index=False)
@@ -451,4 +450,4 @@ def main():
 
 
 if __name__ == "__main__":
-    EFL()
+    MaterialLookUpTest()
