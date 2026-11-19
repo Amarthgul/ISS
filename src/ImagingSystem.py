@@ -42,7 +42,7 @@ class ImagingSystem:
         # I have no idea why this is needed, the sample ratio should have normalized the output image brightness, but still, a 10-stop compensator is required.
 
 
-        self.sourcePerSample = 4096
+        self.sourcePerSample = 2048
 
 
         self.pupilPerSample = 512
@@ -442,9 +442,9 @@ class ImagingSystem:
     def T_Polarization(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
         """Render a uniform white field and save I plus _Q/_U/_AoLP/_DoLP.
 
-        Stokes powers accumulate before deriving polarization. Saved AoLP is
-        in radians in the detector basis; DoLP is a fraction. Undefined values
-        remain NaN. The primary normalized maps are retained on the imager.
+        Stokes powers accumulate before deriving polarization. Raw AoLP radians
+        and DoLP fractions pass through the imager's output filters before
+        saving. The primary normalized/filtered maps are retained on the imager.
         Optional flare/glare maps use the additional FlareGlare filename suffix.
         """
         from ObjectSpace.Images import EmptyImageSource
@@ -509,6 +509,8 @@ class ImagingSystem:
             dolp = linear / bd.where(intensity > 0, intensity, bd.nan)
             aolp = bd.where((intensity > 0) & (linear > 0),
                             0.5 * bd.arctan2(u, q), bd.nan)
+            aolp = self.imager.FilterAoLP(aolp)
+            dolp = self.imager.FilterDoLP(dolp)
             for name, values in (("", intensity), ("_Q", q), ("_U", u),
                                  ("_AoLP", aolp), ("_DoLP", dolp)):
                 self.imager.SaveImage(fileName + suffix + name, sourceImg=values)

@@ -109,18 +109,19 @@ def LensPolarization():
     from ImagingSystem import ImagingSystem
     from Imagers.PDA import PDA
     from Imagers.Standard import StdImager
+    from Imagers.PolSensor import PolSensor
     from ObjectSpace.ImageStack import ExampleStackSpotGrid
     from Util.Globals import RefreshRNG
     import time
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
+    lens = LensFromZmx(RectPath(r"resources/Zmx/CanonNFD50f1.4.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
 
     lens.AddSurfaceDefect(0.2)
 
-    imager = StdImager(horiPx=640)
+    imager = PolSensor(horiPx=540,  w = 36, h = 27)
     PolIS = ImagingSystem(lens, imager)
 
-    PolIS.T_Polarization(objectDistance=13500, focusDistance=1350, renderTime=16 * 60, fileName="PolTest")
+    PolIS.T_Polarization(objectDistance=13500, focusDistance=1350, fNumber=1.5, renderTime=16 * 60, fileName="PolTest")
 
 
 def ZonalRender():

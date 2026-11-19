@@ -131,8 +131,9 @@ class StdImager(Surface):
 
         AoLP is in radians modulo pi. Dark channels have NaN AoLP/DoLP;
         illuminated channels with zero linear polarization have NaN AoLP.
-        RGB weights follow COLOR_PDF. No outlier pruning, AOV integration,
-        or subclass sensor effects are applied; self.image is unchanged.
+        RGB weights follow COLOR_PDF. Derived maps pass through _FilterAoLP
+        and _FilterDoLP. No outlier pruning, AOV integration, or other sensor
+        effects are applied; self.image is unchanged.
         """
         raybatch, _tir, _vig = self.IntersectRays(raybatch)
 
@@ -171,7 +172,19 @@ class StdImager(Surface):
         self.AoLP = bd.where(
             (intensity > 0) & (linear > 0),
             0.5 * bd.arctan2(self.U, self.Q), bd.nan)
+        self.AoLP = self.FilterAoLP(self.AoLP)
+        self.DoLP = self.FilterDoLP(self.DoLP)
         return intensity
+
+
+    def FilterAoLP(self, image):
+        """Filter the derived AoLP map; the standard imager preserves radians."""
+        return image
+
+
+    def FilterDoLP(self, image):
+        """Filter the derived DoLP map; the standard imager preserves fractions."""
+        return image
 
 
     def DrawSurface(self):
