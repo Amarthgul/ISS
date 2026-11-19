@@ -42,7 +42,7 @@ class ImagingSystem:
         # I have no idea why this is needed, the sample ratio should have normalized the output image brightness, but still, a 10-stop compensator is required.
 
 
-        self.sourcePerSample = 2048
+        self.sourcePerSample = 4096
 
 
         self.pupilPerSample = 512
@@ -485,7 +485,7 @@ class ImagingSystem:
                     self.lens.entrancePupil.GetSamplePoints(pupilCount), sourceCount)
                 mainRB, _rayPath, reflectedRB = self.lens.Propagate(rays, reflection=reflection)
                 detected = reflectedRB if reflection else mainRB
-                maps[0] += self.imager.IntegralPolarization(detected)
+                maps[0] += self.imager.IntegralPolarization(detected, calculateDerived=False)
                 maps[1] += self.imager.Q
                 maps[2] += self.imager.U
 

@@ -120,7 +120,7 @@ class StdImager(Surface):
         return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval, polarized=polarized)
 
 
-    def IntegralPolarization(self, raybatch):
+    def IntegralPolarization(self, raybatch, calculateDerived=True):
         """Intersect rays and return RGB Stokes I; store Q, U, AoLP and DoLP.
 
         All maps have shape (horizontalPx, verticalPx, 3). Each call replaces
@@ -131,8 +131,10 @@ class StdImager(Surface):
 
         AoLP is in radians modulo pi. Dark channels have NaN AoLP/DoLP;
         illuminated channels with zero linear polarization have NaN AoLP.
-        RGB weights follow COLOR_PDF. Derived maps pass through _FilterAoLP
-        and _FilterDoLP. No outlier pruning, AOV integration, or other sensor
+        Set calculateDerived=False to integrate only I/Q/U and clear AoLP/DoLP
+        to None, deferring their calculation until render accumulation ends.
+        RGB weights follow COLOR_PDF. Derived maps pass through FilterAoLP
+        and FilterDoLP. No outlier pruning, AOV integration, or other sensor
         effects are applied; self.image is unchanged.
         """
         raybatch, _tir, _vig = self.IntersectRays(raybatch)
@@ -167,6 +169,10 @@ class StdImager(Surface):
         intensity = grids[:, :, :, 0]
         self.Q = grids[:, :, :, 1]
         self.U = grids[:, :, :, 2]
+        if not calculateDerived:
+            self.AoLP = None
+            self.DoLP = None
+            return intensity
         linear = bd.hypot(self.Q, self.U)
         self.DoLP = linear / bd.where(intensity > 0, intensity, bd.nan)
         self.AoLP = bd.where(

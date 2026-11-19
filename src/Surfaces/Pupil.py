@@ -132,19 +132,26 @@ class Pupil(VirtualSurface):
 
     def GetSamplePoints(self, sampleCount=None):
         """
-        Get some sample points that are on the pupil. 
+        Return exactly sampleCount fresh random points inside the pupil.
+
+        A shaped pupil must have a nonzero open area. With sampleCount=None,
+        return the cached pool without regenerating it.
         """
 
         # Return all the samples if no sample count is stated 
         if(sampleCount is None):
             return self._pupilPointSamples
 
-        # Typically the sample count should be smaller than the size of the sample pool. If it is bigger, that might be a case of single point imaging, so just return a new set of big samples.
-        # A year later: actually no let's just set the default to be really small and return a new one every time...
-        # if(sampleCount > self._pupilPointSamples.shape[0]):
         if self._alphaShape is not None:
-            self._ResetSamplePool(4096)
-            self._GenerateAccordingToAlphaShape()
+            samples = bd.empty((sampleCount, 3), dtype=self._pupilPointSamples.dtype)
+            filled = 0
+            while filled < sampleCount:
+                self._ResetSamplePool(max(sampleCount, 128))
+                self._GenerateAccordingToAlphaShape()
+                count = min(sampleCount - filled, self._pupilPointSamples.shape[0])
+                samples[filled:filled + count] = self._pupilPointSamples[:count]
+                filled += count
+            self._pupilPointSamples = samples
             return self._pupilPointSamples
         else:
             # Same as self._ResetSamplePool()
@@ -155,10 +162,6 @@ class Pupil(VirtualSurface):
                 samplePoints=sampleCount,
                 zDepth=pupilZdepth,
                 groupByPoint=True)
-
-        # selectedIndices = RNG.choice(self._pupilPointSamples.shape[0], sampleCount, replace=False)
-        # return self._pupilPointSamples[selectedIndices]
-
 
     def GetSampleZonal(self, sampleCount=None, minHeight=0.0, maxHeight=1.0):
         """
