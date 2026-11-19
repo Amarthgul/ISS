@@ -137,82 +137,83 @@ Up till this point, the discussion of refraction and reflection has been limited
 
 The current implementation records three real coefficients for each ray. These describe the distribution of power between transverse polarization components, rather than the boundary of a radiance ellipse. Rays are mutually incoherent: powers from independent rays are added at the detector, without interference between their optical phases. However, the two transverse components of one ray may still be correlated. Discarding that correlation would also discard the orientation of linear polarization.
 
-Let $ \mathbf{k}$ be the unit propagation direction, and let $ \mathbf{e} _ x$ and $ \mathbf{e} _ y$ be unit vectors such that $ (\mathbf{e} _ x,\mathbf{e} _ y,\mathbf{k})$ is an orthonormal, right-handed frame. In this frame the real coherency matrix is
+Let $` \mathbf{k}`$ be the unit propagation direction, and let $` \mathbf{e} _ x`$ and $` \mathbf{e} _ y`$ be unit vectors such that $` (\mathbf{e} _ x,\mathbf{e} _ y,\mathbf{k})`$ is an orthonormal, right-handed frame. In this frame the real coherency matrix is
 
-$$
+```math
 C=\begin{bmatrix}a&b \\ b&c\end{bmatrix}
 =\begin{bmatrix}
 \langle |E _ x| ^ 2\rangle & Re\langle E _ x E _ y ^ * \rangle
- \\ Re\langle E _ x E _ y ^ * \rangle &\langle |E _ y| ^ 2 \rangle
+ \\
+Re\langle E _ x E _ y ^ * \rangle &\langle |E _ y| ^ 2 \rangle
 \end{bmatrix}.
-$$
+```
 
 The field components here include the normalization needed to express their mean squared magnitudes as ray power weights. The brackets denote a time or ensemble average. No optical phase or time-resolved electric field is stored by the tracer.
 
 The total power weight and the equivalent linear Stokes parameters are
 
-$$
+```math
 I=tr(C)=a+c,\qquad Q=a-c,\qquad U=2b.
-$$
+```
 
-In the existing ray array, columns 7, 8, and 9 contain $ a,c,b$, respectively. `RadianceTerms()` returns the matrix-order tuple $ (a,b,c)$. This keeps the ray width unchanged. The methods named `Radiance()` and `PolarizedRadiance()` both return $ I$. Strictly, this is a Monte Carlo ray power weight, not radiance per unit projected area and solid angle; refraction changes the ray bundle geometry. Consequently, power conservation is used at an interface, without introducing an additional $ n ^ 2$ radiance factor into the ray weight.
+In the existing ray array, columns 7, 8, and 9 contain $` a,c,b`$, respectively. `RadianceTerms()` returns the matrix-order tuple $` (a,b,c)`$. This keeps the ray width unchanged. The methods named `Radiance()` and `PolarizedRadiance()` both return $` I`$. Strictly, this is a Monte Carlo ray power weight, not radiance per unit projected area and solid angle; refraction changes the ray bundle geometry. Consequently, power conservation is used at an interface, without introducing an additional $` n ^ 2`$ radiance factor into the ray weight.
 
 A physical matrix is positive semidefinite:
 
-$$
+```math
 a\geq0,\qquad c\geq0,\qquad ac-b ^ 2\geq0.
-$$
+```
 
 Zero eigenvalues are allowed. They occur for fully linearly polarized light, including the surviving component of a Brewster reflection. A zero matrix describes a ray with zero power. Neither state requires division by an eigenvalue or a special minimum intensity.
 
-An unpolarized source of power $ I _ 0$ starts with
+An unpolarized source of power $` I _ 0`$ starts with
 
-$$
+```math
 C _ 0=\frac{I _ 0}{2}\begin{bmatrix}1&0 \\ 0&1\end{bmatrix}.
-$$
+```
 
-For a linear analyzer pointing along the transverse unit vector $ \mathbf{u}=(\cos\alpha,\sin\alpha) ^ T$, the measured power is
+For a linear analyzer pointing along the transverse unit vector $` \mathbf{u}=(\cos\alpha,\sin\alpha) ^ T`$, the measured power is
 
-$$
+```math
 I _ \alpha=\mathbf{u} ^ T C\mathbf{u}
 =a\cos ^ 2\alpha+2b\sin\alpha\cos\alpha+c\sin ^ 2\alpha
 =\frac12\left(I+Q\cos2\alpha+U\sin2\alpha\right).
-$$
+```
 
-This gives Malus' law for a fully linearly polarized input. Two orthogonal analyzers always satisfy $ I _ \alpha+I _ {\alpha+\pi/2}=I$. A detector without a polarization analyzer therefore only needs the sum $ a+c$, regardless of the reference frame. Incoherent contributions expressed in the same frame add as matrices; an ordinary detector may sum their traces directly even when the rays arrive from different directions.
+This gives Malus' law for a fully linearly polarized input. Two orthogonal analyzers always satisfy $` I _ \alpha+I _ {\alpha+\pi/2}=I`$. A detector without a polarization analyzer therefore only needs the sum $` a+c`$, regardless of the reference frame. Incoherent contributions expressed in the same frame add as matrices; an ordinary detector may sum their traces directly even when the rays arrive from different directions.
 
-> Figure placeholder: show unpolarized, partially linearly polarized, and fully linearly polarized states, together with their analyzer response $ I _ \alpha$. Distinguish this response from the radial extent of a geometric ellipse.
+> Figure placeholder: show unpolarized, partially linearly polarized, and fully linearly polarized states, together with their analyzer response $` I _ \alpha`$. Distinguish this response from the radial extent of a geometric ellipse.
 
 ## Transverse frames and the incidence plane
 
-The coefficients need a reference frame, but storing two additional 3D vectors per ray is unnecessary. The implementation deterministically selects the Cartesian axis $ \mathbf{h}$ least aligned with $ \mathbf{k}$, breaking ties in x, y, z order, and constructs
+The coefficients need a reference frame, but storing two additional 3D vectors per ray is unnecessary. The implementation deterministically selects the Cartesian axis $` \mathbf{h}`$ least aligned with $` \mathbf{k}`$, breaking ties in x, y, z order, and constructs
 
-$$
+```math
 \mathbf{e} _ x=\frac{\mathbf{h}-(\mathbf{h}\cdot\mathbf{k})\mathbf{k}}
 {\|\mathbf{h}-(\mathbf{h}\cdot\mathbf{k})\mathbf{k}\|},\qquad
 \mathbf{e} _ y=\mathbf{k}\times\mathbf{e} _ x.
-$$
+```
 
 This canonical frame can be reconstructed from the ray direction at any time. Its axis choice can change as the direction changes; the coherency coefficients must be transformed with it. Merely dropping a 3D vector's z component does not produce transverse polarization coordinates.
 
-At a specular interface, let $ \mathbf{n}$ be the unit normal facing the incident medium. The local axes are
+At a specular interface, let $` \mathbf{n}`$ be the unit normal facing the incident medium. The local axes are
 
-$$
+```math
 \mathbf{s}=\frac{\mathbf{k} _ i\times\mathbf{n}}
 {\|\mathbf{k} _ i\times\mathbf{n}\|},\qquad
 \mathbf{p} _ i=\mathbf{k} _ i\times\mathbf{s},\qquad
 \mathbf{p} _ o=\mathbf{k} _ o\times\mathbf{s}.
-$$
+```
 
-The incoming and outgoing p axes differ because each must be transverse to its own ray. At normal incidence the incidence plane is undefined. The implementation chooses the incident canonical x axis for s when $ \|\mathbf{k} _ i\times\mathbf{n}\|\leq10 ^ {-12}$; the isotropic interface has no preferred transverse direction in the exact normal-incidence limit.
+The incoming and outgoing p axes differ because each must be transverse to its own ray. At normal incidence the incidence plane is undefined. The implementation chooses the incident canonical x axis for s when $` \|\mathbf{k} _ i\times\mathbf{n}\|\leq10 ^ {-12}`$; the isotropic interface has no preferred transverse direction in the exact normal-incidence limit.
 
-Define the $ 3\times2$ matrices $ B _ i=[\mathbf{e} _ {xi},\mathbf{e} _ {yi}]$, $ B _ o=[\mathbf{e} _ {xo},\mathbf{e} _ {yo}]$, $ S _ i=[\mathbf{s},\mathbf{p} _ i]$, and $ S _ o=[\mathbf{s},\mathbf{p} _ o]$. For local amplitude multipliers $ f _ s,f _ p$, the complete map between the canonical frames is
+Define the $` 3\times2`$ matrices $` B _ i=[\mathbf{e} _ {xi},\mathbf{e} _ {yi}]`$, $` B _ o=[\mathbf{e} _ {xo},\mathbf{e} _ {yo}]`$, $` S _ i=[\mathbf{s},\mathbf{p} _ i]`$, and $` S _ o=[\mathbf{s},\mathbf{p} _ o]`$. For local amplitude multipliers $` f _ s,f _ p`$, the complete map between the canonical frames is
 
-$$
+```math
 J=B _ o ^ T S _ o
 \begin{bmatrix}f _ s&0 \\ 0&f _ p\end{bmatrix}
 S _ i ^ T B _ i,\qquad C _ o=J C _ i J ^ T.
-$$
+```
 
 Thus each interaction consists of a change into the incident s/p coordinates, the optical action, and a change into the outgoing canonical coordinates. This retains the off-diagonal correlation even when successive incidence planes are not aligned.
 
@@ -220,57 +221,57 @@ Thus each interaction consists of a change into the incident s/p coordinates, th
 
 ## Fresnel power splitting
 
-For positive real refractive indices $ n _ i,n _ t$, write $ c _ i=|\mathbf{k} _ i\cdot\mathbf{n}|$ and
+For positive real refractive indices $` n _ i,n _ t`$, write $` c _ i=|\mathbf{k} _ i\cdot\mathbf{n}|`$ and
 
-$$
+```math
 \Delta=1-\left(\frac{n _ i}{n _ t}\right) ^ 2(1-c _ i ^ 2),\qquad
 c _ t=\sqrt{\Delta}.
-$$
+```
 
-For $ \Delta\geq0$, the signed reflection amplitudes in the preceding s/p convention are
+For $` \Delta\geq0`$, the signed reflection amplitudes in the preceding s/p convention are
 
-$$
+```math
 r _ s=\frac{n _ i c _ i-n _ t c _ t}{n _ i c _ i+n _ t c _ t},\qquad
 r _ p=\frac{n _ t c _ i-n _ i c _ t}{n _ t c _ i+n _ i c _ t}.
-$$
+```
 
-The power reflectances are $ R _ s=r _ s ^ 2$ and $ R _ p=r _ p ^ 2$. The sign of $ r _ p$ differs from some Fresnel conventions because those choose the outgoing p axis differently. Power reflectance alone hides this distinction, but transporting $ C _ {sp}$ requires the signed product $ r _ s r _ p$ and a consistent basis.
+The power reflectances are $` R _ s=r _ s ^ 2`$ and $` R _ p=r _ p ^ 2`$. The sign of $` r _ p`$ differs from some Fresnel conventions because those choose the outgoing p axis differently. Power reflectance alone hides this distinction, but transporting $` C _ {sp}`$ requires the signed product $` r _ s r _ p`$ and a consistent basis.
 
-For a lossless interface, the power transmittances are $ T _ s=1-R _ s$ and $ T _ p=1-R _ p$. The tracer uses power-normalized transmission amplitudes
+For a lossless interface, the power transmittances are $` T _ s=1-R _ s`$ and $` T _ p=1-R _ p`$. The tracer uses power-normalized transmission amplitudes
 
-$$
+```math
 \tau _ s=\sqrt{T _ s},\qquad \tau _ p=\sqrt{T _ p}.
-$$
+```
 
-These include the flux normalization that would otherwise accompany the field transmission coefficients: $ T=(n _ t c _ t)/(n _ i c _ i)\,|t| ^ 2$ away from the grazing limit. In local s/p coordinates, if $ C _ i=\left[\begin{smallmatrix}a&b \\ b&c\end{smallmatrix}\right]$, then
+These include the flux normalization that would otherwise accompany the field transmission coefficients: $` T=(n _ t c _ t)/(n _ i c _ i)\,|t| ^ 2`$ away from the grazing limit. In local s/p coordinates, if $` C _ i=\left[\begin{smallmatrix}a&b \\ b&c\end{smallmatrix}\right]`$, then
 
-$$
+```math
 C _ r=\begin{bmatrix}R _ s a&r _ s r _ p b \\ r _ s r _ p b&R _ p c\end{bmatrix},\qquad
 C _ t=\begin{bmatrix}T _ s a&\tau _ s\tau _ p b \\ \tau _ s\tau _ p b&T _ p c\end{bmatrix}.
-$$
+```
 
 Both branches are calculated from the original incident state. Transmission is not obtained by subtracting the reflected matrix: the branches have different propagation frames and their cross-correlations do not obey that subtraction rule. Their powers do obey
 
-$$
+```math
 I _ r+I _ t=(R _ s+T _ s)a+(R _ p+T _ p)c=a+c=I _ i.
-$$
+```
 
-For example, an unpolarized unit-power ray at normal incidence from air into index 1.5 produces reflected power 0.04 and transmitted power 0.96. At Brewster's angle, $ r _ p=0$ and a purely p-polarized incident ray has zero reflected power. For equal refractive indices the interface is transparent, including the limiting grazing case.
+For example, an unpolarized unit-power ray at normal incidence from air into index 1.5 produces reflected power 0.04 and transmitted power 0.96. At Brewster's angle, $` r _ p=0`$ and a purely p-polarized incident ray has zero reflected power. For equal refractive indices the interface is transparent, including the limiting grazing case.
 
 Disabling stray-ray generation only suppresses the reflected output; it does not disable the transmitted Fresnel loss. The primary surface trace, its transmission-only variant, clear boundaries, and sensor/microlens refraction use the same coherency transport. The standalone MLA retains its transmission-only output contract: TIR rays have zero transmitted power and do not spawn a reflected branch there.
 
 ## Scope of the three-coefficient model
 
-The full coherency matrix is complex Hermitian and has four real degrees of freedom. Its imaginary off-diagonal component supplies the circular Stokes parameter $ V$. The three-coefficient model assumes that component is absent. Real Jones maps at ordinary lossless dielectric interfaces preserve this restriction, so arbitrary sequences of such interactions are represented without an ellipse approximation. Mutual incoherence between different rays by itself is not sufficient to justify dropping $ V$.
+The full coherency matrix is complex Hermitian and has four real degrees of freedom. Its imaginary off-diagonal component supplies the circular Stokes parameter $` V`$. The three-coefficient model assumes that component is absent. Real Jones maps at ordinary lossless dielectric interfaces preserve this restriction, so arbitrary sequences of such interactions are represented without an ellipse approximation. Mutual incoherence between different rays by itself is not sufficient to justify dropping $` V`$.
 
-TIR occurs when $ \Delta<0$. Its exact reflection amplitudes have unit magnitude but generally different phases, which can convert linear polarization into elliptical polarization. The current real model explicitly approximates TIR by $ r _ s=r _ p=1$ and $ \tau _ s=\tau _ p=0$ in the local s/p frames. It preserves power and the local real coherency state, but omits retardance. It therefore does not reproduce general polarization evolution after TIR. The ideal mirror and the existing simplified metal boundary use $ r _ s=-1,r _ p=1$; they are not complex-index metal or thin-film coating models.
+TIR occurs when $` \Delta<0`$. Its exact reflection amplitudes have unit magnitude but generally different phases, which can convert linear polarization into elliptical polarization. The current real model explicitly approximates TIR by $` r _ s=r _ p=1`$ and $` \tau _ s=\tau _ p=0`$ in the local s/p frames. It preserves power and the local real coherency state, but omits retardance. It therefore does not reproduce general polarization evolution after TIR. The ideal mirror and the existing simplified metal boundary use $` r _ s=-1,r _ p=1`$; they are not complex-index metal or thin-film coating models.
 
-Prescribed direction changes, such as haze and the diffuse part of a clear-boundary reflection, use minimal-rotation transport. For incoming and outgoing directions, set $ \mathbf{v}=\mathbf{k} _ i\times\mathbf{k} _ o$ and $ d=\mathbf{k} _ i\cdot\mathbf{k} _ o$. Away from exact reversal, a transverse vector is transported by
+Prescribed direction changes, such as haze and the diffuse part of a clear-boundary reflection, use minimal-rotation transport. For incoming and outgoing directions, set $` \mathbf{v}=\mathbf{k} _ i\times\mathbf{k} _ o`$ and $` d=\mathbf{k} _ i\cdot\mathbf{k} _ o`$. Away from exact reversal, a transverse vector is transported by
 
-$$
+```math
 R\mathbf{e}=\mathbf{e}+\mathbf{v}\times\mathbf{e}
 +\frac{\mathbf{v}\times(\mathbf{v}\times\mathbf{e})}{1+d}.
-$$
+```
 
 At reversal the chosen half-turn axis is the incident canonical x axis. The rotated transverse frame is then expressed in the outgoing canonical frame. This preserves power and the degree of linear polarization; it is a nondepolarizing approximation for the existing directional scattering models, not a polarized scattering law. A rigid scene transform instead rotates both the ray and its field axes by the actual scene rotation, including rotation about the ray itself.
 
@@ -278,110 +279,110 @@ Scalar attenuation multiplies all three coefficients by the same nonnegative fac
 
 ## Evaluation and storage
 
-No eigendecomposition is needed to propagate or measure power. If $ J=\left[\begin{smallmatrix}u&v \\ w&z\end{smallmatrix}\right]$, the three output coefficients are evaluated directly:
+No eigendecomposition is needed to propagate or measure power. If $` J=\left[\begin{smallmatrix}u&v \\ w&z\end{smallmatrix}\right]`$, the three output coefficients are evaluated directly:
 
-$$
+```math
 \begin{aligned}
 a'&=u ^ 2a+2uvb+v ^ 2c,
  \\ b'&=uwa+(uz+vw)b+vzc,
  \\ c'&=w ^ 2a+2wzb+z ^ 2c.
 \end{aligned}
-$$
+```
 
 Power readout is a single addition per ray. Zero-power and fully polarized states remain finite, and every real congruence transform preserves positive semidefiniteness. Numerical tolerances are used for geometric degeneracies and explicit diagnostics, rather than to inflate dark polarization components. The calling contract supplies aligned arrays, unit directions and normals, physical coherency states, and positive real refractive indices; the transport routines do not perform type or attribute discovery.
 
-The coefficient semantics have changed even though the core ray-array width has not. Saved light fields containing the old ellipse coefficients must be regenerated or explicitly converted; they must not be silently treated as coherency data. The CSV coefficient headings are now `Cxx,Cyy,Cxy`; the NPZ array layout is unchanged. For a positive-definite legacy ellipse matrix $ A$, the interpretation $ C=\tfrac12 A ^ {-1/2}$ preserves its former semiaxis-average power, but cannot recover polarization information already discarded by the old propagation method. Stop-emitted diagnostic rays now store their launch angle as the first AOV (column 12), leaving column 9 exclusively for the polarization cross-correlation.
+The coefficient semantics have changed even though the core ray-array width has not. Saved light fields containing the old ellipse coefficients must be regenerated or explicitly converted; they must not be silently treated as coherency data. The CSV coefficient headings are now `Cxx,Cyy,Cxy`; the NPZ array layout is unchanged. For a positive-definite legacy ellipse matrix $` A`$, the interpretation $` C=\tfrac12 A ^ {-1/2}`$ preserves its former semiaxis-average power, but cannot recover polarization information already discarded by the old propagation method. Stop-emitted diagnostic rays now store their launch angle as the first AOV (column 12), leaving column 9 exclusively for the polarization cross-correlation.
 
 # 2.2.3.1 Legacy method
 
 This section is for a legacy version of the polarization implementation that no longer applies. Its ellipse construction and TIR statements below are retained as historical descriptions, not as the physical model used by the current tracer.
 
-A ray traveling in a refractive medium reaching at another refractive medium is almost never fully refracted, rather, some reflection will likely to happen depending on the angle on incident. The amount of reflection is different along the two different directions. It might be fitting to model the change to be based on two primary directions, $ s$ and $ p$ (not the ETF).
+A ray traveling in a refractive medium reaching at another refractive medium is almost never fully refracted, rather, some reflection will likely to happen depending on the angle on incident. The amount of reflection is different along the two different directions. It might be fitting to model the change to be based on two primary directions, $` s`$ and $` p`$ (not the ETF).
 
-$ s$ stands for senkrecht, German for “perpendicular”, representing the wave direction perpendicular to the incident plane; $ p$ stands for parallel (also a German word), representing the wave direction parallel to the incident plane. The reflectance on the two direction is defined by the Fresnel equation:
+$` s`$ stands for senkrecht, German for “perpendicular”, representing the wave direction perpendicular to the incident plane; $` p`$ stands for parallel (also a German word), representing the wave direction parallel to the incident plane. The reflectance on the two direction is defined by the Fresnel equation:
 
-$$
+```math
 R _ s = \left| \frac{n _ 1 \cos \theta _ i - n _ 2 \cos \theta _ t}{ n _ 1 \cos \theta _ i + n _ 2 \cos \theta _ t }  \right| ^ 2
-$$
+```
 
-$$
+```math
 R _ p = \left| \frac{n _ 1 \cos \theta _ t - n _ 2 \cos \theta _ i}{ n _ 1 \cos \theta _ t + n _ 2 \cos \theta _ i }  \right| ^ 2
-$$
+```
 
-Where $ n _ 1$ and $ n _ 2$ are the index of refraction of the 2 mediums; $ \theta _ i$ and $ \theta _ t$ are the incident angle and refraction angle respectively. It must be pointed out that the incident angle and refraction angle are typically calculated using the dot product between the normal and incident/refraction, it must be ensured that the normal direction is flipped to face the same side as the incident/refraction. If not, the $ \cos \theta$ could become negative, causing $ R _ s$ and $ R _ p$ to go above 1, which breaks the conservation of energy.
+Where $` n _ 1`$ and $` n _ 2`$ are the index of refraction of the 2 mediums; $` \theta _ i`$ and $` \theta _ t`$ are the incident angle and refraction angle respectively. It must be pointed out that the incident angle and refraction angle are typically calculated using the dot product between the normal and incident/refraction, it must be ensured that the normal direction is flipped to face the same side as the incident/refraction. If not, the $` \cos \theta`$ could become negative, causing $` R _ s`$ and $` R _ p`$ to go above 1, which breaks the conservation of energy.
 
-While for one single lens surface, the $ s$ and $ p$ direction can be acquired easily, it is rather apparent that there does not exist a unified global $ s$ and $ p$ direction during the propagation of ray, their direction tend to change at every surface. Notice that for polarization rejection, their distribution follows the Malus' Law. Thus, ellipses may be used in representing the polarized radiance of rays.
+While for one single lens surface, the $` s`$ and $` p`$ direction can be acquired easily, it is rather apparent that there does not exist a unified global $` s`$ and $` p`$ direction during the propagation of ray, their direction tend to change at every surface. Notice that for polarization rejection, their distribution follows the Malus' Law. Thus, ellipses may be used in representing the polarized radiance of rays.
 
-The $ s$ and $ p$ polarization can be modelled based on polarization ellipse as:
+The $` s`$ and $` p`$ polarization can be modelled based on polarization ellipse as:
 
-$$
+```math
 \mathbf{x} ^ {T} A \mathbf{x} = 1
-$$
+```
 
-Matrix $ A$ is the ellipse’ quadratic form, i.e., a symmetric positive-definite matrix:
+Matrix $` A`$ is the ellipse’ quadratic form, i.e., a symmetric positive-definite matrix:
 
-$$
+```math
 A =  \begin{bmatrix}
  a & b
  \\ b & c
  \\ \end{bmatrix}
-$$
+```
 
-Then the area of the ellipse can be treated as the radiance of the ray. To obtain the area, first calculate the semi axes using the eigenvalues $ \lambda _ 1$ and $ \lambda _ 2$:
+Then the area of the ellipse can be treated as the radiance of the ray. To obtain the area, first calculate the semi axes using the eigenvalues $` \lambda _ 1`$ and $` \lambda _ 2`$:
 
-$$
+```math
 s _ x = \frac{1}{ \sqrt{\lambda _ 1} }, \ \ s _ y = \frac{1}{ \sqrt{\lambda _ 2} }
-$$
+```
 
-And the 2 eigenvector of matrix $ A$ corresponding to the direction of the semi-axis.
+And the 2 eigenvector of matrix $` A`$ corresponding to the direction of the semi-axis.
 
-With this representation of the polarized radiance ellipse, it is then possible to perform vector math on it. Let $ \mathbf{v}$ be the modifying vector of polarization, compute its direction angle:
+With this representation of the polarized radiance ellipse, it is then possible to perform vector math on it. Let $` \mathbf{v}`$ be the modifying vector of polarization, compute its direction angle:
 
-$$
+```math
 \theta = \arctan \left( \frac{v _ y}{ v _ x}  \right)
-$$
+```
 
-The rotation matrix to align $ \mathbf{v}$ with the x-axis is then:
+The rotation matrix to align $` \mathbf{v}`$ with the x-axis is then:
 
-$$
+```math
 R =  \begin{bmatrix}
  \cos \theta & -\sin \theta
  \\ \sin \theta & \cos \theta
  \\ \end{bmatrix}
-$$
+```
 
 Next is to scale the ellipse along the vector direction, the scale matrix is represented as:
 
-$$
+```math
 S = \begin{bmatrix}
  s & 0
  \\ 0 & 1
  \\ \end{bmatrix}
-$$
+```
 
 The new transformed matrix, i.e., the quadratic form of the polarized radiance ellipse, can be acquired by:
 
-$$
+```math
 A _ {new} = R S ^ {-1} R ^ {T} A R S ^ {-1} R ^ T
-$$
+```
 
-The focus is now on how to calculate the scale factor $ s$. Note that in this framework, the polarized radiance ellipse modification is directional and monotonically decreasing, because the ray will only lose radiance as they reflect off a surface, they will not magically gain radiance from the propagation (interference could do this, but the geometric representation of ray does not factor in interference). This means that $ s$ is always contracting, i.e., reduce the ellipse’s extent in direction $ \mathbf{v}$ by its magnitude. The original extent can be calculated by:
+The focus is now on how to calculate the scale factor $` s`$. Note that in this framework, the polarized radiance ellipse modification is directional and monotonically decreasing, because the ray will only lose radiance as they reflect off a surface, they will not magically gain radiance from the propagation (interference could do this, but the geometric representation of ray does not factor in interference). This means that $` s`$ is always contracting, i.e., reduce the ellipse’s extent in direction $` \mathbf{v}`$ by its magnitude. The original extent can be calculated by:
 
-$$
+```math
 L _ {ori} = \frac{m}{\sqrt{ \mathbf{v} ^ T A \mathbf{v} }}
-$$
+```
 
-Where $ m=\left\| \mathbf{v} \right\|$. So the new extent after subtraction will be:
+Where $` m=\left\| \mathbf{v} \right\|`$. So the new extent after subtraction will be:
 
-$$
+```math
 L _ {new} = L _ {ori} - m
-$$
+```
 
-$$
+```math
 s = \frac{L _ {new} }{ L _ {ori} }=1-\frac{1 }{L _ {ori}}
-$$
+```
 
-Note that despite heavily borrowing from wave optics concept, thanks to how the typical exposure time vastly exceeds the period of the wave, the fluctuation in time domain can be ignored. As such, the polarized ellipse here still represent the radiance, a radiometry measurement. This also means the scale cannot be negative. It should be ensured that $ L _ {new} \geq 0$, otherwise the radiance will be inverted and become invalid.
+Note that despite heavily borrowing from wave optics concept, thanks to how the typical exposure time vastly exceeds the period of the wave, the fluctuation in time domain can be ignored. As such, the polarized ellipse here still represent the radiance, a radiometry measurement. This also means the scale cannot be negative. It should be ensured that $` L _ {new} \geq 0`$, otherwise the radiance will be inverted and become invalid.
 
 <p align="center">
 	<img src="../resources/ReadmeImg/Doc2.2/PolarizationEllipseExample.png" width="480">
@@ -389,66 +390,66 @@ Note that despite heavily borrowing from wave optics concept, thanks to how the 
 
 The figure above shows effect of the ellipse modification effect. The original circle is in red, the green ellipse is the original after subtracting the green vector, and the blue ellipse is the green ellipse after subtracting the blue vector.
 
-In practice, the reflectance are calculated from the Fresnel equation mentioned at the beginning of the section; their directions are the $ s$ and $ p$ direction calculated using the normal $ \mathbf{N}$ and incident direction $ \mathbf{I}$, and their magnitude equal to the corresponding direction’s reflectance.
+In practice, the reflectance are calculated from the Fresnel equation mentioned at the beginning of the section; their directions are the $` s`$ and $` p`$ direction calculated using the normal $` \mathbf{N}`$ and incident direction $` \mathbf{I}`$, and their magnitude equal to the corresponding direction’s reflectance.
 
-$$
+```math
 \mathbf{v} _ s= \frac{ \mathbf{I} \times \mathbf{N} }{ \left\| \mathbf{I} \times \mathbf{N} \right\| } \cdot R _ s
-$$
+```
 
-$$
+```math
 \mathbf{v} _ p= \frac{ \mathbf{N} \times \mathbf{v} _ s }{ \left\| \mathbf{N} \times \mathbf{v} _ s \right\| } \cdot R _ p
-$$
+```
 
 The refracted rays first inherit the full radiance of the incident ray, these 2 calculated vectors will then be used to subtract from the refracted rays’ polarized radiance ellipse.
 
-At the same time, the subtracted amount also creates a reflected ray, whose polarized radiance ellipse is constructed from the $ \mathbf{v} _ s$ and $ \mathbf{v} _ p$ above.
+At the same time, the subtracted amount also creates a reflected ray, whose polarized radiance ellipse is constructed from the $` \mathbf{v} _ s`$ and $` \mathbf{v} _ p`$ above.
 
 To create an ellipse using the 2 vectors, first normalize the vectors to create an orthonormal basis:
 
-$$
+```math
 \mathbf{e} _ 1 = \frac{\mathbf{v} _ s}{\left\|\mathbf{v} _ s \right\|}, \quad \mathbf{e} _ 2 = \frac{\mathbf{v} _ p}{\left\|\mathbf{v} _ p \right\|}
-$$
+```
 
-Then construct a rotation matrix $ R$:
+Then construct a rotation matrix $` R`$:
 
-$$
+```math
 R=\left[ \mathbf{e} _ 1 \ \ \mathbf{e} _ 2  \right]
-$$
+```
 
-Define a diagonal matrix $ D$:
+Define a diagonal matrix $` D`$:
 
-$$
+```math
 D = \begin{bmatrix}
 \frac{1}{\left\| \mathbf{v} _ s \right\| ^ 2} & 0
  \\ 0 & \frac{1}{\left\| \mathbf{v} _ p \right\| ^ 2}
  \\ \end{bmatrix}
-$$
+```
 
 The reflected ray’s polarized radiance ellipse is then:
 
-$$
+```math
 A =  R D R ^ T
-$$
+```
 
-For rays that already propagated through several surfaces, their polarized radiance is no longer full. The reflectance calculated, however, is a ratio and not an amount. Subtracting the ratio directly from the polarized radiance ellipse may result in the radiance quickly going below zero after several surfaces. In fact, assuming a ray is propagated through lenses whose index of refraction is $ 1.5$ for its wavelength, each lens will take away $ 0.08$ unit of radiance, which means the radiance will become negative after the 13th lens.
+For rays that already propagated through several surfaces, their polarized radiance is no longer full. The reflectance calculated, however, is a ratio and not an amount. Subtracting the ratio directly from the polarized radiance ellipse may result in the radiance quickly going below zero after several surfaces. In fact, assuming a ray is propagated through lenses whose index of refraction is $` 1.5`$ for its wavelength, each lens will take away $` 0.08`$ unit of radiance, which means the radiance will become negative after the 13th lens.
 
 To solve this, the reflectance also have to time the leftover polarized radiance. This can be done by measuring the magnitude or height of the radiance ellipse at the vector direction:
 
-$$
+```math
 h= \frac{ \left\| \mathbf{v} \right\| }{ \sqrt{ \mathbf{v} ^ T A \mathbf{v} } }
-$$
+```
 
 Perform this with the local senkrecht and parallel direction on the incident ray’s polarized radiance ellipse will then yield the magnitude of the radiance on these directions respectively. Add the radiance into equation (2.2.9) gives the complete form of the local Fresnel reflectance:
 
-$$
+```math
 \mathbf{v} _ s= \frac{ \mathbf{I} \times \mathbf{N} }{ \left\| \mathbf{I} \times \mathbf{N} \right\| } \cdot R _ s \cdot h _ s
-$$
+```
 
-$$
+```math
 \mathbf{v} _ p= \frac{ \mathbf{N} \times \mathbf{v} _ s }{ \left\| \mathbf{N} \times \mathbf{v} _ s \right\| } \cdot R _ p \cdot h _ p
-$$
+```
 
-For refracted rays, their polarized radiance ellipse will be subtracted by $ \mathbf{v} _ s$ and $ \mathbf{v} _ s$. At the same time, a reflected ray will be created, whose polarized radiance ellipse is represented by the two reflectance.
+For refracted rays, their polarized radiance ellipse will be subtracted by $` \mathbf{v} _ s`$ and $` \mathbf{v} _ s`$. At the same time, a reflected ray will be created, whose polarized radiance ellipse is represented by the two reflectance.
 
 If a ray experiences TIR, although technically it would go through a phase change, radiance-wise the polarization direction and intensity will not change. As such, it will carry the same polarized radiance ellipse as the incident ray.
 
