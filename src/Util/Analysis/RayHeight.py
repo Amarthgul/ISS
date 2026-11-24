@@ -24,17 +24,13 @@ def _MarginalStartHeight(lens):
     """
     Return the positive object-side height for the lens's marginal ray.
     """
-    pupil = getattr(lens, "entrancePupil", None)
-
-    if pupil is not None:
-        # An alpha-masked pupil can have a non-circular edge, so use its actual
-        # highest available sample when one exists.
-        samples = getattr(pupil, "_pupilPointSamples", None)
-        if samples is not None and len(samples) > 0:
-            return _Scalar(bd.max(samples[:, Axis.Y.value]))
-
-        if getattr(pupil, "clearSemiDiameter", None) is not None:
+    pupil = lens.entrancePupil
+    if pupil.clearSemiDiameter is not None:
+        if pupil._alphaShape is None:
             return abs(_Scalar(pupil.clearSemiDiameter))
+        # Estimate the shaped edge from a repeatable grid, not the render pool.
+        samples = pupil.GetEvenSamplePoints(10240)
+        return _Scalar(bd.max(samples[:, Axis.Y.value]))
 
     if not lens.surfaces:
         return 0.0

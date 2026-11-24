@@ -73,8 +73,8 @@ class Distortion():
         realY = []
         distortion = []  # fractional (not %) by default
 
-        # Precompute pupil sample points once
-        pupil_pts = self.lens.entrancePupil.GetSamplePoints(targetSample)
+        # Use the same deterministic pupil grid for every field angle.
+        pupil_pts = self.lens.entrancePupil.GetEvenSamplePoints(targetSample)
 
         # Distance from object point (z=-objectT) to front principal plane (z=H)
         # Used to place object points at a given field angle for finite object distances.
@@ -156,6 +156,7 @@ class Distortion():
                 "maxFieldAngleY_deg": float(maxFieldAngleY),
                 "samplePoints": int(samplePoints),
                 "targetSamplePerField": int(targetSample),
+                "actualSamplePerField": int(pupil_pts.shape[0]),
                 "nominalWidth": float(self.imagerNominalWidth),
                 "nominalHeight": float(self.imagerNominalHeight),
                 "normalization": "r_max = nominal half-diagonal",

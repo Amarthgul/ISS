@@ -6,7 +6,7 @@ from Util.Globals import ZERO, RNG
 from Util.ColorWavelength import ColorTuplePLT, WavelengthToRGB
 from Util.Misc import Normalized, ArrayMagnitude, MovingAverageSmoothing, GaussianSmooth
 from Util.Backend import backend as bd 
-from Util.Sampling import RandomEllipticalDistribution, PoissonDiskDistribution, CircularDistribution
+from Util.Sampling import RandomEllipticalDistribution, PoissonDiskDistribution, PolarDistribution
 from Util.PltPlot import DrawDisk, DrawPupil, DrawPoints
 
 
@@ -236,15 +236,29 @@ class Pupil(VirtualSurface):
         return samples[inside(1.0) & inside(maxHeight) & ~inside(minHeight)]
 
 
-    def GetEvenSamplePoints(self):
+    def GetEvenSamplePoints(self, sampleCount=1024):
         """
-        This creates a set of evenly distributed points at the pupil plane.  
-        """
-        pupilZdepth = bd.mean(self._workingDepth)
+        Generate a deterministic polar grid at the mean working pupil depth.
 
-        return CircularDistribution(
-            radius=self.clearSemiDiameter, 
-            zDepth=pupilZdepth)
+        sampleCount is a positive target count rounded up to complete rings;
+        aperture masking can reduce the returned count. Includes the center
+        and edge for an unmasked pupil. Does not read or update the random
+        sample pool, RNG, or pupil size.
+        """
+        samples = PolarDistribution(self.clearSemiDiameter, sampleCount,
+                                    bd.mean(self._workingDepth))
+        if self._alphaShape is None:
+            return samples
+
+        gray = bd.asarray(self._alphaShape, dtype=float)
+        if gray.ndim == 3:
+            gray = gray[..., :3].mean(axis=-1)
+        height, width = gray.shape
+        u = samples[:, 0] / self.clearSemiDiameter * (width / 2) + (width - 1) / 2
+        v = -samples[:, 1] / self.clearSemiDiameter * (height / 2) + (height - 1) / 2
+        ui = bd.clip(bd.round(u).astype(int), 0, width - 1)
+        vi = bd.clip(bd.round(v).astype(int), 0, height - 1)
+        return samples[gray[vi, ui] > 0.5 * gray.max()]
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):

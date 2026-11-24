@@ -411,7 +411,7 @@ class Lens:
             return self.totalAxialLength + .1
 
 
-        focusRB = EmitField(0, 0, distance, self.entrancePupil.GetSamplePoints())
+        focusRB = EmitField(0, 0, distance, self.entrancePupil.GetEvenSamplePoints())
 
         focusRP = RayPath()
 

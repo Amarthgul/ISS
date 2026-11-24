@@ -305,7 +305,7 @@ def EFL():
     # lens = ZeissHologon15mmf8()
     from Util.Analysis.SurfaceData import displayConfigAberrations, displayConfigSeidelC
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/Rollei50f1.8.zmx")).GetLens()
+    lens = LensFromZmx(RectPath(r"resources/Zmx/ZeissUltron50f1.8E3.zmx")).GetLens()
 
     print(lens.GetInfo())
 
@@ -319,7 +319,7 @@ def EFL():
     # print(result.wavefront.ForOrder(5).AsDict())
 
     lens.PlotSurfaceData(
-        DisplayConfig=displayConfigAberrations,
+        # DisplayConfig=displayConfigAberrations,
         SeidelReferenceField=23.0,
         PlotTrackLength=79,
         DataTrackHeight=0.9
@@ -452,4 +452,4 @@ def main():
 
 
 if __name__ == "__main__":
-    MaterialLookUpTest()
+    EFL()

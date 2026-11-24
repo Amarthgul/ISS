@@ -1,5 +1,7 @@
 
 
+import math
+
 from scipy.stats import qmc
 from scipy.stats.qmc import PoissonDisk
 
@@ -51,6 +53,28 @@ def CircularDistribution(radius = 1, layer = 4,    densityScale = 0.05,    power
         points = bd.hstack((points, layerPoints))
         
     return (points * radius * shrink).T
+
+
+def PolarDistribution(radius=1, samplePoints=1024, zDepth=0):
+    """Return deterministic (N, 3) samples on concentric polar rings.
+
+    samplePoints is a positive target count, rounded up to complete rings.
+    Ring k has 8*k points, giving approximately uniform area density and
+    eightfold symmetry. Include the center and outer edge. The actual count
+    is 1 + 4*layers*(layers + 1). Only x and y are scaled by radius.
+    """
+    layers = math.ceil((math.sqrt(samplePoints) - 1) / 2)
+    points = bd.zeros((1 + 4 * layers * (layers + 1), 3))
+    points[:, 2] = zDepth
+    start = 1
+    for ring in range(1, layers + 1):
+        count = 8 * ring
+        angles = bd.arange(count) * (2 * bd.pi / count)
+        ringRadius = radius * ring / layers
+        points[start:start + count, 0] = ringRadius * bd.cos(angles)
+        points[start:start + count, 1] = ringRadius * bd.sin(angles)
+        start += count
+    return points
 
 
 def RandomEllipticalDistribution(major_axis=1, minor_axis=1, samplePoints=500, zDepth = 0, shrink=1, groupByPoint=False):
