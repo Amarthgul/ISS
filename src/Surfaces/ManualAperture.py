@@ -12,6 +12,7 @@ from Raytracing.RayBatch import RayBatch
 class ManualAperture(Surface):
     def __init__(self, r=INFINITY, t=-20, sd=INFINITY, m=DEFAULT_MAT_NAME):
         super().__init__(r, t, sd, m)
+        self.stopOnly = True
 
         self.isCircular = True
 
@@ -66,12 +67,7 @@ class ManualAperture(Surface):
             intersections_all = position + t[:, bd.newaxis] * direction
             forward_mask = sphere_hit & ~((t1 < ZERO) & (t2 < ZERO))
 
-        if self.isCircular:
-            aperture_mask = self.CircularAperture(intersections_all)
-        else:
-            aperture_mask = self.RectangularAperture(intersections_all)
-
-        valid = forward_mask & aperture_mask
+        valid = forward_mask & self._ApertureMask(intersections_all)
         boolVig = ~valid
 
         if not bd.any(valid):
@@ -126,14 +122,30 @@ class ManualAperture(Surface):
                  (bd.abs(intersections[:, Axis.Y.value]) < halfH)
 
         if self.minAperture is not None:
-            result &= ~self._ApertureMask(intersections)
+            result &= ~super()._ApertureMask(intersections)
 
         return result
 
 
     def CircularAperture(self, intersections):
 
-        return self._ApertureMask(intersections)
+        return super()._ApertureMask(intersections)
+
+
+    def _ApertureMask(self, intersections):
+        if self.isCircular:
+            return self.CircularAperture(intersections)
+        return self.RectangularAperture(intersections)
+
+
+    def SampleParaxialAperture(self, sampleCount):
+        if self.isCircular:
+            return super().SampleParaxialAperture(sampleCount)
+        points = bd.empty((sampleCount, 3))
+        points[:, :2] = (bd.random.random((sampleCount, 2)) - 0.5) * bd.array(
+            [self.gateWidth, self.gateHeight])
+        points[:, 2] = self.frontVertex[2]
+        return points
 
 
 

@@ -43,13 +43,7 @@ class LensFLE(Lens):
                               5: [typeFLE.Compensate, 2, 43.697]}
 
 
-    def BestFocusBFD(self, distance):
-
-        # Updates the surface thicknesses according to the (object) distance and surface settings
-
-        # Call UpdateLens afterward
-
-        # Then use the same parent method way to calculate best focus BFD
+    def _SetFocusSpacing(self, distance):
         resolvedThicknesses = {}
 
         for surfaceIndex in set(self.keyedSurfaceD.keys()) | set(self.keyedRelation.keys()):
@@ -60,7 +54,15 @@ class LensFLE(Lens):
 
         self.UpdateLens()
 
+
+    def BestFocusBFD(self, distance):
+        self._SetFocusSpacing(distance)
         return super().BestFocusBFD(distance)
+
+
+    def ParaxialBFD(self, distance):
+        self._SetFocusSpacing(distance)
+        return super().ParaxialBFD(distance)
 
 
     def _ResolvedFLEThickness(self, surfaceIndex, distance, resolvedThicknesses, resolving):

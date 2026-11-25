@@ -10,6 +10,7 @@ from Util.SpatialEllipse import SpatialCircle
 from Util.Sampling import RandomEllipticalDistribution
 from Util.DiaphragmSVG import SingleEndPinnedDiaphragm
 from Util.Analysis.PAEFL import LensPartitionFL
+from Util.Analysis.Paraxial import GaussianImageDistance, SurfaceMatrix, SystemMatrix
 from Util.Analysis.SurfaceData import PlotSurfaceData
 from Util.Analysis.Seidel import ComputeSeidel, ComputeSeidelCoefficients
 from Util.Analysis.HigherOrder import ComputeHigherOrder
@@ -399,12 +400,54 @@ class Lens:
         return rayBatch, self.rayPath, reflectedRB
 
 
+    def ParaxialWavelength(self):
+        """Reference wavelength in nm for ideal imaging power and focus."""
+        return LambdaLines["e"]
+
+
+    def ParaxialBFD(self, distance):
+        """Gaussian back focus in mm for an object distance in mm from the first vertex."""
+        wavelength = self.ParaxialWavelength()
+        matrix = SystemMatrix(self.surfaces, wavelength, self.env.RI(wavelength))
+        return GaussianImageDistance(matrix, distance)
+
+
+    def ParaxialSurfaceMatrices(self):
+        """Prepare refractions for the current centered, rotationally symmetric prescription."""
+        wavelength = self.ParaxialWavelength()
+        previousRI = self.env.RI(wavelength)
+        matrices = []
+        for surface in self.surfaces:
+            matrix, previousRI = SurfaceMatrix(surface, previousRI, wavelength)
+            matrices.append(matrix)
+        return matrices
+
+
+    def PropagateParaxial(self, rayBatch, matrices=None):
+        """Return transmitted primary rays at the last vertex of a centered refractive lens.
+
+        Input rays travel toward +Z from object space. Matrices can be reused for
+        successive batches at the same prescription and reference wavelength.
+        Wavelength, channel and auxiliary columns travel with each surviving ray.
+        """
+        if rayBatch.IsNoneType():
+            return rayBatch
+        if matrices is None:
+            matrices = self.ParaxialSurfaceMatrices()
+        for surface, matrix in zip(self.surfaces, matrices):
+            rayBatch = surface.TraceParaxial(rayBatch, matrix)
+            if rayBatch.IsNoneType():
+                return rayBatch
+        rayBatch.SetIndex(len(self.surfaces) - 1)
+        return rayBatch
+
+
     def BestFocusBFD(self, distance):
         """
         Calculate the best back focal distance given an object distance.
         Please note that this is achieved by finding the smallest RMS spot position in the exit rays without considering the density/radiance distribution. So quite often for wide open lenses, the smallest RMS might actually be slightly out of focus.
 
-        :param distance: distance of the source in meters.
+        :param distance: distance of the source in millimeters.
         """
         
         if(self.isAfocal):

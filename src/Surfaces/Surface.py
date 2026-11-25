@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from Util.Backend import backend as bd 
 from Util.Backend import constant
-from Util.Sampling import CircularDistribution
+from Util.Sampling import CircularDistribution, RandomEllipticalDistribution
 from Util.Misc import Magnitude, ArrayMagnitude, Normalized, ArrayNormalized, PointsInTriangle
 from Util.Globals import ORIGIN, OBJ_FACING, ZERO, ONE, TWO, INFINITY, Axis, SURFACE_COLOR, BOUNDARY_COLOR, MIRROR
 from Util.PltPlot import DrawSpherical, DrawSphericalRectangular, DrawPoints, DrawDirection, DrawNormal, DrawRaybatch, SetUnifScale, RemoveBG, AddXYZ, DrawEllipse, DrawClearBoundary, DrawSphericalInner
@@ -269,6 +269,35 @@ class Surface:
         """Return vertex curvature and r^4 sag coefficient in mm units."""
         curvature = 1.0 / float(self.radius)
         return curvature, curvature**3 / 8.0
+
+
+    def SampleParaxialAperture(self, sampleCount):
+        """Sample the finite front aperture at the vertex plane for ideal rendering."""
+        return RandomEllipticalDistribution(self.clearSemiDiameter, self.clearSemiDiameter,
+                                            sampleCount, self.frontVertex[2], groupByPoint=True)
+
+
+    def TraceParaxial(self, rayBatch, matrix):
+        """Clip forward rays at this centered vertex plane and apply its refraction matrix."""
+        position = rayBatch.Position()
+        direction = rayBatch.Direction()
+        forward = direction[:, 2] > 0
+        slope = direction[:, :2] / bd.where(forward, direction[:, 2], 1.0)[:, None]
+        vertexZ = self.frontVertex[2]
+        distance = vertexZ - position[:, 2]
+        position[:, :2] += distance[:, None] * slope
+        position[:, 2] = vertexZ
+        clear = forward & (distance >= 0) & self._ApertureMask(position)
+        outgoing = RayBatch(rayBatch.value[clear])
+        position = position[clear]
+        outgoing.SetPosition(position)
+        c, d = matrix[1]
+        if c != 0.0 or d != 1.0:
+            direction = direction[clear]
+            direction[:, :2] = c * position[:, :2] + d * slope[clear]
+            direction[:, 2] = 1.0
+            outgoing.SetDirection(ArrayNormalized(direction))
+        return outgoing
 
 
     def DrawSurface(self, DrawBoundary=True):

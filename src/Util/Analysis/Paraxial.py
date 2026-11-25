@@ -53,6 +53,15 @@ def SystemMatrix(surfaces, wavelength=LambdaLines["d"], initialRI=1.0):
     return matrix
 
 
+def GaussianImageDistance(matrix, objectDistance):
+    """Distance in mm from the last vertex to the Gaussian image plane."""
+    vergence = 1.0 / float(objectDistance)
+    a, b = matrix[0]
+    c, d = matrix[1]
+    slope = c + d * vergence
+    return -(a + b * vergence) / slope if slope != 0.0 else math.inf
+
+
 @dataclass(frozen=True)
 class RayState:
     height: float
@@ -95,11 +104,7 @@ class ParaxialResult:
         """
         if objectDistance is None:
             objectDistance = self.objectDistance
-        vergence = 1.0 / float(objectDistance)
-        a, b = self.systemMatrix[0]
-        c, d = self.systemMatrix[1]
-        slope = c + d * vergence
-        return -(a + b * vergence) / slope if slope != 0.0 else math.inf
+        return GaussianImageDistance(self.systemMatrix, objectDistance)
 
     @property
     def objectImageZ(self):

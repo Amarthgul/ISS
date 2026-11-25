@@ -48,11 +48,6 @@ class ImagingSystem:
         self.pupilPerSample = 512
 
 
-    def RenderNamePattern(self, rex):
-
-        pass
-
-
     def Render(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
 
         self.imager.SetLensLength(self.lens.totalAxialLength)
@@ -184,6 +179,95 @@ class ImagingSystem:
                         self._transmissionLoss
                     )
                 )
+                break
+
+            recorder = time.time()
+
+
+    def RenderParaxial(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, flareGlare=False):
+        """Render the primary image with centered Gaussian optics.
+
+        The ideal path samples a finite front aperture, focuses at focusDistance
+        in mm (default self.focusDistance), and leaves any separate flare pass physical.
+        """
+        distance = self.focusDistance if focusDistance is None else focusDistance
+        self.imager.SetBFD(self.lens.ParaxialBFD(distance))
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        sampleTargets = self.lens.surfaces[0].SampleParaxialAperture
+        matrices = self.lens.ParaxialSurfaceMatrices()
+        self.imager.Update()
+
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
+
+        image = self.imager.AcquireEmpty()
+        fgImage = self.imager.AcquireEmpty()
+
+        sourceCoveragePerIteration = self._SourceCoveragePerIteration(
+            self.object,
+            self.sourcePerSample
+        )
+        flareCoveragePerIteration = None
+        if flareGlare:
+            flareCoveragePerIteration = self._SourceCoveragePerIteration(
+                self.object,
+                8,
+                highlightSources=True
+            )
+
+        iterationCount = 0
+        start = time.time()
+
+        if (realTimeUpdate):
+            plt.ion()  # Turn on interactive mode
+            fig, ax = plt.subplots()
+            im = ax.imshow(ImageConversion(image, flipH=True))
+
+        # Mein render Zyklus
+        while (True):
+            mainRB = self.object.EmitTowards(sampleTargets(self.pupilPerSample), self.sourcePerSample)
+            mainRB = self.lens.PropagateParaxial(mainRB, matrices)
+
+            image = self.imager.IntegralRays(mainRB, baseImg=image, polarized=False)
+
+            if flareGlare:
+                # While it is possible to enable refection on the previous pass, it would eat up all the computer memories (first GPU, then the shared) and reach the matrix size limit of the CUDA eigenvector calculation limit. Since only the outliers make major contributions to the flare and glare effects, here we flag the flareGlare in the EmitTowards and request only the highlights to emit rays. Then calculate them alone.
+                fgRB =  self.object.EmitTowards(self.lens.entrancePupil.GetSamplePoints(8), 8, flareGlare=True)
+                _RB, fgRP, fgRB = self.lens.Propagate(fgRB, reflection=True)
+                fgImage = self.imager.IntegralRays(fgRB, baseImg=fgImage, polarized=True)
+
+
+            if realTimeUpdate:
+                im.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
+
+
+            elapsed = time.time() - start
+            iterationCount += 1
+
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                self.imager.SaveImage(
+                    fileName,
+                    sourceImg=image,
+                    scalar=(
+                        self._transmissionLoss
+                        / (iterationCount * sourceCoveragePerIteration)
+                    )
+                )
+
+                if flareGlare:
+                    self.imager.SaveImage(
+                        fileName + "FlareGlare",
+                        sourceImg=fgImage,
+                        scalar=(
+                            self._transmissionLoss
+                            / (iterationCount * flareCoveragePerIteration)
+                        )
+                    )
+
                 break
 
             recorder = time.time()
