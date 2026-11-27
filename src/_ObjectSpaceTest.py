@@ -131,19 +131,20 @@ def ZonalRender():
     from Imagers.PDA import PDA
     from Imagers.Standard import StdImager
     Sonnar = LensFromZmx(
-        RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
+        RectPath(r"resources/Zmx/CanonNFD50f1.4.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
     Sonnar.AddSurfaceDefect(0.2)
 
     imager = StdImager(horiPx=6000)
     SonnarIS = ImagingSystem(Sonnar, imager)
     # SonnarIS.object = ExampleStackSpotGrid(36, gridRatio=0.9)
-    # SonnarIS.Render( focusDistance=1350, renderTime=4 * 60, fileName="SonnarNewGrid", realTimeUpdate=False)
+    SonnarIS.SpotGridParaxial( objectDistance=13500, focusDistance=1500, renderTime=4* 60, zonal=[0.8, 0.9], ratio=0.9, fileName="DoubleGaussPa0.9")
+    SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=8 * 60, zonal=[0.8, 0.9], ratio=0.9,fileName="DoubleGauss0.9")
 
     for i in range(10):
         lower = i / 10
         upper = (i + 1) / 10
-
-        SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=8 * 60, zonal=[lower, upper], ratio=0.9, fileName="SonnarZ"+str(lower))
+        # SonnarIS.SpotGridParaxial(objectDistance=13500, focusDistance=1500, renderTime=4 * 60, zonal=[lower, upper], ratio=0.9,fileName="SonnarZPara" + str(lower))
+        #SonnarIS.SpotGrid(objectDistance=13500, focusDistance=1500, renderTime=8 * 60, zonal=[lower, upper], ratio=0.9, fileName="SonnarZ"+str(lower))
 
 
 def ZonalAssembly():
@@ -295,46 +296,25 @@ def HeliosComparison():
     HeliosIS.Render(focusDistance=1350, renderTime=4 * 60 * 60, fileName="HeliosSceneGrid", realTimeUpdate=False, flareGlare=False)
 
 
-def MitsubaEXR():
+def DualSystemTest():
+    from DualSystem import DualSystem
     from ImagingSystem import ImagingSystem
-    from ObjectSpace.ImageStack import ImageStack, ExampleStack3D
-    from Util.Globals import RefreshRNG
+    from Imagers.PDA import PDA
+    from Imagers.Standard import StdImager
 
-    lens = LensFromZmx(RectPath(r"resources/Zmx/SonnarOptonContax50f1.5.zmx")).GetLens()
-    print(lens.GetInfo())
-    imager = StdImager(horiPx=1024, w=36, h=36)
-    IS = ImagingSystem(lens, imager)
+    DG = LensFromZmx(RectPath(r"resources/Zmx/CanonNFD50f1.4.zmx")).GetLens()  # SonnarOptonContax50f1.5 CanonNFD50f1.4
+    DG.AddSurfaceDefect(0.2)
+    imager = StdImager(horiPx=3000, w=24, h=48)
 
-    FG = Image2DVariDepth()
-    FG.zUnitConversion = 1
-    FG.horizontalAoV = lens.GetAoV(halfAngle=False)[0]
-    FG.LoadFromEXR(r"resources/MitsubaCalib.exr")
-    IS.object = FG
-
-    print(FG.GetInfo())
-
-    RefreshRNG(435789)
-    IS.sourcePerSample = 20480
-    IS.pupilPerSample = 256
-    IS.Render(focusDistance=1200, renderTime=15 * 60, fileName="Mitsuba", flareGlare=False)
+    DGIS = ImagingSystem(DG, imager)
 
 
-def PureArtifactTest():
-    from Surfaces.SurfaceModulator import  Dust
-    from Surfaces.OnionRing import OnionRing
+    DS = DualSystem(systemOne=DGIS)
+    DS.pupilSampleCount = 512
+    DS.fieldAngles = [0, 22]
+    DS.RenderParaxial(fileName="DualSystemTest")
 
-    #OR = OnionRing()
-    #OR.semiDiameter = 22
-    #OR.frontVertex = bd.array([0, 0, 0])
-    #OR.Generate()
 
-    #OR.ShowNormalMap()
-
-    d = Dust(3, 1)
-    d.semiDiameter = 22
-    d.frontVertex = bd.array([0, 0, 0])
-    d.Generate()
-    d.ShowNormalMap(512)
 
 
 def FlareTest():
@@ -385,7 +365,7 @@ def main():
     # eliosComparison()
     # ZonalAssembly()
     # ZonalRender()
-    LensPolarization()
+    DualSystemTest()
     # PDAT()
 
 

@@ -408,12 +408,12 @@ def GenerateEmpty(size=16, wavelength=LambdaLines['D']):
 
     pos = bd.zeros(6)
     pos = bd.tile(pos, (size, 1))
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy
     temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
-    # 4th term in temp is the durface index 
+    # Surface index and color channel default to zero.
     
     return RayBatch(
         bd.concatenate([pos, bd.tile(temp, (size, 1))], axis=1)
@@ -427,13 +427,13 @@ def GenerateBeam(position, direction, size=16, wavelength=LambdaLines['D']):
     direction = Normalized(direction)
     pos = bd.concatenate([position, direction], axis=0)
     pos = bd.tile(pos, (size, 1))
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
 
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy
     temp[3] = INIT_ELLIPSE_TILT   # Real cross-correlation
-    # 4th term in temp is the durface index 
+    # Surface index and color channel default to zero.
     
     return RayBatch(
         bd.concatenate([pos, bd.tile(temp, (size, 1))], axis=1)
@@ -442,11 +442,11 @@ def GenerateBeam(position, direction, size=16, wavelength=LambdaLines['D']):
 
 def main():
     A = RayBatch(bd.array([
-        [0, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
-        [0, 0, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0]]))
+        [0, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0, 0],
+        [0, 0, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0, 0]]))
     B = RayBatch(bd.array([
-        [1, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0], 
-        [0, 1, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0]]))
+        [1, 0, 0, 0, 0, 1, 550, 1, 1, 0, 0, 0],
+        [0, 1, 0, .1, .1, .9, 550, 1.50 , 4.18, 1.27, 0, 0]]))
     
     #A.Merge(B)
     A.SetPolarization(

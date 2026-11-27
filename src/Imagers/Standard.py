@@ -115,9 +115,16 @@ class StdImager(Surface):
     def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
         """Intersect incoming rays with the imager and integrate the resulting hits."""
 
-        raybatch, _tir, _vig = self.IntersectRays(raybatch)
+        return self.IntegralHits(self.DetectorHits(raybatch), baseImg, overExpNoiseRemoval, polarized)
 
-        return self._integralRays(raybatch, baseImg=baseImg, overExpNoiseRemoval=overExpNoiseRemoval, polarized=polarized)
+
+    def DetectorHits(self, raybatch):
+        """Return the physical detector hits used for charge deposition."""
+        return self.IntersectRays(raybatch)[0]
+
+    def IntersectParaxial(self, raybatch):
+        """Intersect the ideal detector plane, using the IntersectRays return convention."""
+        return StdImager.IntersectRays(self, raybatch)
 
 
     def IntegralPolarization(self, raybatch, calculateDerived=True):
@@ -352,8 +359,11 @@ class StdImager(Surface):
         return ~(heightMask | widthMask)
 
 
-    def _integralRays(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+    def IntegralHits(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
+        """Integrate previously intersected hits without tracing the detector again."""
+        return self._integralRays(intersectRayBatch, baseImg, overExpNoiseRemoval, polarized)
 
+    def _integralRays(self, intersectRayBatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
         if COLOR_PDF:
             return self._integralRaysChannelBased(intersectRayBatch, baseImg, overExpNoiseRemoval,polarized)
 
@@ -549,11 +559,11 @@ class StdImager(Surface):
         """
         Return AOV columns for the selected rays, or None when no AOVs exist.
         """
-        aov_start = 12 if COLOR_PDF else 11
-        if raybatch.value.shape[1] <= aov_start:
+        aovs = raybatch.GetAoV()
+        if aovs.shape[1] == 0:
             return None
 
-        return raybatch.value[rayMask, aov_start:]
+        return aovs[rayMask]
 
 
     def _ResolveAOVSchemen(self, aovCount):

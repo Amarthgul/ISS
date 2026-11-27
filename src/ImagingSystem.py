@@ -457,6 +457,52 @@ class ImagingSystem:
             recorder = time.time()
 
 
+    def SpotGridParaxial(self, sample=9, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False, ratio=0.92, zonal=(0, 1)):
+        """Render a Gaussian spot grid using the same entrance-pupil zones as SpotGrid."""
+        from ObjectSpace.Points import PointsSource
+
+        focus = self.focusDistance if focusDistance is None else focusDistance
+        self.imager.SetBFD(self.lens.ParaxialBFD(focus))
+        self.imager.SetLensLength(self.lens.totalAxialLength)
+        self.imager.Update()
+        if fNumber is not None:
+            self.lens.SetAperture(fNumber)
+        matrices = self.lens.ParaxialSurfaceMatrices()
+
+        angles = self.lens.GetAoV()
+        grid = PointsSource()
+        grid.isCartesian = False
+        distance = self.objectDistance if objectDistance is None else objectDistance
+        grid.GenerateGridSpots(ratio * angles[0], ratio * angles[1],
+                               dist=distance, sampleField=sample)
+        sourceCount = 20480
+        coverage = self._SourceCoveragePerIteration(grid, sourceCount)
+        image = self.imager.AcquireEmpty()
+        iterationCount = 0
+        start = time.time()
+        if realTimeUpdate:
+            plt.ion()
+            _, ax = plt.subplots()
+            preview = ax.imshow(ImageConversion(image, flipH=True))
+
+        while True:
+            targets = self.lens.entrancePupil.GetSampleZonal(512, *zonal)
+            rays = self.lens.PropagateParaxial(grid.EmitTowards(targets, sourceCount), matrices)
+            image = self.imager.IntegralRays(rays, baseImg=image, polarized=True)
+            if realTimeUpdate:
+                preview.set_data(ImageConversion(image, flipV=True, maxModifier=0.1))
+                plt.draw()
+                plt.pause(0.01)
+
+            elapsed = time.time() - start
+            iterationCount += 1
+            ProgressBar(self._TerminatePercent(renderTime, elapsed, iteration, iterationCount), 100)
+            if self._TerminateCondition(renderTime, elapsed, iteration, iterationCount):
+                self.imager.SaveImage(fileName, sourceImg=image,
+                                      scalar=1 / (iterationCount * coverage))
+                break
+
+
     def ISO12233(self, objectDistance=None, focusDistance=None, fNumber=None, renderTime=None, iteration=None, fileName=None, realTimeUpdate=False):
         from ObjectSpace.Image2DFlat import Image2DFlat
 

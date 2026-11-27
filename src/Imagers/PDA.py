@@ -160,14 +160,14 @@ class PDA(StdImager):
         self.surfaces[1].SetCumulative(rearUVIRPosition)
 
 
-    def IntegralRays(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
-
+    def DetectorHits(self, raybatch):
+        """Trace through the sensor stack to the accepted active-well intersections."""
         if self.selfResponsibleUVIR:
             raybatch = self._UVIRRefract(raybatch)
 
         raybatch = self._ApplyMLAAndCFA(raybatch)
 
-        return self._PDAIntegral(raybatch, baseImg, overExpNoiseRemoval, polarized)
+        return self._ActiveWellHits(raybatch)
 
 
     def SaveImage(self, fileName, sourceImg=None, scalar=1, extraChannels=()):
@@ -336,8 +336,7 @@ class PDA(StdImager):
         return raybatch
 
 
-    def _PDAIntegral(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
-        """Propagate rays to the active wells and integrate their charge."""
+    def _ActiveWellHits(self, raybatch):
         if raybatch is not None and not raybatch.IsNoneType():
             raybatch = self._IntersectPlane(raybatch, self._zPos)
 
@@ -357,6 +356,9 @@ class PDA(StdImager):
 
             raybatch.Mask(activeWell)
 
+        return raybatch
+
+    def IntegralHits(self, raybatch, baseImg=None, overExpNoiseRemoval=12, polarized=True):
         if raybatch is None or raybatch.value is None:
             image = self.AcquireEmpty() if baseImg is None else bd.asarray(baseImg)
         else:

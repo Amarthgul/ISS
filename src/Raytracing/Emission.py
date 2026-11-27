@@ -185,7 +185,7 @@ def InitRays(r, sd, posP, wavelength = 550):
     # For some reason vecs is often not registered with indexing assignment, hstack is thus used to force the composition of the raybatch. 
     mat1 = bd.tile(bd.array([posP[0], posP[1], posP[2]]), (vecs.shape[0], 1))
 
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy
@@ -301,7 +301,7 @@ def EmitFromObjectSpace(SD, numRays=21, wavelength = LambdaLines['d'], planar=Tr
 
     direction = bd.tile(bd.array([ZERO, ZERO, ONE]), (numRays, 1))
 
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy
@@ -348,7 +348,7 @@ def EmitField(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTargets=None, w
 
     direction = ArrayNormalized(direction)
 
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = ONE / 2    # Cxx
     temp[2] = ONE / 2    # Cyy
@@ -395,7 +395,7 @@ def EmitFieldMultispectral(fieldAngleX, fieldAngleY, distance=INFINITY, sampleTa
 
     direction = ArrayNormalized(direction)
 
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = LambdaLines['d']
     temp[1] = ONE / 2    # Cxx
     temp[2] = ONE / 2    # Cyy
@@ -467,7 +467,7 @@ def EmitFromPoint(emissionPoint, target1, target2, numRays=20, wavelength = Lamb
 
     
     emissionPoint = bd.tile(emissionPoint, (numRays, 1))
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy
@@ -489,7 +489,7 @@ def EmitFromPointFullFrontal(emissionPoint, numRays=20, wavelength = LambdaLines
     vectors = ArrayNormalized(vectors)
 
     emissionPoint = bd.tile(emissionPoint, (numRays, 1))
-    temp = bd.zeros(5)
+    temp = bd.zeros(6)
     temp[0] = wavelength
     temp[1] = NORMAL_RADIANT / 2    # Cxx
     temp[2] = NORMAL_RADIANT / 2    # Cyy

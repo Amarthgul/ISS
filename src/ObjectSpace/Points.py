@@ -308,8 +308,7 @@ class PointsSource:
         if source.value is not None and source.value.shape[1] > 6:
             aov_count = source.value.shape[1] - 6
 
-        base_columns = 12 if COLOR_PDF else 11
-        return RayBatch(bd.zeros((0, base_columns + aov_count)))
+        return RayBatch(bd.zeros((0, 12 + aov_count)))
 
 
     def _SamplesToTargetsEmission(self, sampleSource, targets, jitter=None, addSecondary=None, cosineFalloff=True):
@@ -486,8 +485,7 @@ class PointsSource:
 
         # If no rays survived (e.g., very low brightness everywhere)
         if len(appended_all_rays) == 0:
-            empty = bd.zeros((0, 11))
-            return RayBatch(empty)
+            return self._EmptyEmissionRayBatch(sampleSource)
 
         # Concatenate all wavelengths
         appended = bd.concatenate(appended_all_rays, axis=0)  # (#rays, 7)
@@ -499,11 +497,10 @@ class PointsSource:
         # ------------------------------------------------------------------
         # Polarization / meta columns
         # ------------------------------------------------------------------
-        temp = bd.ones(4)
+        temp = bd.zeros(5)  # Surface index and color channel default to zero.
         temp[0] = ONE / 2  # Cxx
         temp[1] = ONE / 2  # Cyy
         temp[2] = INIT_ELLIPSE_TILT  # Real cross-correlation
-        temp[3] = bd.zeros_like(temp[3])  # Surface index
 
         core = bd.concatenate([appended, bd.tile(temp, (appended.shape[0], 1))], axis=1)
 

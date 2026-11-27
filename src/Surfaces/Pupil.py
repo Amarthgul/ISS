@@ -245,20 +245,26 @@ class Pupil(VirtualSurface):
         and edge for an unmasked pupil. Does not read or update the random
         sample pool, RNG, or pupil size.
         """
-        samples = PolarDistribution(self.clearSemiDiameter, sampleCount,
-                                    bd.mean(self._workingDepth))
+        samples, keep = self.MapNormalizedSamples(PolarDistribution(1, sampleCount))
+        return samples[keep]
+
+    def MapNormalizedSamples(self, unitSamples):
+        """Map unit-disk XYZ samples to this working pupil and return their selector."""
+        samples = unitSamples.copy()
+        samples[:, :2] *= self.clearSemiDiameter
+        samples[:, 2] = bd.mean(self._workingDepth)
         if self._alphaShape is None:
-            return samples
+            return samples, slice(None)
 
         gray = bd.asarray(self._alphaShape, dtype=float)
         if gray.ndim == 3:
             gray = gray[..., :3].mean(axis=-1)
         height, width = gray.shape
-        u = samples[:, 0] / self.clearSemiDiameter * (width / 2) + (width - 1) / 2
-        v = -samples[:, 1] / self.clearSemiDiameter * (height / 2) + (height - 1) / 2
+        u = unitSamples[:, 0] * (width / 2) + (width - 1) / 2
+        v = -unitSamples[:, 1] * (height / 2) + (height - 1) / 2
         ui = bd.clip(bd.round(u).astype(int), 0, width - 1)
         vi = bd.clip(bd.round(v).astype(int), 0, height - 1)
-        return samples[gray[vi, ui] > 0.5 * gray.max()]
+        return samples, gray[vi, ui] > 0.5 * gray.max()
 
 
     def DrawSamplePoints(self, overrideColor=None, duplicateAxial=True, smoothPoints=True):

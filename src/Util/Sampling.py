@@ -55,12 +55,13 @@ def CircularDistribution(radius = 1, layer = 4,    densityScale = 0.05,    power
     return (points * radius * shrink).T
 
 
-def PolarDistribution(radius=1, samplePoints=1024, zDepth=0):
+def PolarDistribution(radius=1, samplePoints=1024, zDepth=0, radialExponent=1.0):
     """Return deterministic (N, 3) samples on concentric polar rings.
 
     samplePoints is a positive target count, rounded up to complete rings.
-    Ring k has 8*k points, giving approximately uniform area density and
-    eightfold symmetry. Include the center and outer edge. The actual count
+    Ring k has 8*k points at fractional radius (k/layers)**radialExponent.
+    An exponent of one gives approximately uniform area density. Exponents
+    between zero and one concentrate rings near the rim. The actual count
     is 1 + 4*layers*(layers + 1). Only x and y are scaled by radius.
     """
     layers = math.ceil((math.sqrt(samplePoints) - 1) / 2)
@@ -70,7 +71,7 @@ def PolarDistribution(radius=1, samplePoints=1024, zDepth=0):
     for ring in range(1, layers + 1):
         count = 8 * ring
         angles = bd.arange(count) * (2 * bd.pi / count)
-        ringRadius = radius * ring / layers
+        ringRadius = radius * (ring / layers)**radialExponent
         points[start:start + count, 0] = ringRadius * bd.cos(angles)
         points[start:start + count, 1] = ringRadius * bd.sin(angles)
         start += count

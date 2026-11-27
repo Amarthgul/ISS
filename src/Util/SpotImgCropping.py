@@ -34,7 +34,7 @@ from PIL import Image
 
 # Edit these defaults, or override them on the command line.
 IMAGE_FOLDER = Path(__file__).resolve().parents[2] / "resources" / "Results"
-IMAGE_PATTERN = r"SonnarZ\d+(?:\.\d+)?(?:p)?\.exr"
+IMAGE_PATTERN = r"SonnarZ.+\.exr"
 
 Direction = Literal["horizontal", "vertical", "diagonal"]
 Layout = Literal["horizontal", "vertical"]
